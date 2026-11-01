@@ -1,0 +1,1459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#060a10">
+  <meta name="description" content="STARFALL: a continuous, offline 3D spaceflight and planetary landing expedition.">
+  <title>STARFALL — Expedition / Free Flight</title>
+  <style>
+:root{color-scheme:dark;--base:#060a10;--ink:#e5e8e8;--muted:#9eabb5;--gold:#ecbb7a;--green:#98c9aa;--mono:Consolas,"SFMono-Regular","Courier New",monospace;--sans:"Segoe UI",Arial,sans-serif}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--base);color:var(--ink);font:13px var(--sans)}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:4px}button{border:0}#universe{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}.vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 47% 46%,transparent 32%,#01050c50 100%),linear-gradient(#01050b6d,transparent 22%,transparent 72%,#03080f91);z-index:1}.masthead{position:fixed;z-index:6;top:30px;left:38px;right:38px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}.masthead>*{pointer-events:auto}.wordmark{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink);font-size:18px;letter-spacing:4.5px;font-weight:650}.starlogo{font-size:25px;color:var(--gold)}.wordmark small{font:9px var(--mono);letter-spacing:1.9px;color:var(--muted);border-left:1px solid #ffffff30;margin-left:6px;padding-left:17px}.top-link{background:transparent;font:10px var(--mono);letter-spacing:1.3px;color:#bcc6cd;padding:12px}.top-link:hover{color:var(--gold)}.identity{position:fixed;z-index:3;left:40px;bottom:116px;max-width:45vw;pointer-events:none}.eyebrow{font:10px var(--mono);color:var(--gold);letter-spacing:2.8px;text-transform:uppercase}.identity h1{font-weight:300;font-size:clamp(34px,4.7vw,66px);line-height:1.08;letter-spacing:-2.3px;margin:19px 0 13px}.identity p{margin:0;color:#acb8c1;font:11px/1.6 var(--mono)}.controls-hint{position:fixed;z-index:4;bottom:19px;left:40px;font:9px/1.9 var(--mono);letter-spacing:.25px;color:#acb7bf;pointer-events:none}.controls-hint b{color:var(--gold);font-weight:500}.controls-hint span{color:#56616d;margin:0 5px}.controls-hint .context-hint{color:#708692}.panel{position:fixed;top:104px;right:36px;width:304px;max-height:calc(100dvh - 185px);z-index:6;overflow:auto;scrollbar-width:thin;scrollbar-color:#e9b77944 transparent;background:#08101acb;backdrop-filter:blur(18px);border:1px solid #ffffff27;padding:24px}.panel-title,.section-title,.balance{display:flex;align-items:center;justify-content:space-between;gap:12px}.panel-title h2{margin:0;color:var(--gold);font:10px var(--mono);letter-spacing:2px}.panel-title button{width:28px;height:28px;background:transparent;border:1px solid #ffffff2a;color:var(--muted);font:17px var(--mono)}.panel.collapsed #panel-body{display:none}.panel.collapsed{padding:15px 20px}.planet-meta{display:grid;grid-template-columns:1fr auto;gap:10px;margin:21px 0;font:10px var(--mono)}.planet-meta dt{color:var(--muted)}.planet-meta dd{margin:0;text-align:right;max-width:160px}.section{border-top:1px solid #ffffff25;padding-top:18px;margin-top:19px}.section-title{font:9px var(--mono);letter-spacing:1.5px;color:var(--muted);margin-bottom:14px}.section-title strong{font:9px var(--mono);letter-spacing:0;color:var(--ink)}.scan{display:flex;gap:11px;align-items:center;min-height:47px;padding:6px 0;background:transparent;text-align:left;width:100%;border-bottom:1px solid #ffffff0e}.scan:hover .scan-label{color:var(--gold)}.scan-number{font:9px var(--mono);color:var(--muted)}.scan-label{font-size:12px;flex:1}.scan-state{font:9px var(--mono);color:var(--gold)}.scan.done .scan-state{color:var(--green)}.scan:disabled{cursor:default}.scan-track{height:2px;margin-top:13px;background:#ffffff21}.scan-track div{height:100%;width:0%;background:var(--gold)}.panel-note{font:10px/1.75 var(--mono);color:var(--muted);margin:13px 0 3px}.site{width:100%;background:#ffffff04;border-left:2px solid #ffffff22;padding:10px 11px;text-align:left;margin:5px 0;display:block}.site:hover,.site.active{background:#ecbb7a0d;border-left-color:var(--gold)}.site-name{font-size:12px}.site-score{float:right;font:10px var(--mono);color:var(--green)}.site-coords{display:block;font:9px var(--mono);color:var(--muted);margin-top:6px}.flight-line{display:flex;justify-content:space-between;gap:8px;font:10px/1.9 var(--mono);color:var(--muted)}.flight-line strong{font-weight:400;color:#d9e1e4}.balance{font:9px var(--mono);color:var(--muted);padding-top:20px}.balance strong{font-weight:400;color:var(--ink)}.telemetry{position:fixed;z-index:4;left:50%;transform:translateX(-50%);bottom:24px;background:#071018af;backdrop-filter:blur(10px);border:1px solid #ffffff25;display:flex;align-items:center;padding:12px 16px;gap:24px;pointer-events:none;white-space:nowrap}.tele span{display:block;font:9px var(--mono);letter-spacing:1px;color:#8495a5}.tele b{display:block;margin-top:5px;font:12px var(--mono);color:#edf0ed;font-weight:400}.reticle{z-index:3;position:fixed;left:50%;top:50%;width:28px;height:28px;transform:translate(-50%,-50%);pointer-events:none;opacity:.77}.reticle:before,.reticle:after{content:"";position:absolute;border:1px solid #e9b7798c;border-radius:50%;inset:6px}.reticle:after{inset:12px;background:var(--gold)}.cross-a,.cross-b{position:absolute;background:#e9b77980}.cross-a{height:1px;left:0;right:0;top:50%}.cross-b{width:1px;top:0;bottom:0;left:50%}.status-strip{position:fixed;z-index:3;top:75px;left:42px;display:flex;gap:8px;align-items:center;color:#a7b9c3;font:9px var(--mono);letter-spacing:.7px}.status-led{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green)}#toast{position:fixed;top:94px;left:40px;max-width:min(410px,calc(100vw - 80px));z-index:8;background:#09111de8;border-left:2px solid var(--gold);padding:12px 16px;font:11px/1.6 var(--mono);opacity:0;transform:translateY(-6px);transition:.22s;pointer-events:none}#toast.show{opacity:1;transform:translateY(0)}.waypoint-label{position:fixed;z-index:3;left:50%;top:calc(50% + 36px);transform:translateX(-50%);font:10px var(--mono);color:#f0c68d;text-shadow:0 2px 4px #000;white-space:nowrap;pointer-events:none}.entry-flash{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 62%,#ff9f4820,transparent 70%),linear-gradient(#f7791622,transparent 40%,#ff9e4b39)}.landing-banner{position:fixed;z-index:8;left:50%;top:16%;width:min(480px,87vw);transform:translate(-50%,-12px);background:#09121bdd;backdrop-filter:blur(18px);border:1px solid #e9b7796b;padding:20px 25px;text-align:center;pointer-events:none;opacity:0;transition:opacity .5s,transform .5s}.landing-banner.show{opacity:1;transform:translate(-50%,0)}.landing-banner small{display:block;color:var(--gold);font:9px var(--mono);letter-spacing:2px}.landing-banner strong{display:block;font-size:28px;font-weight:300;margin:13px 0 8px}.landing-banner span{font:11px/1.6 var(--mono);color:var(--muted)}.modal-backdrop{position:fixed;inset:0;z-index:20;background:#02060dd9;backdrop-filter:blur(12px);display:grid;place-content:center;padding:20px}.modal-backdrop[hidden],.fatal[hidden]{display:none}.chart-panel{width:min(590px,93vw);max-height:min(730px,90dvh);overflow:auto;background:#0b141ef8;border:1px solid #ffffff2c;padding:32px}.chart-top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.chart-top h2{font-size:38px;font-weight:300;margin:9px 0 15px}.chart-top button{background:transparent;color:#bdc8d1;font-size:20px;padding:8px}.chart-panel p{font:12px/1.8 var(--mono);color:var(--muted)}.destination{display:block;width:100%;text-align:left;padding:15px 17px;border:1px solid #ffffff1f;background:#ffffff03;margin-top:10px}.destination:hover,.destination.active{border-color:#e9b77984;background:#e9b7790a}.dest-top{display:flex;justify-content:space-between;gap:10px}.destination b{font-size:16px;font-weight:400}.destination .distance{font:11px var(--mono);color:var(--gold)}.destination small{display:block;margin-top:7px;color:var(--muted);font:10px var(--mono)}.chart-bottom{border-top:1px solid #ffffff28;padding-top:18px;margin-top:20px;font:10px/1.8 var(--mono);color:var(--muted)}.chart-bottom span{color:var(--gold);margin-right:5px}.mobile-controls{display:none;z-index:9;position:fixed;bottom:90px;left:16px;right:16px;justify-content:space-between;pointer-events:none}.mobile-pad{pointer-events:auto;display:flex;flex-direction:column;align-items:center}.mobile-pad>div{display:flex;gap:5px}.mobile-pad button{touch-action:none;user-select:none;background:#09131bcc;border:1px solid #ffffff3e;border-radius:4px;min-width:43px;height:43px;margin:2px;color:var(--gold);font:10px var(--mono)}.mobile-pad button:active{background:#e9b77933}.boot{position:fixed;z-index:100;inset:0;display:grid;place-content:center;background:#060a10;text-align:center;transition:opacity .5s}.boot.ready{opacity:0;pointer-events:none}.boot-logo{font-size:23px;letter-spacing:6px}.boot-logo:first-letter{color:var(--gold)}.boot p{font:10px var(--mono);letter-spacing:1.5px;margin-top:22px;color:var(--muted)}.fatal{position:fixed;inset:0;z-index:110;background:#080d15;display:grid;place-content:center;padding:30px;text-align:center}.fatal p{max-width:450px;color:var(--muted);line-height:1.7}
+@media(max-width:900px){.panel{right:18px;width:275px}.identity{max-width:calc(100vw - 320px)}#fps-tele{display:none}.telemetry{gap:14px;padding:11px}.controls-hint{font-size:8px}.wordmark small{display:none}}@media(max-width:650px){.masthead{top:13px;left:18px;right:14px}.wordmark{font-size:15px;gap:6px;letter-spacing:3px}.starlogo{font-size:25px}.top-link{font-size:9px}.status-strip{top:61px;left:21px;font-size:8px}.identity{top:95px;bottom:auto;left:20px;max-width:calc(100vw - 40px)}.identity h1{font-size:31px;letter-spacing:-1px;margin:8px 0 5px}.identity p{font-size:10px}.identity .eyebrow{font-size:8px}.panel{top:auto;right:12px;left:12px;bottom:12px;width:auto;max-height:36dvh;padding:15px 18px}.panel.collapsed{top:auto;left:auto;bottom:14px;width:190px}.panel-title h2{font-size:9px}.panel .planet-meta{display:none}.section{margin-top:9px;padding-top:10px}.section-title{margin-bottom:7px}.scan{min-height:36px}.panel .flight-line{display:none}.balance{padding-top:11px}.controls-hint{bottom:calc(36dvh + 20px);left:17px;font-size:8px;max-width:78vw}.controls-hint>div:nth-child(2),.context-hint{display:none}.telemetry{bottom:calc(36dvh + 75px);left:50%;padding:9px 11px;gap:13px}.tele b{font-size:10px}.tele span{font-size:8px}.tele:nth-child(n){white-space:nowrap}.tele:nth-child(4){display:none}.reticle{top:40%}.waypoint-label{top:calc(40% + 37px)}#toast{left:18px;top:175px;max-width:calc(100vw - 36px)}.mobile-controls{display:flex;bottom:calc(36dvh + 110px)}.mobile-pad button{min-width:37px;height:37px}.landing-banner{top:27%}.chart-panel{padding:22px}}
+@media(pointer:coarse) and (min-width:651px){.mobile-controls{display:flex;bottom:95px}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important}}
+
+/* Procedural galaxy / full-width navigation hierarchy */
+.chart-search-row{display:flex;align-items:center;gap:12px;margin:14px 0 18px}.chart-search-row input{background:#111923;border:1px solid rgba(233,183,121,.25);color:#f1e9db;font:12px Consolas,monospace;padding:13px 12px;flex:1;min-width:0;outline:none}.chart-search-row input:focus{border-color:#e9b779}.chart-search-row span{color:#b7a996;font:9px Consolas,monospace;letter-spacing:.7px;white-space:nowrap}.star-system{border-bottom:1px solid #ffffff16;padding-bottom:5px}.star-system .system-head{border-left:2px solid #e9b77972;background:#11172091}.star-system .system-head b{letter-spacing:.4px;color:#e9b779}.system-children{margin:2px 0 12px 13px;padding-left:12px;border-left:1px solid #e9b77931}.system-children[hidden]{display:none}.system-children .destination{padding:11px 12px}.system-children .moon-dest{margin-left:14px;border-left:1px solid #9ba6b348;background:#10172072}.system-children .moon-dest b{font-size:11px;font-weight:400;color:#b4c1c9}.system-children .body-dest b{font-size:12px}.system-children small{line-height:1.55}#destinations{max-height:min(64vh,560px);overflow-y:auto;scrollbar-color:#b48b5944 transparent;scrollbar-width:thin}#chart .chart-panel{max-height:93dvh;overflow:auto}#chart .chart-panel #destinations{max-height:min(62vh,520px)}@media(max-width:650px){.chart-search-row{flex-wrap:wrap}.chart-search-row span{font-size:8px}.system-children{margin-left:5px;padding-left:6px}.system-children .moon-dest{margin-left:6px}}
+
+.new-galaxy{width:100%;margin:13px 0 6px;padding:12px;font:11px Consolas,monospace;letter-spacing:1.2px;color:#e9b779;background:#161c1e;border:1px solid #e9b7794b;cursor:pointer}.new-galaxy:hover{border-color:#e9b779;background:#27231d}
+
+/* Cosmic evolution HUD — understated until a hazard matters. */
+.solar-alert{position:fixed;z-index:7;top:88px;left:50%;transform:translateX(-50%);width:min(360px,calc(100vw - 32px));padding:14px 17px;background:rgba(42,13,12,.88);backdrop-filter:blur(16px);border:1px solid rgba(255,105,77,.57);box-shadow:0 12px 50px rgba(0,0,0,.25);pointer-events:none}
+.solar-alert[hidden],.space-event[hidden]{display:none}
+.solar-alert>span{font:10px var(--mono);letter-spacing:1.8px;color:#ffab8b;display:block}.solar-alert>strong{display:block;font:18px var(--sans);letter-spacing:1.5px;margin:9px 0;color:#fff4eb}.solar-alert small{display:flex;justify-content:space-between;font:9px/1.5 var(--mono);color:#ffbaad}.solar-alert b{font-weight:600}.heat-bar{height:4px;background:#ffffff25;margin:12px 0 8px;overflow:hidden}.heat-bar>div{height:100%;width:0;background:linear-gradient(90deg,#e3bb77,#ff4b2c);transition:width .2s}
+.space-event{position:fixed;z-index:3;left:40px;top:91px;font:9px var(--mono);letter-spacing:1px;color:#a3b6d0;pointer-events:none}
+.sun-destination{width:100%;padding:10px 14px;background:#bfa36a0d;border:1px solid #bfa36a36;text-align:left;font:10px var(--mono);letter-spacing:.8px;color:#e8bc82;cursor:pointer;margin-top:4px}.sun-destination:hover{border-color:#e8bc82;background:#bfa36a20}
+@media(max-width:650px){.solar-alert{top:65px;padding:10px 12px}.solar-alert>span{font-size:8px}.solar-alert>strong{font-size:14px;margin:5px 0}.solar-alert small{font-size:8px}.space-event{left:20px;top:76px;font-size:8px}}
+
+
+/* Additive UI. Does not modify existing game canvas, flight controls or layout. */
+.science-action{font:10px Consolas,monospace;color:#e9b779;background:#111923;border:1px solid #aa8d5b77;padding:9px 12px;cursor:pointer;letter-spacing:.6px}
+.science-action:hover{background:#2d2923}.obs-backdrop[hidden],#fc-inner[hidden]{display:none!important}.obs-backdrop{position:fixed;inset:0;z-index:28;background:#02060ce6;backdrop-filter:blur(12px);display:grid;place-items:center;padding:20px}.obs-window{background:#0b141c;color:#e7ece9;width:min(710px,98vw);max-height:92dvh;overflow:auto;padding:26px;border:1px solid #ffffff34}.obs-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.obs-head h2{font-size:29px;font-weight:300;margin:4px 0 10px}.obs-window p{line-height:1.6;color:#aeb8c1}.obs-tools{display:flex;flex-wrap:wrap;gap:9px;margin:13px 0}.obs-window select,#fc-mode,#fc-attitude{background:#101c28;color:#e8e9e8;border:1px solid #ffffff3d;padding:9px;font:11px Consolas,monospace;max-width:100%}#obs-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.science-row{min-width:0;padding:10px;border:1px solid #ffffff21;background:#ffffff06;display:flex;flex-direction:column;gap:5px}.science-row span{color:#9ba8b2;font:10px Consolas,monospace}.science-row strong{font:12px Segoe UI,Arial,sans-serif;font-weight:500;overflow-wrap:anywhere}.science-row small{color:#b39975;font:9px Consolas,monospace}.obs-badge{font:10px Consolas,monospace;color:#e9b779;letter-spacing:.6px}.fc-controls{display:flex;gap:7px;flex-wrap:wrap}.fc-row{display:flex;justify-content:space-between;gap:9px;padding:5px 0;font:10px Consolas,monospace;color:#aab7bf;border-bottom:1px solid #ffffff0d}.fc-row b{color:#e6e6e1;font-weight:400}#fc-inner{margin-top:10px}#fc-inner p{font:9px/1.6 Consolas,monospace;color:#99a8b2}#fc-toggle{width:100%;text-align:left}.obs-micro{font:10px Consolas,monospace}.obs-micro input{accent-color:#edbb79}#obs-caution{font-size:11px;color:#d3b98f!important}
+@media(max-width:650px){#obs-grid{grid-template-columns:1fr}.obs-window{padding:17px}.obs-head h2{font-size:22px}.science-action{padding:7px 9px}}
+
+</style>
+</head>
+<body>
+  <canvas id="universe" aria-label="Real-time three-dimensional starfield, spacecraft and procedural planets"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <header class="masthead">
+    <a class="wordmark" href="index.html" aria-label="Starfall free flight"><span class="starlogo">✦</span><span>STARFALL</span><small>EXPEDITION / WALKABLE WORLDS</small></a>
+    <div style="display:flex;gap:8px;align-items:center"><button class="science-action" id="obs-open" type="button">OBSERVATORY ◈</button><button class="top-link" id="chart-open" type="button">STAR CHART <span>↗</span></button></div>
+  </header>
+  <section class="identity" aria-label="Current destination">
+    <div class="eyebrow" id="phase-top">EXPEDITION / APPROACH VECTOR</div>
+    <h1 id="planet-name">Kepler-742 b</h1>
+    <p id="planet-description">Temperate world / Kepler-742 / 0.8 g</p>
+  </section>
+  <section class="controls-hint" aria-label="Flight controls">
+    <div><b>W / S</b> THRUST / BRAKE <span>·</span> <b>LEFT DRAG</b> STEER <span>·</span> <b>RIGHT DRAG</b> FREE LOOK</div>
+    <div><b>SCROLL</b> CAMERA DISTANCE <span>·</span> <b>V</b> COCKPIT <span>·</span> <b>F</b> CENTRE <span>·</span> <b>T</b> TIME SPEED <span>·</span> <b>L</b> FLOODLIGHTS</div><div><b>WASD</b> WALK / DRIVE <span>·</span> <b>WALK INTO RAMP</b> BOARD SHIP <span>·</span> <b>WALK TO ROVER</b> DRIVE <span>·</span> <b>SHIFT</b> SPRINT</div>
+    <div class="context-hint">Every visible twinkle is a real destination. Click a star in space to plot a course, or search the galaxy chart.</div><div class="context-hint">Asteroid belts, nebulae, comets, shattered worlds and pulsars. After touchdown, explore immediately on foot. Walk into the rear ship ramp or rover seat to board naturally. No boarding buttons.</div>
+  </section>
+  <aside class="panel" id="panel" aria-label="Reconnaissance and flight information">
+    <div class="panel-title"><h2>RECONNAISSANCE</h2><button id="panel-toggle" aria-label="Collapse reconnaissance panel" aria-expanded="true">−</button></div>
+    <div id="panel-body">
+      <dl class="planet-meta"><dt>System</dt><dd id="system-name">Kepler-742</dd><dt>Classification</dt><dd id="planet-type">Temperate</dd><dt>Gravity</dt><dd id="planet-gravity">0.8 g</dd><dt>Atmosphere</dt><dd id="planet-atmosphere">Thin, O₂, N₂</dd><dt>Sidereal day</dt><dd id="day-length">—</dd></dl>
+      <div class="section"><div class="section-title">SURFACE SCANS <strong id="scan-count">0 / 3</strong></div>
+        <button class="scan" data-scan="0"><span class="scan-number">01</span><span class="scan-label">Hydrology</span><span class="scan-state">SCAN →</span></button>
+        <button class="scan" data-scan="1"><span class="scan-number">02</span><span class="scan-label">Biosignatures</span><span class="scan-state">SCAN →</span></button>
+        <button class="scan" data-scan="2"><span class="scan-number">03</span><span class="scan-label">Geology</span><span class="scan-state">SCAN →</span></button>
+        <div class="scan-track"><div id="scan-fill"></div></div>
+        <p class="panel-note" id="scan-note">Survey from orbit. Landing requires no scan or confirmation.</p>
+      </div>
+      <div class="section"><div class="section-title">LANDING SITES <strong id="site-count">UNSURVEYED</strong></div><div id="site-list"><p class="panel-note">Fly down to land anywhere on the terrain.</p></div></div>
+      <div class="section"><div class="section-title">FLIGHT SYSTEMS <strong id="flight-state">CRUISE</strong></div>
+        <div class="flight-line"><span>World position</span><strong id="coordinates">0 / 0 / 0</strong></div>
+        <div class="flight-line"><span>Star systems</span><strong id="system-count">2,368</strong></div>
+        <div class="flight-line"><span>Star separation</span><strong>≥100 stellar diameters</strong></div>
+        <div class="flight-line"><span>Navigable stars</span><strong id="star-count">—</strong></div><div class="flight-line"><span>Rendered worlds</span><strong id="body-count">—</strong></div><div class="flight-line"><span>Visible effects</span><strong id="effects-count">—</strong></div><div class="flight-line"><span>Time acceleration</span><strong id="time-scale">1×</strong></div><div class="flight-line"><span>Natural illumination</span><strong id="lighting-state">—</strong></div><div class="flight-line"><span>Ship floodlights · L</span><strong id="floodlights-state">ON</strong></div>
+      </div>
+      
+  <section id="fc-extra" class="section" aria-label="Scientific flight computer">
+    <button type="button" id="fc-toggle" class="science-action" aria-expanded="false">◈ FLIGHT COMPUTER / ENGINEERING ↓</button>
+    <div id="fc-inner" hidden>
+      <div class="fc-controls"><label for="fc-mode" class="obs-micro">Flight model</label><select id="fc-mode" aria-label="Flight model"><option>Assisted</option><option>Engineering</option></select></div>
+      <div class="fc-controls" style="margin-top:8px"><label for="fc-attitude" class="obs-micro">Stability assist</label><select id="fc-attitude"><option>Manual</option><option>Hold</option><option>Prograde</option><option>Retrograde</option></select></div>
+      <div id="flight-data" aria-live="polite"></div><canvas id="flight-trajectory" width="246" height="180" aria-label="Predicted local two-body trajectory" style="margin-top:8px;max-width:100%"></canvas>
+      <p>Engineering mode uses optional SI gravity, finite thrust, fuel, atmosphere and heat. Assisted mode retains your previous controls. Orbital elements are approximate in procedural game space. Warp is fictional.</p>
+    </div>
+  </section>
+<div class="balance"><span>EXPEDITION CREDITS</span><strong id="credits">200 CR</strong></div>
+    </div>
+  </aside>
+  <div id="solar-alert" class="solar-alert" role="status" aria-live="polite" hidden><span>☀ CORONAL PROXIMITY WARNING</span><strong id="corona-star">—</strong><div class="heat-bar"><div id="heat-fill"></div></div><small>THERMAL LOAD <b id="heat-number">0%</b> · PHOTOSPHERE CONTACT IS DANGEROUS</small></div>
+  <div id="space-event" class="space-event" hidden></div>
+  <div class="reticle" aria-hidden="true"><span class="cross-a"></span><span class="cross-b"></span><span class="cross-dot"></span></div>
+  <div id="waypoint-label" class="waypoint-label" aria-live="polite"></div>
+  <div class="telemetry" aria-label="Ship telemetry">
+    <div class="tele"><span>MODE</span><b id="mode-text">DEEP SPACE</b></div><div class="tele"><span>SPEED</span><b id="speed-text">0 m/s</b></div><div class="tele"><span>ALTITUDE</span><b id="alt-text">—</b></div><div class="tele"><span>VERTICAL</span><b id="vertical-text">0 m/s</b></div><div class="tele" id="fps-tele"><span>FPS</span><b id="fps-text">—</b></div>
+  </div>
+  <div id="walk-context" aria-live="polite" style="position:fixed;z-index:8;left:50%;bottom:108px;transform:translateX(-50%);text-align:center;color:#f4d6ad;font:11px Consolas,monospace;letter-spacing:.7px;text-shadow:0 2px 6px #000;pointer-events:none"></div>
+  <div class="status-strip"><span class="status-led"></span><span id="status-text">FLIGHT COMPUTER ONLINE · DIRECT FLIGHT CONTROL</span></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div class="entry-flash" id="entry-flash" aria-hidden="true"></div>
+  <div class="landing-banner" id="landing-banner"><small>EXPEDITION / TOUCHDOWN CONFIRMED</small><strong id="landed-label">Surface reached</strong><span>Walk to the rear cargo ramp to board. Walk to the rover to drive.</span></div>
+  <section id="chart" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="chart-title" hidden>
+    <div class="chart-panel"><div class="chart-top"><div><span class="eyebrow">NAVIGATION / PROCEDURAL GALAXY</span><h2 id="chart-title">Star chart</h2></div><button id="chart-close" aria-label="Close star chart">✕</button></div>
+      <p>Select a system to expand its orbiting planets and moons. Select a star for coronal approach, or choose an orbiting planet or moon. Press G to align, then SHIFT+W to warp. No teleports or landing buttons.</p>
+      <div class="chart-search-row"><input id="chart-search" type="search" placeholder="Search stars, planets, biomes…" aria-label="Search generated systems" autocomplete="off"><span id="systems-shown">2,368 REAL SYSTEMS</span></div><div id="destinations"></div>
+      <button id="new-galaxy" class="new-galaxy" type="button">✦ GENERATE ANOTHER GALAXY</button><div class="chart-bottom"><span>W / SHIFT+W</span> · Fly / warp <span>G</span> · Align toward waypoint <span>T</span> · Speed up time <span>ESC</span> · Close</div>
+    </div>
+  </section>
+  <section class="mobile-controls" aria-label="Mobile spacecraft controls"><div class="mobile-pad"><button data-control="ArrowUp">↑</button><div><button data-control="ArrowLeft">←</button><button data-control="ArrowDown">↓</button><button data-control="ArrowRight">→</button></div></div><div class="mobile-pad"><button data-control="KeyW">THRUST</button><div><button data-control="KeyS">BRAKE</button><button data-control="Space">UP</button><button data-control="KeyC">DOWN</button></div></div></section>
+
+  <section id="observatory" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="obs-name">
+    <div class="obs-window"><div class="obs-head"><div><span class="obs-badge">STARFALL / SCIENTIFIC OBSERVATORY</span><h2 id="obs-name">Observatory</h2></div><button class="science-action" id="obs-close" aria-label="Close observatory">✕ Close</button></div>
+      <p id="obs-quality">Procedurally estimated</p>
+      <div class="obs-tools"><label for="obs-body" class="obs-micro">Select local star / body</label><select id="obs-body"></select><button class="science-action" id="obs-json">Export JSON</button><button class="science-action" id="obs-csv">Export CSV</button></div>
+      <div id="obs-grid"></div><p id="obs-caution"></p>
+      <label class="obs-micro"><input type="checkbox" id="orbit-model"> Experimental Kepler visual orbits (legacy motion stays default)</label>
+      <p class="obs-micro">Units: SI internally; visual scene scale is mapped to 1,000 metres per unit. Star sizes and orbital periods may violate physical self-consistency; see SCIENCE-MODELS.md.</p>
+    </div>
+  </section>
+  <div class="boot" id="boot"><div class="boot-logo">✦ STARFALL</div><p id="boot-label">CALIBRATING REAL-TIME WORLD RENDERER</p></div>
+  <div class="fatal" id="fatal" hidden><h2>3D engine unavailable</h2><p>This version requires a browser with WebGL 2 enabled. Open the extracted <code>index.html</code> in Chrome or Edge and enable hardware acceleration.</p></div>
+  <script>
+/* Shared expedition state. Works offline and tolerates unavailable storage. */
+(function (root) {
+  'use strict';
+  const memory = Object.create(null);
+  const object = value => value && typeof value === 'object' && !Array.isArray(value);
+  const read = key => {
+    try {
+      const raw = root.localStorage.getItem(key);
+      if (raw !== null) { const value = JSON.parse(raw); memory[key] = value; return value; }
+    } catch (_) { /* Private browsing and file URLs can deny storage. */ }
+    return memory[key] ?? null;
+  };
+  const write = (key, value) => {
+    memory[key] = value;
+    try { root.localStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch (_) { return false; }
+  };
+  const initial = () => ({ version: 2, credits: 200, discoveries: [], awards: {}, orbital: {} });
+  const SF = {
+    RNG: class {
+      constructor(seed) { this.s = (seed | 0) || 1; }
+      next() { this.s = (Math.imul(this.s, 1664525) + 1013904223) | 0; return (this.s >>> 0) / 4294967296; }
+      range(a, b) { return a + this.next() * (b - a); }
+      int(a, b) { return Math.floor(this.range(a, b + 1)); }
+      pick(items) { return items[this.int(0, items.length - 1)]; }
+      chance(p) { return this.next() < p; }
+    },
+    hash(text) { let h = 2166136261; for (const char of String(text)) h = Math.imul(h ^ char.charCodeAt(0), 16777619); return h >>> 0; },
+    load() {
+      const saved = read('starfall_save');
+      const data = { ...initial(), ...(object(saved) ? saved : {}) };
+      data.credits = Number.isFinite(data.credits) ? Math.max(0, data.credits) : 200;
+      data.discoveries = Array.isArray(data.discoveries) ? data.discoveries.filter(object) : [];
+      data.awards = object(data.awards) ? data.awards : {};
+      data.orbital = object(data.orbital) ? data.orbital : {};
+      return data;
+    },
+    save(data) { return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
+    getCredits() { return this.load().credits; },
+    addCredits(amount) {
+      const data = this.load();
+      data.credits = Math.max(0, data.credits + (Number.isFinite(amount) ? amount : 0));
+      this.save(data); return data.credits;
+    },
+    awardOnce(key, amount) {
+      const data = this.load();
+      if (!key || Object.prototype.hasOwnProperty.call(data.awards, key) || !Number.isFinite(amount) || amount <= 0) return 0;
+      data.awards[key] = Date.now(); data.credits += amount; this.save(data); return amount;
+    },
+    recordDiscovery(entry) {
+      if (!object(entry) || !entry.id || !entry.name) return false;
+      const data = this.load();
+      if (data.discoveries.some(item => item.id === entry.id)) return false;
+      data.discoveries.push({ ...entry, time: Date.now() }); this.save(data); return true;
+    },
+    setLaunch(data) { return write('starfall_planet', data); },
+    getLaunch() {
+      const value = read('starfall_planet');
+      return object(value) && object(value.planet) && typeof value.planet.name === 'string' ? value : null;
+    },
+    defaultLaunch() {
+      return { planet: { name: 'Kepler-742 b', type: 'Temperate', color: '#6c9278', gravity: '0.8', atmosphere: 'N₂ / O₂', water: 'Moderate', hasLife: true, distance: 1.2, temp: '18 °C' }, system: { name: 'Kepler-742' }, seed: 42 };
+    }
+  };
+  root.SF = SF;
+})(globalThis);
+
+</script><script>
+/* STARFALL GALAXY — deterministic seeded star systems, planets and moons.
+ * Star-to-star separation >= 100 times the diameter of the larger of the pair.
+ * Runtime orbital positions are calculated in JS double precision. */
+(function(root){'use strict';
+const TAU=Math.PI*2, MAX_PLANET_RADIUS=2400, MIN_STAR_RADIUS=MAX_PLANET_RADIUS*10;
+const types=['Rocky','Desert','Ice','Temperate','Ocean','Volcanic','Lush','Gas Giant','Shattered'];
+const sky={Rocky:[.46,.44,.40],Desert:[.75,.49,.31],Ice:[.48,.70,.83],Temperate:[.40,.65,.85],Ocean:[.38,.74,.95],Volcanic:[.83,.38,.24],Lush:[.43,.72,.58],'Gas Giant':[.76,.63,.51],Shattered:[.48,.39,.32]};
+function rngFactory(seed){let s=(seed>>>0)||1;return()=>((s=(Math.imul(1664525,s)+1013904223)>>>0)/4294967296);}
+function choose(r,items){return items[Math.floor(r()*items.length)];}
+function rarity(r){const x=r();return x<.58?0:x<.83?1:x<.94?2:x<.985?3:4;}
+function starSpec(r,home){if(home)return {type:'K dwarf',radius:28000,tint:[1,.79,.53],rarity:'Common'};
+const k=rarity(r),bands=[['M dwarf',24000,48000,[1,.48,.36],'Common'],['G / K star',48000,140000,[1,.83,.57],'Uncommon'],['White star',140000,420000,[.75,.85,1],'Rare'],['Giant',420000,3600000,[1,.65,.43],'Epic'],['Supergiant',3600000,24000000,[.67,.79,1],'Legendary']];
+const b=bands[k];return{type:b[0],radius:Math.round(b[1]+r()*(b[2]-b[1])),tint:b[3],rarity:b[4]};}
+function worldType(r,gasAllowed){if(r()<.018)return 'Shattered';let t=choose(r,types.slice(0,-1));if(!gasAllowed&&t==='Gas Giant')t='Rocky';return t;}
+function moonCount(r){const x=r();return x<.23?0:x<.44?1:x<.62?2:x<.77?3:x<.88?4:x<.95?5:x<.985?6:7;}
+function stats(type){const list={Rocky:['Trace atmosphere','None',false],Desert:['CO₂, N₂','Scarce',false],Ice:['Trace N₂','Frozen',false],Temperate:['Thin, O₂, N₂','Moderate',true],Ocean:['N₂, O₂, H₂O','Abundant',true],Volcanic:['Dense, CO₂, SO₂','None',false],Lush:['N₂, O₂','Abundant',true],'Gas Giant':['H₂, He, CH₄','Cloud layers',false],Shattered:['Vacuum / debris field','None',false]};return list[type];}
+function makeWorld(id,name,type,radius,seed,system,kind){const [atmosphere,water,life]=stats(type);return{id,name,type,radius,seed,system:system.name,systemId:system.id,kind,position:[0,0,0],gravity:kind==='moon'?.1+.5*radius/2400:.34+radius/2400,atmosphere,water,life,sky:sky[type],landable:type!=='Gas Giant'&&type!=='Shattered',ring:false,moons:[],sites:[],orbitRadius:0,orbitPeriod:0,phase:0,tilt:0,spinPeriod:180,spinPhase:0,spinAngle:0,axialTilt:0,spinAxis:[0,1,0]};}
+function makeSites(body,r){const labels={Rocky:['Crater Basin','Ridge Plateau','Canyon Floor'],Desert:['Amber Dunes','Dry River Basin','Sunfall Plateau'],Ice:['Aurora Shelf','Glacier Basin','Frostline Ridge'],Temperate:['River Basin','Highland Ridge','Valley Outpost'],Ocean:['Tidal Plateau','Island Shelf','Coastal Basin'],Lush:['Canopy Clearing','River Plateau','Emerald Valley'],Volcanic:['Caldera Rim','Obsidian Flats','Ember Ridge'],'Gas Giant':['Upper Clouds','Northern Band','Storm Rim'],Shattered:['Fragment Core','Debris Field','Impact Remnant']}[body.type];body.sites=labels.map(name=>[name,Math.round(71+r()*28),+(r()*125-62.5).toFixed(1),+(r()*360-180).toFixed(1)]);}
+function orbitOffset(radius,angle,tilt){return[Math.cos(angle)*radius,Math.sin(angle)*radius*Math.sin(tilt),Math.sin(angle)*radius*Math.cos(tilt)];}
+function generateGalaxy(seed=742,count=64){if(!Number.isInteger(count)||count<1||count>128)throw Error('System count must be between 1 and 128.');
+const r=rngFactory(seed),systems=[],byId=new Map(),allWorlds=[];
+for(let s=0;s<count;s++){
+ const starData=(s===count-1&&count>=32)?{type:'Blue hypergiant',radius:MIN_STAR_RADIUS*1000,tint:[.66,.77,1],rarity:'Legendary'}:starSpec(r,s===0),id='star-'+s,system={id,name:s===0?'Kepler-742':choose(r,['Aster','Vesper','Naiad','Orion','Cygni','Lyra','Eos','Sirius','Vela','Draco','Pavo','Altair','Helios'])+'-'+String(Math.floor(r()*890)+110),position:[0,0,0],star:{...starData,id},planets:[],bodies:[],maxOrbit:0};
+ system.star.position=system.position;system.star.name=system.name;system.star.systemId=id;system.star.kind='star';system.star.id=id+'-sun';
+ if(s>0){let accepted=false;
+ // Grow a branching 3D cluster and reject coordinates that violate the full pairwise star-spacing rule.
+ for(let trial=0;trial<480&&!accepted;trial++){
+  const parent=systems[Math.floor(r()*systems.length)],theta=r()*TAU,y=r()*2-1,q=Math.sqrt(1-y*y),dist=2*Math.max(parent.star.radius,system.star.radius)*(105+r()*65);
+  const candidate=[parent.position[0]+Math.cos(theta)*q*dist,parent.position[1]+y*dist,parent.position[2]+Math.sin(theta)*q*dist];
+  if(systems.every(other=>Math.hypot(...candidate.map((v,i)=>v-other.position[i]))>=200*Math.max(other.star.radius,system.star.radius))){system.position=candidate;accepted=true;}
+ }
+ if(!accepted){const far=Math.max(...systems.map(t=>Math.hypot(...t.position)+200*Math.max(system.star.radius,t.star.radius)));system.position=[far*(1+r()*.2),far*(r()-.5)*.1,far*(r()-.5)*.1];}
+ }
+ system.star.position=system.position;
+ const n=s===0?6:1+Math.floor(r()*20);let last=system.star.radius*1.95+28000;
+ for(let j=0;j<n;j++){
+  const type=(s===0&&j===0)?'Temperate':worldType(r,true);
+  const radius=(s===0&&j===0)?2150:Math.round(680+r()*(MAX_PLANET_RADIUS-680));
+  const pid=id+'-p'+j,body=makeWorld(pid,s===0&&j===0?'Kepler-742 b':system.name+' '+String.fromCharCode(98+j),type,radius,(seed+Math.imul(s+1,7919)+Math.imul(j+3,1013))>>>0,system,'planet');
+  // Conservative orbital lanes leave space for wide moon systems and rings.
+  body.orbitRadius=last+Math.max(radius*14,system.star.radius*.19);
+  last=body.orbitRadius+Math.max(radius*14,system.star.radius*.19);
+  body.orbitPeriod=Math.max(500,Math.sqrt(Math.pow(body.orbitRadius/500,3))*(2.2+r()*1.8));
+  body.phase=(s===0&&j===0)?Math.PI/2:r()*TAU;body.spinPeriod=130+r()*710;body.spinPhase=r()*TAU;body.axialTilt=(r()-.5)*.85;body.spinAxis=[Math.sin(body.axialTilt),Math.cos(body.axialTilt),0];
+  body.tilt=(r()-.5)*.22;
+  body.ring=(type==='Gas Giant'?r()<.64:r()<.14);
+  body.ringTilt=(r()-.5)*.8;
+  body.ringWidth=1.55+r()*.65;
+  makeSites(body,r);
+  const mn=(s===0&&j===0)?2:moonCount(r);
+  for(let m=0;m<mn;m++){
+   const moonRadius=Math.round(Math.max(105,Math.min(radius*.42,130+r()*radius*.37)));
+   const moonType=worldType(r,false);
+   const mid=pid+'-m'+m,moon=makeWorld(mid,body.name+' / '+(m+1),moonType,moonRadius,(body.seed+Math.imul(m+1,1297))>>>0,system,'moon');
+   moon.parentId=pid;moon.orbitRadius=radius*(2.7+m*1.8);moon.orbitPeriod=140+m*67+r()*230;moon.phase=r()*TAU;moon.tilt=(r()-.5)*.85;moon.spinPeriod=r()<.72?moon.orbitPeriod:65+r()*540;moon.spinPhase=r()*TAU;moon.axialTilt=(r()-.5)*.55;moon.spinAxis=[Math.sin(moon.axialTilt),Math.cos(moon.axialTilt),0];makeSites(moon,r);
+   body.moons.push(moon);system.bodies.push(moon);allWorlds.push(moon);byId.set(mid,moon);
+  }
+  system.planets.push(body);system.bodies.push(body);allWorlds.push(body);byId.set(pid,body);
+ }
+ // Cached deterministic orbital debris instead of one 3D draw call per rock.
+ system.belts=[];system.comets=[];system.nebulae=[];
+ const beltCount=r()<.82?1+(r()<.38?1:0):0;
+ for(let k=0;k<beltCount;k++){const lane=system.planets[Math.floor(r()*system.planets.length)];const radius=lane.orbitRadius+(r()-.5)*Math.min(lane.orbitRadius*.17,system.star.radius*.1);const rocks=[];
+  for(let j=0;j<420;j++){let a=r()*TAU,rr=radius*(.87+r()*.26),y=(r()-.5)*radius*.085;rocks.push([Math.cos(a)*rr,y,Math.sin(a)*rr,.7+r()*1.9]);}
+  system.belts.push({id:id+'-belt'+k,radius,rocks,period:700+r()*1500,phase:r()*TAU,rarity:'Common'});
+ }
+ if(r()<.14){const a=system.planets[Math.floor(r()*system.planets.length)].orbitRadius;system.comets.push({id:id+'-comet',name:system.name+' comet',a:Math.max(system.star.radius*3,a),eccentricity:.65+r()*.21,period:450+r()*1600,phase:r()*TAU,inclination:(r()-.5)*1.1,position:[...system.position],tail:[1,0,0],rarity:'Rare'});}
+ if(r()<.5||s===0){const d=system.star.radius*(5+r()*13),center=[(r()-.5)*d,(r()-.5)*d*.65,(r()-.5)*d],cloud=[];
+  for(let j=0;j<130;j++){const a=r()*TAU,polar=r()*2-1,q=Math.sqrt(1-polar*polar),dist=Math.cbrt(r())*d*.56;cloud.push([center[0]+Math.cos(a)*q*dist,center[1]+polar*dist*.52,center[2]+Math.sin(a)*q*dist,d*(.09+r()*.19),.12+r()*.24]);}
+  system.nebulae.push({id:id+'-nebula',name:system.name+' molecular cloud',cloud,color:r()<.45?[.30,.43,.93]:r()<.55?[.55,.23,.83]:[.22,.72,.62],rarity:'Uncommon'});
+ }
+ // Rare active pulsars and expanding supernova remnants are separately classified phenomena.
+ system.phenomenon=system.star.type==='Blue hypergiant'?'supernova':r()<.052?'pulsar':r()<.025?'supernova':null;
+ if(system.phenomenon==='pulsar'){system.star.type='Pulsar';system.star.tint=[.55,.80,1];system.star.rarity='Rare';}
+ system.maxOrbit=last+Math.max(system.star.radius*.15,65000);systems.push(system);byId.set(id,system);byId.set(system.star.id,system.star);
+ }
+ // Additional twinkles are real, deterministic, navigable star systems.
+ // Sparse 3D cells keep every pair >=100 diameters of the larger star, including hypergiants.
+ const originalSystems=systems.slice(),catalog=[],catalogCells=new Map(),CATALOG_CELL=6.4e9;
+ const used=new Set(),rr=rngFactory((seed^0x71ac95e3)>>>0);
+ for(let i=0;i<2304;i++){
+  let cell=null,position=null,starData=null;
+  for(let tries=0;tries<800;tries++){
+   const x=Math.floor(rr()*29)-14,y=Math.floor(rr()*17)-8,z=Math.floor(rr()*29)-14;
+   const key=x+','+y+','+z;if(used.has(key))continue;
+   const jitter=CATALOG_CELL*.105;
+   const candidate=[x*CATALOG_CELL+(rr()*2-1)*jitter,y*CATALOG_CELL+(rr()*2-1)*jitter,z*CATALOG_CELL+(rr()*2-1)*jitter];
+   const spec=starSpec(rr,false);
+   if(originalSystems.some(other=>Math.hypot(...candidate.map((v,k)=>v-other.position[k]))<200*Math.max(spec.radius,other.star.radius)+5e7))continue;
+   used.add(key);cell=key;position=candidate;starData=spec;break;
+  }
+  if(!cell)break;
+  const id='catalog-'+i,sys={id,name:'Sector '+String(i+1).padStart(4,'0'),position,
+   star:{...starData,id:id+'-sun',name:'Sector '+String(i+1).padStart(4,'0'),systemId:id,kind:'star',position},
+   planets:[],bodies:[],belts:[],comets:[],nebulae:[],phenomenon:null,maxOrbit:0,dormant:true,catalogIndex:i,cell};
+  systems.push(sys);catalog.push(sys);byId.set(id,sys);byId.set(sys.star.id,sys.star);
+  catalogCells.set(cell,sys);
+ }
+ const galaxy={seed,systems,byId,allWorlds,time:0,MIN_STAR_RADIUS,MAX_PLANET_RADIUS,starSpacingDiameters:100,
+  update(t){this.time=t;for(const sys of systems){if(sys.dormant)continue;for(const p of sys.planets){p.spinAngle=p.spinPhase+t*TAU/p.spinPeriod;const a=p.phase+t*TAU/p.orbitPeriod,d=orbitOffset(p.orbitRadius,a,p.tilt);p.position=[sys.position[0]+d[0],sys.position[1]+d[1],sys.position[2]+d[2]];
+   for(const moon of p.moons){moon.spinAngle=moon.spinPhase+t*TAU/moon.spinPeriod;const b=moon.phase+t*TAU/moon.orbitPeriod,o=orbitOffset(moon.orbitRadius,b,moon.tilt);moon.position=[p.position[0]+o[0],p.position[1]+o[1],p.position[2]+o[2]];}
+  }for(const comet of sys.comets){const a=comet.phase+t*TAU/comet.period,e=comet.eccentricity,rr=comet.a*(1-e*e)/(1+e*Math.cos(a));const rel=orbitOffset(rr,a,comet.inclination);comet.position=sys.position.map((v,i)=>v+rel[i]);comet.tail=rel.map(v=>v/(rr||1));}}},
+  nearestSystem(pos){let best=null,min=Infinity;const cx=Math.round(pos[0]/6.4e9),cy=Math.round(pos[1]/6.4e9),cz=Math.round(pos[2]/6.4e9);const candidates=originalSystems.slice();for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){const s=catalogCells.get((cx+dx)+','+(cy+dy)+','+(cz+dz));if(s)candidates.push(s);}if(candidates.length===originalSystems.length)candidates.push(...catalog);for(const sys of candidates){const d=Math.hypot(...pos.map((v,i)=>v-sys.position[i]))-sys.maxOrbit;if(d<min){best=sys;min=d;}}return best;},
+  nearbySystems(pos,range=3e8){const out=originalSystems.filter(sys=>Math.hypot(...pos.map((v,i)=>v-sys.position[i]))<range+sys.maxOrbit+sys.star.radius);if(range>6e9){for(const sys of catalog)if(Math.hypot(...pos.map((v,i)=>v-sys.position[i]))<range+sys.maxOrbit+sys.star.radius)out.push(sys);return out;}const cx=Math.round(pos[0]/6.4e9),cy=Math.round(pos[1]/6.4e9),cz=Math.round(pos[2]/6.4e9);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){const sys=catalogCells.get((cx+dx)+','+(cy+dy)+','+(cz+dz));if(sys&&Math.hypot(...pos.map((v,i)=>v-sys.position[i]))<range+sys.maxOrbit+sys.star.radius)out.push(sys);}return out;},
+  nearestBody(pos){let chosen=null,distance=Infinity;for(const sys of [...originalSystems,...liveCatalog.values()]){const centerDist=Math.hypot(...pos.map((v,i)=>v-sys.position[i]));if(centerDist-sys.maxOrbit>distance+20000)continue;
+   for(const body of sys.bodies){const d=Math.hypot(...pos.map((v,i)=>v-body.position[i]))-body.radius;if(d<distance){distance=d;chosen=body;}}
+  }return {planet:chosen,alt:distance};},
+  nearestStar(pos){let chosen=null,distance=Infinity;const cx=Math.round(pos[0]/6.4e9),cy=Math.round(pos[1]/6.4e9),cz=Math.round(pos[2]/6.4e9),candidates=originalSystems.slice();for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){const sys=catalogCells.get((cx+dx)+','+(cy+dy)+','+(cz+dz));if(sys)candidates.push(sys);}if(candidates.length===originalSystems.length)candidates.push(...catalog);for(const sys of candidates){const d=Math.hypot(...pos.map((v,i)=>v-sys.position[i]))-sys.star.radius;if(d<distance){distance=d;chosen=sys;}}return {system:chosen,alt:distance};}
+ };
+
+ // The catalog stores stars only. A star becomes a full system on chart inspection or approach.
+ const liveCatalog=new Map(),MAX_LIVE=24;
+ galaxy.activate=function(sys){
+  if(!sys||!sys.dormant){if(sys&&liveCatalog.has(sys.id)){liveCatalog.delete(sys.id);liveCatalog.set(sys.id,sys);}return sys;}
+  const rr=rngFactory(((seed^Math.imul(sys.catalogIndex+1,2654435761))>>>0)||1);
+  const n=1+Math.floor(rr()*20);let last=sys.star.radius*1.95+28000;
+  sys.planets=[];sys.bodies=[];sys.belts=[];sys.comets=[];sys.nebulae=[];
+  for(let j=0;j<n;j++){
+   const type=worldType(rr,true),radius=Math.round(680+rr()*(MAX_PLANET_RADIUS-680)),pid=sys.id+'-p'+j;
+   const p=makeWorld(pid,sys.name+' '+String.fromCharCode(98+j),type,radius,(seed+Math.imul(sys.catalogIndex+3,7919)+Math.imul(j+4,1013))>>>0,sys,'planet');
+   p.orbitRadius=last+Math.max(radius*14,sys.star.radius*.19);last=p.orbitRadius+Math.max(radius*14,sys.star.radius*.19);
+   p.orbitPeriod=Math.max(500,Math.sqrt(Math.pow(p.orbitRadius/500,3))*(2.2+rr()*1.8));p.phase=rr()*TAU;
+   p.spinPeriod=130+rr()*710;p.spinPhase=rr()*TAU;p.axialTilt=(rr()-.5)*.85;p.spinAxis=[Math.sin(p.axialTilt),Math.cos(p.axialTilt),0];p.tilt=(rr()-.5)*.22;
+   p.ring=type==='Gas Giant'?rr()<.64:rr()<.14;p.ringTilt=(rr()-.5)*.8;p.ringWidth=1.55+rr()*.65;makeSites(p,rr);
+   const mn=moonCount(rr);
+   for(let k=0;k<mn;k++){
+    const moonRadius=Math.round(Math.max(105,Math.min(radius*.42,130+rr()*radius*.37))),mt=worldType(rr,false),mid=pid+'-m'+k;
+    const m=makeWorld(mid,p.name+' / '+(k+1),mt,moonRadius,(p.seed+Math.imul(k+1,1297))>>>0,sys,'moon');
+    m.parentId=pid;m.orbitRadius=radius*(2.7+k*1.8);m.orbitPeriod=140+k*67+rr()*230;m.phase=rr()*TAU;m.tilt=(rr()-.5)*.85;
+    m.spinPeriod=rr()<.72?m.orbitPeriod:65+rr()*540;m.spinPhase=rr()*TAU;m.axialTilt=(rr()-.5)*.55;m.spinAxis=[Math.sin(m.axialTilt),Math.cos(m.axialTilt),0];makeSites(m,rr);
+    p.moons.push(m);sys.bodies.push(m);allWorlds.push(m);byId.set(mid,m);
+   }
+   sys.planets.push(p);sys.bodies.push(p);allWorlds.push(p);byId.set(pid,p);
+  }
+  if(rr()<.77){const lane=sys.planets[Math.floor(rr()*sys.planets.length)],rocks=[],radius=lane.orbitRadius;
+   for(let j=0;j<360;j++){const a=rr()*TAU,rad=radius*(.88+rr()*.24);rocks.push([Math.cos(a)*rad,(rr()-.5)*rad*.05,Math.sin(a)*rad,1+rr()]);}
+   sys.belts.push({id:sys.id+'-belt',radius,rocks,period:850+rr()*1200,phase:rr()*TAU,rarity:'Common'});
+  }
+  if(rr()<.12){sys.comets.push({id:sys.id+'-comet',name:sys.name+' comet',a:sys.planets[0].orbitRadius*1.5,eccentricity:.65+rr()*.21,period:450+rr()*1500,phase:rr()*TAU,inclination:(rr()-.5)*1.1,position:[...sys.position],tail:[1,0,0]});}
+  sys.phenomenon=rr()<.045?'pulsar':rr()<.025?'supernova':null;
+  sys.maxOrbit=last+Math.max(sys.star.radius*.15,65000);sys.dormant=false;
+  liveCatalog.set(sys.id,sys);galaxy.updateSystem(sys,galaxy.time);
+  while(liveCatalog.size>MAX_LIVE){const oldest=liveCatalog.keys().next().value,old=liveCatalog.get(oldest);
+   if(old===sys){break;}if(old.id===galaxy.pinnedSystemId){liveCatalog.delete(oldest);liveCatalog.set(oldest,old);continue;}liveCatalog.delete(oldest);
+   for(const b of old.bodies){byId.delete(b.id);const i=allWorlds.indexOf(b);if(i>=0)allWorlds.splice(i,1);}
+   old.bodies=[];old.planets=[];old.belts=[];old.comets=[];old.nebulae=[];old.maxOrbit=0;old.dormant=true;
+  }
+  return sys;
+ };
+ galaxy.updateSystem=function(sys,t){for(const p of sys.planets){p.spinAngle=p.spinPhase+t*TAU/p.spinPeriod;const a=p.phase+t*TAU/p.orbitPeriod,d=orbitOffset(p.orbitRadius,a,p.tilt);
+  p.position=sys.position.map((v,i)=>v+d[i]);for(const m of p.moons){m.spinAngle=m.spinPhase+t*TAU/m.spinPeriod;const b=m.phase+t*TAU/m.orbitPeriod,o=orbitOffset(m.orbitRadius,b,m.tilt);m.position=p.position.map((v,i)=>v+o[i]);}}
+  for(const comet of sys.comets){const a=comet.phase+t*TAU/comet.period,e=comet.eccentricity,rr=comet.a*(1-e*e)/(1+e*Math.cos(a)),rel=orbitOffset(rr,a,comet.inclination);comet.position=sys.position.map((v,i)=>v+rel[i]);comet.tail=rel.map(v=>v/(rr||1));}
+ };
+ galaxy.hydrateNear=function(pos,targetSys){
+  if(targetSys?.dormant){const d=Math.hypot(...pos.map((v,i)=>v-targetSys.position[i]));if(d<Math.max(3e7,targetSys.star.radius*12))this.activate(targetSys);}
+  const cx=Math.round(pos[0]/CATALOG_CELL),cy=Math.round(pos[1]/CATALOG_CELL),cz=Math.round(pos[2]/CATALOG_CELL);
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+   const sys=catalogCells.get((cx+dx)+','+(cy+dy)+','+(cz+dz));if(!sys||!sys.dormant)continue;
+   if(Math.hypot(...pos.map((v,i)=>v-sys.position[i]))<Math.max(3e7,sys.star.radius*12))this.activate(sys);
+  }
+ };
+ galaxy.skyCatalog=catalog;galaxy.catalogCells=catalogCells;galaxy.originalCount=count;galaxy.pinnedSystemId=null;
+ galaxy.update(0);return galaxy;
+}
+root.StarfallGalaxy={generateGalaxy,rngFactory,MAX_PLANET_RADIUS,MIN_STAR_RADIUS,moonCount};
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallGalaxy;
+})(globalThis);
+
+</script><script>
+/* STARFALL 3D ENGINE — WebGL2, no external libraries or network dependencies.
+ * Planetary geometry, continuous near-field terrain, atmosphere, procedural stars,
+ * and ship are rendered in the SAME WebGL scene, including during touchdown.
+ */
+(function(root){'use strict';
+const V={
+ add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]], sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], mul:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+ dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],len:a=>Math.hypot(a[0],a[1],a[2]),
+ norm:a=>{const m=Math.hypot(...a)||1;return [a[0]/m,a[1]/m,a[2]/m];},mix:(a,b,t)=>a.map((x,i)=>x+(b[i]-x)*t),clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),
+ rot:(v,axis,angle)=>{const a=V.norm(axis),c=Math.cos(angle),s=Math.sin(angle),d=V.dot(a,v);return V.add(V.add(V.mul(v,c),V.mul(V.cross(a,v),s)),V.mul(a,d*(1-c)));}
+};
+const M={
+ perspective(fov,aspect,near,far){const f=1/Math.tan(fov/2),nf=1/(near-far);return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,(far+near)*nf,-1,0,0,2*far*near*nf,0]);},
+ look(eye,target,up){const z=V.norm(V.sub(eye,target)),x=V.norm(V.cross(up,z)),y=V.cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-V.dot(x,eye),-V.dot(y,eye),-V.dot(z,eye),1]);},
+ mul(a,b){let o=new Float32Array(16);for(let col=0;col<4;col++)for(let row=0;row<4;row++)o[col*4+row]=a[row]*b[col*4]+a[4+row]*b[col*4+1]+a[8+row]*b[col*4+2]+a[12+row]*b[col*4+3];return o;},
+ translate(v){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,v[0],v[1],v[2],1]);},
+ scaleTranslate(v,scale){return new Float32Array([scale,0,0,0,0,scale,0,0,0,0,scale,0,v[0],v[1],v[2],1]);},
+ spin(pos,axis,angle){const [x,y,z]=V.norm(axis),c=Math.cos(angle),sn=Math.sin(angle),q=1-c;return new Float32Array([c+x*x*q,y*x*q+z*sn,z*x*q-y*sn,0,x*y*q-z*sn,c+y*y*q,z*y*q+x*sn,0,x*z*q+y*sn,y*z*q-x*sn,c+z*z*q,0,pos[0],pos[1],pos[2],1]);},
+ basis(r,u,f,pos){return new Float32Array([r[0],r[1],r[2],0,u[0],u[1],u[2],0,-f[0],-f[1],-f[2],0,pos[0],pos[1],pos[2],1]);}
+};
+// Deterministic noise field, shared by orbit geometry, close-up terrain, and collision.
+function fract(x){return x-Math.floor(x)}
+function hash3(x,y,z,s){let h=(Math.imul(x,374761393)^Math.imul(y,668265263)^Math.imul(z,2147483647)^Math.imul(s,1274126177))|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295;}
+function noise(x,y,z,seed){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z);let a=x-ix,b=y-iy,c=z-iz;a=a*a*(3-2*a);b=b*b*(3-2*b);c=c*c*(3-2*c);const mix=(l,r,t)=>l+(r-l)*t;
+return mix(mix(mix(hash3(ix,iy,iz,seed),hash3(ix+1,iy,iz,seed),a),mix(hash3(ix,iy+1,iz,seed),hash3(ix+1,iy+1,iz,seed),a),b),mix(mix(hash3(ix,iy,iz+1,seed),hash3(ix+1,iy,iz+1,seed),a),mix(hash3(ix,iy+1,iz+1,seed),hash3(ix+1,iy+1,iz+1,seed),a),b),c);}
+function field(n,seed){let v=0,a=.55,k=2.9;for(let i=0;i<5;i++){v+=noise(n[0]*k+13,n[1]*k+27,n[2]*k+5,seed)*a;k*=2.03;a*=.49;}return v/1.06;}
+function groundHeight(n,planet,value){if(planet.type==='Gas Giant')return 0;const e=value??field(n,planet.seed),sea=planet.type==='Ocean'?.56:planet.type==='Temperate'?.47:planet.type==='Lush'?.48:.19;if(['Temperate','Lush','Ocean'].includes(planet.type)&&e<sea)return 0;const base=Math.max(0,e-sea);const detail=noise(n[0]*88,n[1]*88,n[2]*88,planet.seed+9);return Math.min(110,3+Math.pow(base,1.3)*158+Math.max(0,detail-.5)*11);}
+function shade(n,h,planet,value){const t=planet.type;const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
+let c;
+if(t==='Gas Giant'){const bands=Math.sin(n[1]*57+field(n,planet.seed)*17),storm=Math.sin(n[0]*22+n[2]*29+field(n,planet.seed)*25);return V.mix([.37,.23,.18],[.84,.71,.49],V.clamp(.49+.28*bands+.09*storm,0,1));}
+if(['Temperate','Lush','Ocean'].includes(t)&&h<1){const shallow=V.clamp((e-sea+.12)*3,0,1);c=V.mix([.038,.097,.161],[.11,.20,.27],shallow);}
+else if(t==='Volcanic')c=V.mix([.16,.125,.125],[.43,.22,.14],V.clamp(h/75,0,1));
+else if(t==='Ice')c=V.mix([.38,.52,.60],[.83,.89,.91],V.clamp(h/70,0,1));
+else if(t==='Desert')c=V.mix([.40,.275,.17],[.73,.59,.37],V.clamp(h/75,0,1));
+else if(t==='Rocky')c=V.mix([.27,.29,.28],[.60,.57,.48],V.clamp(h/80,0,1));
+else if(t==='Ocean')c=V.mix([.19,.35,.25],[.64,.66,.53],V.clamp(h/80,0,1));
+else c=V.mix(t==='Lush'?[.11,.29,.18]:[.26,.35,.235],[.62,.63,.47],V.clamp(h/85,0,1));
+const polar=V.clamp((Math.abs(n[1])-.88)*8.8,0,1)*(t==='Volcanic'||t==='Desert'?0:1);
+c=V.mix(c,[.84,.87,.85],polar);return c;
+}
+function compile(gl,type,source){let s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
+function program(gl,vs,fs){const p=gl.createProgram();gl.attachShader(p,compile(gl,gl.VERTEX_SHADER,vs));gl.attachShader(p,compile(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p));return p;}
+const meshVS=`#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;layout(location=1) in vec3 aNormal;layout(location=2) in vec3 aColor;
+uniform mat4 uViewProj;uniform mat4 uModel;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
+void main(){vec4 world=uModel*vec4(aPos,1.);vWorld=world.xyz;vNormal=normalize(mat3(uModel)*aNormal);vColor=aColor;gl_Position=uViewProj*world;}`;
+// A moon/planet only reflects light from its own star-lit hemisphere.
+function evaluateLighting(body,sys,galaxy,position){
+ const sun=V.sub(sys.position,body.position),dist=Math.max(V.len(sun),sys.star.radius*1.001),sunDir=V.norm(sun);
+ const starPower=V.clamp(Math.pow((sys.star.radius/dist)/.14,1.25),.16,1.85);
+ let moon=[0,0,0],moonColor=[0,0,0],moonPower=0,moonDetail=[];
+ const candidates=body.kind==='moon'?[galaxy.byId.get(body.parentId)]:body.moons;
+ for(const m of candidates||[]){if(!m)continue;const ray=V.sub(m.position,body.position),d=V.len(ray);if(d<1)continue;
+  const litSide=V.norm(V.sub(sys.position,m.position)),view=V.norm(V.sub(body.position,m.position));
+  const phase=.5+.5*V.dot(litSide,view);
+  const strength=Math.min(.26,19*phase*Math.pow(m.radius/d,2));
+  if(strength<.0002)continue;
+  moon=V.add(moon,V.mul(V.norm(ray),strength));moonPower+=strength;
+  moonColor=V.add(moonColor,V.mul(m.sky||[.7,.75,.8],strength));
+  moonDetail.push({name:m.name,phase,strength});
+ }
+ // A distant system contributes no light to the current system. Ambient is deliberately
+ // nearly zero: the sun, moonlight, and the ship floodlight provide the actual illumination.
+ const nightGlow=.008;const color=sys.star.tint||[1,1,1];
+ let bounceDirection=V.len(moon)>.0001?V.norm(moon):[0,1,0];
+ moonColor=moonPower>.0001?V.mul(moonColor,1/moonPower):[.8,.83,.9];
+ // Lunar eclipse: a moon's parent can block the star. A ray-sphere intersection in
+ // the fragment shader handles the actual shadow instead of a whole-body toggle.
+ const parent=body.kind==='moon'?galaxy.byId.get(body.parentId):null;
+ return {sunDir,starPower,starColor:color,moonPower:Math.min(.38,moonPower),bounceDirection,bounceColor:moonColor,ambient:nightGlow,occluder:parent?{center:parent.position,radius:parent.radius}:null,moonDetail};
+}
+const meshFS=`#version 300 es
+precision highp float;in vec3 vWorld;in vec3 vNormal;in vec3 vColor;
+uniform vec3 uCamera,uLight,uStarColor,uBounceDir,uBounceColor,uHeadlampPos,uHeadlampDir,uFogColor;
+uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip;
+out vec4 frag;
+float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+void main(){
+ vec3 N=normalize(vNormal);
+ float diffuse=max(0.,dot(N,normalize(uLight)));
+ // If a parent planet lies between this point and the star, the moon is eclipsed.
+ float starShadow=1.;
+ if(uOccluder.w>0.){vec3 delta=uOccluder.xyz-vWorld;float ahead=dot(delta,uLight);
+  if(ahead>0.&&dot(delta,delta)-ahead*ahead<uOccluder.w*uOccluder.w)starShadow=0.;}
+ vec3 illumination=uStarColor*(diffuse*uStarPower*starShadow)+vec3(uAmbient);
+ illumination+=uBounceColor*max(0.,dot(N,normalize(uBounceDir)))*uBouncePower;
+ // Actual distance-attenuated forward-facing spacecraft spotlight, not a flat UI glow.
+ vec3 toLamp=uHeadlampPos-vWorld;float distance=length(toLamp);vec3 fromLamp=normalize(-toLamp);
+ float beam=smoothstep(.58,.84,dot(fromLamp,normalize(uHeadlampDir)));
+ illumination+=vec3(1.,.88,.69)*max(0.,dot(N,normalize(toLamp)))*beam*uHeadlampPower/(1.+distance*distance*.0009);
+ // Vertex colors stay attached to the terrain; no camera-relative noise that swims.
+ vec3 color=clamp(vColor*illumination,0.,1.);
+ if(uShip>.5)color=max(color,vColor*.075);if(uShip>1.5)color=max(color,vColor*.93);
+ float fog=1.-exp(-length(uCamera-vWorld)*uFogDensity);color=mix(color,uFogColor,clamp(fog,0.,.96));
+ frag=vec4(color,1.);
+}`;
+const shellVS=`#version 300 es
+precision highp float;layout(location=0)in vec3 aPos;uniform mat4 uVP;uniform mat4 uModel;out vec3 vWorld;out vec3 vDir;
+void main(){vDir=normalize(mat3(uModel)*aPos);vec4 w=uModel*vec4(aPos,1.);vWorld=w.xyz;gl_Position=uVP*w;}`;
+const atmoFS=`#version 300 es
+precision highp float;in vec3 vWorld;in vec3 vDir;
+uniform vec3 uCam,uTint,uLight,uStarColor;uniform float uOpacity,uStarPower;out vec4 frag;
+void main(){float facing=abs(dot(normalize(vDir),normalize(uCam-vWorld)));
+ float rim=pow(1.-facing,2.5);float lit=smoothstep(-.22,.25,dot(normalize(vDir),normalize(uLight)));
+ frag=vec4(uTint*(.02+.98*lit)*uStarColor*min(1.3,uStarPower),clamp(rim*.83*uOpacity*(.05+.95*lit),0.,.82));}`;
+const cloudFS=`#version 300 es
+precision highp float;in vec3 vWorld;in vec3 vDir;uniform vec3 uCam,uTint,uLight,uStarColor;uniform float uOpacity,uStarPower;out vec4 frag;
+float h(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float no(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),mix(mix(h(i+vec3(0,0,1)),h(i+vec3(1,0,1)),f.x),mix(h(i+vec3(0,1,1)),h(i+vec3(1,1,1)),f.x),f.y),f.z);}
+void main(){float n=no(vDir*17.)*.64+no(vDir*39.)*.23+no(vDir*94.)*.13;
+ float density=smoothstep(.49,.66,n)*.52*uOpacity;float lit=max(0.,dot(normalize(vDir),normalize(uLight)));
+ frag=vec4(mix(uTint,vec3(.88,.89,.85),.28)*uStarColor*(.018+lit*uStarPower),density*(.04+.96*lit));}`;
+const ringVS=`#version 300 es
+precision highp float;layout(location=0)in vec3 aPos;uniform mat4 uVP;uniform vec3 uCenter;void main(){gl_Position=uVP*vec4(aPos+uCenter,1.);}`;
+const ringFS=`#version 300 es
+precision highp float;uniform vec4 uTint;out vec4 frag;void main(){frag=uTint;}`;
+const sunFS=`#version 300 es
+precision highp float;in vec3 vWorld;in vec3 vNormal;uniform vec3 uTint;uniform float uTime;out vec4 frag;
+void main(){vec3 n=normalize(vNormal);float f=sin(n.x*53.+uTime*.67)*sin(n.y*39.-uTime*.31)*.055;float hot=0.84+.2*abs(sin(n.x*22.+n.z*17.+uTime*.14));frag=vec4(clamp(uTint*(1.2+f+hot*.16),0.,1.),1.);}`;
+const starVS=`#version 300 es
+precision highp float;layout(location=0)in vec4 aStar;layout(location=1)in float aBright;uniform mat4 uVP;uniform vec3 uOffset;uniform float uAlpha;uniform float uDpr;uniform float uTime;out float vAlpha;out float vHeat;
+void main(){vec4 clip=uVP*vec4(aStar.xyz+uOffset,1.);gl_Position=clip;float dz=max(1.,clip.w);gl_PointSize=clamp(aStar.w*uDpr*(850./(dz+700.)),1.35,6.2);vAlpha=aBright*uAlpha*(.88+.12*sin(uTime*2.1+float(gl_VertexID)*3.83));vHeat=aBright;}`;
+const starFS=`#version 300 es
+precision highp float;in float vAlpha;in float vHeat;out vec4 frag;
+void main(){float r=length(gl_PointCoord-.5)*2.;float a=smoothstep(1.,.13,r)*vAlpha;vec3 c=mix(vec3(.63,.73,.93),vec3(1.,.88,.67),smoothstep(.72,1.,vHeat));frag=vec4(c,a);}`;
+const effectsVS=`#version 300 es
+precision highp float;layout(location=0)in vec4 aPosSize;layout(location=1)in vec4 aTint;
+uniform mat4 uVP;uniform float uFocal;out vec4 vTint;
+void main(){vec4 clip=uVP*vec4(aPosSize.xyz,1.);gl_Position=clip;gl_PointSize=clamp(aPosSize.w*uFocal/max(clip.w,1.),1.,145.);vTint=aTint;}`;
+const effectsFS=`#version 300 es
+precision highp float;in vec4 vTint;out vec4 frag;
+void main(){float radius=length(gl_PointCoord-.5)*2.;float alpha=pow(max(0.,1.-radius*radius),2.9)*vTint.a;frag=vec4(vTint.rgb,alpha);}`;
+const bgVS=`#version 300 es
+precision highp float;out vec2 uv;void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);uv=p;gl_Position=vec4(p*2.-1.,0.,1.);}`;
+const bgFS=`#version 300 es
+precision highp float;in vec2 uv;out vec4 frag;
+uniform vec3 uForward,uRight,uUp,uRadial,uSkyColor,uLight,uStarColor;
+uniform float uAspect,uTan,uAltitude,uDaylight,uMoonGlow,uStarPower,uSunAngular;
+void main(){vec2 xy=(uv-1.)*vec2(uAspect,1.)*uTan;vec3 ray=normalize(uForward+xy.x*uRight+xy.y*uUp);
+ float h=dot(ray,uRadial);float atmo=1.-smoothstep(170.,690.,uAltitude);float zen=smoothstep(-.20,.87,h);
+ vec3 daySky=mix(mix(uSkyColor*1.30,vec3(.75,.48,.29),.22),uSkyColor*.46,zen);
+ vec3 nightSky=mix(vec3(.002,.003,.010),uSkyColor*.032,zen)+uMoonGlow*uSkyColor*.08;
+ float twilight=smoothstep(-.18,.22,uDaylight);
+ vec3 sky=mix(nightSky,daySky,twilight);
+ float sun=max(0.,dot(ray,normalize(uLight)));
+ // No fake sun disc when it is underneath the local horizon.
+ float visible=step(-.012,h)*smoothstep(-.12,.06,uDaylight);
+ sky+=uStarColor*visible*uStarPower*(pow(sun,260.)*.47+pow(sun,14.)*.04);
+ frag=vec4(mix(vec3(.006,.010,.018),sky,atmo),1.);
+}`;
+function makeMesh(gl,positions,normals,colors,indices){const vao=gl.createVertexArray();gl.bindVertexArray(vao);const data=new Float32Array(positions.length+normals.length+colors.length);for(let i=0,j=0;i<positions.length;i+=3){data[j++]=positions[i];data[j++]=positions[i+1];data[j++]=positions[i+2];data[j++]=normals[i];data[j++]=normals[i+1];data[j++]=normals[i+2];data[j++]=colors[i];data[j++]=colors[i+1];data[j++]=colors[i+2];}
+const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);for(let i=0;i<3;i++){gl.enableVertexAttribArray(i);gl.vertexAttribPointer(i,3,gl.FLOAT,false,36,i*12);}let ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);let idx=indices.length>65535?new Uint32Array(indices):new Uint16Array(indices);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);gl.bindVertexArray(null);return{vao,vb,ib,count:idx.length,indexType:idx instanceof Uint32Array?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT};}
+function makeSphere(gl,r,rows,cols,planet,withTerrain){let p=[],n=[],c=[],idx=[];for(let i=0;i<=rows;i++){const lat=-Math.PI/2+Math.PI*i/rows,cl=Math.cos(lat);for(let j=0;j<=cols;j++){const lon=j/cols*Math.PI*2,d=[Math.sin(lon)*cl,Math.sin(lat),Math.cos(lon)*cl];const e=withTerrain?field(d,planet.seed):0;const h=withTerrain?groundHeight(d,planet,e):0;p.push(d[0]*(r+h),d[1]*(r+h),d[2]*(r+h));n.push(...d);c.push(...(withTerrain?shade(d,h,planet,e):[1,1,1]));}}
+for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;if(planet.type==='Shattered'&&withTerrain){const longitude=j/cols*6.28318,latitude=i/rows*3.14159;if((longitude>1.2&&longitude<2.4&&latitude>.52&&latitude<2.35)||(longitude>4.6&&longitude<5.18&&latitude<2.5))continue;}idx.push(a,a+1,b,a+1,b+1,b);}return makeMesh(gl,p,n,c,idx);}
+// Smoothed heightfield normals match actual triangle slopes rather than assuming a
+// perfectly spherical planet. They also eliminate apparent flickering faceted hills.
+function smoothNormals(positions,indices){
+ const acc=new Float64Array(positions.length);
+ for(let k=0;k<indices.length;k+=3){const a=indices[k]*3,b=indices[k+1]*3,c=indices[k+2]*3;
+  const ab=[positions[b]-positions[a],positions[b+1]-positions[a+1],positions[b+2]-positions[a+2]],ac=[positions[c]-positions[a],positions[c+1]-positions[a+1],positions[c+2]-positions[a+2]];
+  const face=V.cross(ab,ac);const center=[positions[a],positions[a+1],positions[a+2]];
+  if(V.dot(face,center)<0){face[0]*=-1;face[1]*=-1;face[2]*=-1;}
+  for(const j of [a,b,c]){acc[j]+=face[0];acc[j+1]+=face[1];acc[j+2]+=face[2];}
+ }
+ const normals=[];for(let i=0;i<acc.length;i+=3){const out=V.norm([acc[i],acc[i+1],acc[i+2]]);normals.push(...out);}
+ return normals;
+}
+function makeShip(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.45,.49,.50],panel=[.28,.33,.36],edge=[.72,.73,.69],accent=[.84,.56,.28],glass=[.18,.45,.58],dark=[.10,.14,.17],engine=[.55,.22,.18];
+// Larger modular expedition ship inspired by cargo and lander references. Forward is local -Z.
+box(-3.0,-1.3,-14.5,3.0,1.6,13.5,hull); // central spine
+box(-2.1,1.0,-9.4,2.1,3.1,-0.8,panel); // cockpit module
+tri([0,1.15,-18.5],[-2.2,.2,-14.5],[2.2,.2,-14.5],edge);tri([0,2.8,-12.2],[-2.2,.2,-14.5],[0,1.15,-18.5],edge);tri([0,2.8,-12.2],[0,1.15,-18.5],[2.2,.2,-14.5],edge);tri([-2.2,.2,-14.5],[2.2,.2,-14.5],[0,-1.0,-15.2],dark);
+tri([0,2.7,-12.4],[-1.65,1.35,-11.2],[1.65,1.35,-11.2],glass);tri([0,2.7,-12.4],[1.65,1.35,-11.2],[0,3.0,-8.9],glass);tri([0,2.7,-12.4],[0,3.0,-8.9],[-1.65,1.35,-11.2],glass);
+box(-7.6,-1.0,-5.2,-3.4,.85,8.2,panel);box(3.4,-1.0,-5.2,7.6,.85,8.2,panel); // side cargo pods
+box(-2.35,-1.4,5.0,2.35,1.7,15.5,hull); // aft cargo hold
+box(-1.7,-0.5,15.5,1.7,0.9,19.5,panel); // aft extension
+// docking collar and dorsal bay
+box(-1.35,1.8,1.0,1.35,3.15,8.5,edge);box(-5.0,1.2,4.5,-3.8,2.2,8.8,accent);box(3.8,1.2,4.5,5.0,2.2,8.8,accent);
+// wings / radiators
+quad([-3.0,.1,-3.6],[-15.5,-.55,3.5],[-11.8,-.25,14.8],[-3.2,.38,8.6],hull);quad([3.0,.1,-3.6],[3.2,.38,8.6],[11.8,-.25,14.8],[15.5,-.55,3.5],hull);quad([-2.9,-.3,-3.6],[-3.3,-.7,8.4],[-11.8,-.55,14.8],[-15.5,-.95,3.5],dark);quad([2.9,-.3,-3.6],[15.5,-.95,3.5],[11.8,-.55,14.8],[3.3,-.7,8.4],dark);
+// engine pods and nozzles
+box(-6.8,-1.35,13.3,-3.8,.45,18.0,dark);box(3.8,-1.35,13.3,6.8,.45,18.0,dark);box(-1.55,-1.05,16.0,1.55,.35,19.2,dark);box(-6.25,-1.0,18.0,-4.35,.1,19.4,engine);box(4.35,-1.0,18.0,6.25,.1,19.4,engine);box(-1.1,-.8,19.2,1.1,.05,20.2,engine);
+// landing legs / feet
+for(const [x,z] of [[-5.8,8.5],[5.8,8.5],[-2.8,14.6],[2.8,14.6]]){quad([x,-1.05,z],[x+(x<0?-0.5:0.5),-4.2,z+0.6],[x+(x<0?-1.4:1.4),-4.2,z+2.0],[x+(x<0?-0.9:0.9),-1.05,z+1.5],edge);box(x+(x<0?-1.65:0.65),-4.45,z+1.4,x+(x<0?-0.15:1.85),-4.1,z+3.1,accent);} 
+// Walkable rear cargo ramp. The tip meets the ground at the landed clearance.
+quad([-2.7,-1.5,13.0],[2.7,-1.5,13.0],[3.15,-7.35,29.0],[-3.15,-7.35,29.0],edge);
+quad([-2.9,-1.53,13.0],[-2.7,-1.53,13.0],[-3.15,-7.34,29.0],[-3.4,-7.34,29.0],accent);
+quad([2.7,-1.53,13.0],[2.9,-1.53,13.0],[3.4,-7.34,29.0],[3.15,-7.34,29.0],accent);
+// underside details
+box(-1.8,-2.0,-2.5,1.8,-1.35,5.8,panel);box(-.75,-2.2,6.0,.75,-1.5,12.2,panel);
+return makeMesh(gl,p,n,c,idx);} 
+function makeRover(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.73,.73,.68],dark=[.14,.16,.18],accent=[.86,.59,.32],glass=[.18,.35,.42];
+// Six-wheel science rover with mast and manipulator.
+box(-3.0,1.0,-3.8,3.2,2.6,3.6,hull);box(-1.6,2.35,-2.0,1.4,3.2,1.0,[.58,.58,.54]);tri([0,5.5,-.9],[-.65,3.2,-.9],[.65,3.2,-.9],hull);box(-.32,3.1,-1.2,.32,5.1,-.55,dark);box(-.95,5.0,-1.65,.95,6.1,-.2,[.76,.76,.71]);box(-.55,6.1,-1.2,.55,6.9,-.35,dark);tri([3.0,2.2,.2],[5.3,1.7,.9],[4.0,1.3,1.8],dark);tri([3.0,2.2,.2],[4.0,1.3,1.8],[2.6,1.6,2.6],dark);box(2.35,1.4,2.1,2.95,2.0,3.15,accent);box(-2.45,2.55,-2.9,2.55,2.72,-2.2,glass);box(-1.7,2.55,-2.2,-.55,2.72,-1.2,glass);
+for(const x of [-2.75,0,2.75]){for(const z of [-2.6,2.5]){quad([x,1.1,z],[x+(x<0?-0.9:x>0?0.9:0.0),.3,z],[x+(x<0?-1.15:x>0?1.15:0.0),-.65,z+(.15*(z>0?1:-1))],[x,0.45,z+(.25*(z>0?1:-1))],dark);const wx=x+(x<0?-1.65:x>0?1.65:0.0);box(wx-.75,-1.95,z-.9,wx+.75,-.45,z+.9,[.06,.06,.07]);box(wx-.42,-1.45,z-.45,wx+.42,-.55,z+.45,[.24,.24,.24]);}}
+box(-2.0,1.35,1.2,-.1,2.0,2.9,accent);box(.3,1.35,1.2,2.1,2.0,2.9,accent);
+return makeMesh(gl,p,n,c,idx);}
+/* Explorer avatar: original, lightweight 3D mesh assembled once per session.
+ * Lit by the same star/moon/headlamp shader as the ships and terrain.
+ * Local model axes: +Y up, -Z forward. Feet y=0; eyes at y=5.25.
+ * Character styling based on the user's coat / goggles / luminous magitech reference.
+ */
+function createExplorerMesh(gl){
+ const C={suit:[.62,.69,.71],light:[.79,.84,.84],dark:[.09,.15,.20],undersuit:[.12,.20,.25],rubber:[.06,.10,.14],visor:[.12,.52,.68],trim:[.92,.46,.18],steel:[.38,.47,.52],glow:[.03,.82,1.0],glow2:[.23,.91,1.0]};
+ function sculpt(){const p=[],n=[],c=[],ix=[];
+  function tri(a,b,d,col){const nn=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),j=p.length/3;for(const x of [a,b,d]){p.push(...x);n.push(...nn);c.push(...col);}ix.push(j,j+1,j+2);}
+  function quad(a,b,d,e,col){tri(a,b,d,col);tri(a,d,e,col);}
+  function box(x1,y1,z1,x2,y2,z2,col){let a=[x1,y1,z1],b=[x2,y1,z1],d=[x2,y2,z1],e=[x1,y2,z1],f=[x1,y1,z2],g=[x2,y1,z2],h=[x1,y2,z2],i=[x1,y2,z2]; // corrected back upper-left follows
+   i=[x1,y2,z2];quad(a,b,d,e,col);quad(g,f,i,h,col);quad(f,a,e,i,col);quad(b,g,h,d,col);quad(e,d,h,i,col);quad(f,g,b,a,col);}
+  function tube(a,b,r0,r1,col,seg=9){const dir=V.norm(V.sub(b,a)),t=V.norm(V.cross(dir,Math.abs(dir[1])>.9?[1,0,0]:[0,1,0])),z=V.norm(V.cross(dir,t));for(let k=0;k<seg;k++){const u=k*Math.PI*2/seg,v=(k+1)*Math.PI*2/seg;const pt=(ctr,r,q)=>V.add(ctr,V.add(V.mul(t,r*Math.cos(q)),V.mul(z,r*Math.sin(q))));quad(pt(a,r0,u),pt(a,r0,v),pt(b,r1,v),pt(b,r1,u),col);}}
+  function oval(center,rx,ry,rz,col,rows=6,cols=10){for(let j=0;j<rows;j++){const lat=(j/rows-.5)*Math.PI,nlat=((j+1)/rows-.5)*Math.PI;for(let k=0;k<cols;k++){const lon=k*2*Math.PI/cols,nlon=(k+1)*2*Math.PI/cols;const pt=(a,b)=>[center[0]+rx*Math.cos(a)*Math.sin(b),center[1]+ry*Math.sin(a),center[2]+rz*Math.cos(a)*Math.cos(b)];quad(pt(lat,lon),pt(lat,nlon),pt(nlat,nlon),pt(nlat,lon),col);}}}
+  return {box,tube,oval,tri,quad,finish:()=>makeMesh(gl,p,n,c,ix)};
+ }
+ const body=sculpt();
+ body.oval([0,2.08,0],.38,.62,.30,C.suit,9,12);body.box(-.31,1.65,-.34,.31,2.23,-.20,C.dark);body.box(-.38,1.62,-.29,.38,1.73,.30,C.trim);
+ body.box(-.34,1.28,-.20,.34,1.60,.24,C.undersuit);body.box(-.45,2.02,.19,.45,2.64,.47,C.steel);body.box(-.35,2.12,.42,.35,2.52,.57,C.dark);
+ body.oval([0,2.87,0],.33,.37,.31,C.light,8,12);body.oval([0,2.92,-.275],.257,.22,.095,C.visor,7,12);body.box(-.26,2.77,-.352,.26,2.81,-.32,C.glow2);
+ body.tube([-.29,3.04,-.11],[.29,3.04,-.11],.038,.038,C.dark,7);body.tube([-.30,2.55,.18],[.30,2.55,.18],.08,.08,C.suit,8);
+ body.box(-.22,1.70,-.41,.22,2.04,-.32,C.dark);body.box(-.14,1.83,-.43,.14,1.91,-.41,C.trim);
+ for(const x of [-.38,.38]){body.box(x-.14,1.56,-.22,x+.14,1.80,.23,C.dark);body.box(x-.14,1.72,-.24,x+.14,1.77,-.19,C.trim);}
+ const cape=sculpt();cape.box(-.35,2.03,.50,.35,2.46,.57,C.dark);cape.tube([-.25,2.43,.47],[.25,2.43,.47],.055,.055,C.trim,8);
+ const legs=[];for(const side of [-1,1]){const b=sculpt();b.tube([0,-.02,0],[0,-.52,0],.202,.17,C.suit,9);b.oval([0,-.56,-.03],.19,.16,.20,C.dark);b.tube([0,-.61,0],[0,-1.16,0],.17,.145,C.light,9);b.box(-.20,-1.39,-.30,.20,-1.12,.20,C.rubber);b.box(-.19,-1.28,-.36,.19,-1.17,-.24,C.steel);b.box(-.185,-.68,-.21,.185,-.51,-.165,side===-1?C.trim:C.dark);legs.push(b.finish());}
+ const arms=[];for(const side of [-1,1]){const a=sculpt();a.oval([0,-.1,0],.245,.20,.25,C.steel);a.tube([0,-.15,0],[side*.10,-.54,0],.194,.16,C.suit,9);a.tube([side*.10,-.56,0],[side*.10,-.86,0],.165,.17,C.undersuit,9);a.box(side*.10-.18,-.83,-.19,side*.10+.18,-.66,.17,C.dark);a.oval([side*.10,-1.02,0],.142,.17,.15,C.rubber);a.box(side*.10-.10,-.79,-.205,side*.10+.10,-.69,-.18,C.trim);arms.push(a.finish());}
+ const staff=sculpt(); // folded sampling tool, compact rather than an oversized staff
+ staff.box(-.68,.94,-.10,-.58,1.88,-.04,C.steel);staff.box(-.73,1.84,-.14,-.53,2.01,.06,C.light);staff.box(-.68,1.92,-.16,-.58,1.98,-.14,C.visor);
+ const glow=sculpt();glow.box(-.10,1.87,-.44,.10,1.93,-.42,C.glow);glow.box(-.15,2.90,-.37,.15,2.94,-.34,C.glow2);
+ const staffGlow=sculpt();staffGlow.box(-.67,1.92,-.18,-.59,1.97,-.15,C.glow);
+ return{body:body.finish(),cape:cape.finish(),legs,arms,staff:staff.finish(),glow:glow.finish(),staffGlow:staffGlow.finish()};
+}
+
+function rand(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
+function starBuffer(gl,arr,usage){let vao=gl.createVertexArray();gl.bindVertexArray(vao);let vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,arr,usage);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,4,gl.FLOAT,false,20,0);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,1,gl.FLOAT,false,20,16);gl.bindVertexArray(null);return{vao,vb,count:arr.length/5};}
+class Renderer{
+ constructor(canvas,galaxy){
+  this.canvas=canvas;this.galaxy=galaxy;
+  this.gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:true,powerPreference:'high-performance'});
+  if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
+  this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS)};
+  this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
+  this.ship=makeShip(gl);this.rover=makeRover(gl);this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.meshCache=new Map();this.ringCache=new Map();this.meshBudget=48;
+  this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
+  this.pixelRatio=Math.min(devicePixelRatio||1,1.4);this.dprTarget=this.pixelRatio;this.starPoints=0;this.renderedBodies=0;this.culledBodies=0;this.visibleSystems=0;
+  // No decorative stars: every point in the night sky is an actual navigable system.
+  const deep=new Float32Array(0);
+  this.effectVao=gl.createVertexArray();this.effectBuffer=gl.createBuffer();gl.bindVertexArray(this.effectVao);gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,8*4*3600,gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,4,gl.FLOAT,false,32,0);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,4,gl.FLOAT,false,32,16);gl.bindVertexArray(null);this.effectCount=0;this.effectsRendered=0;
+  // Fixed angular nebula haze is visual-only; it does not invent nearby navigable stars.
+  this.skyClouds=[];const nebR=rand(280719),cloudColors=[[.28,.48,.82],[.53,.31,.71],[.17,.59,.61],[.54,.30,.50],[.31,.42,.74],[.25,.50,.55]];
+  for(let i=0;i<cloudColors.length;i++){const a=nebR()*Math.PI*2,y=nebR()*1.6-.8,q=Math.sqrt(1-y*y),center=[Math.cos(a)*q,y,Math.sin(a)*q];
+   const side=V.norm(V.cross(center,[0,1,0])),up=V.norm(V.cross(side,center));for(let j=0;j<34;j++){const x=(nebR()-.5)*.46,z=(nebR()-.5)*.28,dir=V.norm(V.add(center,V.add(V.mul(side,x),V.mul(up,z))));this.skyClouds.push({dir,size:1800+nebR()*5200,color:cloudColors[i],alpha:.045+nebR()*.075});}}
+  this.deep=starBuffer(gl,deep,gl.STATIC_DRAW);this.celestial=starBuffer(gl,new Float32Array(5),gl.DYNAMIC_DRAW);this.skyVao=gl.createVertexArray();
+  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.disable(gl.CULL_FACE);this.resize();
+ }
+ resize(){const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;const iw=Math.max(2,Math.floor(w*this.pixelRatio)),ih=Math.max(2,Math.floor(h*this.pixelRatio));if(this.canvas.width!==iw||this.canvas.height!==ih){this.canvas.width=iw;this.canvas.height=ih;}this.gl.viewport(0,0,iw,ih);this.aspect=w/h;this.fov=Math.PI/3.12;}
+ loc(p,n){return this.gl.getUniformLocation(p,n)}
+ setMat(p,k,m){this.gl.uniformMatrix4fv(this.loc(p,k),false,m)}
+ setVec(p,k,v){this.gl.uniform3fv(this.loc(p,k),v)}
+ setFloat(p,k,f){this.gl.uniform1f(this.loc(p,k),f)}
+ renderMesh(p,mesh,model){this.setMat(p,'uModel',model);this.gl.bindVertexArray(mesh.vao);this.gl.drawElements(this.gl.TRIANGLES,mesh.count,mesh.indexType,0);}
+ freeMesh(mesh){if(!mesh)return;const gl=this.gl;gl.deleteVertexArray(mesh.vao);gl.deleteBuffer(mesh.vb);gl.deleteBuffer(mesh.ib);}
+ // Use one star-relative illumination solution for geometry, atmosphere, and sky.
+ spinModel(body,rel,phase=0){return M.spin(rel,body.spinAxis||[0,1,0],(body.spinAngle||0)+phase);}
+ localDir(body,worldDir){return V.rot(worldDir,body.spinAxis||[0,1,0],-(body.spinAngle||0));}
+ updateEffects(cam,nearSystem){const gl=this.gl,list=[],limit=3500,eye=cam.eye,fwd=cam.forward;
+  const add=(absolute,size,color,alpha)=>{if(list.length>=limit*8)return;const rel=V.sub(absolute,eye),distance=V.len(rel);if(distance<1||distance>2.2e9||V.dot(rel,fwd)<-size*.2)return;list.push(rel[0],rel[1],rel[2],size,color[0],color[1],color[2],alpha*this.spaceAlpha);};
+  if(this.spaceAlpha<=.04){this.effectCount=0;this.effectsRendered=0;return;}
+  for(const c of this.skyClouds){add(V.add(eye,V.mul(c.dir,44000)),c.size,c.color,c.alpha);}
+  const systems=this.galaxy.systems;
+  for(const sys of systems){const delta=V.sub(sys.position,eye),distance=V.len(delta);const near=distance<sys.maxOrbit+sys.star.radius*22;
+   if(!near)continue;
+   for(const belt of sys.belts){if(Math.abs(distance-belt.radius)>belt.radius*.9+220000)continue;const a=belt.phase+this.galaxy.time*Math.PI*2/belt.period,cos=Math.cos(a),sin=Math.sin(a);
+    for(const rock of belt.rocks){const x=rock[0]*cos-rock[2]*sin,z=rock[0]*sin+rock[2]*cos;add([sys.position[0]+x,sys.position[1]+rock[1],sys.position[2]+z],Math.max(55,belt.radius*.0018)*rock[3],[.55,.51,.49],.50);}
+   }
+   for(const neb of sys.nebulae){if(distance>sys.star.radius*45)continue;for(const point of neb.cloud){add(V.add(sys.position,point.slice(0,3)),point[3],neb.color,point[4]);}}
+   for(const comet of sys.comets){const dir=comet.tail,scale=Math.max(3000,sys.star.radius*.22);add(comet.position,scale*.27,[.80,.94,1],.98);
+    for(let j=1;j<38;j++){const dist=j/37,drift=Math.sin(j*4.9+sys.star.radius)*scale*.055*dist;add([comet.position[0]+dir[0]*scale*j*.60+drift,comet.position[1]+dir[1]*scale*j*.60,comet.position[2]+dir[2]*scale*j*.60-drift],scale*(.48+dist*.8),[.35,.72,1],.68*(1-dist));}
+   }
+   if(sys.phenomenon==='pulsar') {const t=this.galaxy.time*1.7,axis=V.norm([Math.cos(t)*.32,.92,Math.sin(t)*.32]);for(const sign of [-1,1])for(let j=0;j<46;j++){const len=sys.star.radius*(1.15+j*.21),scatter=Math.sin(j*18.71+t)*sys.star.radius*.04*j/46;add([sys.position[0]+axis[0]*len*sign+scatter,sys.position[1]+axis[1]*len*sign,sys.position[2]+axis[2]*len*sign-scatter],sys.star.radius*.28,[.44,.77,1],.47*(1-j/52));}}
+   if(sys.phenomenon==='supernova'){const r=sys.star.radius*(2.8+.5*Math.sin(this.galaxy.time*.08));for(let j=0;j<150;j++){const a=j*2.3999632,y=1-2*(j+.5)/150,q=Math.sqrt(1-y*y),d=r*(.7+.25*Math.sin(j*37.13));add([sys.position[0]+Math.cos(a)*q*d,sys.position[1]+y*d,sys.position[2]+Math.sin(a)*q*d],sys.star.radius*.49,j%4===0?[.49,.75,1]:[1,.47,.29],.25);}}
+   for(const body of sys.planets){if(body.type!=='Shattered'||V.len(V.sub(body.position,eye))>body.radius*180)continue;for(let j=0;j<110;j++){const a=j*2.3999632,y=1-2*(j+.5)/110,q=Math.sqrt(1-y*y),r=body.radius*(1.1+(j%13)/16);const spin=this.galaxy.time*.025;add([body.position[0]+Math.cos(a+spin)*q*r,body.position[1]+y*r*.62,body.position[2]+Math.sin(a+spin)*q*r],body.radius*.10,[.66,.47,.36],.85);}}
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(list),gl.DYNAMIC_DRAW);this.effectCount=list.length/8;this.effectsRendered=this.effectCount;
+ }
+ geometry(body,lod){const key=body.id+':'+lod;let cached=this.meshCache.get(key);if(cached){this.meshCache.delete(key);this.meshCache.set(key,cached);return cached;}
+  const gl=this.gl,detail=lod===2?[80,160]:lod===1?[36,72]:[16,32];cached={world:makeSphere(gl,body.radius,...detail,body,true),atmo:null,cloud:null};
+  if(lod===2&&body.kind!=='moon'&&body.landable){cached.atmo=makeSphere(gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);if(['Temperate','Ocean','Lush','Ice'].includes(body.type))cached.cloud=makeSphere(gl,body.radius+Math.min(114,body.radius*.06),28,56,body,false);}
+  this.meshCache.set(key,cached);while(this.meshCache.size>this.meshBudget){const oldest=this.meshCache.keys().next().value,old=this.meshCache.get(oldest);this.freeMesh(old.world);this.freeMesh(old.atmo);this.freeMesh(old.cloud);this.meshCache.delete(oldest);}return cached;
+ }
+ ringMesh(body){let mesh=this.ringCache.get(body.id);if(mesh){this.ringCache.delete(body.id);this.ringCache.set(body.id,mesh);return mesh;}
+  const p=[],n=[],c=[],indices=[],segments=128,bands=10,sin=Math.sin(body.ringTilt),cos=Math.cos(body.ringTilt);
+  for(let j=0;j<=bands;j++){const v=j/bands,r=body.radius*(1.33+v*(body.ringWidth-1.33));for(let i=0;i<=segments;i++){const a=i/segments*Math.PI*2,x=Math.cos(a)*r,z=Math.sin(a)*r;p.push(x,-z*sin,z*cos);n.push(0,cos,sin);const stripe=.46+Math.sin(v*52+body.seed)*.14+(j%3)*.045;c.push(stripe*.95,stripe*.82,stripe*.67);}}
+  for(let j=0;j<bands;j++)for(let i=0;i<segments;i++){const a=j*(segments+1)+i,b=a+segments+1;indices.push(a,b,a+1,a+1,b,b+1);}
+  mesh=makeMesh(this.gl,p,n,c,indices);this.ringCache.set(body.id,mesh);while(this.ringCache.size>16){const oldest=this.ringCache.keys().next().value;this.freeMesh(this.ringCache.get(oldest));this.ringCache.delete(oldest);}return mesh;
+ }
+ // The actual stars are separated by >=100 larger-star diameters. The 2,500-point
+ // deep backdrop is purely a direction-only sky texture, not navigable bodies.
+ updateCelestial(cam){
+  // Rate-limit sky buffers; star positions are fixed while camera orientation/position changes.
+  const now=performance.now();
+  if(this.lastSkyAt&&now-this.lastSkyAt<110&&V.len(V.sub(cam.eye,this.lastSkyPos))<2e7&&V.dot(cam.forward,this.lastSkyForward)>.995)return;
+  this.lastSkyAt=now;this.lastSkyPos=[...cam.eye];this.lastSkyForward=[...cam.forward];
+  const list=[],picks=[];
+  for(const system of this.galaxy.systems){const delta=V.sub(system.position,cam.eye),distance=V.len(delta);
+   if(distance<system.star.radius*70)continue;
+   const unit=V.norm(delta);if(V.dot(unit,cam.forward)<-.16)continue;
+   const luminous=system.star.rarity==='Legendary'?2.8:system.star.rarity==='Epic'?2.4:system.star.rarity==='Rare'?2.1:1.75;
+   // The fixed-depth point is only a precision-safe impostor: its source is a real star at system.position.
+   list.push(...V.mul(unit,44000),luminous,.80);picks.push({system,dir:unit});
+  }
+  const gl=this.gl;gl.bindBuffer(gl.ARRAY_BUFFER,this.celestial.vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(list),gl.DYNAMIC_DRAW);
+  this.celestial.count=list.length/5;this.starPoints=this.celestial.count;this.skyPicks=picks;
+ }
+ updatePatch(planet,position,alt){if(!planet||!planet.landable||alt>Math.min(1000,planet.radius*.65)){this.patchPlanet=null;return;}const dir=V.norm(V.sub(position,planet.position)),spacing=alt<110?22:alt<380?65:130;
+  const local=this.localDir(planet,dir);if(this.patchPlanet===planet&&(V.len(V.sub(local,this.patchCenter))*planet.radius<spacing||performance.now()-this.lastPatchAt<125))return;this.lastPatchAt=performance.now();
+  this.patchPlanet=planet;this.patchCenter=[...local];this.freeMesh(this.patch);const gl=this.gl;const east=V.norm(V.cross(Math.abs(local[1])>.94?[0,0,1]:[0,1,0],local)),north=V.norm(V.cross(local,east));
+  const dirLocal=local;const grids=planet.kind==='moon'?64:96,half=Math.max(950,Math.min(2800,planet.radius*1.6)),p=[],n=[],c=[],ix=[];
+  for(let iz=0;iz<=grids;iz++){const tz=iz/grids*2-1,z=Math.sign(tz)*Math.pow(Math.abs(tz),1.83)*half;for(let j=0;j<=grids;j++){const tx=j/grids*2-1,x=Math.sign(tx)*Math.pow(Math.abs(tx),1.83)*half;const d=V.norm(V.add(V.mul(local,planet.radius),V.add(V.mul(east,x),V.mul(north,z)))),e=field(d,planet.seed),h=groundHeight(d,planet,e),v=V.mul(d,planet.radius+h);p.push(...v);n.push(...d);c.push(...shade(d,h,planet,e));}}
+  for(let i=0;i<grids;i++)for(let j=0;j<grids;j++){const a=i*(grids+1)+j,b=a+grids+1;ix.push(a,a+1,b,a+1,b+1,b);}this.patch=makeMesh(gl,p,smoothNormals(p,ix),c,ix);this.patchDraws++;
+ }
+ updateProps(planet,position,alt){if(!planet||!planet.landable||alt>Math.min(310,planet.radius*.45)){this.propsPlanet=null;return;}const dir=this.localDir(planet,V.norm(V.sub(position,planet.position)));if(this.propsPlanet===planet&&(V.len(V.sub(dir,this.propsCenter))*planet.radius<90||performance.now()-this.lastPropsAt<300))return;this.lastPropsAt=performance.now();
+  this.propsPlanet=planet;this.propsCenter=[...dir];this.freeMesh(this.props);const east=V.norm(V.cross(Math.abs(dir[1])>.92?[0,0,1]:[0,1,0],dir)),north=V.norm(V.cross(dir,east));const p=[],n=[],c=[],indices=[];
+  const triangle=(a,b,d,color)=>{const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const point of [a,b,d]){p.push(...point);n.push(...normal);c.push(...color);}indices.push(base,base+1,base+2);};
+  const rng=rand(planet.seed^Math.floor(dir[0]*5000)^Math.floor(dir[2]*5000)*29);
+  for(let i=0;i<95;i++){const radius=25+Math.sqrt(rng())*Math.min(510,planet.radius*.55),angle=rng()*Math.PI*2,rough=V.norm(V.add(V.mul(dir,planet.radius),V.add(V.mul(east,Math.cos(angle)*radius),V.mul(north,Math.sin(angle)*radius))));const e=field(rough,planet.seed),height=groundHeight(rough,planet,e);
+   if(['Temperate','Lush','Ocean'].includes(planet.type)&&height<1)continue;
+   const base=V.mul(rough,planet.radius+height+.3),size=(.55+rng()*1.7)*(i%7===0?2.2:1),right=V.norm(V.cross(Math.abs(rough[1])>.95?[0,0,1]:[0,1,0],rough)),ahead=V.norm(V.cross(rough,right));
+   const ax=V.add(base,V.mul(right,size*2)),bx=V.add(base,V.mul(right,-size*2)),cx=V.add(base,V.mul(ahead,size*2)),dx=V.add(base,V.mul(ahead,-size*2));let tip=V.add(base,V.mul(rough,size*(2.5+rng()*2)));const tree=(planet.type==='Temperate'||planet.type==='Lush')&&rng()>.33;
+   if(tree){const trunk=V.add(base,V.mul(rough,3+size*1.4)),brown=[.24,.23,.17];triangle(ax,bx,trunk,brown);triangle(cx,dx,trunk,brown);tip=V.add(base,V.mul(rough,size*7));const mid=V.add(base,V.mul(rough,size*3.4)),f=V.add(mid,V.mul(right,size*3.7)),g=V.add(mid,V.mul(right,-size*3.7)),h=V.add(mid,V.mul(ahead,size*3.7)),j=V.add(mid,V.mul(ahead,-size*3.7)),leaf=planet.type==='Lush'?[.20,.39,.25]:[.31,.37,.25];triangle(f,h,tip,leaf);triangle(h,g,tip,leaf);triangle(g,j,tip,leaf);triangle(j,f,tip,leaf);}
+   else{const rocky=planet.type==='Volcanic'?[.34,.21,.17]:planet.type==='Ice'?[.61,.72,.75]:planet.type==='Desert'?[.58,.43,.29]:[.39,.43,.40];triangle(ax,cx,tip,rocky);triangle(cx,bx,tip,V.mix(rocky,[.16,.18,.20],.24));triangle(bx,dx,tip,rocky);triangle(dx,ax,tip,V.mix(rocky,[.14,.19,.16],.14));}
+  }this.props=makeMesh(this.gl,p,n,c,indices);
+ }
+ render(state){const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
+  this.updatePatch(near,viewer,alt);this.updateProps(near,viewer,alt);this.updateCelestial(cam);
+  const nearSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
+  const radial=near?V.norm(V.sub(cam.eye,near.position)):[0,1,0];
+  const lightingSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
+  const lighting=near&&lightingSystem?evaluateLighting(near,lightingSystem,this.galaxy,origin):{sunDir:[-.66,.75,.43],starColor:[1,1,1],starPower:1,moonPower:0,bounceDirection:[0,1,0],bounceColor:[.75,.82,.9],ambient:.008,occluder:null};
+  const dayDot=V.dot(radial,lighting.sunDir);this.daylightLabel=near?(dayDot>.15?'DAYLIGHT':dayDot>-.16?'TWILIGHT':lighting.moonPower>.018?'MOONLIT NIGHT':'NIGHT'):'VACUUM';
+  const atmo=near&&near.kind!=='moon'&&near.landable?V.clamp((680-alt)/510,0,1):0;
+  const sky=near?.sky||[.13,.27,.38];const daytime=V.clamp((dayDot+.16)/.35,0,1);
+  const fogColor=V.mix([.002,.004,.01],sky,atmo*daytime);
+  const fogDensity=atmo*.00054;
+  const view=M.look([0,0,0],V.sub(cam.target,origin),cam.up),proj=M.perspective(this.fov,this.aspect,.35,2e8),vp=M.mul(proj,view),sunVP=M.mul(M.perspective(this.fov,this.aspect,100,3e9),view);
+  const light=lighting.sunDir;
+  const applyLight=(prog,body=near)=>{let l=lighting;
+   if(body&&body!==near){const parentSystem=this.galaxy.byId.get(body.systemId);if(parentSystem)l=evaluateLighting(body,parentSystem,this.galaxy,origin);}
+   this.setVec(prog,'uLight',l.sunDir);this.setVec(prog,'uStarColor',l.starColor);this.setFloat(prog,'uStarPower',l.starPower);
+   this.setFloat(prog,'uAmbient',l.ambient);this.setVec(prog,'uBounceDir',l.bounceDirection);
+   this.setVec(prog,'uBounceColor',l.bounceColor);this.setFloat(prog,'uBouncePower',l.moonPower);
+   this.setVec(prog,'uHeadlampPos',V.sub(lightPos,origin));this.setVec(prog,'uHeadlampDir',state.shipForward);
+   this.setFloat(prog,'uHeadlampPower',state.headlights?2.2:0);
+   const occ=l.occluder;this.gl.uniform4fv(this.loc(prog,'uOccluder'),occ?[...V.sub(occ.center,origin),occ.radius]:[0,0,0,0]);
+  };
+  gl.viewport(0,0,this.canvas.width,this.canvas.height);gl.clearColor(.006,.012,.023,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
+  let p=this.p.bg;gl.useProgram(p);gl.bindVertexArray(this.skyVao);this.setVec(p,'uForward',cam.forward);this.setVec(p,'uRight',cam.right);this.setVec(p,'uUp',cam.up);this.setVec(p,'uRadial',radial);this.setVec(p,'uSkyColor',sky);this.setVec(p,'uLight',light);this.setVec(p,'uStarColor',lighting.starColor);this.setFloat(p,'uStarPower',lighting.starPower);this.setFloat(p,'uDaylight',dayDot);this.setFloat(p,'uMoonGlow',lighting.moonPower);this.setFloat(p,'uSunAngular',0.04);this.setFloat(p,'uAspect',this.aspect);this.setFloat(p,'uTan',Math.tan(this.fov/2));this.setFloat(p,'uAltitude',alt);gl.drawArrays(gl.TRIANGLES,0,3);
+  p=this.p.star;gl.useProgram(p);this.setMat(p,'uVP',M.mul(M.perspective(this.fov,this.aspect,1,100000),view));this.setFloat(p,'uDpr',this.pixelRatio);this.setFloat(p,'uAlpha',1-atmo*daytime*.97);this.setFloat(p,'uTime',performance.now()*.001);this.setVec(p,'uOffset',[0,0,0]);gl.bindVertexArray(this.deep.vao);gl.drawArrays(gl.POINTS,0,this.deep.count);gl.bindVertexArray(this.celestial.vao);gl.drawArrays(gl.POINTS,0,this.celestial.count);
+  this.spaceAlpha=1-atmo*daytime*.97;this.updateEffects(cam,nearSystem);
+  p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setFloat(p,'uFocal',this.canvas.height*.7);
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);gl.drawArrays(gl.POINTS,0,this.effectCount);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  // Massive suns use a separate far-space projection. Their coordinates are relative
+  // to the camera so Float32 matrices retain local precision in billion-unit sectors.
+  this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*this.canvas.height;if(pixels<1.5)continue;
+   p=this.p.sun;gl.useProgram(p);this.setMat(p,'uViewProj',sunVP);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uTime',this.galaxy.time);const model=M.scaleTranslate(rel,sys.star.radius);this.renderMesh(p,this.sunSphere,model);
+   p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
+  }
+  gl.enable(gl.DEPTH_TEST);gl.depthMask(true);
+  p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',fogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',0);
+  const rendered=[],rings=[];this.renderedBodies=0;this.culledBodies=0;
+  // Star-system broad-phase culling, then view-frustum + projected-size LOD.
+  for(const sys of this.galaxy.nearbySystems(origin,1600000)){const starDist=V.len(V.sub(sys.position,origin));if(starDist>sys.maxOrbit+1600000)continue;
+   for(const body of sys.bodies){const rel=V.sub(body.position,origin),dist=V.len(rel),facing=V.dot(V.norm(rel),cam.forward),angular=body.radius/Math.max(1,dist-body.radius),pixels=angular*this.canvas.height;
+    if(dist>1600000||facing<-.26&&dist>body.radius*1.8||pixels<1.55){this.culledBodies++;continue;}
+    const lod=pixels>180?2:pixels>30?1:0;
+    const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340; if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
+   }
+  }
+  if(this.patchPlanet&&this.patch&&alt<340){applyLight(p,this.patchPlanet);this.renderMesh(p,this.patch,this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin)));}
+  if(this.propsPlanet&&this.props){applyLight(p,this.propsPlanet);this.renderMesh(p,this.props,this.spinModel(this.propsPlanet,V.sub(this.propsPlanet.position,origin)));}
+  // Rings are actual tilted annular triangle meshes, not decorative orbit lines.
+  gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',fogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
+  for(const obj of rendered){if(!obj.geometry.atmo||obj.dist<obj.body.radius+150||obj.dist>obj.body.radius+11000)continue;
+   p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',.9);this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
+   if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',1);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
+  }
+  gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',fogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);
+  if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
+  // Real 3D EVA character. These meshes are small, instanced only for the
+  // player, and share existing star/moon lighting and depth occlusion.
+  if(state.avatarBase&&state.avatarUp&&state.avatarForward){
+   p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);
+   this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',fogColor);
+   this.setFloat(p,'uFogDensity',fogDensity);
+   const worldUp=V.norm(state.avatarUp),front=V.norm(V.sub(state.avatarForward,V.mul(worldUp,V.dot(state.avatarForward,worldUp))));
+   const worldForward=V.len(front)>.1?front:cam.forward;
+   let worldRight=V.norm(V.cross(worldForward,worldUp));
+   const walk=state.avatarWalking?1:0;
+   if(walk)this.avatarAnimation+=(state.avatarSpeed||1)*state.avatarDelta*8.2;
+   const phase=this.avatarAnimation,gait=Math.sin(phase)*.43*walk;
+   const bob=walk?.027*(1-Math.cos(2*phase)) : 0;
+   const bodyPos=V.add(state.avatarBase,V.mul(worldUp,bob));
+   const basis=M.basis(worldRight,worldUp,worldForward,V.sub(bodyPos,origin));
+   const parts=this.avatarParts;
+   this.setFloat(p,'uShip',1);
+   this.renderMesh(p,parts.body,basis);this.renderMesh(p,parts.cape,basis);
+   const bone=(x,y,z,angle)=>M.mul(basis,M.mul(M.translate([x,y,z]),M.spin([0,0,0],[1,0,0],angle)));
+   this.renderMesh(p,parts.legs[0],bone(-.18,1.37,0,gait));
+   this.renderMesh(p,parts.legs[1],bone(.18,1.37,0,-gait));
+   this.renderMesh(p,parts.arms[0],bone(-.42,2.42,0,-gait*.50));
+   this.renderMesh(p,parts.arms[1],bone(.42,2.42,0,gait*.50));
+   this.renderMesh(p,parts.staff,M.mul(basis,M.spin([0,0,0],[1,0,0],-.018*Math.sin(phase))));
+   this.setFloat(p,'uShip',2); // Only the cyan devices are emissive at night.
+   this.renderMesh(p,parts.glow,basis);
+   this.renderMesh(p,parts.staffGlow,M.mul(basis,M.spin([0,0,0],[1,0,0],-.018*Math.sin(phase))));
+   this.avatarDrawCalls=9;
+  }else this.avatarDrawCalls=0;
+  gl.bindVertexArray(null);
+ }
+ dispose(){for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
+}
+root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting};
+})(globalThis);
+
+</script><script>
+/* STARFALL Update 2A/2D: SI-based, deterministic physics and scientific profiles.
+ * No WebGL dependency. Legacy orbit positions are authoritative unless explicitly enabled.
+ * Unit contract: 1 scene length unit = 1,000 meters; render time unit = 1 second.
+ * This is a COMPATIBILITY mapping, not a claim that original game scales are realistic.
+ */
+(function(root){'use strict';
+const G=6.67430e-11, SIGMA=5.670374419e-8, AU=149597870700, MSUN=1.98847e30, LSUN=3.828e26, G0=9.80665, TAU=Math.PI*2, UNIT=1000;
+const vec={add:(a,b)=>a.map((v,i)=>v+b[i]),sub:(a,b)=>a.map((v,i)=>v-b[i]),mul:(a,k)=>a.map(v=>v*k),dot:(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],len:a=>Math.hypot(...a),norm:a=>{const m=Math.hypot(...a);return m>0?a.map(v=>v/m):[0,0,0];}};
+function assertPositive(x,name){if(!(Number.isFinite(x)&&x>0))throw Error(name+' must be finite and > 0');}
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+function random01(id,k){let x=(hash(id)^Math.imul(k+1,0x9e3779b1))>>>0;x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);return ((x^(x>>>16))>>>0)/4294967296;}
+const TYPE={Rocky:[3100,5500,.12],Desert:[2900,4800,.27],Ice:[1100,2900,.65],Temperate:[2800,5200,.29],Ocean:[1200,3700,.32],Volcanic:[2800,5900,.11],Lush:[2700,5200,.26],'Gas Giant':[400,1500,.48],Shattered:[1500,4200,.11]};
+const STAR={ 'K dwarf':[.55,.89,4800],'M dwarf':[.09,.55,3300],'G / K star':[.6,1.3,5500],'White star':[1.3,3.5,7800],Giant:[2,9,5100],Supergiant:[8,25,11000],'Blue hypergiant':[15,50,17000],Pulsar:[1.3,2.4,900000] };
+function starProfile(star){const spec=STAR[star.type]||STAR['G / K star'],r=random01(star.id,3),mass=(spec[0]+r*(spec[1]-spec[0]))*MSUN,temperature=spec[2]*(.9+.2*random01(star.id,5));
+ // Pulsar radii are visual-fiction scale: effective radiating radius is capped to a neutron star.
+ const visualRadius=star.radius*UNIT,emissionRadius=star.type==='Pulsar'?1.2e4:visualRadius,luminosity=4*Math.PI*emissionRadius**2*SIGMA*temperature**4;
+ return Object.freeze({id:star.id,kind:'star',type:star.type,spectralClass:star.type==='Pulsar'?'NS':star.type.startsWith('M')?'M':star.type.startsWith('K')?'K':star.type.startsWith('G')?'G':star.type==='White star'?'A':star.type==='Blue hypergiant'?'O':'G/K',massKg:mass,radiusM:visualRadius,emissionRadiusM:emissionRadius,mu:G*mass,effectiveTemperatureK:temperature,luminosityW:luminosity,classification:'procedural approximation',warnings:star.type==='Pulsar'?['Pulsar render radius is not physical neutron-star radius.']:[]});}
+function bodyProfile(body,starParent){const [lo,hi,a0]=TYPE[body.type]||TYPE.Rocky,r=random01(body.id,4),density=lo+(hi-lo)*r,radiusM=body.radius*UNIT,mass=4/3*Math.PI*radiusM**3*density,albedo=Math.max(.02,Math.min(.9,a0+(random01(body.id,6)-.5)*.17));
+ const landable=!!body.landable,gravity=G*mass/radiusM**2,pressure=body.kind==='moon'||(!landable&&body.type!=='Gas Giant')?0:({Rocky:1500,Desert:65000,Ice:800,Temperate:85000,Ocean:115000,Volcanic:240000,Lush:102000,'Gas Giant':160000}[body.type]||0)*(0.65+.7*random01(body.id,11));
+ // Gas giants have modeled cloud-top pressure, not a solid surface.
+ const baselineOrbit=body.orbitRadius*UNIT,period=body.orbitPeriod||1,compatMu=4*Math.PI**2*baselineOrbit**3/period**2;
+ const parentMass=starParent?.massKg||MSUN,physicalPeriod=TAU*Math.sqrt(baselineOrbit**3/(G*(parentMass+mass)));
+ const ecc=Math.min(.18,.004+random01(body.id,8)*.115),node=(random01(body.id,9)-.5)*.3,peri=(random01(body.id,10)-.5)*.4,inc=Math.abs(body.tilt||0);
+ return Object.freeze({id:body.id,kind:body.kind,type:body.type,radiusM,massKg:mass,bulkDensityKgM3:density,mu:G*mass,surfaceGravityMS2:gravity,albedo,atmospherePressurePa:pressure,atmosphere:body.atmosphere,spinPeriodS:body.spinPeriod,axialTiltRad:body.axialTilt||0,orbit:{semiMajorAxisM:baselineOrbit,eccentricity:ecc,inclinationRad:inc,ascendingNodeRad:node,argumentPeriapsisRad:peri,meanAnomalyEpochRad:body.phase||0,epochS:0,legacyPeriodS:period,keplerPeriodS:physicalPeriod,compatibilityMu:compatMu,parentPhysicalMu:G*parentMass},classification:'seeded model, not observed',warnings:physicalPeriod/period>2||physicalPeriod/period<.5?['Legacy orbital period differs from physical Kepler period; visuals unchanged by default.']:[]});}
+function solveE(M,e){if(!(e>=0&&e<1))throw Error('Elliptical eccentricity must be 0 ≤ e < 1');M=((M+Math.PI)%TAU+TAU)%TAU-Math.PI;let E=e>.8?Math.sign(M||1)*Math.PI:M;for(let i=0;i<36;i++){const f=E-e*Math.sin(E)-M,d=1-e*Math.cos(E);const dx=f/d;E-=dx;if(Math.abs(dx)<2e-14)break;}return E;}
+function keplerState(o,mu,t){assertPositive(mu,'mu');const a=o.semiMajorAxisM,e=o.eccentricity||0;assertPositive(a,'a');if(!(e>=0&&e<1))throw Error('e outside [0,1)');const n=Math.sqrt(mu/a**3),E=solveE((o.meanAnomalyEpochRad||0)+n*(t-(o.epochS||0)),e),c=Math.cos(E),s=Math.sin(E),k=Math.sqrt(1-e*e),r=a*(1-e*c);const x=a*(c-e),y=a*k*s,vx=-a*n*s/(1-e*c),vy=a*n*k*c/(1-e*c);
+ const Om=o.ascendingNodeRad||0,i=o.inclinationRad||0,w=o.argumentPeriapsisRad||0,C=Math.cos,S=Math.sin,co=C(Om),so=S(Om),ci=C(i),si=S(i),cw=C(w),sw=S(w);
+ const ex=[co*cw-so*sw*ci,so*cw+co*sw*ci,sw*si],ey=[-co*sw-so*cw*ci,-so*sw+co*cw*ci,cw*si];
+ const pos=vec.add(vec.mul(ex,x),vec.mul(ey,y)),vel=vec.add(vec.mul(ex,vx),vec.mul(ey,vy));
+ return{positionM:pos,velocityMS:vel,radiusM:r,periodS:TAU/n,specificEnergy:vec.dot(vel,vel)/2-mu/r,specificAngularMomentum:vec.len(vec.cross(pos,vel))};}
+function stateToElements(r,v,mu){assertPositive(mu,'mu');const R=vec.len(r),V=vec.len(v);assertPositive(R,'radius');const h=vec.cross(r,v),H=vec.len(h);assertPositive(H,'angular momentum');const evec=vec.sub(vec.mul(vec.cross(v,h),1/mu),vec.mul(r,1/R)),e=vec.len(evec),en=V*V/2-mu/R,a=en<0?-mu/(2*en):Infinity;
+ const inc=Math.acos(Math.max(-1,Math.min(1,h[2]/H))),n=vec.cross([0,0,1],h),N=vec.len(n),Omega=N>1e-12?Math.atan2(n[1],n[0]):0;
+ let omega=0,nu=0;if(e>1e-10){omega=N>1e-12?Math.atan2(vec.dot(vec.cross(n,evec),h)/(N*e*H),vec.dot(n,evec)/(N*e)):Math.atan2(evec[1],evec[0]);nu=Math.atan2(vec.dot(vec.cross(evec,r),h)/(e*R*H),vec.dot(evec,r)/(e*R));}else{nu=N>1e-12?Math.atan2(vec.dot(vec.cross(n,r),h)/(N*R*H),vec.dot(n,r)/(N*R)):Math.atan2(r[1],r[0]);}
+ return{semiMajorAxisM:a,eccentricity:e,inclinationRad:inc,ascendingNodeRad:Omega,argumentPeriapsisRad:omega,trueAnomalyRad:nu,periapsisM:H*H/(mu*(1+e)),apoapsisM:e<1?H*H/(mu*(1-e)):Infinity,specificEnergy:en,specificAngularMomentum:H,periodS:Number.isFinite(a)?TAU*Math.sqrt(a**3/mu):Infinity,bound:en<0};}
+function orbitalObservables(r,v,mu){const el=stateToElements(r,v,mu);return{...el,speedMS:vec.len(v),circularSpeedMS:Math.sqrt(mu/vec.len(r)),escapeSpeedMS:Math.sqrt(2*mu/vec.len(r))};}
+function equilibriumTemperature(luminosityW,distanceM,albedo){assertPositive(distanceM,'distance');assertPositive(luminosityW,'luminosity');return Math.pow(luminosityW*(1-Math.max(0,Math.min(1,albedo)))/(16*Math.PI*SIGMA*distanceM**2),.25);}
+function scienceProfile(galaxy,body){if(!body)return null;const system=body.kind==='star'?galaxy.byId.get(body.systemId):galaxy.byId.get(body.systemId),star=system?.star||body;
+ const stellar=starProfile(star);if(body.kind==='star')return{...stellar,systemName:system?.name||star.name};
+ const parent=body.kind==='moon'?galaxy.byId.get(body.parentId):null,profile=bodyProfile(body,body.kind==='moon'?bodyProfile(parent,stellar):stellar),distance=body.kind==='moon'?(parent?.orbitRadius||0):body.orbitRadius;
+ const temp=equilibriumTemperature(stellar.luminosityW,Math.max(distance*UNIT,stellar.radiusM*1.01),profile.albedo);
+ const fromStar=vec.norm(vec.sub(system.position,body.position)),observer=vec.norm(vec.sub((galaxy.observerPosition||system.position),body.position));
+ const illuminatedFraction=(1+vec.dot(fromStar,observer))*.5;
+ let eclipseFraction=0;
+ if(parent){const d=vec.sub(system.position,body.position),toParent=vec.sub(parent.position,body.position),length=vec.len(d),along=vec.dot(toParent,d)/Math.max(1,length);if(along>0&&along<length){const perpendicular=vec.len(vec.sub(toParent,vec.mul(vec.norm(d),along)));if(perpendicular<parent.radius)eclipseFraction=1;}}
+ return{...profile,systemName:system?.name,star:stellar.type,starId:stellar.id,estimatedEquilibriumTemperatureK:temp,temperatureUncertaintyK:Math.max(12,temp*.14),illuminatedFraction,approximateEclipse:eclipseFraction>0,geologySignature:body.type==='Volcanic'?'Igneous / volcanic':body.type==='Ice'?'Cryogenic ice':body.type==='Ocean'?'Hydrological':body.type==='Shattered'?'Impact debris':'Mixed silicates',waterEvidence:body.water||'Unknown',lifeEvidence:'Unconfirmed (survey required)',distances:{sceneOrbitRadius:body.orbitRadius,physicalOrbitM:distance*UNIT},classification:'procedural estimate / unmeasured',notes:'Equilibrium temperature assumes uniform heat redistribution, fixed albedo and no greenhouse effect. Moon phase is view-relative; eclipse uses a simplified spherical blocker.'};}
+class SimulationClock{constructor(t=0){this.set(t);}set(t){if(!Number.isFinite(t))throw Error('Time must be finite');this.seconds=t;return this.seconds;}advance(dt,scale=1){if(!Number.isFinite(dt)||dt<0||!Number.isFinite(scale)||scale<0)throw Error('Invalid timestep');return this.set(this.seconds+dt*scale);}at(){return this.seconds;}}
+const API={G,SIGMA,AU,MSUN,LSUN,G0,TAU,SCENE_METERS_PER_UNIT:UNIT,vec,hash,random01,starProfile,bodyProfile,scienceProfile,solveE,keplerState,stateToElements,orbitalObservables,equilibriumTemperature,SimulationClock,sceneToMeters:x=>x*UNIT,metersToScene:x=>x/UNIT};
+root.StarfallPhysics=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
+/* STARFALL 2B/2C: optional SI local flight with fixed-step integration.
+ * Numerical fidelity: semi-implicit velocity-Verlet, analytic Kepler coasting,
+ * patched-conic local-body selection. Baseline game remains authoritative when off.
+ */
+(function(root){'use strict';
+const P=root.StarfallPhysics;if(!P)throw Error('Physics foundation must load first.');
+const {vec,G0,SIGMA}=P;
+function atmosphere(body,altitudeM){if(!body||body.kind==='moon'||(body.type!=='Gas Giant'&&!body.landable)||body.type==='Shattered')return{densityKgM3:0,pressurePa:0,temperatureK:0,scaleHeightM:0};
+ const sea=({Rocky:.025,Desert:.7,Ice:.015,Temperate:1.12,Ocean:1.37,Volcanic:2.4,Lush:1.20,'Gas Giant':1.25}[body.type]||0);
+ if(!sea)return{densityKgM3:0,pressurePa:0,temperatureK:0,scaleHeightM:0};
+ const t=({Rocky:210,Desert:310,Ice:155,Temperate:288,Ocean:298,Volcanic:390,Lush:295,'Gas Giant':170}[body.type]||260),H=({Rocky:5500,Desert:9100,Ice:4500,Temperate:8500,Ocean:8800,Volcanic:10500,Lush:8700,'Gas Giant':26000}[body.type]||8000);
+ const h=Math.max(0,altitudeM),factor=Math.exp(-Math.min(80,h/H)),specificR=body.type==='Gas Giant'?3700:body.type==='Volcanic'?189:287;
+ const rho0=body.atmospherePressurePa>0?body.atmospherePressurePa/(specificR*t):sea;
+ return{densityKgM3:rho0*factor,pressurePa:rho0*specificR*t*factor,temperatureK:Math.max(100,t-.0065*Math.min(h,16000)),scaleHeightM:H};}
+const SHIP_DEFAULT={dryMassKg:14000,fuelKg:4500,thrustN:330000,ispS:315,cd:1.3,areaM2:34,liftCoefficient:0,heatCapacityJK:2.7e6,heatShieldEfficiency:.72,emissivity:.78,radiatorAreaM2:68,temperatureK:290,warningK:900,maxTempK:1650};
+function shipState(override={}){return{...SHIP_DEFAULT,...override};}
+function aero(vRelative,mass,atmo,craft){const speed=vec.len(vRelative);if(!(speed>0&&atmo.densityKgM3>0))return{forceN:[0,0,0],dragN:0,heatingW:0,areaM2:craft.areaM2||0};
+ const area=Math.max(1,craft.areaM2||34),drag=.5*atmo.densityKgM3*speed**2*(craft.cd??1.3)*area;
+ // Sutton-Graves-like trend only: proportional to sqrt(density) * speed^3.
+ // This is not aerodynamic CFD or an actual heat-shield certification model.
+ const heating=1.1e-8*Math.sqrt(atmo.densityKgM3/1.225)*speed**3*area;
+ return{forceN:vec.mul(vRelative,-drag/speed),dragN:drag,heatingW:heating,areaM2:area};}
+function thermalStep(craft,heatW,ambientK,dt){const hot=craft.temperatureK||290,cool=Math.max(0,(craft.emissivity??.78)*SIGMA*(craft.radiatorAreaM2||68)*(hot**4-Math.max(0,ambientK||3)**4));
+ const capacity=Math.max(1,craft.heatCapacityJK||SHIP_DEFAULT.heatCapacityJK),shield=Math.max(0,Math.min(1,craft.heatShieldEfficiency??.72));
+ const next=Math.max(2,Math.min(5000,hot+(heatW*(1-shield)-cool)*dt/capacity));
+ return{temperatureK:next,radiatorW:cool,thermalWarning:next>(craft.warningK||900),thermalLimitExceeded:next>(craft.maxTempK||1650)};}
+function acceleration(r,v,body,craft,throttle,forward,atmo,rotationRateRadS){const R=vec.len(r),safe=Math.max(R,body.radiusM||1);const mu=body.mu;
+ const gravity=vec.mul(r,-mu/(safe**3)),mass=Math.max(1,craft.dryMassKg+craft.fuelKg),thrust=Math.max(0,Math.min(1,throttle))*craft.thrustN*(craft.fuelKg>0?1:0);
+ // Planet spins around its own axis; wind follows the local rotating atmosphere.
+ const wind=vec.cross(vec.mul(body.axis||[0,1,0],rotationRateRadS||0),r),relative=vec.sub(v,wind),relativeSpeed=vec.len(relative);
+ // More drag while broadside; frontal area is smaller along the vehicle's nose.
+ const dot=relativeSpeed>0?Math.abs(vec.dot(vec.norm(forward),vec.norm(relative))):1;
+ const adjusted={...craft,areaM2:(craft.areaM2||34)*(.62+1.15*(1-dot))};
+ const aeroForce=aero(relative,mass,atmo,adjusted);
+ let lift=[0,0,0];
+ if(relativeSpeed>0&&atmo.densityKgM3>0&&(craft.liftCoefficient||0)!==0){
+  const windward=vec.mul(relative,-1/relativeSpeed),upCandidate=vec.sub(forward,vec.mul(windward,vec.dot(forward,windward)));
+  const length=vec.len(upCandidate);
+  if(length>1e-7)lift=vec.mul(upCandidate,(.5*atmo.densityKgM3*relativeSpeed**2*adjusted.areaM2*craft.liftCoefficient)/length);
+ }
+ const a=vec.add(gravity,vec.add(vec.mul(forward,thrust/mass),vec.mul(vec.add(aeroForce.forceN,lift),1/mass)));
+ return{a,thrustN:thrust,relativeWind:relative,...aeroForce};}
+function integrateFixed(state,body,dt,controls={},atmoProvider=atmosphere){if(!(dt>0&&dt<=.1))throw Error('Physics step must be (0,0.1] s');
+ const craft={...state.craft},r=[...state.rM],v=[...state.vMS],forward=vec.norm(controls.forward||[0,0,1]);
+ const alt=vec.len(r)-body.radiusM,atm=atmoProvider(body,alt),omega=controls.rotationRateRadS||0,thr=Math.max(0,Math.min(1,controls.throttle||0));
+ const a0=acceleration(r,v,body,craft,thr,forward,atm,omega);
+ const burn=thr>0&&craft.fuelKg>0?Math.min(craft.fuelKg,a0.thrustN/(Math.max(1,craft.ispS)*G0)*dt):0;
+ const midV=vec.add(v,vec.mul(a0.a,dt*.5)),nextR=vec.add(r,vec.mul(midV,dt));craft.fuelKg=Math.max(0,craft.fuelKg-burn);
+ const nextAtmo=atmoProvider(body,vec.len(nextR)-body.radiusM),a1=acceleration(nextR,midV,body,craft,thr,forward,nextAtmo,omega);
+ const nextV=vec.add(midV,vec.mul(a1.a,dt*.5)),thermal=thermalStep(craft,a1.heatingW,nextAtmo.temperatureK||3,dt);
+ craft.temperatureK=thermal.temperatureK;
+ // Surface collision is stable but LANDING/contact must be handled by game's existing anchored surface system.
+ const minR=body.radiusM+Math.max(0,controls.groundHeightM||0);let impact=false;
+ if(vec.len(nextR)<=minR){impact=true;const n=vec.len(nextR)>1e-9?vec.norm(nextR):vec.len(r)>1e-9?vec.norm(r):[0,1,0],radial=vec.dot(nextV,n);const rNew=vec.mul(n,minR);const vNew=radial<0?vec.sub(nextV,vec.mul(n,radial)):nextV;
+ return{rM:rNew,vMS:vNew,craft,impact,dragN:a1.dragN,heatingW:a1.heatingW,...thermal};}
+ return{rM:nextR,vMS:nextV,craft,impact,dragN:a1.dragN,heatingW:a1.heatingW,...thermal};}
+// Exact unpowered 2-body Kepler coast. Works with hyperbolic trajectories; use short
+// chunks near collisions. Universal-variable formulation with safeguarded iterations.
+function stumpffC(z){if(z>1e-8)return(1-Math.cos(Math.sqrt(z)))/z;if(z< -1e-8){const a=Math.sqrt(-z);if(a>40)throw Error('Hyperbolic coast interval too large');return(Math.cosh(a)-1)/(-z);}return.5-z/24+z*z/720;}
+function stumpffS(z){if(z>1e-8){const a=Math.sqrt(z);return(a-Math.sin(a))/(a*a*a);}if(z< -1e-8){const a=Math.sqrt(-z);if(a>40)throw Error('Hyperbolic coast interval too large');return(Math.sinh(a)-a)/(a*a*a);}return 1/6-z/120+z*z/5040;}
+function coast(r0,v0,mu,dt){const r=vec.len(r0),vsq=vec.dot(v0,v0),vr=vec.dot(r0,v0)/r,alpha=2/r-vsq/mu,sqrtMu=Math.sqrt(mu);if(!(r>0&&mu>0&&Number.isFinite(dt)))throw Error('Invalid coast state');
+ // Bound orbit: reduce time modulo orbital period to prevent poor conditioning.
+ if(alpha>0){const period=2*Math.PI/Math.sqrt(mu*alpha**3);dt=((dt%period)+period)%period;if(dt>period/2)dt-=period;}
+ let chi=Math.sqrt(mu)*Math.abs(alpha)*dt;if(Math.abs(chi)<1e-9)chi=Math.sqrt(mu)*dt/r;
+ for(let i=0;i<100;i++){const z=alpha*chi*chi,C=stumpffC(z),S=stumpffS(z),f=r*vr/sqrtMu*chi*chi*C+(1-alpha*r)*chi**3*S+r*chi-sqrtMu*dt,df=r*vr/sqrtMu*chi*(1-z*S)+(1-alpha*r)*chi*chi*C+r;
+ const delta=f/df;chi-=delta;if(Math.abs(delta)<1e-9*Math.max(1,Math.abs(chi)))break;if(i===99)throw Error('Universal anomaly did not converge');}
+ const z=alpha*chi*chi,C=stumpffC(z),S=stumpffS(z),f=1-chi**2*C/r,g=dt-chi**3*S/sqrtMu,r1=vec.add(vec.mul(r0,f),vec.mul(v0,g)),R=vec.len(r1),fdot=sqrtMu/(R*r)*(alpha*chi**3*S-chi),gdot=1-chi*chi*C/R,v1=vec.add(vec.mul(r0,fdot),vec.mul(v0,gdot));
+ return{rM:r1,vMS:v1};}
+function predictTrajectory(state,body,segments=96,stepS=10){const pts=[],r0=state.rM||state.r,v0=state.vMS||state.v;for(let i=0;i<=segments;i++){try{const next=coast(r0,v0,body.mu,i*stepS);if(vec.len(next.rM)<body.radiusM)break;pts.push(next.rM);}catch(_){break;}}return pts;}
+root.StarfallFlightPhysics={atmosphere,shipState,aero,thermalStep,acceleration,integrateFixed,coast,predictTrajectory,SHIP_DEFAULT};
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallFlightPhysics;
+})(globalThis);
+
+</script><script>
+/* Experimental analytic Kepler ephemerides. OFF by default for old saves/visual parity.
+ * Converts classical perifocal XY to scene XZY and uses legacy-period-compatible mu.
+ */
+(function(root){'use strict';
+const P=root.StarfallPhysics;if(!P)throw Error('Load foundation first');
+function attach(galaxy){const orig=galaxy.update.bind(galaxy),origSys=galaxy.updateSystem.bind(galaxy);let enabled=false;
+ function one(body,parent,t,sys){const parentProfile=parent.kind==='star'?P.starProfile(parent):P.bodyProfile(parent,P.starProfile(sys.star));
+ const info=P.bodyProfile(body,parentProfile),o=info.orbit;const state=P.keplerState({...o,ascendingNodeRad:0,argumentPeriapsisRad:0,inclinationRad:body.tilt||0},o.compatibilityMu,t);
+ const x=state.positionM;body.position=[parent.position[0]+x[0]/P.SCENE_METERS_PER_UNIT,parent.position[1]+x[2]/P.SCENE_METERS_PER_UNIT,parent.position[2]+x[1]/P.SCENE_METERS_PER_UNIT];
+ }
+ function apply(sys,t){if(sys.dormant)return;for(const b of sys.planets){one(b,sys.star,t,sys);for(const m of b.moons)one(m,b,t,sys);}}
+ galaxy.update=function(t){orig(t);if(enabled)for(const sys of galaxy.systems)apply(sys,t);};
+ galaxy.updateSystem=function(sys,t){origSys(sys,t);if(enabled)apply(sys,t);};
+ galaxy.physicsOrbits={get enabled(){return enabled;},setEnabled(on){enabled=!!on;galaxy.update(galaxy.time);},applyOne:one};return galaxy.physicsOrbits;
+ }
+ root.StarfallOrbitBridge={attach};if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallOrbitBridge;
+})(globalThis);
+
+</script><script>
+/* STARFALL — single-scene, procedural multi-system navigation and physical landing.
+ * All celestial positions are updated deterministically, and neither warp nor
+ * surface contact changes HTML pages, cameras or rendering engines. */
+(function(){'use strict';
+const $=id=>document.getElementById(id),{Renderer,V,groundHeight}=Starfall3D;
+const P=StarfallPhysics, FP=StarfallFlightPhysics;
+const SEED_QUERY=new URLSearchParams(location.search).get('seed'),GALAXY_SEED=SEED_QUERY!==null?(Number(SEED_QUERY)>>>0):742,galaxy=StarfallGalaxy.generateGalaxy(GALAXY_SEED,64);
+const first=galaxy.systems[0].planets[0];
+let target=first,nearest=first,renderer;
+try{renderer=new Renderer($('universe'),galaxy);}catch(error){console.error('STARFALL initialization:',error);$('fatal').hidden=false;$('boot').hidden=true;return;}
+let simTime=0,pos=V.add(first.position,[0,300,-(first.radius+3550)]),vel=[0,0,0],forward=V.norm(V.sub(first.position,pos)),up=[0,1,0];
+let landed=false,warp=false,camMode=0,camEye=null,camDistance=70,orbitYaw=0,orbitPitch=0,heat=0,solarWarning=false,timeScale=1,altitude=3500,vertical=0,fps=60,lastPlanetId='',nearPhase='DEEP SPACE',hudClock=0,frames=0,frameClock=0,lastTime=performance.now(),lastSave=0,toastTimer=0,landingTimer=0;
+let siteWaypoint=null,scan=null,landingCapture=null,groundLocal=null,headlights=true;
+let eva=false,evaLocal=null,evaForward=[...forward],shipLocal=null,shipForwardVec=[...forward],shipUpVec=[...up],shipBody=null;
+let roverLocal=null,roverForwardVec=[...forward],roverBody=null,roverOccupied=false;
+let hatchCooldown=0,walkedSinceExit=0,shipExitProgress=0,roverEntryCooldown=0,roverExitMove=null,shipIdleElapsed=0,rampTransition=null,rampLift=0;
+let engEnabled=false,engState=null,engBody=null,engAttitude='Manual',engLast={dragN:0,heatingW:0,temperatureK:290},engSteps=0;
+const physicsClock=new P.SimulationClock(0);
+galaxy.physicsOrbits=StarfallOrbitBridge.attach(galaxy);
+const SHIP_CLEARANCE=7.5,EVA_HEIGHT=2.6,EVA_BOARD_DISTANCE=32,ROVER_CLEARANCE=2.1,ROVER_BOARD_DISTANCE=13;
+const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
+const session=SF.load(),saved=session.flightGalaxy;
+engEnabled=session.scienceSettings?.flightMode==='Engineering';
+engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(session.scienceSettings?.sas)?session.scienceSettings.sas:'Manual';
+if(saved&&saved.seed===GALAXY_SEED&&Array.isArray(saved.position)&&saved.position.length===3&&saved.position.every(Number.isFinite)){
+ try{simTime=Number(saved.time)||0;galaxy.update(simTime);if(saved.target?.startsWith('catalog-')){const sid=saved.target.replace(/-p\d+(?:-m\d+)?$|\-sun$/,'');const ss=galaxy.byId.get(sid);if(ss)galaxy.activate(ss);}target=galaxy.byId.get(saved.target)||first;galaxy.pinnedSystemId=target.systemId;nearest=galaxy.byId.get(saved.attached)||first;
+  pos=saved.position.slice();forward=V.norm(saved.forward||forward);up=V.norm(saved.up||up);landed=!!saved.landed&&nearest.landable;
+  if(engEnabled&&saved.engineering?.bodyId===nearest.id&&saved.engineering.rM?.length===3&&saved.engineering.vMS?.length===3){engState={rM:[...saved.engineering.rM],vMS:[...saved.engineering.vMS],craft:FP.shipState(saved.engineering.craft||{})};engBody=nearest.id;}
+  if(landed&&Array.isArray(saved.groundDirection)){const dir=V.norm(saved.groundDirection);
+   groundLocal=V.rot(dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+   pos=V.add(nearest.position,V.mul(dir,nearest.radius+groundHeight(groundLocal,nearest)+SHIP_CLEARANCE));up=dir;
+   shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}
+ }catch(e){console.warn('Saved flight could not be restored:',e);}}
+physicsClock.set(simTime);
+
+function shipWorldState(){
+ if(eva&&shipBody&&shipLocal){
+  const axis=shipBody.spinAxis||[0,1,0],radial=V.norm(V.rot(shipLocal,axis,shipBody.spinAngle||0));
+  const height=groundHeight(shipLocal,shipBody);
+  return{body:shipBody,position:V.add(shipBody.position,V.mul(radial,shipBody.radius+height+SHIP_CLEARANCE)),forward:shipForwardVec||forward,up:shipUpVec||radial};
+ }
+ return{body:nearest,position:pos,forward,up};
+}
+function roverWorldState(){
+ if(!(roverBody&&roverLocal))return null;
+ const axis=roverBody.spinAxis||[0,1,0],radial=V.norm(V.rot(roverLocal,axis,roverBody.spinAngle||0));
+ const height=groundHeight(roverLocal,roverBody);
+ return{body:roverBody,position:V.add(roverBody.position,V.mul(radial,roverBody.radius+height+ROVER_CLEARANCE)),forward:roverForwardVec||evaForward,up:radial};
+}
+function tangentOffsetLocal(body,localRadial,worldForward,forwardMeters,rightMeters){
+ const axis=body.spinAxis||[0,1,0],worldRadial=V.norm(V.rot(localRadial,axis,body.spinAngle||0));
+ let tangent=V.norm(V.sub(worldForward,V.mul(worldRadial,V.dot(worldForward,worldRadial))));
+ if(V.len(tangent)<.05)tangent=V.norm(V.cross(Math.abs(worldRadial[1])>.92?[0,0,1]:[0,1,0],worldRadial));
+ const right=V.norm(V.cross(tangent,worldRadial));
+ let d=[...worldRadial];
+ const baseRadius=body.radius+groundHeight(localRadial,body)+Math.max(EVA_HEIGHT,ROVER_CLEARANCE);
+ if(Math.abs(forwardMeters)>.001)d=V.norm(V.rot(d,right,-forwardMeters/Math.max(1,baseRadius)));
+ if(Math.abs(rightMeters)>.001)d=V.norm(V.rot(d,tangent,rightMeters/Math.max(1,baseRadius)));
+ return V.rot(d,axis,-(body.spinAngle||0));
+}
+function placeRoverNearShip(){
+ if(!shipBody||!shipLocal)return;
+ roverBody=shipBody;
+ roverForwardVec=V.norm(shipForwardVec||forward);
+ roverLocal=tangentOffsetLocal(shipBody,shipLocal,roverForwardVec,-9.5,10.5);
+}
+function exitShip(){
+ if(!landed||eva||!nearest?.landable)return;
+ const ns=surfaceData(nearest,pos),axis=nearest.spinAxis||[0,1,0],radial=ns.dir;
+ shipBody=nearest;shipLocal=V.rot(radial,axis,-(nearest.spinAngle||0));shipForwardVec=[...forward];shipUpVec=[...up];
+ if(!roverBody||roverBody!==nearest||!roverLocal)placeRoverNearShip();
+ const hatchLocal=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-10,0);
+ const groundLocalEVA=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-37,0);
+ const evacDir=V.norm(V.rot(hatchLocal,axis,nearest.spinAngle||0));
+ evaLocal=hatchLocal;
+ rampTransition={kind:'out',elapsed:0,duration:1.35,from:[...hatchLocal],to:[...groundLocalEVA]};rampLift=5.0;
+ evaForward=V.norm(V.sub(forward,V.mul(evacDir,V.dot(forward,evacDir))));
+ if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(evacDir[1])>.92?[0,0,1]:[0,1,0],evacDir));
+ pos=V.add(nearest.position,V.mul(evacDir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT+rampLift));
+ up=evacDir;vel=[0,0,0];eva=true;roverOccupied=false;camMode=0;camDistance=Math.min(camDistance,18);camEye=null;
+ hatchCooldown=2;walkedSinceExit=0;roverEntryCooldown=2;shipIdleElapsed=0;
+ showToast('EVA active · walk forward onto the rear cargo ramp to board · approach rover to drive');
+}
+function boardShip(){
+ if(!eva||!shipBody||!shipLocal)return;
+ const ship=shipWorldState();
+ if(V.len(V.sub(pos,ship.position))>EVA_BOARD_DISTANCE){showToast('Move closer to the ship to board.');return;}
+ eva=false;roverOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
+ hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;showToast('Inside the ship · SPACE launch · hold S to walk back down the ramp');
+}
+function enterRover(){
+ if(!eva||roverOccupied||!(roverBody&&roverLocal))return;
+ const rover=roverWorldState();
+ if(!rover||V.len(V.sub(pos,rover.position))>ROVER_BOARD_DISTANCE){showToast('Move closer to the rover.');return;}
+ roverOccupied=true;pos=[...rover.position];evaForward=[...rover.forward];up=[...rover.up];camEye=null;camDistance=Math.max(camDistance,21);
+ roverEntryCooldown=1.0;showToast('Rover engaged · WASD drive · click the ground beside it to walk away');
+}
+function exitRover(){
+ if(!roverOccupied||!(roverBody&&roverLocal))return;
+ const rover=roverWorldState(),axis=roverBody.spinAxis||[0,1,0];
+ roverOccupied=false;
+ const dismount=tangentOffsetLocal(roverBody,roverLocal,roverForwardVec,0,-5.0),dir=V.norm(V.rot(dismount,axis,roverBody.spinAngle||0));
+ evaLocal=dismount;evaForward=[...(roverForwardVec||evaForward)];pos=V.add(roverBody.position,V.mul(dir,roverBody.radius+groundHeight(evaLocal,roverBody)+EVA_HEIGHT));up=dir;camEye=null;
+ roverEntryCooldown=2.0;roverExitMove={from:roverLocal.slice(),to:evaLocal.slice(),progress:0};
+ // First frame starts at the rover; the next frames visibly walk away to the ground.
+ evaLocal=[...roverLocal];pos=[...rover.position];showToast('Walking away from rover');
+}
+function projectToScreen(point,camera){
+ const rel=V.sub(point,camera.eye),view=M.look([0,0,0],V.sub(camera.target,camera.eye),camera.up),proj=M.perspective(renderer.fov,renderer.aspect,.35,2e8),vp=M.mul(proj,view),x=rel[0],y=rel[1],z=rel[2];
+ const clipX=vp[0]*x+vp[4]*y+vp[8]*z+vp[12],clipY=vp[1]*x+vp[5]*y+vp[9]*z+vp[13],clipW=vp[3]*x+vp[7]*y+vp[11]*z+vp[15];
+ if(clipW<=0)return null;const ndcX=clipX/clipW,ndcY=clipY/clipW;
+ return{visible:Math.abs(ndcX)<=1.2&&Math.abs(ndcY)<=1.2,x:(ndcX*.5+.5)*renderer.canvas.clientWidth,y:(1-(ndcY*.5+.5))*renderer.canvas.clientHeight,distance:V.len(rel)};
+}
+function updateAstronautSprite(camera){/* Removed: real 3D avatar renders directly with other WebGL geometry. */}
+
+function setFlightPhysicsMode(mode){
+ engEnabled=mode==='Engineering';engState=null;engBody=null;
+ SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});
+ showToast((engEnabled?'ENGINEERING':'ASSISTED')+' FLIGHT · '+(engEnabled?'real gravity and fuel active':'legacy controls restored'));
+}
+function engineeringInfo(){
+ const b=nearest||target;if(!b||b.kind==='star')return null;
+ const sys=galaxy.byId.get(b.systemId),parent=b.kind==='moon'?galaxy.byId.get(b.parentId):null;
+ const physical=P.bodyProfile(b,parent?P.bodyProfile(parent,P.starProfile(sys.star)):P.starProfile(sys.star));
+ const r=engState&&engBody===b.id?engState.rM:P.vec.mul(P.vec.sub(pos,b.position),P.SCENE_METERS_PER_UNIT);
+ const v=engState&&engBody===b.id?engState.vMS:P.vec.mul(vel,P.SCENE_METERS_PER_UNIT);
+ let elements=null;
+ try{if(P.vec.len(r)>physical.radiusM*.9)elements=P.orbitalObservables(r,v,physical.mu);}catch(_){/* Undefined orbit: degenerate state, not a crash. */}
+ const craft=engState?.craft||FP.shipState(),m=craft.dryMassKg+craft.fuelKg;
+ const dv=craft.fuelKg>0?craft.ispS*P.G0*Math.log(m/craft.dryMassKg):0;
+ const omega=2*Math.PI/Math.max(1,b.spinPeriod),groundWind=P.vec.cross(P.vec.mul(b.spinAxis||[0,1,0],omega),r);
+ return{body:b,physical,elements,craft,deltaVMS:dv,inertialVelocityMS:P.vec.len(v),groundVelocityMS:P.vec.len(P.vec.sub(v,groundWind)),rM:r,vMS:v,dragN:engLast.dragN||0,heatingW:engLast.heatingW||0,temperatureK:craft.temperatureK,steps:engSteps};
+}
+function engineeringTouchdown(ns){
+ groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+ pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));
+ landed=true;vel=[0,0,0];warp=false;engState=null;engBody=null;up=ns.dir;
+ let tangent=V.sub(forward,V.mul(up,V.dot(forward,up)));if(V.len(tangent)<.05)tangent=V.cross([0,1,0],up);forward=V.norm(tangent);
+ shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;roverOccupied=false;placeRoverNearShip();
+ SF.recordDiscovery({id:'seamless-land:'+nearest.id,type:'landing',name:'Landed on '+nearest.name,detail:'Engineering physics touchdown',planet:nearest.name,system:nearest.system});
+ showToast('ENGINEERING TOUCHDOWN · EVA descent underway');saveFlight();exitShip();
+}
+function engineeringFlight(dt){
+ // Keep fictional warp separate; entering/exiting warp resets local inertial state.
+ const body=nearest;if(!body||!body.radius)return;
+ const sys=galaxy.byId.get(body.systemId),parent=body.kind==='moon'?galaxy.byId.get(body.parentId):null;
+ const physical=P.bodyProfile(body,parent?P.bodyProfile(parent,P.starProfile(sys.star)):P.starProfile(sys.star));
+ if(!engState||engBody!==body.id){
+  engBody=body.id;
+  engState={rM:P.vec.mul(P.vec.sub(pos,body.position),P.SCENE_METERS_PER_UNIT),vMS:P.vec.mul(vel,P.SCENE_METERS_PER_UNIT),craft:FP.shipState()};
+ }
+ const thr=keys.has('KeyW')?1:keys.has('KeyS')?.42:0,back=keys.has('KeyS')&&!keys.has('KeyW');
+ if(engAttitude==='Prograde'||engAttitude==='Retrograde'){
+  const speed=P.vec.len(engState.vMS);
+  if(speed>1){const wanted=V.mul(V.norm(engState.vMS),engAttitude==='Prograde'?1:-1);forward=V.norm(V.mix(forward,wanted,Math.min(1,dt*1.2)));}
+ }
+ const controlDirection=back?V.mul(forward,-1):forward,rotationRate=2*Math.PI/Math.max(1,body.spinPeriod);
+ // Fixed 60 Hz near planets. At >1x in a vacuum, analytically coast through
+ // the extra time. In atmosphere we cap physical time rather than tunnel.
+ const total=dt*timeScale,atmos=FP.atmosphere(body,(P.vec.len(engState.rM)-physical.radiusM));
+ const deepVacuum=atmos.densityKgM3<1e-8&&P.vec.len(engState.rM)>physical.radiusM+1000;
+ const activeDt=timeScale>1&&deepVacuum&&!thr?0:Math.min(total,.3);
+ let steps=0;
+ if(activeDt){const n=Math.min(36,Math.max(1,Math.ceil(activeDt/(1/90)))),step=activeDt/n;
+  for(let i=0;i<n;i++){
+   const d=FP.integrateFixed(engState,{...physical,kind:body.kind,landable:body.landable,type:body.type,axis:body.spinAxis},step,{throttle:thr,forward:controlDirection,rotationRateRadS:rotationRate,groundHeightM:body.landable?Math.max(0,groundHeight(V.rot(V.norm(engState.rM),body.spinAxis||[0,1,0],-(body.spinAngle||0)),body)*P.SCENE_METERS_PER_UNIT):0});
+   engState={rM:d.rM,vMS:d.vMS,craft:d.craft};engLast=d;steps++;
+   if(d.impact&&body.landable){pos=V.add(body.position,P.vec.mul(d.rM,1/P.SCENE_METERS_PER_UNIT));const ns=surfaceData(body,pos);engineeringTouchdown(ns);return;}
+  }
+ }
+ if(total>activeDt&&deepVacuum&&!thr){try{const d=FP.coast(engState.rM,engState.vMS,physical.mu,total-activeDt);engState.rM=d.rM;engState.vMS=d.vMS;}catch(e){/* If coast is ill-conditioned, bounded integration is safer than corrupting the ship. */}}
+ engSteps=steps;
+ const next=P.vec.add(body.position,P.vec.mul(engState.rM,1/P.SCENE_METERS_PER_UNIT));
+ if(!next.every(Number.isFinite))throw Error('Engineering position lost precision');
+ const sunHit=checkStarCollision(pos,next);if(sunHit){engState=null;engBody=null;pos=V.add(sunHit.sys.position,V.mul(V.norm(V.sub(pos,sunHit.sys.position)),sunHit.sys.star.radius*1.008));vel=[0,0,0];return;}
+ pos=next;vel=P.vec.mul(engState.vMS,1/P.SCENE_METERS_PER_UNIT);
+ const ns=surfaceData(body,pos);altitude=ns.distance-body.radius-ns.height;vertical=V.dot(vel,ns.dir);
+ if(body.landable&&altitude<=SHIP_CLEARANCE){engineeringTouchdown(ns);return;}
+ // No fake atmosphere forces on vacuum moons; existing surface model handles collisions.
+}
+function formatDistance(n){if(n>=1e9)return(n/1e9).toFixed(2)+' Gu';if(n>=1e6)return(n/1e6).toFixed(2)+' Mu';if(n>=1000)return(n/1000).toFixed(1)+' ku';return Math.round(n)+' u';}
+function showToast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3500);}
+function surveyKey(b){return b.system+':'+b.name+':'+b.seed;}
+function survey(b){return SF.load().surveys?.[surveyKey(b)]||{scans:{},selected:null};}
+function saveSurvey(b,s){const data=SF.load();data.surveys=data.surveys||{};data.surveys[surveyKey(b)]=s;SF.save(data);}
+function latitudeVector(lat,lon){lat*=Math.PI/180;lon*=Math.PI/180;return[Math.sin(lon)*Math.cos(lat),Math.sin(lat),Math.cos(lon)*Math.cos(lat)];}
+function updateSurveyUI(){const b=nearest||target,s=survey(b),done=scans.filter((_,i)=>s.scans?.[i]).length;$('scan-count').textContent=done+' / 3';
+ document.querySelectorAll('.scan').forEach((el,i)=>{const d=!!s.scans?.[i];el.classList.toggle('done',d);el.disabled=d||!!scan;el.querySelector('.scan-state').textContent=d?'COMPLETE':scan?.index===i?'SCANNING':'SCAN →';});
+ const list=$('site-list');list.replaceChildren();$('site-count').textContent=done===3?'03 AVAILABLE':'UNSURVEYED';
+ if(done!==3){const msg=document.createElement('p');msg.className='panel-note';msg.textContent=b.landable?'Any surface can be landed on without a button. Scan to identify recommended sites.':'Gas giants have no solid landing terrain; their moons may be explored.';list.append(msg);return;}
+ for(const entry of b.sites){const [name,score,lat,lon]=entry,btn=document.createElement('button');btn.type='button';btn.className='site'+(siteWaypoint?.name===name?' active':'');btn.innerHTML='<span class="site-name"></span><span class="site-score"></span><span class="site-coords"></span>';
+ btn.querySelector('.site-name').textContent=name;btn.querySelector('.site-score').textContent=score+'% SAFE';btn.querySelector('.site-coords').textContent=lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';btn.onclick=()=>{siteWaypoint={planet:b,name,dir:latitudeVector(lat,lon)};target=b;updateSurveyUI();showToast('Waypoint plotted: '+name+' — fly there manually.');};list.append(btn);}
+}
+function startScan(index){if(scan||!nearest||warp)return;const s=survey(nearest);if(s.scans?.[index])return;if(altitude<Math.min(240,nearest.radius*.5)){showToast('Start the survey from a higher altitude.');return;}scan={index,planet:nearest,progress:0};$('scan-note').textContent='Scanning '+scans[index].toLowerCase()+'…';updateSurveyUI();}
+function finishScan(){const {index,planet}=scan,s=survey(planet);s.scans=s.scans||{};s.scans[index]=true;saveSurvey(planet,s);scan=null;$('scan-fill').style.width='0%';const reward=SF.awardOnce('flight:scan:'+surveyKey(planet)+':'+index,25);$('credits').textContent=SF.getCredits().toLocaleString()+' CR';$('scan-note').textContent=scans[index]+' acquired.'+(reward?' +25 CR.':'');showToast(scans[index]+' survey complete');updateSurveyUI();if(scans.every((_,i)=>s.scans[i]))SF.recordDiscovery({id:'survey:'+surveyKey(planet),type:'survey',name:planet.name,detail:'Complete orbital survey',planet:planet.name,system:planet.system});}
+function updateBodyUI(){const b=nearest||target;$('planet-name').textContent=b.name;$('planet-description').textContent=b.type+' '+b.kind+' / '+b.system+' / '+b.gravity.toFixed(2)+' g';$('system-name').textContent=b.system;$('planet-type').textContent=b.type+(b.kind==='moon'?' moon':'');$('planet-gravity').textContent=b.gravity.toFixed(2)+' g';$('planet-atmosphere').textContent=b.atmosphere;$('day-length').textContent=Math.round(b.spinPeriod)+' s';$('credits').textContent=SF.getCredits().toLocaleString()+' CR';updateSurveyUI();}
+let expandedSystemId=null;function drawChart(){const area=$('destinations'),term=($('chart-search')?.value||'').toLowerCase().trim();area.replaceChildren();let shown=0,matched=0;
+ const ranked=[...galaxy.systems].sort((a,b)=>V.len(V.sub(a.position,pos))-V.len(V.sub(b.position,pos)));
+ for(const sys of ranked){if(term&&!sys.name.toLowerCase().includes(term)&&!sys.star.type.toLowerCase().includes(term)&&!(sys.phenomenon||'').includes(term)&&!sys.planets.some(p=>p.name.toLowerCase().includes(term)||p.type.toLowerCase().includes(term)))continue;
+  matched++;if(shown>=55)continue;const group=document.createElement('div');group.className='star-system';const header=document.createElement('button');header.className='destination system-head';header.type='button';const dist=V.len(V.sub(pos,sys.position));header.innerHTML='<div class="dest-top"><b></b><span class="distance"></span></div><small></small>';
+  header.querySelector('b').textContent='✦ '+sys.name;header.querySelector('.distance').textContent=formatDistance(dist);header.querySelector('small').textContent=sys.star.type+' · '+sys.star.rarity.toUpperCase()+' · '+(sys.dormant?'UNSURVEYED':sys.planets.length+' PLANETS · '+sys.belts.length+' BELTS')+(sys.phenomenon?' · '+sys.phenomenon.toUpperCase():'');group.append(header);
+  const sunBtn=document.createElement('button');sunBtn.type='button';sunBtn.className='sun-destination';sunBtn.textContent='◉ PLOT COURSE TO STAR · APPROACH CORONA';sunBtn.onclick=()=>{target=sys.star;galaxy.pinnedSystemId=sys.id;siteWaypoint=null;closeChart();showToast('Stellar approach plotted. The corona is accessible, but dangerous.');};group.append(sunBtn);
+  const children=document.createElement('div');children.className='system-children';children.hidden=!(expandedSystemId===sys.id||(!sys.dormant&&target.systemId===sys.id));
+  header.onclick=()=>{const open=children.hidden;expandedSystemId=open?sys.id:null;if(open&&sys.dormant)galaxy.activate(sys);drawChart();};
+  for(const body of sys.planets){const b=document.createElement('button');b.className='destination body-dest'+(target===body?' active':'');b.type='button';b.innerHTML='<div class="dest-top"><b></b><span class="distance"></span></div><small></small>';
+   b.querySelector('b').textContent=body.name;b.querySelector('.distance').textContent=formatDistance(V.len(V.sub(pos,body.position)));
+   b.querySelector('small').textContent=body.type.toUpperCase()+' · DAY '+Math.round(body.spinPeriod)+' s · '+Math.round(body.radius*2).toLocaleString()+' DIAMETER · '+body.moons.length+' MOONS'+(body.ring?' · RINGS':'');
+   b.onclick=()=>{target=body;galaxy.pinnedSystemId=body.systemId;siteWaypoint=null;closeChart();showToast('Course plotted to '+body.name+' · G aligns · SHIFT+W enables warp.');};children.append(b);
+   for(const moon of body.moons){const m=document.createElement('button');m.className='destination moon-dest'+(target===moon?' active':'');m.type='button';m.innerHTML='<div class="dest-top"><b></b><span class="distance"></span></div><small></small>';
+    m.querySelector('b').textContent='◦ '+moon.name;m.querySelector('.distance').textContent=formatDistance(V.len(V.sub(pos,moon.position)));m.querySelector('small').textContent=moon.type.toUpperCase()+' MOON · DAY '+Math.round(moon.spinPeriod)+' s · '+Math.round(moon.radius*2)+' DIAMETER';m.onclick=()=>{target=moon;galaxy.pinnedSystemId=moon.systemId;siteWaypoint=null;closeChart();showToast('Moon waypoint: '+moon.name+'. G to align.');};children.append(m);}
+  }
+  group.append(children);area.append(group);shown++;
+ }
+ $('systems-shown').textContent=(term?matched+' MATCHES · ':'')+shown+' SHOWN / '+galaxy.systems.length+' REAL SYSTEMS';
+}
+function openChart(){drawChart();$('chart').hidden=false;keys.clear();$('chart-search')?.focus();}
+function closeChart(){$('chart').hidden=true;}
+$('new-galaxy').onclick=()=>{const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;};
+$('chart-open').onclick=openChart;$('chart-close').onclick=closeChart;$('chart-search').oninput=drawChart;$('chart').addEventListener('click',e=>{if(e.target===$('chart'))closeChart();});
+$('panel-toggle').onclick=()=>{const c=$('panel').classList.toggle('collapsed');$('panel-toggle').textContent=c?'+':'−';$('panel-toggle').setAttribute('aria-expanded',String(!c));};
+document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.dataset.scan)));
+function rotate(yaw,pitch,roll){const right=V.norm(V.cross(forward,up));if(yaw)forward=V.rot(forward,up,yaw);if(pitch){forward=V.rot(forward,right,pitch);up=V.rot(up,right,pitch);}if(roll)up=V.rot(up,forward,roll);forward=V.norm(forward);up=V.norm(V.sub(up,V.mul(forward,V.dot(forward,up))));}
+function pointTowardWaypoint(){const b=siteWaypoint?.planet||target,way=siteWaypoint?V.add(b.position,V.mul(V.rot(siteWaypoint.dir,b.spinAxis||[0,1,0],b.spinAngle||0),b.radius+180)):b.position,delta=V.sub(way,pos);if(V.len(delta)<30)return;
+ let d=V.norm(delta);if(landed){const radial=V.norm(V.sub(pos,nearest.position));d=V.norm(V.sub(d,V.mul(radial,V.dot(d,radial))));if(V.len(d)<.1)return;up=radial;}else{let right=V.norm(V.cross(forward,up));if(V.len(V.cross(right,d))<.01)right=[1,0,0];up=V.norm(V.cross(right,d));}forward=d;showToast('Heading aligned · thrust with W.');}
+const busy=()=>!$('chart').hidden;
+addEventListener('keydown',ev=>{if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(ev.code))ev.preventDefault();if(busy()){if(ev.code==='Escape')closeChart();return;}
+ keys.add(ev.code);if(ev.repeat)return;if(['Digit1','Digit2','Digit3'].includes(ev.code))startScan(Number(ev.code.slice(-1))-1);
+ if(ev.code==='KeyV'&&!eva){camMode=(camMode+1)%2;camEye=null;showToast(camMode?'Cockpit camera':'Chase camera');}if(ev.code==='KeyF'){orbitYaw=0;orbitPitch=0;showToast(roverOccupied?'Camera centred behind rover.':eva?'Camera centred behind astronaut.':'Camera centred behind spacecraft.');}if(ev.code==='KeyG'&&!eva)pointTowardWaypoint();if(ev.code==='KeyM')openChart();if(ev.code==='KeyT'){timeScale=timeScale===1?10:timeScale===10?100:1;showToast('Orbital simulation speed '+timeScale+'×');}
+ if(ev.code==='KeyL'){headlights=!headlights;showToast((eva?'Suit / ship lights ':'Landing floodlights ')+(headlights?'ON':'OFF'));}if(ev.code==='KeyR'&&ev.shiftKey&&!eva){pos=V.add(target.position,[0,320,-(target.radius+3550)]);forward=V.norm(V.sub(target.position,pos));up=[0,1,0];vel=[0,0,0];landed=false;groundLocal=null;warp=false;camEye=null;showToast('Reset to target orbital approach.');}
+});
+addEventListener('keyup',ev=>keys.delete(ev.code));addEventListener('blur',()=>keys.clear());
+let dragging=false,dragButton=0,lastX=0,lastY=0,dragTravel=0,lastPickingCamera=null;const canvas=$('universe');
+canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
+
+function pickActualStar(clientX,clientY){
+ const rect=canvas.getBoundingClientRect(),cam=lastPickingCamera;
+ if(!cam||!renderer.skyPicks||eva||landed)return false;
+ const x=(clientX-rect.left)/rect.width,y=(clientY-rect.top)/rect.height,tan=Math.tan(renderer.fov/2),aspect=renderer.aspect;
+ let best=null,bestDist=14*14;
+ for(const item of renderer.skyPicks){const z=V.dot(item.dir,cam.forward);if(z<=.01)continue;
+  const sx=.5+.5*V.dot(item.dir,cam.right)/(z*tan*aspect),sy=.5-.5*V.dot(item.dir,cam.up)/(z*tan);
+  const dx=(sx-x)*rect.width,dy=(sy-y)*rect.height,d=dx*dx+dy*dy;
+  if(d<bestDist){best=item.system;bestDist=d;}}
+ if(!best)return false;
+ target=best.star;galaxy.pinnedSystemId=best.id;siteWaypoint=null;showToast('STAR ACQUIRED · '+best.name+' · G align · SHIFT+W warp');return true;
+}
+canvas.addEventListener('pointerdown',ev=>{if(busy())return;dragging=true;dragButton=ev.button;lastX=ev.clientX;lastY=ev.clientY;dragTravel=0;canvas.setPointerCapture(ev.pointerId);});
+canvas.addEventListener('pointermove',ev=>{if(!dragging||busy())return;const dx=V.clamp(ev.clientX-lastX,-100,100),dy=V.clamp(ev.clientY-lastY,-100,100);dragTravel+=Math.abs(dx)+Math.abs(dy);lastX=ev.clientX;lastY=ev.clientY;
+ if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.003,-1.15,1.15);return;}
+ if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.003,-.7,.7);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,-dy*.0021,0);
+});
+canvas.addEventListener('pointerup',ev=>{if(roverOccupied&&dragButton===0&&dragTravel<12&&roverEntryCooldown<=0)exitRover();else if(!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
+document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{ev.preventDefault();keys.add(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>keys.delete(code));});
+function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
+function stage(alt,body){if(roverOccupied)return 'SURFACE ROVER';if(eva)return 'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
+function saveFlight(){const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null}});}
+function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
+ for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
+ return null;
+}
+function updatePhysics(dt){if(busy()||document.hidden)return;
+ hatchCooldown=Math.max(0,hatchCooldown-dt);roverEntryCooldown=Math.max(0,roverEntryCooldown-dt);
+ simTime=physicsClock.advance(dt,timeScale);
+ let attached=landed?nearest:(nearest&&V.len(V.sub(pos,nearest.position))<nearest.radius+75000?nearest:null);
+ const previousCenter=attached?[...attached.position]:null,oldSpin=attached?.spinAngle||0;
+ galaxy.update(simTime);galaxy.hydrateNear(pos,galaxy.byId.get(target.systemId));
+ if(attached){
+  if(landed){
+   const axis=attached.spinAxis||[0,1,0],turn=(attached.spinAngle||0)-oldSpin;
+   if(eva){
+    if(shipForwardVec)shipForwardVec=V.rot(shipForwardVec,axis,turn);if(shipUpVec)shipUpVec=V.rot(shipUpVec,axis,turn);
+    if(roverForwardVec)roverForwardVec=V.rot(roverForwardVec,axis,turn);
+    if(roverOccupied){
+     if(!roverLocal)roverLocal=V.rot(V.norm(V.sub(pos,previousCenter)),axis,-oldSpin);
+     up=V.rot(up,axis,turn);
+     const radial=V.norm(V.rot(roverLocal,axis,attached.spinAngle||0));
+     pos=V.add(attached.position,V.mul(radial,attached.radius+groundHeight(roverLocal,attached)+ROVER_CLEARANCE));
+    }else{
+     if(!evaLocal)evaLocal=V.rot(V.norm(V.sub(pos,previousCenter)),axis,-oldSpin);
+     evaForward=V.rot(evaForward,axis,turn);up=V.rot(up,axis,turn);
+     const radial=V.norm(V.rot(evaLocal,axis,attached.spinAngle||0));
+     pos=V.add(attached.position,V.mul(radial,attached.radius+groundHeight(evaLocal,attached)+EVA_HEIGHT));
+    }
+   }else{
+    if(!groundLocal)groundLocal=V.rot(V.norm(V.sub(pos,previousCenter)),axis,-oldSpin);
+    forward=V.rot(forward,axis,turn);up=V.rot(up,axis,turn);
+    const radial=V.norm(V.rot(groundLocal,axis,attached.spinAngle||0));
+    pos=V.add(attached.position,V.mul(radial,attached.radius+groundHeight(groundLocal,attached)+SHIP_CLEARANCE));
+   }
+  }else pos=V.add(attached.position,V.sub(pos,previousCenter));
+ }
+ const current=galaxy.nearestBody(pos);nearest=current.planet||first;const sample=surfaceData(nearest,pos);altitude=sample.distance-nearest.radius-sample.height;const radial=sample.dir;vertical=V.dot(vel,radial);
+ const yaw=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0);
+ const pitch=(keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0),roll=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
+ if(landed){if(eva){
+  warp=false;up=radial;
+  if(rampTransition){
+   rampTransition.elapsed+=dt;const t=Math.min(1,rampTransition.elapsed/rampTransition.duration),smooth=t*t*(3-2*t);
+   evaLocal=V.norm(V.mix(rampTransition.from,rampTransition.to,smooth));
+   rampLift=(rampTransition.kind==='out'?(1-smooth):smooth)*5.0;
+   const dir=V.norm(V.rot(evaLocal,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
+   pos=V.add(nearest.position,V.mul(dir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT+rampLift));up=dir;
+   if(t>=1){const direction=rampTransition.kind;rampTransition=null;rampLift=0;
+    if(direction==='in'){boardShip();vertical=0;vel=[0,0,0];return;}
+   }vertical=0;vel=[0,0,0];return;
+  }
+  if(roverExitMove){
+   roverExitMove.progress=Math.min(1,roverExitMove.progress+dt/0.85);
+   const t=roverExitMove.progress,dir=V.norm(V.mix(roverExitMove.from,roverExitMove.to,t));
+   evaLocal=dir;const worldDir=V.norm(V.rot(dir,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
+   pos=V.add(nearest.position,V.mul(worldDir,nearest.radius+groundHeight(dir,nearest)+EVA_HEIGHT));
+   if(t>=1)roverExitMove=null;vertical=0;vel=[0,0,0];return;
+  }
+  if(roverOccupied){
+   if(yaw)roverForwardVec=V.norm(V.rot(roverForwardVec,radial,yaw*dt*1.55));
+   roverForwardVec=V.norm(V.sub(roverForwardVec,V.mul(radial,V.dot(radial,roverForwardVec))));if(V.len(roverForwardVec)<.05)roverForwardVec=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
+   const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+   if(drive){const right=V.norm(V.cross(roverForwardVec,radial)),step=drive*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?17.5:9.5),angle=step/Math.max(nearest.radius+groundHeight(roverLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+ROVER_CLEARANCE,1);
+    const nextDir=V.norm(V.rot(radial,right,-angle));roverForwardVec=V.norm(V.rot(roverForwardVec,right,-angle));roverLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+    pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(roverLocal,nearest)+ROVER_CLEARANCE));up=nextDir;
+   }
+   evaForward=[...roverForwardVec];vertical=0;vel=[0,0,0];return;
+  }
+  if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
+  evaForward=V.norm(V.sub(evaForward,V.mul(radial,V.dot(radial,evaForward))));if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
+  const walk=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7),angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
+   const nextDir=V.norm(V.rot(radial,right,-angle));evaForward=V.norm(V.rot(evaForward,right,-angle));evaLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+   pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT));up=nextDir;
+   walkedSinceExit+=Math.abs(step);
+  }
+  // Spatial transitions only. The astronaut physically walks into the rear ramp or rover seat.
+  if(hatchCooldown<=0 && walkedSinceExit>3 && walk>0 && shipBody===nearest){
+   const ship=shipWorldState(),delta=V.sub(pos,ship.position),ahead=V.dot(delta,ship.forward);
+   const right=V.norm(V.cross(ship.forward,ship.up)),side=V.dot(delta,right);
+   if(ahead> -29 && ahead < -17 && Math.abs(side)<4.8){
+    const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-10,0);
+    rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
+    showToast('Walking up the cargo ramp · boarding ship');vertical=0;vel=[0,0,0];return;
+   }
+  }
+  if(roverEntryCooldown<=0&&roverBody===nearest&&walk!==0){
+   const rover=roverWorldState();if(rover){
+    const delta=V.sub(pos,rover.position),rSide=V.norm(V.cross(rover.forward,rover.up));
+    if(Math.abs(V.dot(delta,rSide))<7.0 && V.len(delta)<9.5){enterRover();vertical=0;vel=[0,0,0];return;}
+   }
+  }
+  vertical=0;vel=[0,0,0];return;}
+  shipIdleElapsed=keys.has('KeyS')?shipIdleElapsed+dt:0;
+  if(shipIdleElapsed>.52&&hatchCooldown<=0){exitShip();vertical=0;vel=[0,0,0];return;}
+  if(keys.has('Space')){landingCapture=null;landed=false;groundLocal=null;eva=false;evaLocal=null;shipBody=null;roverOccupied=false;roverLocal=null;roverBody=null;vel=V.add(V.mul(radial,38),V.mul(forward,14));pos=V.add(pos,V.mul(radial,5));showToast('Liftoff · atmospheric ascent');}else{
+  if(yaw)forward=V.norm(V.rot(forward,radial,yaw*dt*1.65));forward=V.norm(V.sub(forward,V.mul(radial,V.dot(radial,forward))));up=radial;const desired=(keys.has('KeyW')?34:0)-(keys.has('KeyS')?15:0),speed=V.dot(vel,forward);
+  vel=V.mul(forward,speed+(desired-speed)*Math.min(1,dt*2));const nextPos=V.add(pos,V.mul(vel,dt)),ns=surfaceData(nearest,nextPos);groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+   pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));vertical=0;warp=false;return;}}
+ if(yaw||pitch||roll)rotate(yaw*dt*1.27,pitch*dt*.98,roll*dt*1.03);
+ if(nearest.landable&&altitude<120&&vertical<-1&&!keys.has('Space'))landingCapture=nearest.id;
+ if(altitude>180||keys.has('Space')||landingCapture!==nearest.id)landingCapture=null;
+ const boost=keys.has('ShiftLeft')||keys.has('ShiftRight'),thrust=keys.has('KeyW'),brake=keys.has('KeyS');
+ const toTarget=V.sub(target.position,pos),range=V.len(toTarget),desiredStop=target.kind==='star'?target.radius*1.24:Math.max(125000,target.radius*38);
+ const nearSun=galaxy.nearestStar(pos),starDist=nearSun.alt,starRadius=nearSun.system.star.radius;
+ solarWarning=starDist<starRadius*.95;
+ heat=V.clamp(heat+(solarWarning?Math.max(0,1.9-(starDist+starRadius)/starRadius)*27*dt:-13*dt),0,100);
+ const canWarp=boost&&thrust&&altitude>2600&&range>desiredStop&&starDist>starRadius*.06&&(!nearest||altitude>nearest.radius*2.5);
+ if(canWarp){engState=null;engBody=null;warp=true;const speed=Math.min(9e9,Math.max(220000,range*.27));const step=Math.min(range-desiredStop,speed*dt);const to=V.add(pos,V.mul(forward,step));const hit=checkStarCollision(pos,to);
+  if(hit){const outside=V.norm(V.sub(hit.point,hit.sys.position)),safe=V.add(hit.sys.position,V.mul(outside,hit.sys.star.radius*1.008));pos=safe;vel=[0,0,0];warp=false;showToast('PHOTOSPHERE CONTACT · warp interrupted');}
+  else{pos=to;vel=[0,0,0];}
+  return;
+ }
+ if(warp){warp=false;vel=[0,0,0];engState=null;engBody=null;showToast('Warp drive disengaged · manual approach resumed');}
+ if(engEnabled){engineeringFlight(dt);return;}
+ let maxSpeed=boost?4800:2300;if(solarWarning)maxSpeed=boost?140000:55000;if(altitude<1800)maxSpeed=boost?800:490;if(altitude<680)maxSpeed=boost?420:280;if(altitude<210)maxSpeed=boost?150:110;if(altitude<65)maxSpeed=boost?48:34;
+ const accel=solarWarning?22000:altitude<650?270:altitude<1800?450:900;
+ if(thrust)vel=V.add(vel,V.mul(forward,accel*(boost?1.55:1)*dt));if(brake)vel=V.add(vel,V.mul(forward,-accel*.74*dt));
+ if(keys.has('Space'))vel=V.add(vel,V.mul(radial,accel*.6*dt));if(keys.has('KeyC'))vel=V.add(vel,V.mul(radial,-accel*.5*dt));
+ const atmos=nearest.kind==='planet'&&nearest.landable?1-V.clamp((altitude-250)/950,0,1):0;
+ vel=V.mul(vel,Math.exp(-(.025+atmos*.26+(altitude<80&&nearest.landable?.31:0))*dt));
+ if(altitude<950&&nearest.landable)vel=V.add(vel,V.mul(radial,-nearest.gravity*11*dt));
+ const speed=V.len(vel);if(speed>maxSpeed)vel=V.mul(vel,maxSpeed/speed);
+ if(nearest.landable){const down=V.dot(vel,radial);if(altitude<300&&down<0){const limit=altitude<14?5.5:altitude<42?11:altitude<90?30:altitude<175?66:130;if(-down>limit)vel=V.add(vel,V.mul(radial,-limit-down));}
+  if(altitude<26&&!keys.has('Space')){const sink=V.dot(vel,radial),desired=-Math.min(6.5,Math.max(3.8,altitude*.33));vel=V.add(vel,V.mul(radial,(desired-sink)*Math.min(1,dt*3.1)));}}
+ // Once a descending ship enters its final approach corridor, aerodynamic control
+ // stabilizes horizontal drift and keeps actual vertical flight continuous to terrain.
+ if(landingCapture===nearest.id&&altitude<135&&!keys.has('Space')){
+  const sink=altitude<14?4.6:altitude<50?7.5:altitude<110?13:20;
+  const lateral=V.sub(vel,V.mul(radial,V.dot(vel,radial)));
+  vel=V.add(V.mul(lateral,Math.exp(-dt*2.4)),V.mul(radial,-sink));
+ }
+ const attempted=V.add(pos,V.mul(vel,dt));const sunImpact=checkStarCollision(pos,attempted);
+ if(sunImpact){const outside=V.norm(V.sub(sunImpact.point,sunImpact.sys.position));pos=V.add(sunImpact.sys.position,V.mul(outside,sunImpact.sys.star.radius*1.008));vel=V.mul(outside,12);heat=100;showToast('PHOTOSPHERE CONTACT · CRITICAL HEAT · reverse thrust!');return;}
+ pos=attempted;const ns=surfaceData(nearest,pos);altitude=ns.distance-nearest.radius-ns.height;vertical=V.dot(vel,ns.dir);
+ if(!nearest.landable&&altitude<120){pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+120));vel=V.mul(ns.dir,90);if(altitude<20)showToast(nearest.type==='Shattered'?'Shattered world: unstable debris · no safe touchdown':'Gas giant: no solid surface · explore its moons');return;}
+ if(nearest.landable&&altitude<66){const t=1-Math.max(0,altitude)/66,tangent=V.sub(forward,V.mul(ns.dir,V.dot(forward,ns.dir)));let d=V.len(tangent)>.05?V.norm(tangent):V.norm(V.cross(ns.dir,[1,0,0]));forward=V.norm(V.mix(forward,d,Math.min(.085,dt*2.3)*t));const upright=V.sub(ns.dir,V.mul(forward,V.dot(ns.dir,forward)));if(V.len(upright)>.03)up=V.norm(V.mix(up,V.norm(upright),Math.min(.085,dt*2.3)*t));}
+ if(nearest.landable&&altitude<=7.5){
+  groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+  pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));landed=true;landingCapture=null;vel=[0,0,0];up=ns.dir;let tangent=V.sub(forward,V.mul(up,V.dot(forward,up)));if(V.len(tangent)<.05)tangent=V.cross([0,1,0],up);forward=V.norm(tangent);
+  shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;roverOccupied=false;placeRoverNearShip();
+ $('landed-label').textContent='Welcome to '+nearest.name;$('landing-banner').classList.add('show');clearTimeout(landingTimer);landingTimer=setTimeout(()=>$('landing-banner').classList.remove('show'),6500);
+ SF.recordDiscovery({id:'seamless-land:'+nearest.id,type:'landing',name:'Landed on '+nearest.name,detail:'Continuous physical landing',planet:nearest.name,system:nearest.system});showToast('TOUCHDOWN CONFIRMED · disembarking onto surface');saveFlight();exitShip();}
+}
+function cameraState(dt){
+ const radial=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0],groundMix=V.clamp((300-altitude)/260,0,1);
+ if(roverOccupied){
+  const tangent=V.norm(V.sub(roverForwardVec,V.mul(radial,V.dot(roverForwardVec,radial))));
+  const rightR=V.norm(V.cross(tangent,radial));
+  const orbitDirection=V.rot(V.rot(tangent,radial,orbitYaw),rightR,orbitPitch*.28);
+  let desired=V.add(pos,V.add(V.mul(orbitDirection,-18),V.mul(radial,6.2)));
+  if(nearest?.landable){const sample=surfaceData(nearest,desired),safeRadius=nearest.radius+sample.height+3.4;if(sample.distance<safeRadius)desired=V.add(nearest.position,V.mul(sample.dir,safeRadius));}
+  const aim=V.add(pos,V.add(V.mul(tangent,7.5),V.mul(radial,2.5)));
+  if(!camEye||V.len(V.sub(camEye,desired))>1200)camEye=[...desired];else camEye=V.mix(camEye,desired,1-Math.exp(-dt*10));
+  if(nearest?.landable){const ground=surfaceData(nearest,camEye),clearance=nearest.radius+ground.height+3.4;if(ground.distance<clearance)camEye=V.add(nearest.position,V.mul(ground.dir,clearance));}
+  const viewForward=V.norm(V.sub(aim,camEye)),right=V.norm(V.cross(viewForward,radial)),viewUp=V.norm(V.cross(right,viewForward));
+  return{eye:camEye,target:aim,forward:viewForward,right,up:viewUp};
+ }
+ if(eva){
+  const tangent=V.norm(V.sub(evaForward,V.mul(radial,V.dot(evaForward,radial))));
+  const rightEva=V.norm(V.cross(tangent,radial));
+  const orbitDirection=V.rot(V.rot(tangent,radial,orbitYaw),rightEva,orbitPitch*.45);
+  let desired=V.add(pos,V.add(V.mul(orbitDirection,-12),V.mul(radial,4.5)));
+  if(nearest?.landable){const sample=surfaceData(nearest,desired),safeRadius=nearest.radius+sample.height+2.8;if(sample.distance<safeRadius)desired=V.add(nearest.position,V.mul(sample.dir,safeRadius));}
+  const aim=V.add(pos,V.add(V.mul(tangent,5),V.mul(radial,1.6)));
+  if(!camEye||V.len(V.sub(camEye,desired))>1200)camEye=[...desired];else camEye=V.mix(camEye,desired,1-Math.exp(-dt*13));
+  if(nearest?.landable){const ground=surfaceData(nearest,camEye),clearance=nearest.radius+ground.height+2.8;if(ground.distance<clearance)camEye=V.add(nearest.position,V.mul(ground.dir,clearance));}
+  const viewForward=V.norm(V.sub(aim,camEye)),right=V.norm(V.cross(viewForward,radial)),viewUp=V.norm(V.cross(right,viewForward));
+  return{eye:camEye,target:aim,forward:viewForward,right,up:viewUp};
+ }
+ let camUp=V.norm(V.mix(up,radial,groundMix*.85)),cf=V.norm(forward);
+ const rightShip=V.norm(V.cross(cf,camUp)),correctedUp=V.norm(V.cross(rightShip,cf));camUp=correctedUp;
+ const orbitDirection=V.rot(V.rot(cf,camUp,orbitYaw),rightShip,orbitPitch);
+ const cockpit=camMode===1;
+ let desired=cockpit?V.add(pos,V.add(V.mul(cf,7),V.mul(camUp,3.0))):V.add(pos,V.add(V.mul(orbitDirection,-camDistance),V.mul(camUp,Math.max(9,camDistance*.22))));
+ // Chase cameras must never pass under displaced terrain or the ocean surface.
+ if(nearest?.landable&&altitude<Math.max(380,camDistance*2)){
+  const sample=surfaceData(nearest,desired),safeRadius=nearest.radius+sample.height+(cockpit?4:Math.max(13,camDistance*.18));
+  if(sample.distance<safeRadius)desired=V.add(nearest.position,V.mul(sample.dir,safeRadius));
+ }
+ const aim=cockpit?V.add(pos,V.mul(cf,200)):V.add(pos,V.mul(camUp,4));
+ // No interpolation in world space while standing on a spinning/orbiting planet:
+ // that would drag the view underground during 10x and 100x acceleration.
+ if(!camEye||landed||altitude<70||warp||V.len(V.sub(camEye,desired))>200000)camEye=[...desired];
+ else camEye=V.mix(camEye,desired,1-Math.exp(-dt*11));
+ if(nearest?.landable&&altitude<Math.max(380,camDistance*2)){
+  const ground=surfaceData(nearest,camEye),clearance=nearest.radius+ground.height+(cockpit?4:Math.max(13,camDistance*.18));
+  if(ground.distance<clearance)camEye=V.add(nearest.position,V.mul(ground.dir,clearance));
+ }
+ const viewForward=V.norm(V.sub(aim,camEye)),right=V.norm(V.cross(viewForward,camUp)),viewUp=V.norm(V.cross(right,viewForward));
+ return{eye:camEye,target:aim,forward:viewForward,right,up:viewUp};
+}
+function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;const body=nearest||target,phase=solarWarning?'STELLAR CORONA':stage(altitude,body);$('phase-top').textContent='EXPEDITION / '+phase;$('flight-state').textContent=phase;$('mode-text').textContent=roverOccupied?'ROVER':eva?'EVA':solarWarning?'CORONA':warp?'WARP':landed?'SURFACE':altitude<650?'ATMOSPHERE':altitude<2500?'ORBIT':'FREE FLIGHT';
+ $('speed-text').textContent=warp?'FTL CRUISE':V.len(vel).toFixed(0)+' u/s';$('alt-text').textContent=formatDistance(Math.max(0,altitude));$('vertical-text').textContent=vertical.toFixed(0)+' u/s';$('star-count').textContent=renderer.starPoints.toLocaleString();$('body-count').textContent=renderer.renderedBodies+' / '+galaxy.allWorlds.length;$('system-count').textContent=String(galaxy.systems.length);$('coordinates').textContent=pos.map(n=>Math.round(n/1e6)).join(' / ')+' Mu';$('fps-text').textContent=Math.round(fps);$('effects-count').textContent=(renderer.effectsRendered||0).toLocaleString();$('time-scale').textContent=timeScale+'×';$('lighting-state').textContent=renderer.daylightLabel||'—';$('floodlights-state').textContent=headlights?'ON':'OFF';
+ const nearSys=galaxy.nearestSystem(pos);const types=[];if(nearSys?.belts.length)types.push(nearSys.belts.length+' ASTEROID BELT'+(nearSys.belts.length>1?'S':''));if(nearSys?.nebulae.length)types.push('NEBULA');if(nearSys?.comets.length)types.push('COMET');if(nearSys?.phenomenon)types.push(nearSys.phenomenon.toUpperCase());const eventVisible=nearSys&&V.len(V.sub(pos,nearSys.position))<nearSys.maxOrbit*2.5;$('space-event').hidden=!eventVisible;$('space-event').textContent=eventVisible?'SECTOR PHENOMENA / '+(types.join('  ·  ')||'QUIET SYSTEM'):'';
+ $('solar-alert').hidden=!solarWarning;$('heat-fill').style.width=heat.toFixed(1)+'%';$('heat-number').textContent=Math.round(heat)+'%';$('corona-star').textContent=galaxy.nearestStar(pos).system?.name||'—';
+ $('walk-context').textContent=roverOccupied?'CLICK THE GROUND TO STEP OFF THE ROVER':eva?rampTransition?(rampTransition.kind==='out'?'WALKING DOWN REAR RAMP':'WALKING UP REAR RAMP'):roverExitMove?'WALKING AWAY FROM ROVER':(roverBody===nearest&&roverWorldState()&&V.len(V.sub(pos,roverWorldState().position))<24?'WALK CLOSER TO THE ROVER TO DRIVE':'EXPLORE ON FOOT · WALK TO SHIP REAR RAMP TO BOARD'):landed?'HOLD S TO WALK DOWN THE RAMP · SPACE TO LAUNCH':'';
+ $('status-text').textContent=solarWarning?'CORONAL WARNING · THERMAL LOAD '+Math.round(heat)+'% · PHOTOSPHERE IS SOLID':roverOccupied?'ROVER ACTIVE · W/S DRIVE · A/D STEER · CLICK GROUND TO WALK AWAY':eva?'EVA ACTIVE · WALK INTO REAR CARGO RAMP / ROVER SEAT TO BOARD':landed?'SHIP LANDED · SPACE TO TAKE OFF · HOLD S TO WALK DOWN RAMP':warp?'WARP CRUISE · RELEASE SHIFT TO EXIT · G ALIGNS':'LEFT DRAG STEER · RIGHT DRAG LOOK · SCROLL ZOOM · F CENTRE CAMERA';
+ if(phase!==nearPhase){nearPhase=phase;if(phase==='ATMOSPHERIC ENTRY')showToast('Atmospheric entry · deceleration engaged');if(phase==='LOW ATMOSPHERE')showToast('Surface acquired · descend to land');if(phase==='STELLAR CORONA')showToast('CORONAL WARNING · stellar radiation increasing');}
+ const goal=siteWaypoint?V.add(siteWaypoint.planet.position,V.mul(V.rot(siteWaypoint.dir,siteWaypoint.planet.spinAxis||[0,1,0],siteWaypoint.planet.spinAngle||0),siteWaypoint.planet.radius+8)):target.position,delta=V.sub(goal,pos),dist=V.len(delta),bearing=V.dot(V.norm(delta),forward);
+ $('waypoint-label').textContent=roverOccupied?'ROVER / '+body.name+' · CLICK GROUND TO WALK AWAY':eva?'EVA / '+body.name+' · WALK INTO REAR RAMP TO BOARD':landed?'SURFACE / '+body.name:siteWaypoint?'◆ '+siteWaypoint.name.toUpperCase()+' · '+formatDistance(dist):'✦ '+target.name.toUpperCase()+' · '+formatDistance(dist)+(bearing<.75?' · G TO ALIGN':'');
+ $('entry-flash').style.opacity=String(altitude<650&&altitude>65?V.clamp((V.len(vel)-135)/600,0,.44)*Math.sin(performance.now()*.005)**2:0);
+ if(lastPlanetId!==body.id){lastPlanetId=body.id;updateBodyUI();}
+}
+function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04);lastTime=now;
+ try{if(!busy()){updatePhysics(dt);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
+  const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
+  const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
+  const portraitBase=eva&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(roverOccupied?3.4:0.25)+rampLift+(eva&&!roverOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
+  renderer.render({camera,position:pos,viewerPosition:pos,shipPosition:ship.position,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover&&(!roverOccupied||eva)?rover.position:null,roverForward:rover&&(!roverOccupied||eva)?rover.forward:null,roverUp:rover&&(!roverOccupied||eva)?rover.up:null,avatarBase:eva&&!roverOccupied?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights});frames++;frameClock+=dt;
+  if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
+  refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
+ }catch(e){console.error('Starfall frame failed:',e);$('status-text').textContent='GRAPHICS / FLIGHT ERROR: '+String(e.message).slice(0,85);}requestAnimationFrame(loop);}
+addEventListener('resize',()=>renderer.resize());addEventListener('pagehide',saveFlight);
+nearest=galaxy.nearestBody(pos).planet||first;let initial=surfaceData(nearest,pos);altitude=initial.distance-nearest.radius-initial.height;
+if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}placeRoverNearShip();exitShip();}
+updateBodyUI();setTimeout(()=>$('boot').classList.add('ready'),170);requestAnimationFrame(loop);
+window.StarfallRuntime={galaxy,get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;}};
+Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{position:[...pos],altitude,landed,eva,roverOccupied,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws};},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){simTime=t;galaxy.update(t);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
+})();
+
+</script><script>
+/* STARFALL 2B/2D optional observatory UI. Lazy, accessible and exportable. */
+(function(root){'use strict';
+const P=root.StarfallPhysics,RT=root.StarfallRuntime;if(!P||!RT)return;
+const $=id=>document.getElementById(id);let selected=null,items=[],lastInfo=0;
+const fmt=(v,unit='',digits=3)=>Number.isFinite(v)?Number(v).toLocaleString(undefined,{maximumSignificantDigits:digits})+(unit?' '+unit:''):'—';
+const entry=(label,value,quality='Modelled')=>({label,value,quality});
+function rows(profile){if(!profile)return [];
+ if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
+ return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
+function getProfile(){RT.galaxy.observerPosition=RT.scenePosition;return selected?P.scienceProfile(RT.galaxy,selected):null;}
+function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galaxy.byId.get(focus.systemId):RT.galaxy.byId.get(focus.systemId);
+ if(sys?.dormant)RT.galaxy.activate(sys);
+ RT.galaxy.pinnedSystemId=sys?.id||RT.galaxy.pinnedSystemId;
+ items=sys?[sys.star,...sys.planets,...sys.planets.flatMap(p=>p.moons)]:[focus];
+ const sel=$('obs-body');sel.replaceChildren();items.forEach(b=>{const opt=document.createElement('option');opt.value=b.id;opt.textContent=(b.kind==='star'?'✦ ':'◦ ')+b.name;sel.append(opt);});
+ selected=items.find(b=>b.id===focus.id)||items[0];sel.value=selected.id;
+}
+function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChildren();$('obs-name').textContent=selected?.name||'—';$('obs-quality').textContent=p?.classification||'Unknown';
+ for(const r of rows(p)){const tr=document.createElement('div');tr.className='science-row';const name=document.createElement('span');name.textContent=r.label;const val=document.createElement('strong');val.textContent=r.value;const quality=document.createElement('small');quality.textContent=r.quality;tr.append(name,val,quality);list.append(tr);}
+ $('obs-caution').textContent=p?.notes||'Data is a deterministic procedural physical model. It is not an astronomical observation.';
+}
+function dataSnapshot(){const p=getProfile();return{schema:'starfall-science-v1',exportedSimulationSeconds:RT.time,galaxySeed:RT.galaxy.seed,bodyId:selected?.id,profile:p,assumptions:{sceneUnitMetres:P.SCENE_METERS_PER_UNIT,temperatureModel:'airless equilibrium, uniform redistribution',measurements:'Procedurally estimated; not direct instrument readings'}};}
+function download(name,contents,type){const blob=new Blob([contents],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function csvEscape(s){const t=String(s??'');return /[,\n\"]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;}
+function updateComputer(){const info=RT.engineeringInfo(),box=$('flight-data');if(!info){box.textContent='No local body in range.';return;}
+ const e=info.elements;
+ const stats=[['Inertial speed',fmt(info.inertialVelocityMS,'m/s')],['Ground-relative speed',fmt(info.groundVelocityMS,'m/s')],['Circular orbital speed',e?fmt(e.circularSpeedMS,'m/s'):'—'],['Apoapsis altitude',e&&Number.isFinite(e.apoapsisM)?fmt((e.apoapsisM-info.physical.radiusM)/1000,'km'):e?'ESCAPE':'—'],['Periapsis altitude',e?fmt((e.periapsisM-info.physical.radiusM)/1000,'km'):'—'],['Inclination',e?fmt(e.inclinationRad*180/Math.PI,'°'):'—'],['Estimated Δv',fmt(info.deltaVMS,'m/s')],['Fuel',fmt(info.craft.fuelKg,'kg')],['Drag',fmt(info.dragN,'N')],['Entry heating',fmt(info.heatingW,'W')],['Hull temp.',fmt(info.temperatureK,'K')]];
+ box.replaceChildren();for(const [name,value] of stats){const row=document.createElement('div');row.className='fc-row';const a=document.createElement('span');a.textContent=name;const b=document.createElement('b');b.textContent=value;row.append(a,b);box.append(row);}
+ drawTrajectory(info);
+}
+function drawTrajectory(info){const canvas=$('flight-trajectory');if(!canvas)return;const ctx=canvas.getContext('2d');if(!ctx)return;const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#0b1720';ctx.fillRect(0,0,w,h);
+ const r=info.rM,v=info.vMS,mu=info.physical.mu,R=info.physical.radiusM;
+ let points=[];try{const period=info.elements?.bound?Math.min(info.elements.periodS,1e6):6000,step=period/60;points=StarfallFlightPhysics.predictTrajectory({rM:r,vMS:v},{mu,radiusM:R},64,step);}catch(_){points=[];}
+ if(points.length<2){ctx.fillStyle='#9cabb3';ctx.font='11px Consolas';ctx.fillText('Orbit prediction unavailable',13,22);return;}
+ const rr=P.vec.norm(r),normal=P.vec.norm(P.vec.cross(r,v)),t=P.vec.norm(P.vec.cross(normal,rr));
+ const xy=points.map(p=>[P.vec.dot(p,rr),P.vec.dot(p,t)]),size=Math.max(R*1.1,...xy.map(p=>Math.hypot(...p))),scale=.44*Math.min(w,h)/Math.max(size,1);
+ ctx.beginPath();ctx.arc(w/2,h/2,R*scale,0,2*Math.PI);ctx.fillStyle='#395466';ctx.fill();ctx.strokeStyle='#9ba7b6';ctx.stroke();
+ ctx.beginPath();xy.forEach(([x,y],i)=>{const xx=w/2+x*scale,yy=h/2+y*scale;if(i===0)ctx.moveTo(xx,yy);else ctx.lineTo(xx,yy);});ctx.strokeStyle='#e7ba81';ctx.lineWidth=1.5;ctx.stroke();
+ ctx.beginPath();ctx.arc(w/2+xy[0][0]*scale,h/2+xy[0][1]*scale,4,0,2*Math.PI);ctx.fillStyle='#86dce6';ctx.fill();
+ ctx.font='10px Consolas';ctx.fillStyle='#c2d0d5';ctx.fillText('PREDICTED UNPOWERED ORBIT • LOCAL TWO-BODY',10,14);
+ }
+$('obs-open').onclick=()=>{fillBodies();renderProfile();$('observatory').hidden=false;};
+$('obs-close').onclick=()=>{$('observatory').hidden=true;};
+$('observatory').addEventListener('click',e=>{if(e.target===$('observatory'))$('observatory').hidden=true;});
+$('obs-body').onchange=e=>{selected=items.find(b=>b.id===e.target.value)||null;renderProfile();};
+$('obs-json').onclick=()=>download('starfall-'+(selected?.id||'science')+'.json',JSON.stringify(dataSnapshot(),null,2),'application/json');
+$('obs-csv').onclick=()=>download('starfall-'+(selected?.id||'science')+'.csv','Property,Value,Quality\n'+rows(getProfile()).map(r=>[r.label,r.value,r.quality].map(csvEscape).join(',')).join('\n'),'text/csv');
+$('orbit-model').onchange=e=>{if(e.target.checked&&RT.landed){alert('Experimental orbit switching is unavailable while landed. Fly to orbit first to avoid surface-coordinate discontinuities.');e.target.checked=false;return;}if(e.target.checked){const agree=confirm('Experimental Kepler orbits use a compatibility mass to preserve period, but eccentricity can move planets and landed assets. Switch visual orbits ON?');if(!agree){e.target.checked=false;return;}}
+ RT.galaxy.physicsOrbits.setEnabled(e.target.checked);};
+$('fc-mode').value=RT.engineering?'Engineering':'Assisted';$('fc-mode').onchange=e=>{RT.setFlightPhysicsMode(e.target.value);updateComputer();};
+$('fc-attitude').value=RT.attitude;$('fc-attitude').onchange=e=>RT.setAttitude(e.target.value);
+$('fc-toggle').onclick=()=>{$('fc-inner').hidden=!$('fc-inner').hidden;$('fc-toggle').setAttribute('aria-expanded',String(!$('fc-inner').hidden));updateComputer();};
+addEventListener('keydown',e=>{if(e.code==='Escape'&&!$('observatory').hidden){$('observatory').hidden=true;e.stopImmediatePropagation();}});
+setInterval(()=>{if(document.hidden||$('fc-inner').hidden)return;updateComputer();},800);
+root.StarfallObservatory={open:()=>{$('obs-open').click();},profile:()=>getProfile(),refresh:renderProfile};
+})(globalThis);
+
+</script>
+</body>
+</html>
