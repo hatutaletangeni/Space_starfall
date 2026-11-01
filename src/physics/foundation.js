@@ -1,0 +1,49 @@
+/* STARFALL Update 2A/2D: SI-based, deterministic physics and scientific profiles.
+ * No WebGL dependency. Legacy orbit positions are authoritative unless explicitly enabled.
+ * Unit contract: 1 scene length unit = 1,000 meters; render time unit = 1 second.
+ * This is a COMPATIBILITY mapping, not a claim that original game scales are realistic.
+ */
+(function(root){'use strict';
+const G=6.67430e-11, SIGMA=5.670374419e-8, AU=149597870700, MSUN=1.98847e30, LSUN=3.828e26, G0=9.80665, TAU=Math.PI*2, UNIT=1000;
+const vec={add:(a,b)=>a.map((v,i)=>v+b[i]),sub:(a,b)=>a.map((v,i)=>v-b[i]),mul:(a,k)=>a.map(v=>v*k),dot:(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],len:a=>Math.hypot(...a),norm:a=>{const m=Math.hypot(...a);return m>0?a.map(v=>v/m):[0,0,0];}};
+function assertPositive(x,name){if(!(Number.isFinite(x)&&x>0))throw Error(name+' must be finite and > 0');}
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+function random01(id,k){let x=(hash(id)^Math.imul(k+1,0x9e3779b1))>>>0;x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);return ((x^(x>>>16))>>>0)/4294967296;}
+const TYPE={Rocky:[3100,5500,.12],Desert:[2900,4800,.27],Ice:[1100,2900,.65],Temperate:[2800,5200,.29],Ocean:[1200,3700,.32],Volcanic:[2800,5900,.11],Lush:[2700,5200,.26],'Gas Giant':[400,1500,.48],Shattered:[1500,4200,.11]};
+const STAR={ 'K dwarf':[.55,.89,4800],'M dwarf':[.09,.55,3300],'G / K star':[.6,1.3,5500],'White star':[1.3,3.5,7800],Giant:[2,9,5100],Supergiant:[8,25,11000],'Blue hypergiant':[15,50,17000],Pulsar:[1.3,2.4,900000] };
+function starProfile(star){const spec=STAR[star.type]||STAR['G / K star'],r=random01(star.id,3),mass=(spec[0]+r*(spec[1]-spec[0]))*MSUN,temperature=spec[2]*(.9+.2*random01(star.id,5));
+ // Pulsar radii are visual-fiction scale: effective radiating radius is capped to a neutron star.
+ const visualRadius=star.radius*UNIT,emissionRadius=star.type==='Pulsar'?1.2e4:visualRadius,luminosity=4*Math.PI*emissionRadius**2*SIGMA*temperature**4;
+ return Object.freeze({id:star.id,kind:'star',type:star.type,spectralClass:star.type==='Pulsar'?'NS':star.type.startsWith('M')?'M':star.type.startsWith('K')?'K':star.type.startsWith('G')?'G':star.type==='White star'?'A':star.type==='Blue hypergiant'?'O':'G/K',massKg:mass,radiusM:visualRadius,emissionRadiusM:emissionRadius,mu:G*mass,effectiveTemperatureK:temperature,luminosityW:luminosity,classification:'procedural approximation',warnings:star.type==='Pulsar'?['Pulsar render radius is not physical neutron-star radius.']:[]});}
+function bodyProfile(body,starParent){const [lo,hi,a0]=TYPE[body.type]||TYPE.Rocky,r=random01(body.id,4),density=lo+(hi-lo)*r,radiusM=body.radius*UNIT,mass=4/3*Math.PI*radiusM**3*density,albedo=Math.max(.02,Math.min(.9,a0+(random01(body.id,6)-.5)*.17));
+ const landable=!!body.landable,gravity=G*mass/radiusM**2,pressure=body.kind==='moon'||(!landable&&body.type!=='Gas Giant')?0:({Rocky:1500,Desert:65000,Ice:800,Temperate:85000,Ocean:115000,Volcanic:240000,Lush:102000,'Gas Giant':160000}[body.type]||0)*(0.65+.7*random01(body.id,11));
+ // Gas giants have modeled cloud-top pressure, not a solid surface.
+ const baselineOrbit=body.orbitRadius*UNIT,period=body.orbitPeriod||1,compatMu=4*Math.PI**2*baselineOrbit**3/period**2;
+ const parentMass=starParent?.massKg||MSUN,physicalPeriod=TAU*Math.sqrt(baselineOrbit**3/(G*(parentMass+mass)));
+ const ecc=Math.min(.18,.004+random01(body.id,8)*.115),node=(random01(body.id,9)-.5)*.3,peri=(random01(body.id,10)-.5)*.4,inc=Math.abs(body.tilt||0);
+ return Object.freeze({id:body.id,kind:body.kind,type:body.type,radiusM,massKg:mass,bulkDensityKgM3:density,mu:G*mass,surfaceGravityMS2:gravity,albedo,atmospherePressurePa:pressure,atmosphere:body.atmosphere,spinPeriodS:body.spinPeriod,axialTiltRad:body.axialTilt||0,orbit:{semiMajorAxisM:baselineOrbit,eccentricity:ecc,inclinationRad:inc,ascendingNodeRad:node,argumentPeriapsisRad:peri,meanAnomalyEpochRad:body.phase||0,epochS:0,legacyPeriodS:period,keplerPeriodS:physicalPeriod,compatibilityMu:compatMu,parentPhysicalMu:G*parentMass},classification:'seeded model, not observed',warnings:physicalPeriod/period>2||physicalPeriod/period<.5?['Legacy orbital period differs from physical Kepler period; visuals unchanged by default.']:[]});}
+function solveE(M,e){if(!(e>=0&&e<1))throw Error('Elliptical eccentricity must be 0 ≤ e < 1');M=((M+Math.PI)%TAU+TAU)%TAU-Math.PI;let E=e>.8?Math.sign(M||1)*Math.PI:M;for(let i=0;i<36;i++){const f=E-e*Math.sin(E)-M,d=1-e*Math.cos(E);const dx=f/d;E-=dx;if(Math.abs(dx)<2e-14)break;}return E;}
+function keplerState(o,mu,t){assertPositive(mu,'mu');const a=o.semiMajorAxisM,e=o.eccentricity||0;assertPositive(a,'a');if(!(e>=0&&e<1))throw Error('e outside [0,1)');const n=Math.sqrt(mu/a**3),E=solveE((o.meanAnomalyEpochRad||0)+n*(t-(o.epochS||0)),e),c=Math.cos(E),s=Math.sin(E),k=Math.sqrt(1-e*e),r=a*(1-e*c);const x=a*(c-e),y=a*k*s,vx=-a*n*s/(1-e*c),vy=a*n*k*c/(1-e*c);
+ const Om=o.ascendingNodeRad||0,i=o.inclinationRad||0,w=o.argumentPeriapsisRad||0,C=Math.cos,S=Math.sin,co=C(Om),so=S(Om),ci=C(i),si=S(i),cw=C(w),sw=S(w);
+ const ex=[co*cw-so*sw*ci,so*cw+co*sw*ci,sw*si],ey=[-co*sw-so*cw*ci,-so*sw+co*cw*ci,cw*si];
+ const pos=vec.add(vec.mul(ex,x),vec.mul(ey,y)),vel=vec.add(vec.mul(ex,vx),vec.mul(ey,vy));
+ return{positionM:pos,velocityMS:vel,radiusM:r,periodS:TAU/n,specificEnergy:vec.dot(vel,vel)/2-mu/r,specificAngularMomentum:vec.len(vec.cross(pos,vel))};}
+function stateToElements(r,v,mu){assertPositive(mu,'mu');const R=vec.len(r),V=vec.len(v);assertPositive(R,'radius');const h=vec.cross(r,v),H=vec.len(h);assertPositive(H,'angular momentum');const evec=vec.sub(vec.mul(vec.cross(v,h),1/mu),vec.mul(r,1/R)),e=vec.len(evec),en=V*V/2-mu/R,a=en<0?-mu/(2*en):Infinity;
+ const inc=Math.acos(Math.max(-1,Math.min(1,h[2]/H))),n=vec.cross([0,0,1],h),N=vec.len(n),Omega=N>1e-12?Math.atan2(n[1],n[0]):0;
+ let omega=0,nu=0;if(e>1e-10){omega=N>1e-12?Math.atan2(vec.dot(vec.cross(n,evec),h)/(N*e*H),vec.dot(n,evec)/(N*e)):Math.atan2(evec[1],evec[0]);nu=Math.atan2(vec.dot(vec.cross(evec,r),h)/(e*R*H),vec.dot(evec,r)/(e*R));}else{nu=N>1e-12?Math.atan2(vec.dot(vec.cross(n,r),h)/(N*R*H),vec.dot(n,r)/(N*R)):Math.atan2(r[1],r[0]);}
+ return{semiMajorAxisM:a,eccentricity:e,inclinationRad:inc,ascendingNodeRad:Omega,argumentPeriapsisRad:omega,trueAnomalyRad:nu,periapsisM:H*H/(mu*(1+e)),apoapsisM:e<1?H*H/(mu*(1-e)):Infinity,specificEnergy:en,specificAngularMomentum:H,periodS:Number.isFinite(a)?TAU*Math.sqrt(a**3/mu):Infinity,bound:en<0};}
+function orbitalObservables(r,v,mu){const el=stateToElements(r,v,mu);return{...el,speedMS:vec.len(v),circularSpeedMS:Math.sqrt(mu/vec.len(r)),escapeSpeedMS:Math.sqrt(2*mu/vec.len(r))};}
+function equilibriumTemperature(luminosityW,distanceM,albedo){assertPositive(distanceM,'distance');assertPositive(luminosityW,'luminosity');return Math.pow(luminosityW*(1-Math.max(0,Math.min(1,albedo)))/(16*Math.PI*SIGMA*distanceM**2),.25);}
+function scienceProfile(galaxy,body){if(!body)return null;const system=body.kind==='star'?galaxy.byId.get(body.systemId):galaxy.byId.get(body.systemId),star=system?.star||body;
+ const stellar=starProfile(star);if(body.kind==='star')return{...stellar,systemName:system?.name||star.name};
+ const parent=body.kind==='moon'?galaxy.byId.get(body.parentId):null,profile=bodyProfile(body,body.kind==='moon'?bodyProfile(parent,stellar):stellar),distance=body.kind==='moon'?(parent?.orbitRadius||0):body.orbitRadius;
+ const temp=equilibriumTemperature(stellar.luminosityW,Math.max(distance*UNIT,stellar.radiusM*1.01),profile.albedo);
+ const fromStar=vec.norm(vec.sub(system.position,body.position)),observer=vec.norm(vec.sub((galaxy.observerPosition||system.position),body.position));
+ const illuminatedFraction=(1+vec.dot(fromStar,observer))*.5;
+ let eclipseFraction=0;
+ if(parent){const d=vec.sub(system.position,body.position),toParent=vec.sub(parent.position,body.position),length=vec.len(d),along=vec.dot(toParent,d)/Math.max(1,length);if(along>0&&along<length){const perpendicular=vec.len(vec.sub(toParent,vec.mul(vec.norm(d),along)));if(perpendicular<parent.radius)eclipseFraction=1;}}
+ return{...profile,systemName:system?.name,star:stellar.type,starId:stellar.id,estimatedEquilibriumTemperatureK:temp,temperatureUncertaintyK:Math.max(12,temp*.14),illuminatedFraction,approximateEclipse:eclipseFraction>0,geologySignature:body.type==='Volcanic'?'Igneous / volcanic':body.type==='Ice'?'Cryogenic ice':body.type==='Ocean'?'Hydrological':body.type==='Shattered'?'Impact debris':'Mixed silicates',waterEvidence:body.water||'Unknown',lifeEvidence:'Unconfirmed (survey required)',distances:{sceneOrbitRadius:body.orbitRadius,physicalOrbitM:distance*UNIT},classification:'procedural estimate / unmeasured',notes:'Equilibrium temperature assumes uniform heat redistribution, fixed albedo and no greenhouse effect. Moon phase is view-relative; eclipse uses a simplified spherical blocker.'};}
+class SimulationClock{constructor(t=0){this.set(t);}set(t){if(!Number.isFinite(t))throw Error('Time must be finite');this.seconds=t;return this.seconds;}advance(dt,scale=1){if(!Number.isFinite(dt)||dt<0||!Number.isFinite(scale)||scale<0)throw Error('Invalid timestep');return this.set(this.seconds+dt*scale);}at(){return this.seconds;}}
+const API={G,SIGMA,AU,MSUN,LSUN,G0,TAU,SCENE_METERS_PER_UNIT:UNIT,vec,hash,random01,starProfile,bodyProfile,scienceProfile,solveE,keplerState,stateToElements,orbitalObservables,equilibriumTemperature,SimulationClock,sceneToMeters:x=>x*UNIT,metersToScene:x=>x/UNIT};
+root.StarfallPhysics=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
