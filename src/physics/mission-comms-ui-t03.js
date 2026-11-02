@@ -216,6 +216,9 @@ function receiveEnergy(p){
   const v=RT.vehicleStore.get('rover');if(v.state.energyJ<cost+400000)return false;
   RT.vehicleStore.update('rover',{...v.state,energyJ:v.state.energyJ-cost});return true;
  }
+ const tower=root.StarfallOutpostUI?.store?.items.find(i=>i.id===p.destId&&i.kind==='antenna');
+ if(tower){const radio=root.StarfallAntennaT04?.repair(tower.radioT04);
+  return !!(radio?.radioEnabled&&root.StarfallOutpostUI.powerReports.get(tower.bodyId)?.byId?.[tower.id]?.power);}
  if(p.destId==='starfall-ship'){
   const v=RT.vehicleStore.get('ship');if(v.state.energyJ<cost+100)return false;
   RT.vehicleStore.update('ship',{...v.state,energyJ:v.state.energyJ-cost});return true;
