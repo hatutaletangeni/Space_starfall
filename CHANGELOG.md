@@ -1,3 +1,12 @@
+# STARFALL T12 — Expedition Truck / Rover Field Operations (2026-11-02)
+
+- Kept physical truck boarding via **X**, anti-reboard cooldown, autonomous-only science rover and on-foot spacecraft ramp unmodified.
+- Added 55-scene-unit limited incremental winch with sampled cable LOS/grade, fixed parked truck anchor, source truck battery work debit, in-progress cancellation and persisted work receipt.
+- Implemented metered Outpost 48V source-to-truck and source-to-local-rover physical charging: T02 joule debits, 88% efficiency, finite 6 kW sessions, cooldown, heat and connector/circuit/range checks. Deployed rover T06 charging now additionally requires actual truck/EVA access.
+- Added T12 Rover Field Service controls for installed wheels, drive motor, instruments/camera, avionics/radio and battery, documented part IDs, finite 90 kJ tool use and 30 s lockout. No new resource economy; no remote repair or instant unsafe fault reset.
+- Added T12 Node energy/geometry/save regressions and headless offline Chromium UI smoke. GPU hardware driving and complete on-foot tow/charge/photo mission remain manual **NOT VERIFIED**.
+- Details and rollback: `docs/FIELD-SERVICE-T12.md`. Integration branch `feature/t12-truck-field-service`; stable `main` preserved.
+
 # STARFALL T11 — Commissioned Launch Pads & Payload Custody (2026-11-02)
 
 - Added an optional **commissioned Foundation launch pad**, requiring a wired electrical source and 90 W of actual T02 bus load; older Foundations remain playable in Legacy Pad Mode.
