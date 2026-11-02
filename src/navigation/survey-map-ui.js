@@ -80,5 +80,11 @@ canvas.addEventListener('click',clickCanvas);$('survey-waypoint-add').onclick=ad
 addEventListener('pagehide',save);
 // Passive visited-region recording: no alteration of flight, rover or physics step functions.
 const observer=setInterval(()=>{if(document.hidden)return;visit();if(dirty&&performance.now()-lastSave>6500)save();if(isOpen())draw();},1400);
-root.StarfallSurveyUI={open,draw,get coverage(){return M.sanitizeCoverage(coverage);},get waypoints(){return waypoints.map(x=>({...x,local:[...x.local]}));},get visibleMarkers(){return knownMarkers.map(x=>({...x,local:[...x.local]}));},get selected(){return selected;},save,observer};
+function recordOrbitalFootprint(o){if(!o||o.kind!=='orbital-observation'||!o.satelliteId||o.receivedAtS===null||!Array.isArray(o.location)||o.location.length!==3||!o.location.every(Number.isFinite))return false;
+ const b=RT.galaxy.byId.get(o.bodyId);if(!b?.radius||!b.landable)return false;
+ if(o.instrument!=='orbital-camera'&&o.instrument!=='orbital-spectrometer')return false;
+ if(!coverage[b.id]&&Object.keys(coverage).length>=40)delete coverage[Object.keys(coverage)[0]];
+ if(!M.addCoverage(coverage,b.id,o.location,b.radius,Math.max(12,Math.min(140,(o.footprintRadiusM||1000)/1000))))return false;
+ dirty=true;rasterKey='';save();if(isOpen())draw();return true;}
+root.StarfallSurveyUI={recordOrbitalFootprint,open,draw,get coverage(){return M.sanitizeCoverage(coverage);},get waypoints(){return waypoints.map(x=>({...x,local:[...x.local]}));},get visibleMarkers(){return knownMarkers.map(x=>({...x,local:[...x.local]}));},get selected(){return selected;},save,observer};
 })(globalThis);

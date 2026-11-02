@@ -15,7 +15,7 @@ function safeSave(value,seed){
   if(f.position!==undefined&&(!Array.isArray(f.position)||f.position.length!==3||!f.position.every(x=>finite(x)&&Math.abs(x)<1e15)))throw Error('Invalid world position');
   if(f.groundDirection!==undefined&&f.groundDirection!==null&&(!Array.isArray(f.groundDirection)||f.groundDirection.length!==3||!f.groundDirection.every(finite)))throw Error('Invalid surface attachment');
  }
- for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
+ for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5','engineering7A'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
  if(value.outpost5){if(value.outpost5.items!==undefined&&(!Array.isArray(value.outpost5.items)||value.outpost5.items.length>320))throw Error('Invalid/oversized structures');
   if(value.outpost5.wires!==undefined&&(!Array.isArray(value.outpost5.wires)||value.outpost5.wires.length>1500))throw Error('Invalid/oversized wiring');}
  return JSON.parse(raw);

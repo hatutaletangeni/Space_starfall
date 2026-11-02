@@ -30,7 +30,15 @@ function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||ty
 function intersectsSphere(a,b,centre,r){const d=V.sub(b,a),f=V.sub(centre,a),den=V.dot(d,d);if(den<1e-16)return false;const t=clamp(V.dot(f,d)/den,0,1);return V.len(V.sub(V.add(a,V.mul(d,t)),centre))<r;}
 function radioLink(a,b,occluders=[],rangeScene=Infinity,metresPerSceneUnit=1){const dist=V.len(V.sub(b,a));if(!Number.isFinite(dist)||dist>rangeScene||dist<0) return{connected:false,reason:'Out of radio range',delayS:0,quality:0};for(const oc of occluders){if(oc?.radius>0&&intersectsSphere(a,b,oc.position,oc.radius))return{connected:false,reason:'Body blocks line-of-sight',delayS:0,quality:0};}
  return{connected:true,reason:'Line of sight',delayS:dist*metresPerSceneUnit/C,quality:clamp(1-dist/Math.max(1,rangeScene),0,1),distanceScene:dist};}
-function relayPosition(relay,body,time){const r=body.radius+clamp(relay.altitude,200,12000),period=Math.max(120,relay.periodS),phase=relay.phase+2*PI*time/period,axis=saneDir(relay.axis),b=basis(axis,[1,0,0]);return V.add(body.position,V.mul(V.add(V.mul(b.north,Math.cos(phase)),V.mul(b.east,Math.sin(phase))),r));}
+function relayPosition(relay,body,time){
+ // Launched satellites use the exact same authoritative StarfallLaunch ephemeris
+ // in both the 3D renderer and radio consumers; old independent relays retain
+ // their legacy analytic positions for backwards compatibility.
+ if(root.StarfallEngineering7A && root.StarfallLaunchUI?.store){
+  const source=root.StarfallLaunchUI.store.satellites.find(s=>s.id===relay.id);
+  if(source && source.bodyId===body.id)return root.StarfallEngineering7A.satellitePosition(source,body,time,root.StarfallPhysics.SCENE_METERS_PER_UNIT).position;
+ }
+ const r=body.radius+clamp(relay.altitude,200,12000),period=Math.max(120,relay.periodS),phase=relay.phase+2*PI*time/period,axis=saneDir(relay.axis),b=basis(axis,[1,0,0]);return V.add(body.position,V.mul(V.add(V.mul(b.north,Math.cos(phase)),V.mul(b.east,Math.sin(phase))),r));}
 const powerOrder=['foundation','connector','battery','solar','hab','lab','storage','antenna'];
 function gridKey(item){const v=item.local;return item.bodyId+':'+Math.floor((Math.asin(clamp(v[1],-1,1))+PI/2)*200)+':'+Math.floor((Math.atan2(v[2],v[0])+PI)*200);}
 class Store{

@@ -15,7 +15,7 @@ let siteWaypoint=null,scan=null,landingCapture=null,groundLocal=null,headlights=
 let interiorState=null;
 let eva=false,evaLocal=null,evaForward=[...forward],shipLocal=null,shipForwardVec=[...forward],shipUpVec=[...up],shipBody=null;
 let roverLocal=null,roverForwardVec=[...forward],roverBody=null,truckOccupied=false;
-let truckLocal=null,truckForwardVec=[...forward],truckBody=null,truckBatteryJ=44e6,truckLights=true,truckCargo=0;
+let truckLocal=null,truckForwardVec=[...forward],truckBody=null,truckBatteryJ=44e6,truckLights=true,truckCargo=0,winch7d=null;
 let hatchCooldown=0,walkedSinceExit=0,shipExitProgress=0,roverEntryCooldown=0,roverExitMove=null,shipIdleElapsed=0,rampTransition=null,rampLift=0;
 let engEnabled=false,engState=null,engBody=null,engAttitude='Manual',engLast={dragN:0,heatingW:0,temperatureK:290},engSteps=0;
 const physicsClock=new P.SimulationClock(0);
@@ -50,9 +50,10 @@ function updateVehicleSystems(dt){
   vehicleStore.update(kind,result.state);engineeringSystemReport[kind]=result;
  }
  engineeringSystemSeconds+=elapsed;
+ updateWinch7D(elapsed);
 }
 function safeToReconfigure(kind){return landed;}
-function configureVehicle(kind,definition){if(!safeToReconfigure(kind))throw Error('Park or land the vehicle before applying changes.');const result=vehicleStore.apply(kind,definition);if(kind==='ship'&&engState){const updated=shipConfiguredState();engState.craft={...engState.craft,...updated};}persistVehicles();return result;}
+function configureVehicle(kind,definition){if(!safeToReconfigure(kind))throw Error('Park or land the vehicle before applying changes.');const result=vehicleStore.apply(kind,definition);if(kind==='ship'&&engState){const updated=shipConfiguredState();engState.craft={...engState.craft,...updated};}persistVehicles();window.StarfallEngineering7AUI?.registry?.event('DESIGN_APPLIED',vehicleStore.get(kind).definition.id,simTime,{kind});window.StarfallEngineering7AUI?.refreshRegistry(true);return result;}
 
 engEnabled=session.scienceSettings?.flightMode==='Engineering';
 engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(session.scienceSettings?.sas)?session.scienceSettings.sas:'Manual';
@@ -295,7 +296,7 @@ const busy=()=>['chart','workbench','field-lab','outpost','observatory','integra
 function isTyping(target){return !!(target?.closest?.('input,textarea,select,[contenteditable=true]'));}
 addEventListener('keydown',ev=>{
  const code=controls.resolve(ev.code)||ev.code;
- if(busy()||!$('launch-dialog').hidden||isTyping(ev.target)){controls.clear();if(code==='Escape'&&!$('chart').hidden)closeChart();return;}
+ if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking||isTyping(ev.target)){controls.clear();if(code==='Escape'&&!$('chart').hidden)closeChart();return;}
  if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(code))ev.preventDefault();
  if(ev.code==='Escape'&&interiorState){leaveInterior();return;}
  const mapped=controls.press(ev.code);if(!mapped)return;
@@ -315,9 +316,39 @@ addEventListener('keydown',ev=>{
  if(code==='KeyR'&&ev.shiftKey&&!eva){pos=V.add(target.position,[0,320,-(target.radius+3550)]);forward=V.norm(V.sub(target.position,pos));up=[0,1,0];vel=[0,0,0];landed=false;groundLocal=null;warp=false;camEye=null;showToast('Reset to target orbital approach.');}
 });
 addEventListener('keyup',ev=>controls.release(ev.code));addEventListener('blur',()=>controls.clear());
-let dragging=false,dragButton=0,lastX=0,lastY=0,dragTravel=0,lastPickingCamera=null;const canvas=$('universe');
+let dragging=false,dragButton=0,lastX=0,lastY=0,dragTravel=0,lastPickingCamera=null,lastAssetHighlightAt=0;const canvas=$('universe');
 canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
 
+// 7A.1: project the same world transforms used by the renderer into bounded
+// screen-space asset pick targets. No physics state or mesh ownership is changed.
+function assetPickCandidates(){
+ const result=[],reg=window.StarfallEngineering7AUI?.registry;
+ const add=(id,position,radius=5,maxRange=500)=>{if(id&&reg?.assets.has(id)&&Array.isArray(position)&&position.every(Number.isFinite))result.push({id,position,radius,maxRange});};
+ const ship=shipWorldState(),rover=roverWorldState(),truck=truckWorldState();
+ if(landed){add('starfall-ship',ship?.position,18);add('starfall-rover',rover?.position,6);add('starfall-truck',truck?.position,8);}
+ if(landed&&nearest){
+  const axis=nearest.spinAxis||[0,1,0],spin=nearest.spinAngle||0;
+  for(const item of (window.StarfallOutpostUI?.store?.items||[])){
+   if(item.bodyId!==nearest.id)continue;
+   const radial=V.norm(V.rot(item.local,axis,spin)),h=groundHeight(item.local,nearest),world=V.add(nearest.position,V.mul(radial,nearest.radius+h+.6));
+   add(item.id,world,window.StarfallOutposts?.SPECS?.[item.kind]?.radius||4,450);
+  }
+  for(const r of (window.StarfallLaunchUI?.store?.rovers||[])){
+   if(r.bodyId!==nearest.id||!r.local)continue;
+   const radial=V.norm(V.rot(r.local,axis,spin)),world=V.add(nearest.position,V.mul(radial,nearest.radius+groundHeight(r.local,nearest)+1.8));add(r.id,world,6);
+  }
+ }
+ const lu=window.StarfallLaunchUI,SU=window.StarfallEngineering7A;
+ if(lu){
+  for(const sat of lu.store.satellites.slice(-48)){
+   const body=galaxy.byId.get(sat.bodyId);if(!body)continue;
+   try{const location=SU.satellitePosition(sat,body,simTime,StarfallPhysics.SCENE_METERS_PER_UNIT);add(sat.id,location.position,55,350000);}catch(_){}
+  }
+  const active=lu.store.launches.filter(x=>x.phase==='ascent').slice(-3),scene=lu.sceneRockets();
+  for(let i=0;i<Math.min(active.length,scene.length);i++)add(active[i].id,scene[i].position,25,120000);
+ }
+ return result;
+}
 function pickActualStar(clientX,clientY){
  const rect=canvas.getBoundingClientRect(),cam=lastPickingCamera;
  if(!cam||!renderer.skyPicks||eva||landed)return false;
@@ -330,19 +361,19 @@ function pickActualStar(clientX,clientY){
  if(!best)return false;
  target=best.star;galaxy.pinnedSystemId=best.id;siteWaypoint=null;showToast('STAR ACQUIRED · '+best.name+' · G align · SHIFT+W warp');return true;
 }
-canvas.addEventListener('pointerdown',ev=>{if(busy())return;dragging=true;dragButton=ev.button;lastX=ev.clientX;lastY=ev.clientY;dragTravel=0;canvas.setPointerCapture(ev.pointerId);});
-canvas.addEventListener('pointermove',ev=>{if(!dragging||busy())return;const rawDx=V.clamp(ev.clientX-lastX,-100,100),rawDy=V.clamp(ev.clientY-lastY,-100,100),{dx,dy}=controls.signedDrag(rawDx,rawDy);dragTravel+=Math.abs(dx)+Math.abs(dy);lastX=ev.clientX;lastY=ev.clientY;
+canvas.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;dragging=true;dragButton=ev.button;lastX=ev.clientX;lastY=ev.clientY;dragTravel=0;canvas.setPointerCapture(ev.pointerId);});
+canvas.addEventListener('pointermove',ev=>{if(!dragging||busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;const rawDx=V.clamp(ev.clientX-lastX,-100,100),rawDy=V.clamp(ev.clientY-lastY,-100,100),{dx,dy}=controls.signedDrag(rawDx,rawDy);dragTravel+=Math.abs(dx)+Math.abs(dy);lastX=ev.clientX;lastY=ev.clientY;
  // EVA uses an independent full-range view pitch. Dragging upward looks at the sky;
  // the rover/ship camera keeps its original behavior and control sensitivity.
  if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*(eva?.0042:.003),eva?-1.3:-1.15,eva?1.72:1.15);return;}
  if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.0042,-1.3,1.72);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,controls.flightPitch(-dy*.0021),0);
 });
-canvas.addEventListener('pointerup',ev=>{if(truckOccupied&&dragButton===0&&dragTravel<12&&roverEntryCooldown<=0)exitTruck();else if(!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&truckOccupied&&dragButton===0&&dragTravel<12&&roverEntryCooldown<=0)exitTruck();else if(!selected&&!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
-document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy())return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
+document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
 function stage(alt,body){if(interiorState)return 'RUIN INTERIOR';if(truckOccupied)return 'SURFACE TRUCK';if(eva)return 'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
-function saveFlight(){const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo}:null}});}
+function saveFlight(){const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -583,12 +614,12 @@ function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=w
   renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{tier:site.tier,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
  if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
-  refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
+  window.StarfallAssetUI7A1?.tick();if(window.StarfallAssetUI7A1?.hasWorldSelection&&now-lastAssetHighlightAt>160){lastAssetHighlightAt=now;window.StarfallAssetUI7A1.syncHighlight({...camera,fov:renderer.fov},canvas,assetPickCandidates());}refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
  }catch(e){console.error('Starfall frame failed:',e);$('status-text').textContent='GRAPHICS / FLIGHT ERROR: '+String(e.message).slice(0,85);}requestAnimationFrame(loop);}
 addEventListener('resize',()=>renderer.resize());addEventListener('pagehide',saveFlight);
 nearest=galaxy.nearestBody(pos).planet||first;let initial=surfaceData(nearest,pos);altitude=initial.distance-nearest.radius-initial.height;
 if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}placeRoverNearShip();
- const tp=saved?.truckPose;if(tp?.bodyId===nearest.id&&Array.isArray(tp.local)&&tp.local.length===3&&tp.local.every(Number.isFinite)){truckLocal=V.norm(tp.local);if(Array.isArray(tp.forward)&&tp.forward.length===3&&tp.forward.every(Number.isFinite))truckForwardVec=V.norm(tp.forward);truckBatteryJ=V.clamp(Number(tp.batteryJ)||0,0,44e6);truckLights=tp.lights!==false;truckCargo=V.clamp(Number(tp.cargo)||0,0,800);}
+ const tp=saved?.truckPose;if(tp?.bodyId===nearest.id&&Array.isArray(tp.local)&&tp.local.length===3&&tp.local.every(Number.isFinite)){truckLocal=V.norm(tp.local);if(Array.isArray(tp.forward)&&tp.forward.length===3&&tp.forward.every(Number.isFinite))truckForwardVec=V.norm(tp.forward);truckBatteryJ=V.clamp(Number(tp.batteryJ)||0,0,44e6);truckLights=tp.lights!==false;truckCargo=V.clamp(Number(tp.cargo)||0,0,800);if(tp.recovery&&Array.isArray(tp.recovery.destination)&&tp.recovery.destination.length===3&&tp.recovery.destination.every(Number.isFinite)&&Number.isFinite(tp.recovery.remainingWorkJ))winch7d={...tp.recovery,destination:V.norm(tp.recovery.destination)};}
  const pose=saved?.roverPose;if(pose?.bodyId===nearest.id&&Array.isArray(pose.local)&&pose.local.length===3&&pose.local.every(Number.isFinite)){
   roverLocal=V.norm(pose.local);const f=pose.forward;if(Array.isArray(f)&&f.length===3&&f.every(Number.isFinite)&&V.len(f)>.001)roverForwardVec=V.norm(f);
  }
@@ -632,13 +663,52 @@ function outpostContext(){const body=nearest;const local=eva&&evaLocal?evaLocal:
 function truckSystems(){const truck=truckWorldState(),robot=roverWorldState(),body=nearest;
  if(!truck||!body)return{available:false};const dist=robot&&roverBody===body?V.len(V.sub(truck.position,robot.position)):Infinity;
  const at=truckLocal,frontLocal=tangentOffsetLocal(body,at,truck.forward,25,0),elevation=groundHeight(frontLocal,body)-groundHeight(at,body);
- return{available:true,bodyId:body.id,batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,scienceRoverDistance:dist,forwardSlopeDeg:Math.atan2(elevation,25)*180/Math.PI,terrain:StarfallBiomes.classify(body,at,groundHeight(at,body),Starfall3D.field(at,body.seed)).name};}
+ return{available:true,bodyId:body.id,batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,scienceRoverDistance:dist,winch:winch7d?{...winch7d}:null,forwardSlopeDeg:Math.atan2(elevation,25)*180/Math.PI,terrain:StarfallBiomes.classify(body,at,groundHeight(at,body),Starfall3D.field(at,body.seed)).name};}
 function truckWinch(){if(!landed||!eva||truckOccupied)throw Error('Exit truck to operate winch');const t=truckWorldState(),r=roverWorldState();if(!t||!r||truckBody!==roverBody||truckBatteryJ<50000)throw Error('Truck or science rover unavailable, or insufficient battery');const dist=V.len(V.sub(t.position,r.position));if(dist>55)throw Error('Bring the truck within 55 units of the science rover ('+dist.toFixed(1)+' away)');
- roverLocal=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,13);roverForwardVec=[...truckForwardVec];truckBatteryJ-=50000;saveFlight();return{distanceBefore:dist,distanceAfter:V.len(V.sub(truckWorldState().position,roverWorldState().position))};}
-function truckRecharge(joules=360000){if(!landed||!truckBody||truckBody!==nearest)throw Error('Truck must be parked on a world');const solar=window.StarfallOutpostUI?.store?.items.some(x=>x.bodyId===truckBody.id&&x.kind==='solar'&&StarfallOutposts.arc(x.local,truckLocal,truckBody.radius)<50);
- if(!solar)throw Error('Park within 50 units of a constructed solar array for recharging');truckBatteryJ=Math.min(44e6,truckBatteryJ+Math.min(360000,Math.max(0,Number(joules)||0)));saveFlight();return truckBatteryJ;}
+ if(winch7d)throw Error('Recovery already in progress; cancel it before starting a new pull');
+ const recovery=window.StarfallGroundOps7D.recover({truckLocal,roverLocal,radiusScene:truckBody.radius,truckEnergyJ:truckBatteryJ,body:truckBody,height:groundHeight,unitScale:P.SCENE_METERS_PER_UNIT});
+ const destination=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,13),sampleCount=10;
+ for(let k=1;k<=sampleCount;k++){const a=k/sampleCount,mid=V.norm(V.add(V.mul(roverLocal,1-a),V.mul(destination,a)));if(groundHeight(mid,truckBody)>Math.max(groundHeight(roverLocal,truckBody),groundHeight(destination,truckBody))+1.5)throw Error('Recovery route obstructed by elevated terrain');}
+ const remaining=StarfallOutposts.arc(roverLocal,destination,truckBody.radius);if(remaining<.25)throw Error('Rover is already in the recovery position');
+ winch7d={bodyId:truckBody.id,destination,initialDistance:remaining,remainingWorkJ:recovery.workJ,originalWorkJ:recovery.workJ,lastDistance:remaining,status:'RECOVERING'};saveFlight();return{...recovery,active:true,distanceAfter:remaining};}
+function truckWinchCancel(){if(!winch7d)return false;winch7d=null;saveFlight();return true;}
+function updateWinch7D(elapsed){if(!winch7d||!truckBody||truckBody.id!==winch7d.bodyId||!roverLocal||!roverBody||roverBody.id!==winch7d.bodyId)return;
+ if(!landed||truckOccupied)return;const remaining=StarfallOutposts.arc(roverLocal,winch7d.destination,truckBody.radius),metersToMove=Math.min(remaining,Math.max(0,elapsed)*1.8);
+ if(!(metersToMove>0))return;const fraction=Math.min(1,metersToMove/Math.max(1e-8,remaining)),next=V.norm(V.add(V.mul(roverLocal,1-fraction),V.mul(winch7d.destination,fraction)));
+ if(groundHeight(next,truckBody)>Math.max(groundHeight(roverLocal,truckBody),groundHeight(winch7d.destination,truckBody))+1.5){winch7d.status='BLOCKED';return;}
+ const energy=Math.min(winch7d.remainingWorkJ,winch7d.originalWorkJ*metersToMove/Math.max(.01,winch7d.initialDistance));if(truckBatteryJ<energy+30000){winch7d.status='LOW POWER';return;}
+ truckBatteryJ-=energy;winch7d.remainingWorkJ-=energy;roverLocal=next;winch7d.lastDistance=Math.max(0,remaining-metersToMove);winch7d.status='RECOVERING';if(winch7d.lastDistance<.15){roverLocal=[...winch7d.destination];winch7d=null;showToast('Rover recovered by powered winch');saveFlight();}}
+
+function truckRecharge(sourceId,deliveredJ=360000){
+ if(!landed||!truckBody||truckBody!==nearest||truckOccupied)throw Error('Park and exit the truck before connecting its charging port');
+ const ui=window.StarfallOutpostUI,store=ui?.store,E=window.StarfallEngineering7A;
+ if(window.StarfallEngineering7AUI?.registry?.enabled===false){const solar=store?.items.some(x=>x.bodyId===truckBody.id&&x.kind==='solar'&&StarfallOutposts.arc(x.local,truckLocal,truckBody.radius)<50);if(!solar)throw Error('Park within 50 units of a constructed solar array for recharging');truckBatteryJ=Math.min(44e6,truckBatteryJ+Math.min(360000,Math.max(0,Number(deliveredJ)||0)));saveFlight();return{batteryJ:truckBatteryJ,deliveredJ:0,drawnJ:0,legacy:true};}
+ if(!E||!ui||!sourceId)throw Error('Select a wired outpost battery to connect the truck charging port');
+ const source=store.items.find(x=>x.id===sourceId&&x.kind==='battery'&&x.bodyId===truckBody.id);
+ if(!source||!source.enabled||source.condition<=.02)throw Error('Selected outpost battery is offline or unavailable');
+ const distance=StarfallOutposts.arc(source.local,truckLocal,truckBody.radius);
+ if(distance>50)throw Error('Park within 50 scene units of that battery to connect the charging cable');
+ const group=store.connectedGroups(truckBody.id).find(g=>g.some(x=>x.id===sourceId))||[];
+ const solar=group.some(x=>x.kind==='solar'&&x.enabled&&x.condition>.02);
+ if(!solar)throw Error('Charging requires an electrically wired, enabled solar array and battery');
+ if(source.energyJ<100)throw Error('Outpost battery is depleted; allow the wired solar array to recharge it');
+ const report=E.transfer({id:source.id,energyJ:source.energyJ,capacityJ:StarfallOutposts.SPECS.battery.capacityJ},
+  {id:'starfall-truck',energyJ:truckBatteryJ,capacityJ:44e6},deliveredJ,{efficiency:.90,maxSourceJ:450000});
+ if(report.deliveredJ<1)throw Error('Truck battery already full or source depleted');
+ // One synchronous transaction updates both legacy authoritative state holders.
+ source.energyJ=report.fromEnergyJ;truckBatteryJ=report.toEnergyJ;
+ ui.persist();saveFlight();
+ const registry=window.StarfallEngineering7AUI?.registry;if(registry&&registry.enabled){
+  registry.recordTransfer(source.id,'starfall-truck',report,simTime);window.StarfallEngineering7AUI.refreshRegistry(true);
+ }
+ return{batteryJ:truckBatteryJ,...report,sourceId};
+}
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,enterInterior,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,persistVehicles,get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckRecharge,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
+window.StarfallRuntime={galaxy,vehicleStore,assetPickView(){return{camera:lastPickingCamera?{...lastPickingCamera,fov:renderer.fov}:null,candidates:assetPickCandidates()};},engineeringAssetPoses(){return{
+ shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
+ roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,systemId:roverBody.systemId,local:roverLocal}:null,
+ truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,batteryJ:truckBatteryJ}:null
+};},enterInterior,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,persistVehicles,get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckWinchCancel,truckRecharge,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
 Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{interior:interiorState?{siteId:interiorState.site.id,at:{...interiorState.at}}:null,position:[...pos],altitude,landed,eva,truckOccupied,roverOccupied:false,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],cameraLookElevationDeg:lastPickingCamera&&nearest?Math.asin(V.clamp(V.dot(lastPickingCamera.forward,V.norm(V.sub(pos,nearest.position))),-1,1))*180/Math.PI:null,timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics()};},placeEvaNearTruck(){if(!landed||!eva||!truckBody||!truckLocal||truckBody!==nearest)throw Error('Require EVA and a surface truck');
  const local=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,-11),radial=V.rot(local,truckBody.spinAxis||[0,1,0],truckBody.spinAngle||0);
  evaLocal=local;pos=V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(local,truckBody)+EVA_HEIGHT));up=radial;evaForward=[...truckForwardVec];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setInteriorPosition(x,z){if(!interiorState||!StarfallInteriors.canStand(interiorState.layout,x,z))throw Error('Not a valid interior floor coordinate');interiorState.at={x,z};const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;camEye=null;},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){if(!Number.isFinite(t)||t<0||t>=1e13)throw Error('Invalid simulation time');simTime=physicsClock.set(t);galaxy.update(simTime);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});

@@ -42,7 +42,7 @@ function linkFor(lab){const body=RT.galaxy.byId.get(lab.bodyId),ctx=RT.outpostCo
  const origin=c.add(ctx.position,c.mul(ctx.up,3)),destination=c.add(receiver.position,c.mul(receiver.up,4)),occluders=[{position:body.position,radius:body.radius}];
  const direct=O.radioLink(origin,destination,occluders,1700,P.SCENE_METERS_PER_UNIT);if(direct.connected)return{...direct,via:'Local field radio'};
  const antennas=groupFor(lab.id,lab.bodyId).filter(x=>x.kind==='antenna'&&powered(x.id,x.bodyId));if(!antennas.length)return{connected:false,reason:'No powered antenna or local link'};
- const relays=store.relays.filter(r=>r.bodyId===body.id&&r.enabled);for(const relay of relays){const rp=O.relayPosition(relay,body,RT.time),one=O.radioLink(origin,rp,occluders,relay.rangeScene,P.SCENE_METERS_PER_UNIT),two=O.radioLink(rp,destination,occluders,relay.rangeScene,P.SCENE_METERS_PER_UNIT);
+ const relays=store.relays.filter(r=>r.bodyId===body.id&&r.enabled);for(const relay of relays){const sat=root.StarfallLaunchUI?.store?.satellites.find(v=>v.id===relay.id);if(sat&&root.StarfallSatelliteOps7C&&!root.StarfallSatelliteOps7C.relayOperational(sat))continue;const rp=O.relayPosition(relay,body,RT.time),one=O.radioLink(origin,rp,occluders,relay.rangeScene,P.SCENE_METERS_PER_UNIT),two=O.radioLink(rp,destination,occluders,relay.rangeScene,P.SCENE_METERS_PER_UNIT);
   if(one.connected&&two.connected)return{connected:true,via:relay.id,reason:'Relay link active',delayS:one.delayS+two.delayS,quality:Math.min(one.quality,two.quality)};
  }return{connected:false,reason:'No direct or relayed line of sight'};}
 
@@ -56,7 +56,7 @@ function canCommandRover(){if(!radioEnforced)return{connected:true,reason:'Legac
  const towers=store.items.filter(i=>i.kind==='antenna'&&i.bodyId===body.id&&powered(i.id,i.bodyId));
  for(const tower of towers){const site=renderLoc(tower);if(!site)continue;const middle=c.add(site.position,c.mul(site.up,8));const first=O.radioLink(start,middle,occluder,2000,P.SCENE_METERS_PER_UNIT),second=O.radioLink(middle,goal,occluder,2000,P.SCENE_METERS_PER_UNIT);
  if(first.connected&&second.connected)return{connected:true,reason:'Powered surface radio relay',delayS:first.delayS+second.delayS};}
- for(const relay of store.relays.filter(r=>r.bodyId===body.id&&r.enabled)){const rp=O.relayPosition(relay,body,RT.time),a=O.radioLink(start,rp,occluder,relay.rangeScene,P.SCENE_METERS_PER_UNIT),b=O.radioLink(rp,goal,occluder,relay.rangeScene,P.SCENE_METERS_PER_UNIT);if(a.connected&&b.connected)return{connected:true,reason:'Orbital satellite relay',delayS:a.delayS+b.delayS};}
+ for(const relay of store.relays.filter(r=>r.bodyId===body.id&&r.enabled)){const sat=root.StarfallLaunchUI?.store?.satellites.find(v=>v.id===relay.id);if(sat&&root.StarfallSatelliteOps7C&&!root.StarfallSatelliteOps7C.relayOperational(sat))continue;const rp=O.relayPosition(relay,body,RT.time),a=O.radioLink(start,rp,occluder,relay.rangeScene,P.SCENE_METERS_PER_UNIT),b=O.radioLink(rp,goal,occluder,relay.rangeScene,P.SCENE_METERS_PER_UNIT);if(a.connected&&b.connected)return{connected:true,reason:'Orbital satellite relay',delayS:a.delayS+b.delayS};}
  return{connected:false,reason:'No powered tower or satellite line-of-sight'};
 }
 function sendData(){const id=$('outpost-lab').value,lab=store.items.find(x=>x.id===id&&x.kind==='lab');if(!lab)throw Error('Choose a laboratory');

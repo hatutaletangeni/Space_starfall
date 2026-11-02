@@ -66,5 +66,9 @@ function tick(dt){
  }}
  if(dirty&&performance.now()-lastPersist>4800)persist();if(!$('field-lab').hidden)refresh();
 }
-root.StarfallScienceUI={tick,open:()=>$('field-open').click(),get controller(){return controller;},get journal(){return journal.list();},get autoDriving(){return['MOVING','RETURNING'].includes(controller.state);},measure:collect,refresh:()=>refresh(true)};
+function ingestOrbital(obs){if(!obs||obs.kind!=='orbital-observation'||!S.journal||!Number.isFinite(obs.value)||!Array.isArray(obs.location)||!obs.satelliteId||!obs.bodyId)return false;
+ if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
+function ingestRover(obs){if(!obs||!obs.probeId||!obs.bodyId||!Array.isArray(obs.location)||!Number.isFinite(obs.value))return false;
+ if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
+root.StarfallScienceUI={ingestRover,ingestOrbital,tick,open:()=>$('field-open').click(),get controller(){return controller;},get journal(){return journal.list();},get autoDriving(){return['MOVING','RETURNING'].includes(controller.state);},measure:collect,refresh:()=>refresh(true)};
 })(globalThis);

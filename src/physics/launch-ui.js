@@ -3,8 +3,16 @@
 const $=id=>document.getElementById(id), RT=root.StarfallRuntime, X=root.StarfallLaunch, P=root.StarfallPhysics, V=root.Starfall3D.V;
 const seed=RT.galaxy.seed??742;
 const store=new X.Store(Number(new URLSearchParams(location.search).get('seed')??742)>>>0,SF.load().launch7);
+const E=root.StarfallEngineering7A,registry=E?new E.Registry(seed,SF.load().engineering7A):null;
+let lastAssetSave=0;
+function refreshRegistry(persist=false){if(!registry)return;
+ registry.project({vehicles:RT.vehicleStore,flight:RT.engineeringAssetPoses(),outposts:root.StarfallOutpostUI?.store,launch:store,observations:root.StarfallScienceUI?.journal,timeS:RT.time});
+ if(persist)SF.save({engineering7A:registry.serialize()});
+}
+root.StarfallEngineering7AUI={registry,refreshRegistry};
+
 let msg='',lastRefresh=0;
-function persist(){SF.save({launch7:store.serialize()});}
+function persist(){SF.save({launch7:store.serialize()});refreshRegistry(true);}
 function format(x,digits=1){return Number.isFinite(x)?x.toFixed(digits):'—';}
 function padOptions(){const el=$('launch-pad'),old=el.value,ctx=RT.outpostContext();const pads=root.StarfallOutpostUI?.store?.items.filter(x=>x.kind==='foundation'&&x.bodyId===ctx.bodyId)||[];
  el.replaceChildren();for(const pad of pads){const o=document.createElement('option');o.value=pad.id;o.textContent=pad.id+' / '+ctx.body.name;el.append(o);}if(pads.some(x=>x.id===old))el.value=old;
@@ -18,47 +26,95 @@ function systemOptions(){const el=$('launch-system'),old=el.value,query=$('launc
 function refreshDestinations(){const el=$('launch-destination'),old=el.value,sys=RT.galaxy.byId.get($('launch-system').value);if(sys?.dormant)RT.galaxy.activate(sys);el.replaceChildren();
  for(const b of (sys?.bodies||[]).filter(x=>x.landable)){const o=document.createElement('option');o.value=b.id;o.textContent=b.name+' · '+b.type;el.append(o);}if([...el.options].some(x=>x.value===old))el.value=old;
  if(!el.options.length){const o=document.createElement('option');o.value='';o.textContent='No solid destination in this system';el.append(o);}}
-function chosenDesign(){return{engine:$('launch-engine').value,tanks:Number($('launch-tanks').value),stages:Number($('launch-stages').value),boosters:Number($('launch-boosters').value),payload:$('launch-payload').value};}
+function chosenDesign(){const stages=Number($('launch-stages').value);return{mode:$('launch-7b-build-mode').value,targetAltitudeM:Number($('launch-7b-target').value)*1000,stageConfig:[{tanks:Number($('launch-tanks').value),engine:$('launch-engine').value},{tanks:Number($('launch-7b-tank2').value),engine:$('launch-7b-engine2').value},{tanks:Number($('launch-7b-tank3').value),engine:$('launch-7b-engine3').value}].slice(0,stages),engine:$('launch-engine').value,tanks:Number($('launch-tanks').value),stages:Number($('launch-stages').value),boosters:Number($('launch-boosters').value),payload:$('launch-payload').value};}
 function profile(){const body=RT.nearest;if(!body?.landable)return null;
  return X.build(chosenDesign(),{surfaceGravityMS2:Math.max(.01,body.gravity*X.G0),radiusM:body.radius*P.SCENE_METERS_PER_UNIT,mu:Math.max(.01,body.gravity*X.G0)*Math.pow(body.radius*P.SCENE_METERS_PER_UNIT,2)});}
 function preflight(){try{const pr=profile();$('launch-calculations').textContent=!pr?'Landing on a solid planet or moon is required to assemble and launch a rocket.':
   'Gross mass '+format(pr.massKg/1000)+' tonnes   Payload '+format(pr.payloadKg,0)+' kg\n'+
   'Launch TWR '+format(pr.launchTWR,2)+'   Ideal staged Δv '+format(pr.deltaVMS/1000,2)+' km/s\n'+
-  'Guided orbital insertion budget '+format(pr.requiredDeltaVMS/1000,2)+' km/s\n'+
+  'Preliminary ideal budget '+format(pr.requiredDeltaVMS/1000,2)+' km/s (advisory, NOT guaranteed)\n'+
   'Estimated engine-on time '+format(pr.burnTimeS,0)+' s   Stages '+pr.stages+'\n'+
-  pr.stageParts.map((s,i)=>'Stage '+(i+1)+': '+s.label+' / propellant '+format(s.propKg/1000,1)+' t / '+format(s.thrustN/1e6,2)+' MN').join('\n')+'\n'+
-  (pr.valid?'PASS · '+pr.problem:'FAILED · '+pr.problem)+'\nNote: orbit insertion is a GUIDED, budget-gated approximation, not full n-body ascent.';
- $('launch-ignite').disabled=!pr?.valid||!$('launch-pad').value;
+  pr.stageParts.map((s,i)=>'Stage '+(i+1)+': '+s.tanks+' tanks · '+s.label+' / fuel '+format(s.propKg/1000,1)+' t / thrust '+format(s.thrustN/1e6,2)+' MN').join('\n')+'\n'+
+  (pr.valid?'DESIGN CHECK · '+pr.problem:'WARNING · '+pr.problem)+'\nReal launch may fail. Acceleration, drag, fuel exhaustion, trajectory and stable orbit are force-integrated.';
+ $('launch-ignite').disabled=!pr||!$('launch-pad').value;
  }catch(e){$('launch-calculations').textContent='PRE-FLIGHT: '+e.message;$('launch-ignite').disabled=true;}}
 function status(s,bad=false){msg=s;$('launch-status').textContent=s;$('launch-status').style.color=bad?'#ffaaa0':'#f4ce95';}
 function open(){padOptions();systemOptions();refresh();$('launch-dialog').hidden=false;}
 function close(){$('launch-dialog').hidden=true;document.activeElement?.blur?.();}
-function refresh(){padOptions();preflight();const launches=store.launches.slice(-12).reverse(),sats=store.satellites.slice(-12).reverse();
+function refresh(){padOptions();preflight();refreshRegistry();$('launch-7a-shared').checked=registry?.enabled!==false;const assetPicker=$('launch-7a-asset'),oldAsset=assetPicker.value;assetPicker.replaceChildren();for(const item of [...(registry?.assets?.values()||[])].slice(0,240)){const option=document.createElement('option');option.value=item.id;option.textContent=item.type.toUpperCase()+' · '+item.id;assetPicker.append(option);}if([...assetPicker.options].some(x=>x.value===oldAsset))assetPicker.value=oldAsset;showAsset();const sourcePicker=$('launch-charge-source'),previous=sourcePicker.value,ctx=RT.outpostContext(),list=root.StarfallOutpostUI?.store?.items.filter(x=>x.kind==='battery'&&x.bodyId===ctx.bodyId)||[];
+ sourcePicker.replaceChildren();for(const item of list){const op=document.createElement('option');op.value=item.id;op.textContent=item.id.slice(-16)+' · '+format(item.energyJ/3.6e6,2)+' kWh';sourcePicker.append(op);}if(list.some(x=>x.id===previous))sourcePicker.value=previous;
+ if(!list.length){const op=document.createElement('option');op.value='';op.textContent='Build and wire a solar array + battery';sourcePicker.append(op);}
+ const launches=store.launches.slice(-12).reverse(),sats=store.satellites.slice(-12).reverse();refreshFlightPanel();
  $('launch-log').textContent='LAUNCH HISTORY\n'+(launches.length?launches.map(m=>m.id+' · '+m.payload.toUpperCase()+' · '+m.phase.toUpperCase()+' · '+format(m.trajectoryAltitudeM/1000,1)+' km / '+format(m.velocityMS/1000,2)+' km/s').join('\n'):'No launches yet')+'\n\nORBITAL SATELLITES\n'+(sats.length?sats.map(x=>x.id+' / '+(RT.galaxy.byId.get(x.bodyId)?.name||x.bodyId)+' · '+format(x.altitudeM/1000,0)+' km altitude').join('\n'):'No orbital payloads deployed');
  const old=$('launch-probe').value,probe=$('launch-probe');probe.replaceChildren();for(const r of store.rovers){const o=document.createElement('option');o.value=r.id;o.textContent=r.id+' / '+(RT.galaxy.byId.get(r.bodyId)?.name||r.bodyId);probe.append(o);}if(store.rovers.some(x=>x.id===old))probe.value=old;
- refreshProbe();const t=RT.truckSystems();$('launch-truck-status').textContent=t.available?('BATTERY '+format(t.batteryJ/3.6e6,2)+' kWh · CARGO '+format(t.cargoKg,0)+' kg · FLOODLIGHTS '+(t.lights?'ON':'OFF')+'\nFORWARD SLOPE '+format(t.forwardSlopeDeg,1)+'° · BIOME '+t.terrain+'\nSCIENCE ROVER DISTANCE '+format(t.scienceRoverDistance,1)+' units'):'Truck unavailable until surface touchdown.';}
-function refreshProbe(){const r=store.rovers.find(x=>x.id===$('launch-probe').value);$('launch-probe-status').textContent=r?['STATUS: '+r.status,'WORLD: '+(RT.galaxy.byId.get(r.bodyId)?.name||r.bodyId),'BATTERY: '+format(r.batteryJ/3.6e6,2)+' kWh','PROGRAM: '+r.index+'/'+r.commands.length,'READINGS: '+r.records.length,...r.records.slice(-5).map(o=>o.instrument+' · '+format(o.value,3)+' '+o.unit+' ±'+format(o.uncertainty,2))].join('\n'):'No deployed rover. Launch a rover capsule first.';}
+ refreshProbe();const t=RT.truckSystems();$('launch-truck-status').textContent=t.available?('BATTERY '+format(t.batteryJ/3.6e6,2)+' kWh · CARGO '+format(t.cargoKg,0)+' kg · FLOODLIGHTS '+(t.lights?'ON':'OFF')+'\nFORWARD SLOPE '+format(t.forwardSlopeDeg,1)+'° · BIOME '+t.terrain+'\nSCIENCE ROVER DISTANCE '+format(t.scienceRoverDistance,1)+' units'+(t.winch?'\nWINCH '+t.winch.status+' · '+format(t.winch.lastDistance,1)+' units remaining · '+format(t.winch.remainingWorkJ/1000,1)+' kJ reserved':'\nWINCH IDLE · Max 55 scene units')):'Truck unavailable until surface touchdown.';}
+function showAsset(){const item=registry?.assets.get($('launch-7a-asset').value),sum=registry?.summary();$('launch-7a-detail').textContent=item?('Registry: '+sum.total+' tracked assets · selected '+item.type.toUpperCase()+' · '+item.id+'\nEnergy '+(item.capacityJ>0?(item.energyJ/3.6e6).toFixed(2)+' / '+(item.capacityJ/3.6e6).toFixed(2)+' kWh':'not modeled')+' · condition '+Math.round(item.health*100)+'%\nOpen ASSET MANAGER for component cards, connections, operating limits, and source labels.'):'Registry: No registered engineered objects.';}
+/* 7D: a local surface terminal or powered relay, never a fabricated interstellar instant connection. */
+function remoteLink(r,time=RT.time){if(!r)return{connected:false,reason:'No selected rover',delayS:0};
+ const body=RT.galaxy.byId.get(r.bodyId)||r.bodySnapshot,ctx=RT.outpostContext(),unit=P.SCENE_METERS_PER_UNIT;
+ if(!body||!Number.isFinite(body.radius)||!body.position)return{connected:false,reason:'Destination ephemeris unloaded: visit system to establish contact',delayS:0};
+ if(!ctx.landed||ctx.bodyId!==r.bodyId||!ctx.local)return{connected:false,reason:'No ground terminal on rover world; travel to destination or deploy a powered local receiver',delayS:0};
+ const G=root.StarfallGroundOps7D,groundArc=G.arcMeters(ctx.local,r.local,body.radius*unit),horizonM=2*Math.sqrt(2*body.radius*unit*2);
+ if(groundArc<=Math.min(30000,horizonM))return{connected:true,reason:'Direct surface radio',delayS:Math.max(.001,groundArc/299792458),quality:Math.max(.1,1-groundArc/30000)};
+ const station=(root.StarfallOutpostUI?.store?.items||[]).find(x=>x.bodyId===r.bodyId&&x.kind==='antenna'&&x.enabled&&x.condition>.02&&root.StarfallOutpostUI?.powerReports?.get(r.bodyId)?.byId?.[x.id]?.power===true);
+ const receivers=[ctx.local];if(station)receivers.push(station.local);
+ for(const sat of store.satellites){if(sat.bodyId!==r.bodyId||!root.StarfallSatelliteOps7C?.relayOperational?.(sat))continue;
+  try{const q=root.StarfallEngineering7A?.satellitePosition?.(sat,body,time,unit)||X.orbit(sat,body,time,unit),radial=(local)=>{const w=V.rot(local,body.spinAxis||[0,1,0],body.spinAngle||0);return V.add(body.position,V.mul(w,body.radius+(Starfall3D.groundHeight(local,body)||0)+2));},rp=radial(r.local),bodies=[{position:body.position,radius:body.radius}],range=180000;
+   const ro=root.StarfallOutposts.radioLink(q.position,rp,bodies,range,unit);if(!ro.connected)continue;
+   for(const local of receivers){const stationLink=root.StarfallOutposts.radioLink(q.position,radial(local),bodies,range,unit);if(stationLink.connected)return{connected:true,reason:'Orbital relay '+sat.id,delayS:Math.max(.01,ro.delayS+stationLink.delayS),quality:Math.min(ro.quality,stationLink.quality)};}
+  }catch(_){continue;}}
+ return{connected:false,reason:'Surface horizon or satellite blackout; onboard program continues',delayS:0};}
+function groundHeight7d(local,body){return Starfall3D.groundHeight(local,body);}
+function receiveRover(obs,r){if(!obs||!root.StarfallScienceUI?.ingestRover)return;root.StarfallScienceUI.ingestRover(obs);}
+function refreshProbe(){const r=store.rovers.find(x=>x.id===$('launch-probe').value);$('launch-probe-status').textContent=r?['STATUS: '+r.status,'WORLD: '+(RT.galaxy.byId.get(r.bodyId)?.name||r.bodyId),'BATTERY: '+format(r.batteryJ/3.6e6,2)+' kWh','RADIO: '+remoteLink(r).reason,'MISSION: '+(r.ground7d?.mode||'LEGACY')+' · '+(r.ground7d?.reason||'Ready'),'PROGRAM: '+r.index+'/'+r.commands.length,'UPLINK QUEUE: '+(r.ground7d?.pending?.length||0),'ONBOARD DATA: '+(r.ground7d?.queuedObservations?.length||0),'DISTANCE: '+format(r.ground7d?.distanceM||0,1)+' m','ONBOARD READINGS: '+r.records.length+' · RECEIVED: '+(r.ground7d?.receivedIds?.length||0),...r.records.filter(o=>r.ground7d?.receivedIds?.includes(o.id)).slice(-5).map(o=>o.instrument+' · '+format(o.value,3)+' '+o.unit+' ±'+format(o.uncertainty,2))].join('\n'):'No deployed rover. Launch a rover capsule first.';}
 function launch(){const ctx=RT.outpostContext();if(!ctx.landed||!ctx.body?.landable)throw Error('Land on a solid world to launch');const pad=root.StarfallOutpostUI?.store?.items.find(x=>x.id===$('launch-pad').value);if(!pad)throw Error('Build/select a FOUNDATION in Outposts first');
  const chosen=chosenDesign(),dst=RT.galaxy.byId.get($('launch-destination').value),sys=RT.galaxy.byId.get($('launch-system').value);
  const m=store.launch({body:ctx.body,foundation:pad,design:chosen,time:RT.time,destinationBody:chosen.payload==='rover'?dst:null,destinationSystem:chosen.payload==='rover'?sys:null,unit:P.SCENE_METERS_PER_UNIT});persist();return m;}
 function worldPosition(body,local,extra){const u=V.norm(V.rot(local,body.spinAxis||[0,1,0],body.spinAngle||0));return{up:u,position:V.add(body.position,V.mul(u,body.radius+(Starfall3D.groundHeight(local,body)||0)+extra))};}
-function sceneRockets(){return store.launches.filter(x=>x.phase==='ascent').slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];const d=worldPosition(body,m.local,0);return[{position:V.add(d.position,V.mul(d.up,m.trajectoryAltitudeM/P.SCENE_METERS_PER_UNIT)),up:d.up}];});}
-function sceneSatellites(){return store.satellites.slice(-48).flatMap(s=>{const b=RT.galaxy.byId.get(s.bodyId);if(!b)return[];try{const q=X.orbit(s,b,RT.time,P.SCENE_METERS_PER_UNIT);return[{position:q.position,up:s.axis}];}catch(_){return[];}});}
+function sceneRockets(){return store.launches.filter(x=>['ascent','coast'].includes(x.phase)&&x.flight).slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];
+ const d=worldPosition(body,m.local,0),u=m.launchUp||d.up,pole=Math.abs(u[1])>.95?[1,0,0]:[0,1,0],tang=V.norm(V.cross(u,pole)),f=m.flight,r=Math.hypot(f.x,f.y);
+ const world=V.add(body.position,V.mul(V.add(V.mul(u,f.x),V.mul(tang,f.y)),1/P.SCENE_METERS_PER_UNIT));
+ const direction=V.norm(V.add(V.mul(u,f.vx),V.mul(tang,f.vy)));
+ return[{position:world,up:V.len(direction)>.1?direction:V.norm(V.add(V.mul(u,f.x/r),V.mul(tang,f.y/r))),stage:f.stageIndex+1}];});}
+function sceneSatellites(){return store.satellites.slice(-48).flatMap(s=>{const b=RT.galaxy.byId.get(s.bodyId);if(!b)return[];try{const q=E?E.satellitePosition(s,b,RT.time,P.SCENE_METERS_PER_UNIT):X.orbit(s,b,RT.time,P.SCENE_METERS_PER_UNIT);return[{position:q.position,up:s.axis}];}catch(_){return[];}});}
 function sceneRovers(){const body=RT.nearest;if(!RT.landed||!body)return[];return store.rovers.filter(r=>r.bodyId===body.id).slice(-15).map(r=>{const d=worldPosition(body,r.local,1.8),up=d.up,side=V.norm(V.cross(up,[1,0,0])),front=V.norm(V.cross(side,up));return{position:d.position,up,forward:front};});}
-function tick(dt,scale){const now=RT.time,events=store.update(now,id=>RT.galaxy.byId.get(id));store.tickRovers(now,id=>RT.galaxy.byId.get(id),root.StarfallFieldScience);if(events.length){for(const e of events){if(e.kind!=='deployed')continue;const m=store.launches.find(x=>x.id===e.id),sat=store.satellites.find(x=>x.launchId===e.id);if(!m||!sat||sat.kind!=='relay')continue;
+function activeMission(){return store.launches.find(m=>m.id===$('launch-7b-active').value);}
+function refreshFlightPanel(){const pick=$('launch-7b-active'),previous=pick.value;
+ const live=store.launches.slice().reverse().filter(m=>['ascent','coast'].includes(m.phase)&&m.flight);
+ pick.replaceChildren();for(const m of live){const op=document.createElement('option');op.value=m.id;op.textContent=m.id+' · '+m.phase.toUpperCase();pick.append(op);}
+ if(live.some(m=>m.id===previous))pick.value=previous;const m=activeMission();if(!m){$('launch-7b-telemetry').textContent='No rocket in powered/coasting flight. Launch one from a FOUNDATION.';return;}
+ const f=m.flight,orb=root.StarfallRocketFlight7B.elements(f,m.profile.mu,m.profile.radiusM);
+ if(!orb)return;
+ $('launch-7b-live-mode').value=f.mode;
+ const clean=x=>Number.isFinite(x)?x.toFixed(1):'ESCAPE';
+ $('launch-7b-telemetry').textContent='PHASE '+f.phase.toUpperCase()+' · stage '+(f.stageIndex+1)+'/'+m.profile.stages+' · '+f.mode.toUpperCase()+'\n'+
+  'ALTITUDE '+clean(orb.altitudeM/1000)+' km  SPEED '+clean(orb.speedMS/1000)+' km/s  VERTICAL '+clean(orb.radialMS)+' m/s\n'+
+  'APOAPSIS '+clean(orb.apoapsisM/1000)+' km  PERIAPSIS '+clean(orb.periapsisM/1000)+' km  ECC '+clean(orb.eccentricity)+'\n'+
+  'THROTTLE '+Math.round(f.throttle*100)+'% · PITCH '+clean(f.pitchDeg)+'° · PROPELLANT '+clean(f.stageFuelKg[f.stageIndex]/1000)+' t · BOOSTER '+clean(f.boosterFuelKg/1000)+' t\n'+
+  'MASS '+clean(root.StarfallRocketFlight7B.totalMass(f,m.profile)/1000)+' t  MAX Q '+clean(f.maxDynamicPressurePa/1000)+' kPa · SIMULATED '+clean(f.integratedS)+' s\n'+
+  'Staging history '+f.discards.length+' discarded stages · Ongoing ascent cannot be skipped or guaranteed.';
+}
+function flightAction(op,value){try{const m=activeMission();if(!m)throw Error('Select an active launch first');store.control(m.id,op,value);persist();refreshFlightPanel();status('Flight control '+op+' accepted for '+m.id);}catch(err){status(err.message,true);}}
+function tick(dt,scale){const now=RT.time,events=store.update(now,id=>RT.galaxy.byId.get(id));store.tickRovers(now,id=>RT.galaxy.byId.get(id),root.StarfallFieldScience,{enabled:true,link:remoteLink,height:groundHeight7d,unitScale:P.SCENE_METERS_PER_UNIT,onReceive:receiveRover});if(events.length){for(const e of events){if(e.kind!=='deployed')continue;if(registry?.enabled)registry.event('ASSET_DEPLOYED',store.launches.find(x=>x.id===e.id)?.id||e.id,now,{missionId:e.id});const m=store.launches.find(x=>x.id===e.id),sat=store.satellites.find(x=>x.launchId===e.id);if(!m||!sat||sat.kind!=='relay')continue;
   const os=root.StarfallOutpostUI?.store;
   if(os&&!os.relays.some(x=>x.id===sat.id)){const body=RT.galaxy.byId.get(sat.bodyId);if(body){const period=X.orbit(sat,body,RT.time,P.SCENE_METERS_PER_UNIT).periodS;os.relays.push({id:sat.id,bodyId:sat.bodyId,altitude:sat.altitudeM/P.SCENE_METERS_PER_UNIT,phase:0,periodS:period,axis:sat.axis,rangeScene:180000,bandwidthBps:1000000,enabled:true});root.StarfallOutpostUI.persist();}}
  }status(events.map(e=>e.message).join(' · '));persist();}
- if(performance.now()-lastRefresh>1000){lastRefresh=performance.now();if(!$('launch-dialog').hidden)refresh();if(store.launches.some(x=>['ascent','transfer'].includes(x.phase))||store.rovers.some(x=>x.status==='running'))persist();}}
+ root.StarfallSatelliteOpsUI?.tick(now);if(performance.now()-lastRefresh>1000){lastRefresh=performance.now();if(registry&&performance.now()-lastAssetSave>8000){lastAssetSave=performance.now();refreshRegistry(true);}if(!$('launch-dialog').hidden)refresh();if(store.launches.some(x=>['ascent','coast','transfer'].includes(x.phase))||store.rovers.some(x=>x.status==='running'||x.ground7d?.pending?.length||x.ground7d?.queuedObservations?.length))persist();}}
 $('launch-open').addEventListener('click',open);$('launch-close').addEventListener('click',close);$('launch-dialog').addEventListener('click',ev=>{if(ev.target===$('launch-dialog'))close();});
 $('launch-system').onchange=()=>{refreshDestinations();preflight();};$('launch-system-search').addEventListener('input',systemOptions);
-for(const id of ['launch-payload','launch-engine','launch-tanks','launch-stages','launch-boosters','launch-pad'])$(id).addEventListener('change',preflight);
-$('launch-refresh').onclick=refresh;$('launch-probe').onchange=refreshProbe;
-$('launch-ignite').onclick=()=>{try{const m=launch();status('LIFTOFF '+m.id+' / '+m.payload.toUpperCase()+' · '+format(m.profile.deltaVMS/1000,2)+' km/s ideal delta-v');refresh();}catch(e){status(e.message,true);}};
-$('launch-run').onclick=()=>{try{const r=store.command($('launch-probe').value,$('launch-script').value);persist();status('Program accepted: '+r.commands.length+' commands · '+r.id);refreshProbe();}catch(e){status(e.message,true);}};
-$('launch-winch').onclick=()=>{try{const r=RT.truckWinch();status('Winch pulled science rover to '+format(r.distanceAfter,1)+' units');refresh();}catch(e){status(e.message,true);}};
-$('launch-recharge').onclick=()=>{try{const j=RT.truckRecharge();status('Battery '+format(j/3.6e6,2)+' kWh');refresh();}catch(e){status(e.message,true);}};
-$('launch-emergency').onclick=()=>{try{store.command($('launch-probe').value,'STOP');persist();status('Rover stopped');refreshProbe();}catch(e){status(e.message,true);}};
+for(const id of ['launch-payload','launch-engine','launch-tanks','launch-stages','launch-boosters','launch-pad','launch-7b-tank2','launch-7b-engine2','launch-7b-tank3','launch-7b-engine3','launch-7b-build-mode','launch-7b-target'])$(id).addEventListener('change',preflight);
+$('launch-7b-active').onchange=refreshFlightPanel;
+$('launch-7b-apply').onclick=()=>{try{const m=activeMission();if(!m)throw Error('No active rocket');store.control(m.id,'mode',$('launch-7b-live-mode').value);if(m.flight.mode==='manual'){store.control(m.id,'pitch',Number($('launch-7b-pitch').value));store.control(m.id,'throttle',Number($('launch-7b-throttle').value)/100);}persist();refreshFlightPanel();status('Flight controls applied');}catch(e){status(e.message,true);}};
+$('launch-7b-ignite').onclick=()=>flightAction('ignite');$('launch-7b-cutoff').onclick=()=>flightAction('cutoff');$('launch-7b-separate').onclick=()=>flightAction('stage');$('launch-7b-abort').onclick=()=>flightAction('abort');
+$('launch-7a-open-assets').onclick=()=>{close();root.StarfallAssetUI7A1?.select($('launch-7a-asset').value,true)||root.StarfallAssetUI7A1?.open();};$('launch-refresh').onclick=refresh;$('launch-7a-asset').onchange=showAsset;$('launch-7a-shared').onchange=()=>{if(registry){registry.enabled=$('launch-7a-shared').checked;refreshRegistry(true);status(registry.enabled?'Shared engineering/charging ON':'Classic compatibility mode ON');refresh();}};$('launch-probe').onchange=refreshProbe;
+$('launch-ignite').onclick=()=>{try{const m=launch();status('IGNITION '+m.id+' / '+m.payload.toUpperCase()+' · '+format(m.profile.deltaVMS/1000,2)+' km/s ideal design estimate; physical trajectory underway');refresh();}catch(e){status(e.message,true);}};
+$('launch-run').onclick=()=>{try{const id=$('launch-probe').value,r=store.rovers.find(x=>x.id===id),q=store.queueProgram(id,$('launch-script').value,RT.time,remoteLink(r));persist();status('Program '+q.status+' · '+q.commands.length+' commands · '+id);refreshProbe();}catch(e){status(e.message,true);}};
+$('launch-winch').onclick=()=>{try{const r=RT.truckWinch();status('Recovery started · '+format(r.distanceAfter,1)+' scene units to target · budget '+format(r.workJ/1000,1)+' kJ; use CANCEL to stop safely');refresh();}catch(e){status(e.message,true);}};
+$('launch-7d-winch-cancel').onclick=()=>{try{status(RT.truckWinchCancel()?'Recovery cancelled. Energy already used is not restored.':'No active recovery');refresh();}catch(e){status(e.message,true);}};
+$('launch-recharge').onclick=()=>{try{const j=RT.truckRecharge($('launch-charge-source').value);status('Wired charge '+format(j.deliveredJ/3.6e6,3)+' kWh · source draw '+format(j.drawnJ/3.6e6,3)+' kWh · truck '+format(j.batteryJ/3.6e6,2)+' kWh');refresh();}catch(e){status(e.message,true);}};
+$('launch-emergency').onclick=()=>{try{const id=$('launch-probe').value,r=store.rovers.find(x=>x.id===id),q=store.queueStop(id,RT.time,remoteLink(r));persist();status('STOP '+q.status+' · rover cannot receive commands through radio blackout');refreshProbe();}catch(e){status(e.message,true);}};
 $('launch-export').onclick=()=>{const b=new Blob([JSON.stringify(store.serialize(),null,2)],{type:'application/json'}),url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download='starfall-launch-telemetry.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-root.StarfallLaunchUI={store,open,close,tick,refresh,persist,sceneRockets,sceneSatellites,sceneRovers};
+refreshRegistry(true);
+addEventListener('pagehide',()=>refreshRegistry(true));
+root.StarfallLaunchUI={store,open,close,tick,refresh,persist,sceneRockets,sceneSatellites,sceneRovers,remoteLink};
 })(window);
