@@ -30,11 +30,11 @@ with sync_playwright() as p:
     return{state:SF.load(),targetId:B.id};
   }""")
   context.add_init_script("(()=>{if(localStorage.getItem('t08-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved['state']))+");localStorage.setItem('t08-initialized','1');})()")
+  boot.close()
   page=context.new_page();errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(file.as_uri(),wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!(window.StarfallMissionOperationsUI && window.StarfallCommsT03 && window.StarfallOutpostUI && window.StarfallImagingUI7F)',timeout=45000)
-  boot.close()
   fixture=page.evaluate("""targetId=>{
     const rt=StarfallRuntime,O=StarfallOutposts,T=StarfallDeepSpaceT08,
       site=StarfallOutpostUI,launch=StarfallLaunchUI,
