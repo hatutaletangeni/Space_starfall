@@ -192,11 +192,11 @@ function receive(p,at){
   g.queuedObservations=g.queuedObservations.filter(x=>x.id!==o.id);return true;
  }
  if(p.type==='SATELLITE_OBSERVATION'){
-  const s=sat(p.sourceId),o=s&&S.ensure(s),obs=o?.storage.find(x=>x.id===p.ref.observationId);
+  const s=sat(p.sourceId),o=s&&S.ensure(s),obs=o?.storage.find(x=>x.id===p.ref.observationId)||o?.inTransit.find(x=>x.id===p.ref.observationId);
   if(!obs||!root.StarfallScienceUI?.ingestOrbital)return false;
   if(!receiveEnergy(p))return false;
   root.StarfallScienceUI.ingestOrbital({...obs,receivedAtS:at});root.StarfallSurveyUI?.recordOrbitalFootprint?.(obs);
-  o.storage=o.storage.filter(x=>x.id!==obs.id);if(!o.received.some(x=>x.id===obs.id))o.received.push({...obs,receivedAtS:at});
+  o.storage=o.storage.filter(x=>x.id!==obs.id);o.inTransit=o.inTransit.filter(x=>x.id!==obs.id);if(!o.received.some(x=>x.id===obs.id))o.received.push({...obs,receivedAtS:at});
   return true;
  }
  if(p.type==='IMAGE_REF'){
@@ -221,6 +221,8 @@ function advanceTo(at){
 }
 function poll(at){
  observations(at);imagingScan(at);
+ // Conservatively requeue old 7C in-transit observations through physical T03 routes.
+ for(const s of UI.store.satellites){for(const old of S.ensure(s).inTransit)satelliteObservation(s,old,at);}
  // Preserve old saves with old pre-T03 uplink queue instead of silently losing it.
  for(const r of UI.store.rovers){
   const g=G.migrate(r);
