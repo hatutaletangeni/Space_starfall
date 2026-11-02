@@ -34,6 +34,14 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
     report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
+    if(root.StarfallHabitatT09){
+      const to=start+(i+1)*total/steps;
+      for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
+        const supplied=report?.byId?.[item.id]?.power===true;
+        root.StarfallHabitatT09.step(item,virtualBody,to,supplied);
+        if(atTime-start>86400+1e-8)item.habT09.awaitingReview=true;
+      }
+    }
   }
   lastPoweredAt[bodyId]=atTime;powerReports.set(bodyId,report);
 }}
@@ -141,6 +149,52 @@ function refreshDeepSpace(body,item){
  ].join('\\n');
 }
 function selectedRadio(){const i=store.items.find(x=>x.id===$('outpost-radio-device').value);if(i?.kind!=='antenna')throw Error('Select an existing surface antenna');return i;}
+function selectedHabitat(){
+ const item=store.items.find(x=>x.id===$('hab-t09-select').value&&x.kind==='hab');
+ if(!item)throw Error('Select a real, built habitat on this world');return item;
+}
+function habitatNear(item){
+ const ctx=RT.outpostContext();
+ return !!(ctx.landed&&ctx.eva&&ctx.bodyId===item.bodyId&&Array.isArray(ctx.local)
+  &&O.arc(ctx.local,item.local,ctx.body.radius)<=24);
+}
+function habitatControl(action,opts={}){
+ const item=selectedHabitat(),H=root.StarfallHabitatT09;
+ const body=RT.galaxy.byId.get(item.bodyId)||item.bodySnapshot;
+ advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
+ const powered=powerReports.get(item.bodyId)?.byId[item.id]?.power===true;
+ const result=H.command(item,action,{...opts,near:habitatNear(item),powered,now:RT.time,body});
+ dirty=true;persist();show('T09 '+item.id+' · '+result.state+' · '+result.pressureKPa.toFixed(2)+' kPa');
+ return result;
+}
+function refreshHabitat(bodyId){
+ const H=root.StarfallHabitatT09,select=$('hab-t09-select'),box=$('hab-t09-diagnostic');
+ const items=store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId),old=select.value;
+ select.replaceChildren();for(const i of items){const option=document.createElement('option');option.value=i.id;
+  option.textContent='HAB '+i.id.slice(-9);select.append(option);}
+ if(items.some(i=>i.id===old))select.value=old;
+ const item=items.find(i=>i.id===select.value);
+ const roverSelect=$('hab-t09-rover'),prevRover=roverSelect.value;roverSelect.replaceChildren();
+ const rovers=(root.StarfallLaunchUI?.store?.rovers||[]).filter(x=>x.bodyId===bodyId&&Array.isArray(x.local));
+ for(const r of rovers){const option=document.createElement('option');option.value=r.id;option.textContent=r.id;roverSelect.append(option);}
+ if(rovers.some(r=>r.id===prevRover))roverSelect.value=prevRover;
+ if(!H||!item){box.textContent='No habitat here. Build one, wire its original 680 W grid to solar/battery, then inspect its air system.';return;}
+ const body=RT.galaxy.byId.get(item.bodyId)||item.bodySnapshot,report=powerReports.get(item.bodyId),
+  h=H.inspect(item,body,report?.byId?.[item.id]?.power===true);
+ $('hab-t09-occupancy').value=String(h.occupants);
+ box.textContent=[
+ 'HABITAT T09 '+h.id+' · '+h.state+' · '+(habitatNear(item)?'EXPLICIT FIELD CONTROLS IN RANGE':'REMOTE MONITOR ONLY'),
+ '48V DC BUS '+(h.powered?'SERVING 680 W':'UNPOWERED')+' · LIFE SUPPORT '+(h.enabled?'ENABLED':'STANDBY')+' · RECHARGE PORT '+(h.serviceReady?'READY':'INACTIVE'),
+ 'PRESSURE '+fmt(h.pressureKPa,3)+' kPa (70–120 recommended) · EXTERIOR '+fmt(h.ambientPressureKPa,2)+' kPa / '+h.exteriorAssumption,
+ 'OXYGEN '+fmt(h.oxygenKPa,3)+' kPa · CARBON DIOXIDE '+fmt(h.carbonKPa,4)+' kPa · IDEAL GAS WELL MIXED '+fmt(h.volumeM3,0)+' m³',
+ 'TEMPERATURE '+fmt(h.temperatureK,2)+' K · HVAC CONTROL '+fmt(h.thermalLoadW,0)+' W (part of real served 680 W) · LOSS '+fmt(h.heatLossW,0)+' W',
+ 'SEAL '+fmt(100*h.seal,2)+' % · AIRLOCK '+h.airlock+(h.airlockUntilS?' finishes at T+'+fmt(h.airlockUntilS,0)+' s':'')+' · OCCUPANTS '+h.occupants,
+ 'O₂ CYLINDER '+fmt(h.oxygenTankMol,2)+' mol · INERT CYLINDER '+fmt(h.inertTankMol,2)+' mol · FILTER CAPACITY '+fmt(h.scrubberCapacityMol,2)+' mol · WATER '+fmt(h.waterL,2)+' L',
+ 'BACKUP '+fmt(h.backupReserveJ,0)+' J (no hidden backup installed) · SERVICE '+(h.serviceReady?'physical cable+rover position still required':'disabled'),
+ 'ALARMS '+(h.alarms.join(' | ')||'NONE')+' · '+(h.fault||'NO ACTIVE HARDWARE FAULT'),
+ 'LAST SIMULATED T+'+fmt(h.lastS,1)+' s; optional service, NOT PLAYER SURVIVAL / NO PLAYER TELEPORT'
+ ].join('\\n');
+}
 function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT.outpostContext(),bodyId=ctx.body?.id||null,all=bodyId?store.items.filter(x=>x.bodyId===bodyId):[];
  const options=(el,list,placeholder)=>{const old=el.value;el.replaceChildren();if(placeholder){const p=document.createElement('option');p.value='';p.textContent=placeholder;el.append(p);}for(const item of list){const p=document.createElement('option');p.value=item.id;p.textContent=item.kind.toUpperCase()+' / '+item.id.slice(-8);el.append(p);}if([...el.options].some(x=>x.value===old))el.value=old;};
  options($('outpost-node-a'),all,'A: select module');options($('outpost-node-b'),all,'B: select module');options($('outpost-lab'),all.filter(x=>x.kind==='lab'),'Select laboratory');
@@ -166,6 +220,7 @@ function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT
  $('outpost-data').textContent=readings.length?readings.slice(-35).map(r=>r.instrument+' '+fmt(r.value,3)+' '+r.unit+' ±'+fmt(r.uncertainty,2)+' · measured '+fmt(r.timeS)+'s · received '+fmt(r.receivedAtS)+'s').join('\n'):'No received measurements. A powered lab needs a radio connection and actual instrument readings.';
  if(lab){const l=linkFor(lab);$('outpost-radio').textContent=(l.connected?'ONLINE':'OFFLINE')+' · '+(l.via||l.reason)+' · '+fmt(l.delayS,5)+' s one-way';}else $('outpost-radio').textContent='Choose a laboratory for radio status';
  refreshRadioHardware(ctx.body);
+ refreshHabitat(bodyId);
  const r=$('outpost-relays');r.replaceChildren();for(const item of store.relays.filter(x=>x.bodyId===bodyId)){const opt=document.createElement('div');opt.className='field-entry';opt.textContent=item.id+' · altitude '+fmt(item.altitude)+' scene units · analytic orbit '+fmt(item.periodS)+'s';r.append(opt);}
  try{const key=placementKey(),p=lastPlacement?.key===key?lastPlacement:selection();p.key=key;lastPlacement=p;$('outpost-placement').textContent='VALID LOCATION · '+fmt(p.check.slopeDeg,1)+'° slope · '+fmt(p.check.height,2)+' scene-units elevation';$('outpost-placement').style.color='#a7d4b7';}catch(e){lastPlacement=null;$('outpost-placement').textContent='INVALID LOCATION · '+e.message;$('outpost-placement').style.color='#ffb19a';}
 }
@@ -221,6 +276,22 @@ $('outpost-radio-power').onclick=wrapped(()=>{
  store.configureRadio(i.id,{radioEnabled:enabled});dirty=true;persist();show('Transceiver '+(enabled?'enabled':'disabled')+' · DC module remains separately switched.');
 });
 $('outpost-enforce-radio').onchange=()=>{radioEnforced=$('outpost-enforce-radio').checked;dirty=true;persist();show(radioEnforced?'Radio enforcement ON for new remote rover commands':'Assisted radio mode restored');};
+$('hab-t09-select').onchange=refresh;
+$('hab-t09-enable').onclick=wrapped(()=>habitatControl('ENABLE'));
+$('hab-t09-disable').onclick=wrapped(()=>habitatControl('DISABLE'));
+$('hab-t09-repair').onclick=wrapped(()=>habitatControl('REPAIR'));
+$('hab-t09-set-crew').onclick=wrapped(()=>habitatControl('OCCUPANCY',{occupants:Number($('hab-t09-occupancy').value)}));
+$('hab-t09-cycle-out').onclick=wrapped(()=>habitatControl('CYCLE_OUT'));
+$('hab-t09-cycle-in').onclick=wrapped(()=>habitatControl('CYCLE_IN'));
+$('hab-t09-service').onclick=wrapped(()=>{
+ const hab=selectedHabitat(),body=RT.galaxy.byId.get(hab.bodyId),H=root.StarfallHabitatT09;
+ if(!habitatNear(hab))throw Error('Approach the real habitat service hatch in EVA');
+ const rover=root.StarfallLaunchUI?.store?.rovers.find(r=>r.id===$('hab-t09-rover').value);
+ const on=powerReports.get(hab.bodyId)?.byId?.[hab.id]?.power===true;
+ const result=H.serviceRover(hab,rover,store,body,RT.time,30,on);
+ root.StarfallLaunchUI?.persist?.();dirty=true;persist();
+ show('Habitat service: drew '+fmt(result.drawnJ,0)+' J from actual wired battery, credited '+fmt(result.deliveredJ,0)+' J to rover; lost '+fmt(result.lossJ,0)+' J.');
+});
 $('outpost-export').onclick=wrapped(()=>{const file=new Blob([JSON.stringify(store.serialize(),null,2)],{type:'application/json'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='starfall-outposts-'+store.seed+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Infrastructure JSON exported');});
 $('outpost-export-receipts').onclick=wrapped(()=>{const rows=['observationId,labId,bodyId,instrument,value,unit,uncertainty,measurementTimeS,receivedAtS'];for(const x of store.receipts){const escape=v=>'"'+String(v??'').replaceAll('"','""')+'"';rows.push([x.observationId,x.labId,x.bodyId,x.instrument,x.value,x.unit,x.uncertainty,x.timeS,x.receivedAtS].map(escape).join(','));}const url=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='starfall-lab-receipts.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Laboratory receipts exported');});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('outpost').hidden){$('outpost').hidden=true;e.stopImmediatePropagation();}});
