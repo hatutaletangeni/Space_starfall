@@ -44,7 +44,7 @@ function refresh(force=false){const now=performance.now();if(!force&&now-lastRef
  'ENVELOPE '+sp.envelope,
  'CALIBRATION LEGACY BASELINE (no field-calibration certificate); modeled confidence '+Math.round(quality.confidenceModel*100)+'%',
  'QUALIFIERS '+(quality.flags.join(', ')||'No extra hardware/thermal degradation known'),
- 'Source physics are seeded estimates, not independent laboratory confirmation.'].join('\\n'):'T14 instrument catalog not available.';
+ 'Source physics are seeded estimates, not independent laboratory confirmation.'].join('\n'):'T14 instrument catalog not available.';
 
 }
 for(const [key,spec] of Object.entries(S.INSTRUMENTS)){const opt=document.createElement('option');opt.value=key;opt.textContent=spec.name+' ('+spec.seconds+' s / '+spec.powerW+' W / ≤'+spec.maxAltitudeM+' m)';$('field-instrument').append(opt);}
