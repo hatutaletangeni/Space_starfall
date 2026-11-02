@@ -58,6 +58,9 @@ assert.equal(T.filterMarkers(markers,'mission').length,0);
 const orbital={...tagged,id:'orb-sat-1',kind:'orbital-observation',satelliteId:'sat-1',sourceAssetId:undefined,location:far,
  instrument:'orbital-spectrometer',receivedAtS:60};
 assert.equal(T.evidenceLayers({bodyId:b.id,journal:[orbital]}).filter(x=>x.type==='orbital').length,1);
+assert.equal(T.evidenceLayers({bodyId:b.id,journal:[{...orbital,id:'orb-unreceived',receivedAtS:null}]}).length,0,'onboard orbital model observation is not an ACKed map datum');
+assert.equal(T.evidenceLayers({bodyId:b.id,photos:[{...realPhoto,id:'photo-missing-receipt',receivedAtS:undefined}]}).length,0,'no downlink timestamp = no received photo marker');
+assert.equal(T.evidenceLayers({bodyId:b.id,pending:[{id:'job-1',assetId:'probe-6',bodyId:b.id,local:location,requestedAtS:44}]}).length,1,'genuine pending camera request uses known location but does not unlock image');
 assert.equal(T.evidenceLayers({bodyId:'another-world',journal:[tagged],photos:[realPhoto]}).length,0);
 const mapUnit=survey.unit(far),latitude=T.latLon(far);
 assert(Math.abs(Math.hypot(...mapUnit)-1)<1e-8&&Math.abs(latitude.lat)<1e-8);
