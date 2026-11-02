@@ -29,7 +29,7 @@ with sync_playwright() as p:
       groundDirection:local,forward:[0,0,1],up:dir,landed:true}});
     return{state:SF.load(),targetId:B.id};
   }""")
-  context.add_init_script("(()=>{if(localStorage.getItem('t08-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved['state']))+");localStorage.setItem('t08-initialized','1');})()")
+  context.add_init_script("(()=>{if(sessionStorage.getItem('t08-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved['state']))+");sessionStorage.setItem('t08-initialized','1');})()")
   boot.close()
   page=context.new_page();errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
