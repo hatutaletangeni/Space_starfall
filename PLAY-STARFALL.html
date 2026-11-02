@@ -3267,7 +3267,7 @@ function advanceLab(lab,now,powered){
   if(x.status!=='RUNNING'&&x.status!=='PAUSED')continue;
   if(!powered){x.status='PAUSED';x.reason='NO_POWER';continue;}
   if(x.status==='PAUSED'){x.status='RUNNING';x.readyAtS=now+20;}
-  if(now>=x.readyAtS){
+  if(now+1e-7>=x.readyAtS){
    x.status='COMPLETE';x.completedAtS=now;x.result='Model-derived evidence interpretation. Retain original sensor value, uncertainty, location, calibration and provenance; no independent composition claim.';
    work++;
   }
