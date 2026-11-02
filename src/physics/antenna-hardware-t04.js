@@ -21,7 +21,8 @@ function repair(raw){
   // Last contact is telemetry, not radio delivery authority; packets are T03-owned.
   lastContactS:num(o.lastContactS)&&o.lastContactS>=0?o.lastContactS:null,
   lastPeerId:typeof o.lastPeerId==='string'?o.lastPeerId.slice(0,160):'',
-  fault:String(o.fault||'').slice(0,130)};
+  fault:String(o.fault||'').slice(0,130),
+  budgetT19:root.StarfallRFAnalyzerT19?.restore(o.budgetT19)||o.budgetT19||null};
 }
 function configure(item,{mode,targetId='',boresightLocal,radioEnabled}){
  if(item?.kind!=='antenna')throw Error('T04 only real Outpost antennas can be commissioned');
