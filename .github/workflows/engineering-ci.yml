@@ -69,6 +69,7 @@ jobs:
           python tests/rover-lifecycle-t06-browser.py
           python tests/orbital-bus-t07-browser.py
           python tests/interplanetary-t08-browser.py
+          python tests/science-chain-t10-browser.py
           python tests/habitat-t09-browser.py
       - name: Upload actual software-WebGL screenshot and performance data
         if: always()
