@@ -309,7 +309,7 @@
 <section id="outpost" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="outpost-title">
  <div class="obs-window outpost-window"><div class="obs-head"><div><span class="obs-badge">STARFALL / INFRASTRUCTURE ENGINEERING</span><h2 id="outpost-title">Surface Outposts</h2></div><button type="button" class="science-action" id="outpost-close">✕ Close</button></div>
  <p>Place structures on solid terrain. Modules connect with explicit cables; solar panels need sunlight. Research records must come from real instrument measurements. No credits or unlocks required.</p>
- <div class="outpost-tabs" role="tablist"><button aria-selected="true" data-outpost-tab="build" type="button">01 / CONSTRUCT</button><button aria-selected="false" data-outpost-tab="power" type="button">02 / POWER GRID</button><button aria-selected="false" data-outpost-tab="comms" type="button">03 / RADIO</button><button aria-selected="false" data-outpost-tab="lab" type="button">04 / LABORATORY</button></div>
+ <div class="outpost-tabs" role="tablist"><button aria-selected="true" data-outpost-tab="build" type="button">01 / CONSTRUCT</button><button aria-selected="false" data-outpost-tab="power" type="button">02 / POWER GRID</button><button aria-selected="false" data-outpost-tab="comms" type="button">03 / RADIO</button><button aria-selected="false" data-outpost-tab="lab" type="button">04 / LABORATORY</button><button aria-selected="false" data-outpost-tab="habitat" type="button">05 / HABITAT</button></div>
  <section data-outpost-page="build"><div class="field-route"><label for="outpost-type">Structure<select id="outpost-type"><option value="foundation">Foundation</option><option value="hab">Habitat</option><option value="lab">Field laboratory</option><option value="battery">Battery / 20 kWh</option><option value="solar">Solar array</option><option value="storage">Sample storage</option><option value="antenna">Radio antenna</option><option value="connector">Power connector</option></select></label><label for="outpost-forward">Forward offset<input type="number" min="-150" max="150" step="5" id="outpost-forward" value="-24"/></label><label for="outpost-right">Right offset<input type="number" min="-150" max="150" step="5" id="outpost-right" value="0"/></label></div>
   <p id="outpost-placement" aria-live="polite">Land and walk outside to begin construction.</p><div class="obs-tools"><button class="science-action" type="button" id="outpost-place">BUILD AT PREVIEW</button><button type="button" class="science-action" id="outpost-remove">DISMANTLE SELECTED MODULE A</button></div><p class="field-note">A single low-poly preview marks the selected position. All modules are prebuilt and free to place; this is a sandbox, not crafting or a mission system.</p></section>
  <section data-outpost-page="power" hidden><p id="outpost-power-result" class="field-note"></p><p class="field-note">A direct cable is required for electrical connection; choose a module at each end. Cables carry a simplified DC supply (not a circuit simulator).</p><div class="field-route"><label for="outpost-node-a">Module A<select id="outpost-node-a"></select></label><label for="outpost-node-b">Module B<select id="outpost-node-b"></select></label></div><div class="obs-tools"><button id="outpost-connect" class="science-action" type="button">CONNECT CABLE</button><button id="outpost-disconnect" class="science-action" type="button">DISCONNECT CABLE</button><button id="outpost-toggle-power" class="science-action" type="button">ENABLE / DISABLE SELECTED MODULE</button></div><div class="field-note" id="outpost-wire-list"></div><pre id="outpost-t02-inspector" class="launch-output" aria-live="polite">Select a powered device to inspect sources and watts.</pre><div id="outpost-structure-list" class="outpost-list"></div></section>
@@ -319,6 +319,23 @@
 <pre id="outpost-t08-diagnostic" class="launch-output" aria-live="polite">Two real, powered installed stations are needed for a planet-to-planet route; no receiver is created automatically.</pre>
 <pre id="outpost-radio-diagnostic" class="launch-output" aria-live="polite">Build and wire a surface antenna to inspect actual link hardware.</pre></section>
  <section data-outpost-page="lab" hidden><div class="field-route"><label for="outpost-lab">Receiver lab<select id="outpost-lab"></select></label></div><p id="outpost-radio" class="field-note">No powered lab selected.</p><button id="outpost-send" class="science-action" type="button">SEND FIELD MEASUREMENTS</button><div class="outpost-records" id="outpost-data" aria-live="polite"></div><div class="obs-tools"><button class="science-action" id="outpost-export-receipts" type="button">EXPORT RECEIPTS CSV</button></div></section>
+ <section data-outpost-page="habitat" hidden>
+ <p class="field-note">T09 · **Real hab environmental systems.** Habitat geometry and ship/EVA controls are unchanged. The 680 W life-support/HVAC rating is metered by the wired T02 48 V bus. No survival damage or forced entry. No walkable habitat interior is implemented.</p>
+ <label class="field-route" for="hab-t09-select">Existing habitat
+  <select id="hab-t09-select"></select></label>
+ <div class="obs-tools"><button type="button" id="hab-t09-enable" class="science-action">ENABLE LIFE SUPPORT</button>
+ <button type="button" id="hab-t09-disable" class="science-action">SAFE STANDBY</button>
+ <button type="button" id="hab-t09-repair" class="science-action">REPAIR SEALS</button></div>
+ <div class="field-route"><label for="hab-t09-occupancy">Crew for environmental model (optional)
+  <select id="hab-t09-occupancy"><option value="0">0 — unoccupied</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+ <label for="hab-t09-rover">Nearby deployed rover <select id="hab-t09-rover"></select></label></div>
+ <div class="obs-tools"><button type="button" id="hab-t09-set-crew" class="science-action">SET SIMULATED CREW</button>
+ <button type="button" id="hab-t09-cycle-out" class="science-action">CYCLE AIRLOCK OUT</button>
+ <button type="button" id="hab-t09-cycle-in" class="science-action">CYCLE AIRLOCK IN / CLOSE</button>
+ <button type="button" id="hab-t09-service" class="science-action">SERVICE ROVER FROM WIRED BATTERY</button></div>
+ <pre class="launch-output" id="hab-t09-diagnostic" aria-live="polite">Approach an existing habitat to inspect finite air, water, heat, airlock and actual power.</pre>
+ <p class="field-note">Exterior pressure defaults conservatively to vacuum unless a numeric world pressure is supplied. Cycling the outer lock never opens the entire hab or moves the player. Habitat tools are available only when you are physically nearby in EVA, without changing X, the truck, ship ramp, or ruin controls.</p>
+ </section>
  <p id="outpost-structure-count" class="field-note"></p><p id="outpost-status" role="status" aria-live="polite"></p><div class="obs-tools"><button type="button" id="outpost-export" class="science-action">EXPORT STRUCTURES JSON</button></div>
  </div>
 </section>
@@ -2915,6 +2932,220 @@ root.StarfallRobotics={V,localBasis,offset,localCoords,Planner,Controller,valida
 })(globalThis);
 
 </script><script>
+/* STARFALL T09 — source-owned habitat thermodynamics and finite consumables.
+ * Parent structure: outpost5.items[kind=hab]; electricity: existing 680W T02 bus.
+ * No player health, EVA, vehicle or scene ownership.
+ * Simplifications: well mixed 80m³ gas, ideal gas law, lumped thermal mass,
+ * estimated vacuum exterior when body surface pressure unavailable.
+ */
+(function(root){'use strict';
+const R=8.314462618,BASE_W=680,SCHEMA=1;
+const C=Object.freeze({schema:SCHEMA,volumeM3:80,referenceK:293.15,pressureKPa:101.325,
+ oxygenTargetKPa:21,oxygenMinKPa:16,oxygenMaxKPa:27,carbonAlarmKPa:.8,
+ totalMinKPa:70,totalMaxKPa:120,tempMinK:280,tempMaxK:307,
+ absoluteMinK:150,absoluteMaxK:390,thermalCapacityJK:750000,
+ thermalLeakWPerK:35,heatW:380,coolW:280,lifeSupportW:BASE_W,
+ normalLeakS:8e-7,maxLeakS:.012,crewO2MolS:.0003,crewCO2MolS:.00026,
+ crewWaterLS:.00004,maxOxygenMolS:.0035,maxInertMolS:.0035,
+ maxScrubMolS:.003,airlockCycleS:15,
+ roverServiceMaxW:2500,roverServiceDistanceScene:24,
+ maxChunkS:86400,backupMaximumJ:0,alertHistory:20});
+const finite=Number.isFinite,clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),deep=x=>JSON.parse(JSON.stringify(x));
+function pressure(mol,K,V=C.volumeM3){return Math.max(0,mol)*R*K/(Math.max(1,V)*1000);}
+function gasMoles(kPa,K,V=C.volumeM3){return kPa*1000*V/(R*K);}
+function defaults(now=0){
+ const n=gasMoles(C.pressureKPa,C.referenceK),o2=gasMoles(C.oxygenTargetKPa,C.referenceK);
+ return{schema:SCHEMA,enabled:false,mode:'STANDBY',lastS:now,seal:1,volumeM3:C.volumeM3,
+  oxygenMol:o2,inertMol:n-o2,carbonMol:0.0003*n,oxygenTankMol:900,
+  inertTankMol:700,scrubberCapacityMol:350,filteredAirMol:0,waterL:200,
+  tempK:C.referenceK,occupants:0,airlock:'CLOSED',airlockUntilS:null,
+  airlockRequested:'',backupJ:0,heatLossW:0,thermalLoadW:0,
+  powerW:0,integratedSupplyW:0,leakRateS:C.normalLeakS,
+  totalKPa:C.pressureKPa,o2KPa:C.oxygenTargetKPa,co2KPa:0,
+  lastPower:false,alarmHistory:[],alarms:[],fault:'',serviceReady:false,
+  chargeReadyAtS:0,awaitingReview:false};
+}
+function ensure(item,now=0){
+ if(item?.kind!=='hab')throw Error('T09 requires an existing habitat structure');
+ const old=item.habT09,was=old?.schema===SCHEMA,initial=defaults(now);
+ if(was){
+  for(const key of Object.keys(initial))if(old[key]!==undefined)initial[key]=old[key];
+  const bounded={
+   seal:[0,1],volumeM3:[20,500],oxygenMol:[0,1e6],inertMol:[0,1e6],carbonMol:[0,1e6],
+   oxygenTankMol:[0,25000],inertTankMol:[0,25000],scrubberCapacityMol:[0,25000],
+   filteredAirMol:[0,25000],waterL:[0,2000],tempK:[C.absoluteMinK,C.absoluteMaxK],
+   occupants:[0,4],backupJ:[0,C.backupMaximumJ],chargeReadyAtS:[0,1e12],lastS:[0,1e12]};
+  for(const [key,[lo,hi]]of Object.entries(bounded))
+   initial[key]=finite(Number(initial[key]))?clamp(Number(initial[key]),lo,hi):defaults(now)[key];
+  initial.occupants=Math.floor(initial.occupants);
+  initial.enabled=old.enabled===true;
+  initial.airlock=['CLOSED','CYCLING_OUT','OPEN_OUT','CYCLING_IN'].includes(old.airlock)?old.airlock:'CLOSED';
+  initial.alarms=Array.isArray(old.alarms)?old.alarms.filter(x=>typeof x==='string').slice(-12):[];
+  initial.alarmHistory=Array.isArray(old.alarmHistory)?old.alarmHistory.filter(x=>x&&typeof x.code==='string').slice(-C.alertHistory):[];
+ }
+ item.habT09=initial;derive(item,initial,false,now);return initial;
+}
+function external(body){
+ // Use a known physically modeled numerical surface pressure if supplied;
+ // otherwise treat a world as vacuum for conservative airlock pressure safety.
+ const kPa=[body?.surfacePressureKPa,body?.pressureKPa].find(x=>finite(x)&&x>=0);
+ const temperature=[body?.surfaceTemperatureK,body?.temperatureK].find(x=>finite(x)&&x>=C.absoluteMinK&&x<=C.absoluteMaxK);
+ return{pressureKPa:kPa??0,temperatureK:temperature??230,
+  pressureAssumption:kPa===undefined?'VACUUM_ASSUMED_NO_WORLD_PRESSURE_SOURCE':'BODY_NUMERIC_PRESSURE'};
+}
+function derive(item,h,powered,now=0,body=null){
+ const {pressureKPa:ambient}=external(body),p=pressure(h.oxygenMol+h.inertMol+h.carbonMol,h.tempK,h.volumeM3),
+  o=pressure(h.oxygenMol,h.tempK,h.volumeM3),co=pressure(h.carbonMol,h.tempK,h.volumeM3);
+ h.totalKPa=p;h.o2KPa=o;h.co2KPa=co;h.lastPower=powered;
+ const warnings=[];
+ if(h.seal<.75)warnings.push('LEAK');
+ if(p<C.totalMinKPa||p>C.totalMaxKPa)warnings.push('PRESSURE_UNSAFE');
+ if(o<C.oxygenMinKPa||o>C.oxygenMaxKPa)warnings.push('OXYGEN_UNSAFE');
+ if(co>C.carbonAlarmKPa)warnings.push('CO2_HIGH');
+ if(h.tempK<C.tempMinK||h.tempK>C.tempMaxK)warnings.push('TEMPERATURE_UNSAFE');
+ if(h.waterL<=0&&h.occupants>0)warnings.push('NO_WATER');
+ if(h.scrubberCapacityMol<=.01&&h.occupants>0)warnings.push('SCRUBBER_EXHAUSTED');
+ if(h.enabled&&!powered)warnings.push('UNPOWERED');
+ if(h.awaitingReview)warnings.push('AWAITING_REVIEW');
+ h.alarms=warnings;
+ const safe=!warnings.some(x=>['LEAK','PRESSURE_UNSAFE','OXYGEN_UNSAFE','CO2_HIGH','TEMPERATURE_UNSAFE','NO_WATER','AWAITING_REVIEW'].includes(x));
+ if(!h.enabled)h.mode='STANDBY';
+ else if(h.airlock==='OPEN_OUT')h.mode='VENTING';
+ else if(h.seal<.75)h.mode='LEAK';
+ else if(!powered)h.mode='UNPOWERED';
+ else if(!safe)h.mode='HABITAT_UNSAFE';
+ else h.mode='PRESSURIZED';
+ h.serviceReady=h.enabled&&powered&&safe&&h.airlock==='CLOSED'&&h.seal>=.75;
+ if(h.enabled&&!powered)h.fault='DC_BUS_UNPOWERED';
+ else if(!safe)h.fault=warnings.join(' | ')||'';
+ else h.fault='';
+ for(const code of warnings)if(!h.alarmHistory.some(a=>a.code===code&&Math.abs(a.timeS-now)<1e-7)){
+  const prev=h.alarmHistory.at(-1);
+  if(prev?.code!==code)h.alarmHistory.push({code,timeS:now});
+ }
+ h.alarmHistory=h.alarmHistory.slice(-C.alertHistory);
+ return{safe,p,o,co,ambient};
+}
+function step(item,body,simS,actualPowered){
+ const h=ensure(item,simS),from=h.lastS;
+ if(!finite(simS)||simS<0)throw Error('T09 invalid mission clock');
+ if(from>simS+1e-8)return inspect(item,body,actualPowered);
+ const delta=simS-from;
+ if(delta>C.maxChunkS+1e-6){h.awaitingReview=true;derive(item,h,false,simS,body);return inspect(item,body,false);}
+ const {pressureKPa:ambient,temperatureK:outK}=external(body);
+ const powered=!!actualPowered&&item.enabled!==false&&item.condition>.02;
+ h.powerW=powered?BASE_W:0;h.integratedSupplyW=powered?BASE_W:0;
+ const dt=Math.max(0,delta),lostSeal=clamp(h.seal,0,1);
+ const f=C.normalLeakS+(1-lostSeal)**2*C.maxLeakS+
+  (h.airlock==='OPEN_OUT'?0.0009:0);
+ // Retain sensible interior gas; atmospheric ingress is not fabricated,
+ // because ambient-world species compositions may be unknown.
+ const leakFactor=Math.exp(-f*dt);
+ h.oxygenMol*=leakFactor;h.inertMol*=leakFactor;h.carbonMol*=leakFactor;
+ h.leakRateS=f;
+ const occupants=h.occupants;
+ const neededO2=occupants*C.crewO2MolS*dt,
+  breath=Math.min(h.oxygenMol,neededO2);
+ h.oxygenMol-=breath;
+ h.carbonMol+=breath*clamp(C.crewCO2MolS/C.crewO2MolS,0,1);
+ h.waterL=Math.max(0,h.waterL-occupants*C.crewWaterLS*dt);
+ const running=powered&&h.enabled&&h.airlock!=='OPEN_OUT'&&!h.awaitingReview;
+ if(running){
+  const targetO2=gasMoles(C.oxygenTargetKPa,h.tempK,h.volumeM3);
+  const injectO2=Math.min(Math.max(0,targetO2-h.oxygenMol),h.oxygenTankMol,C.maxOxygenMolS*dt);
+  h.oxygenMol+=injectO2;h.oxygenTankMol-=injectO2;
+  // Nitrogen-like inert top-up is also finite; a habitat cannot magically
+  // replenish total pressure from oxygen-only cylinders.
+  const targetTotal=gasMoles(C.pressureKPa,h.tempK,h.volumeM3);
+  const injectInert=Math.min(Math.max(0,targetTotal-h.oxygenMol-h.inertMol-h.carbonMol),
+   h.inertTankMol,C.maxInertMolS*dt);
+  h.inertMol+=injectInert;h.inertTankMol-=injectInert;
+  const removal=Math.min(h.carbonMol,h.scrubberCapacityMol,C.maxScrubMolS*dt);
+  h.carbonMol-=removal;h.scrubberCapacityMol-=removal;h.filteredAirMol+=removal;
+ }
+ // Lumped heat capacity. HVAC heating/cooling only exists with actual served
+ // 680 W T02, and is a component of—not extra energy added to—that load.
+ const dT=outK-h.tempK,hLoss=C.thermalLeakWPerK*dT,control=running?
+  (h.tempK<C.referenceK-1?C.heatW:h.tempK>C.referenceK+1?-C.coolW:0):0;
+ const k=C.thermalLeakWPerK,eq=outK+control/k;
+ h.tempK=clamp(eq+(h.tempK-eq)*Math.exp(-k*dt/C.thermalCapacityJK),C.absoluteMinK,C.absoluteMaxK);
+ h.thermalLoadW=control;h.heatLossW=-hLoss;h.lastS=simS;
+ if(h.airlock==='CYCLING_OUT'&&simS>=h.airlockUntilS){
+  h.airlock='OPEN_OUT';h.airlockUntilS=null;
+ }else if(h.airlock==='CYCLING_IN'&&simS>=h.airlockUntilS){
+  h.airlock='CLOSED';h.airlockUntilS=null;
+ }
+ derive(item,h,powered,simS,body);
+ return inspect(item,body,powered);
+}
+function command(item,action,{now=0,near=false,powered=false,body=null,occupants=null}={}){
+ const h=ensure(item,now);
+ if(!finite(now)||now<0)throw Error('Invalid habitat event time');
+ if(!near)throw Error('Habitat systems controls require approaching the actual structure while on foot');
+ if(action==='ENABLE'){h.enabled=true;}
+ else if(action==='DISABLE'){h.enabled=false;}
+ else if(action==='REPAIR'){
+  if(h.airlock!=='CLOSED')throw Error('Seal repair requires a closed airlock');
+  h.seal=1;h.awaitingReview=false;
+ }else if(action==='DAMAGE'){
+  throw Error('Damage is a deterministic event/simulation input, not a free user control');
+ }else if(action==='OCCUPANCY'){
+  if(!Number.isInteger(occupants)||occupants<0||occupants>4)throw Error('Valid habitat occupancy is 0–4');
+  h.occupants=occupants;
+ }else if(action==='CYCLE_OUT'){
+  if(!powered||!h.enabled)throw Error('Powered, enabled habitat airlock actuators required');
+  if(h.airlock!=='CLOSED')throw Error('Close the outer airlock first');
+  derive(item,h,powered,now,body);
+  if(h.alarms.some(x=>['LEAK','PRESSURE_UNSAFE','OXYGEN_UNSAFE','CO2_HIGH','TEMPERATURE_UNSAFE'].includes(x)))
+   throw Error('HABITAT_UNSAFE: pressure/atmosphere unsafe; airlock cannot claim safe cycle');
+  h.airlock='CYCLING_OUT';h.airlockUntilS=now+C.airlockCycleS;
+ }else if(action==='CYCLE_IN'){
+  if(!powered||!h.enabled)throw Error('Powered airlock actuators required to close/equalize');
+  if(h.airlock!=='OPEN_OUT')throw Error('Outer airlock must be OPEN_OUT first');
+  h.airlock='CYCLING_IN';h.airlockUntilS=now+C.airlockCycleS;
+ }else throw Error('Unknown habitat control action');
+ derive(item,h,powered,now,body);return inspect(item,body,powered);
+}
+function inspect(item,body,actualPowered=false){
+ const h=ensure(item,0),{safe}=derive(item,h,actualPowered,h.lastS,body),ext=external(body);
+ return{id:item.id,bodyId:item.bodyId,schema:SCHEMA,state:h.mode,enabled:h.enabled,
+  powered:!!actualPowered,watts:actualPowered?BASE_W:0,
+  seal:h.seal,volumeM3:h.volumeM3,pressureKPa:h.totalKPa,
+  oxygenKPa:h.o2KPa,carbonKPa:h.co2KPa,temperatureK:h.tempK,
+  ambientPressureKPa:ext.pressureKPa,ambientTempK:ext.temperatureK,
+  exteriorAssumption:ext.pressureAssumption,oxygenTankMol:h.oxygenTankMol,
+  inertTankMol:h.inertTankMol,scrubberCapacityMol:h.scrubberCapacityMol,
+  filteredAirMol:h.filteredAirMol,waterL:h.waterL,heatLossW:h.heatLossW,
+  thermalLoadW:h.thermalLoadW,airlock:h.airlock,airlockUntilS:h.airlockUntilS,
+  occupants:h.occupants,backupReserveJ:h.backupJ,
+  backupPresent:h.backupJ>0,serviceReady:h.serviceReady,
+  alarms:[...h.alarms],fault:h.fault,lastS:h.lastS,healthy:safe};
+}
+function serviceRover(hab,rover,store,body,at,seconds=30,powered=false){
+ const t=root.StarfallPowerLedgerT02,h=ensure(hab,at);
+ const s=inspect(hab,body,powered);
+ if(!t||!store||!rover||!body||!s.serviceReady||hab.bodyId!==rover.bodyId)
+  throw Error('Powered safe actual habitat and deployed same-world rover required');
+ if(!Array.isArray(hab.local)||!Array.isArray(rover.local)||
+   root.StarfallOutposts.arc(hab.local,rover.local,body.radius)>C.roverServiceDistanceScene)
+  throw Error('Physical habitat service port is out of range');
+ if(at<h.chargeReadyAtS)throw Error('Habitat charge connector cooling down');
+ const group=store.connectedGroups(body.id).find(g=>g.some(x=>x.id===hab.id))||[];
+ const battery=group.find(x=>x.kind==='battery'&&x.enabled!==false&&x.condition>.02&&x.energyJ>0);
+ if(!battery)throw Error('No connected, charged original T02 battery powers servicing');
+ const source={id:battery.id,energyJ:battery.energyJ,capacityJ:root.StarfallOutposts.SPECS.battery.capacityJ};
+ const sink={id:rover.id,energyJ:rover.batteryJ,capacityJ:rover.capacityJ??14.4e6};
+ const result=t.transfer(source,sink,Math.max(0,C.roverServiceMaxW*seconds*.9),
+  {efficiency:.9,maxPowerW:C.roverServiceMaxW,seconds});
+ if(result.deliveredJ>0){battery.energyJ=result.fromEnergyJ;rover.batteryJ=result.toEnergyJ;h.chargeReadyAtS=at+seconds;}
+ return{...result,sourceId:battery.id,targetId:rover.id,fromBodyId:body.id};
+}
+const API={CONFIG:C,R,pressure,gasMoles,defaults,ensure,external,step,command,inspect,serviceRover};
+root.StarfallHabitatT09=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
 /* STARFALL 5A–5D. Local, deterministic surface infrastructure. No scene/GPU state here.
    Linear distances in scene units, charge in Joules, power in Watts, time in simulated seconds.
    All positions are body-fixed unit radial vectors, never world xyz. */
@@ -2943,7 +3174,7 @@ function placement({kind,body,local,heightAt,structures=[],protectedAreas=[],slo
  for(const p of protectedAreas){if(p?.local&&arc(d,p.local,radius)<spec.radius+(p.radius||0)+1)throw Error('Construction would block a vehicle or its boarding ramp');}
  return{local:d,height:h,slopeDeg:slope*180/PI};
 }
-function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||typeof item.id!=='string'||typeof item.bodyId!=='string')return null;try{return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,energyJ:clamp(Number(item.energyJ)||0,0,SPECS[item.kind].capacityJ),temperatureK:clamp(Number(item.temperatureK)||290,2,1500),condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),enabled:item.enabled!==false,radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string').slice(0,120):[]};}catch(_){return null;}}
+function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||typeof item.id!=='string'||typeof item.bodyId!=='string')return null;try{return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,energyJ:clamp(Number(item.energyJ)||0,0,SPECS[item.kind].capacityJ),temperatureK:clamp(Number(item.temperatureK)||290,2,1500),condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),enabled:item.enabled!==false,radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,habT09:item.kind==='hab'&&root.StarfallHabitatT09?root.StarfallHabitatT09.ensure({kind:'hab',habT09:item.habT09},Number(item.habT09?.lastS)||0):undefined,bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string').slice(0,120):[]};}catch(_){return null;}}
 function intersectsSphere(a,b,centre,r){const d=V.sub(b,a),f=V.sub(centre,a),den=V.dot(d,d);if(den<1e-16)return false;const t=clamp(V.dot(f,d)/den,0,1);return V.len(V.sub(V.add(a,V.mul(d,t)),centre))<r;}
 function radioLink(a,b,occluders=[],rangeScene=Infinity,metresPerSceneUnit=1){const dist=V.len(V.sub(b,a));if(!Number.isFinite(dist)||dist>rangeScene||dist<0) return{connected:false,reason:'Out of radio range',delayS:0,quality:0};for(const oc of occluders){if(oc?.radius>0&&intersectsSphere(a,b,oc.position,oc.radius))return{connected:false,reason:'Body blocks line-of-sight',delayS:0,quality:0};}
  return{connected:true,reason:'Line of sight',delayS:dist*metresPerSceneUnit/C,quality:clamp(1-dist/Math.max(1,rangeScene),0,1),distanceScene:dist};}
@@ -2962,7 +3193,7 @@ class Store{
  constructor(seed,saved){this.seed=seed;this.items=[];this.wires=[];this.relays=[];this.receipts=[];this.serial=0;this.messages=[];this.lastTick=0;this.restore(saved);}
  restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;const ids=new Set();this.items=(Array.isArray(saved.items)?saved.items:[]).slice(0,320).map(cleanItem).filter(x=>{if(!x||ids.has(x.id))return false;ids.add(x.id);return true;});this.wires=(Array.isArray(saved.wires)?saved.wires:[]).filter(x=>x&&ids.has(x.a)&&ids.has(x.b)&&x.a!==x.b).slice(0,600).map(x=>({a:x.a,b:x.b}));this.relays=(Array.isArray(saved.relays)?saved.relays:[]).slice(0,40).filter(x=>typeof x.id==='string'&&typeof x.bodyId==='string'&&Number.isFinite(x.phase)&&Number.isFinite(x.altitude)).map(x=>({...x,altitude:clamp(x.altitude,300,12000),periodS:clamp(x.periodS||1200,120,1e8),axis:saneDir(x.axis||[0,1,0])}));this.receipts=(Array.isArray(saved.receipts)?saved.receipts:[]).slice(-400).filter(x=>x.id&&x.labId&&x.observationId);this.serial=clamp(Number(saved.serial)||0,0,1e7);this.lastTick=Math.max(0,Number(saved.lastTick)||0);}
  serialize(){return{schema:1,seed:this.seed,serial:this.serial,items:copy(this.items),wires:copy(this.wires),relays:copy(this.relays),receipts:copy(this.receipts),lastTick:this.lastTick};}
- add(kind,body,local,forward,heightAt,protectedAreas=[]){if(this.items.length>=320)throw Error('Global structure limit reached');const p=placement({kind,body,local,heightAt,structures:this.items,protectedAreas}),id='outpost-'+this.seed+'-'+(++this.serial);const item={id,bodyId:body.id,kind,local:p.local,facing:saneDir(forward),height:p.height,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]};if(kind==='antenna'&&root.StarfallAntennaT04)item.radioT04=root.StarfallAntennaT04.repair(null);if(kind==='battery')item.energyJ=SPECS.battery.capacityJ*.5;this.items.push(item);return{item:copy(item),slope:p.slopeDeg};}
+ add(kind,body,local,forward,heightAt,protectedAreas=[]){if(this.items.length>=320)throw Error('Global structure limit reached');const p=placement({kind,body,local,heightAt,structures:this.items,protectedAreas}),id='outpost-'+this.seed+'-'+(++this.serial);const item={id,bodyId:body.id,kind,local:p.local,facing:saneDir(forward),height:p.height,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]};if(kind==='antenna'&&root.StarfallAntennaT04)item.radioT04=root.StarfallAntennaT04.repair(null);if(kind==='hab'&&root.StarfallHabitatT09)root.StarfallHabitatT09.ensure(item,root.StarfallRuntime?.time||0);if(kind==='battery')item.energyJ=SPECS.battery.capacityJ*.5;this.items.push(item);return{item:copy(item),slope:p.slopeDeg};}
  remove(id){if(!this.items.some(x=>x.id===id))return false;this.items=this.items.filter(x=>x.id!==id);this.wires=this.wires.filter(x=>x.a!==id&&x.b!==id);this.receipts=this.receipts.filter(x=>x.labId!==id);return true;}
  link(a,b,body){const x=this.items.find(i=>i.id===a),y=this.items.find(i=>i.id===b);if(!x||!y||a===b||x.bodyId!==y.bodyId||x.bodyId!==body.id)throw Error('Connect two modules on the same body');if(arc(x.local,y.local,body.radius)>80)throw Error('Cable exceeds 80 scene units');if(this.wires.some(w=>(w.a===a&&w.b===b)||(w.a===b&&w.b===a)))return false;if(this.wires.length>=600)throw Error('Cable limit');this.wires.push({a,b});return true;}
  configureRadio(id,options){const item=this.items.find(x=>x.id===id);if(!item||item.kind!=='antenna'||!root.StarfallAntennaT04)throw Error('Select a real antenna and initialize T04 hardware');return root.StarfallAntennaT04.configure(item,options);}
@@ -4697,6 +4928,14 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
     report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
+    if(root.StarfallHabitatT09){
+      const to=start+(i+1)*total/steps;
+      for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
+        const supplied=report?.byId?.[item.id]?.power===true;
+        root.StarfallHabitatT09.step(item,virtualBody,to,supplied);
+        if(atTime-start>86400+1e-8)item.habT09.awaitingReview=true;
+      }
+    }
   }
   lastPoweredAt[bodyId]=atTime;powerReports.set(bodyId,report);
 }}
@@ -4804,6 +5043,52 @@ function refreshDeepSpace(body,item){
  ].join('\\n');
 }
 function selectedRadio(){const i=store.items.find(x=>x.id===$('outpost-radio-device').value);if(i?.kind!=='antenna')throw Error('Select an existing surface antenna');return i;}
+function selectedHabitat(){
+ const item=store.items.find(x=>x.id===$('hab-t09-select').value&&x.kind==='hab');
+ if(!item)throw Error('Select a real, built habitat on this world');return item;
+}
+function habitatNear(item){
+ const ctx=RT.outpostContext();
+ return !!(ctx.landed&&ctx.eva&&ctx.bodyId===item.bodyId&&Array.isArray(ctx.local)
+  &&O.arc(ctx.local,item.local,ctx.body.radius)<=24);
+}
+function habitatControl(action,opts={}){
+ const item=selectedHabitat(),H=root.StarfallHabitatT09;
+ const body=RT.galaxy.byId.get(item.bodyId)||item.bodySnapshot;
+ advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
+ const powered=powerReports.get(item.bodyId)?.byId[item.id]?.power===true;
+ const result=H.command(item,action,{...opts,near:habitatNear(item),powered,now:RT.time,body});
+ dirty=true;persist();show('T09 '+item.id+' · '+result.state+' · '+result.pressureKPa.toFixed(2)+' kPa');
+ return result;
+}
+function refreshHabitat(bodyId){
+ const H=root.StarfallHabitatT09,select=$('hab-t09-select'),box=$('hab-t09-diagnostic');
+ const items=store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId),old=select.value;
+ select.replaceChildren();for(const i of items){const option=document.createElement('option');option.value=i.id;
+  option.textContent='HAB '+i.id.slice(-9);select.append(option);}
+ if(items.some(i=>i.id===old))select.value=old;
+ const item=items.find(i=>i.id===select.value);
+ const roverSelect=$('hab-t09-rover'),prevRover=roverSelect.value;roverSelect.replaceChildren();
+ const rovers=(root.StarfallLaunchUI?.store?.rovers||[]).filter(x=>x.bodyId===bodyId&&Array.isArray(x.local));
+ for(const r of rovers){const option=document.createElement('option');option.value=r.id;option.textContent=r.id;roverSelect.append(option);}
+ if(rovers.some(r=>r.id===prevRover))roverSelect.value=prevRover;
+ if(!H||!item){box.textContent='No habitat here. Build one, wire its original 680 W grid to solar/battery, then inspect its air system.';return;}
+ const body=RT.galaxy.byId.get(item.bodyId)||item.bodySnapshot,report=powerReports.get(item.bodyId),
+  h=H.inspect(item,body,report?.byId?.[item.id]?.power===true);
+ $('hab-t09-occupancy').value=String(h.occupants);
+ box.textContent=[
+ 'HABITAT T09 '+h.id+' · '+h.state+' · '+(habitatNear(item)?'EXPLICIT FIELD CONTROLS IN RANGE':'REMOTE MONITOR ONLY'),
+ '48V DC BUS '+(h.powered?'SERVING 680 W':'UNPOWERED')+' · LIFE SUPPORT '+(h.enabled?'ENABLED':'STANDBY')+' · RECHARGE PORT '+(h.serviceReady?'READY':'INACTIVE'),
+ 'PRESSURE '+fmt(h.pressureKPa,3)+' kPa (70–120 recommended) · EXTERIOR '+fmt(h.ambientPressureKPa,2)+' kPa / '+h.exteriorAssumption,
+ 'OXYGEN '+fmt(h.oxygenKPa,3)+' kPa · CARBON DIOXIDE '+fmt(h.carbonKPa,4)+' kPa · IDEAL GAS WELL MIXED '+fmt(h.volumeM3,0)+' m³',
+ 'TEMPERATURE '+fmt(h.temperatureK,2)+' K · HVAC CONTROL '+fmt(h.thermalLoadW,0)+' W (part of real served 680 W) · LOSS '+fmt(h.heatLossW,0)+' W',
+ 'SEAL '+fmt(100*h.seal,2)+' % · AIRLOCK '+h.airlock+(h.airlockUntilS?' finishes at T+'+fmt(h.airlockUntilS,0)+' s':'')+' · OCCUPANTS '+h.occupants,
+ 'O₂ CYLINDER '+fmt(h.oxygenTankMol,2)+' mol · INERT CYLINDER '+fmt(h.inertTankMol,2)+' mol · FILTER CAPACITY '+fmt(h.scrubberCapacityMol,2)+' mol · WATER '+fmt(h.waterL,2)+' L',
+ 'BACKUP '+fmt(h.backupReserveJ,0)+' J (no hidden backup installed) · SERVICE '+(h.serviceReady?'physical cable+rover position still required':'disabled'),
+ 'ALARMS '+(h.alarms.join(' | ')||'NONE')+' · '+(h.fault||'NO ACTIVE HARDWARE FAULT'),
+ 'LAST SIMULATED T+'+fmt(h.lastS,1)+' s; optional service, NOT PLAYER SURVIVAL / NO PLAYER TELEPORT'
+ ].join('\\n');
+}
 function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT.outpostContext(),bodyId=ctx.body?.id||null,all=bodyId?store.items.filter(x=>x.bodyId===bodyId):[];
  const options=(el,list,placeholder)=>{const old=el.value;el.replaceChildren();if(placeholder){const p=document.createElement('option');p.value='';p.textContent=placeholder;el.append(p);}for(const item of list){const p=document.createElement('option');p.value=item.id;p.textContent=item.kind.toUpperCase()+' / '+item.id.slice(-8);el.append(p);}if([...el.options].some(x=>x.value===old))el.value=old;};
  options($('outpost-node-a'),all,'A: select module');options($('outpost-node-b'),all,'B: select module');options($('outpost-lab'),all.filter(x=>x.kind==='lab'),'Select laboratory');
@@ -4829,6 +5114,7 @@ function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT
  $('outpost-data').textContent=readings.length?readings.slice(-35).map(r=>r.instrument+' '+fmt(r.value,3)+' '+r.unit+' ±'+fmt(r.uncertainty,2)+' · measured '+fmt(r.timeS)+'s · received '+fmt(r.receivedAtS)+'s').join('\n'):'No received measurements. A powered lab needs a radio connection and actual instrument readings.';
  if(lab){const l=linkFor(lab);$('outpost-radio').textContent=(l.connected?'ONLINE':'OFFLINE')+' · '+(l.via||l.reason)+' · '+fmt(l.delayS,5)+' s one-way';}else $('outpost-radio').textContent='Choose a laboratory for radio status';
  refreshRadioHardware(ctx.body);
+ refreshHabitat(bodyId);
  const r=$('outpost-relays');r.replaceChildren();for(const item of store.relays.filter(x=>x.bodyId===bodyId)){const opt=document.createElement('div');opt.className='field-entry';opt.textContent=item.id+' · altitude '+fmt(item.altitude)+' scene units · analytic orbit '+fmt(item.periodS)+'s';r.append(opt);}
  try{const key=placementKey(),p=lastPlacement?.key===key?lastPlacement:selection();p.key=key;lastPlacement=p;$('outpost-placement').textContent='VALID LOCATION · '+fmt(p.check.slopeDeg,1)+'° slope · '+fmt(p.check.height,2)+' scene-units elevation';$('outpost-placement').style.color='#a7d4b7';}catch(e){lastPlacement=null;$('outpost-placement').textContent='INVALID LOCATION · '+e.message;$('outpost-placement').style.color='#ffb19a';}
 }
@@ -4884,6 +5170,22 @@ $('outpost-radio-power').onclick=wrapped(()=>{
  store.configureRadio(i.id,{radioEnabled:enabled});dirty=true;persist();show('Transceiver '+(enabled?'enabled':'disabled')+' · DC module remains separately switched.');
 });
 $('outpost-enforce-radio').onchange=()=>{radioEnforced=$('outpost-enforce-radio').checked;dirty=true;persist();show(radioEnforced?'Radio enforcement ON for new remote rover commands':'Assisted radio mode restored');};
+$('hab-t09-select').onchange=refresh;
+$('hab-t09-enable').onclick=wrapped(()=>habitatControl('ENABLE'));
+$('hab-t09-disable').onclick=wrapped(()=>habitatControl('DISABLE'));
+$('hab-t09-repair').onclick=wrapped(()=>habitatControl('REPAIR'));
+$('hab-t09-set-crew').onclick=wrapped(()=>habitatControl('OCCUPANCY',{occupants:Number($('hab-t09-occupancy').value)}));
+$('hab-t09-cycle-out').onclick=wrapped(()=>habitatControl('CYCLE_OUT'));
+$('hab-t09-cycle-in').onclick=wrapped(()=>habitatControl('CYCLE_IN'));
+$('hab-t09-service').onclick=wrapped(()=>{
+ const hab=selectedHabitat(),body=RT.galaxy.byId.get(hab.bodyId),H=root.StarfallHabitatT09;
+ if(!habitatNear(hab))throw Error('Approach the real habitat service hatch in EVA');
+ const rover=root.StarfallLaunchUI?.store?.rovers.find(r=>r.id===$('hab-t09-rover').value);
+ const on=powerReports.get(hab.bodyId)?.byId?.[hab.id]?.power===true;
+ const result=H.serviceRover(hab,rover,store,body,RT.time,30,on);
+ root.StarfallLaunchUI?.persist?.();dirty=true;persist();
+ show('Habitat service: drew '+fmt(result.drawnJ,0)+' J from actual wired battery, credited '+fmt(result.deliveredJ,0)+' J to rover; lost '+fmt(result.lossJ,0)+' J.');
+});
 $('outpost-export').onclick=wrapped(()=>{const file=new Blob([JSON.stringify(store.serialize(),null,2)],{type:'application/json'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='starfall-outposts-'+store.seed+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Infrastructure JSON exported');});
 $('outpost-export-receipts').onclick=wrapped(()=>{const rows=['observationId,labId,bodyId,instrument,value,unit,uncertainty,measurementTimeS,receivedAtS'];for(const x of store.receipts){const escape=v=>'"'+String(v??'').replaceAll('"','""')+'"';rows.push([x.observationId,x.labId,x.bodyId,x.instrument,x.value,x.unit,x.uncertainty,x.timeS,x.receivedAtS].map(escape).join(','));}const url=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='starfall-lab-receipts.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Laboratory receipts exported');});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('outpost').hidden){$('outpost').hidden=true;e.stopImmediatePropagation();}});
