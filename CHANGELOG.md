@@ -1,3 +1,14 @@
+# STARFALL T15 — Asset Manager and Real Machine Configuration (2026-11-02)
+
+- Add **source-owned T15 service provenance/backup** linked to the original `StarfallVehicles` ship and rover definitions; Workbench replacement validates genuine installed part deltas, parked service, original asset identity and predicted mass/energy state before committing the actual vehicle. Preserves pre-T15 saves.
+- Existing Asset Manager now shows original installed module owners, live model state (OPERATIONAL/MODELLED/OUT OF SERVICE), rated mass/watts, fault causes and traceable service events. Provides links to original T12 physical field repair and existing Workbench, not a new free-repair subsystem.
+- Original rover battery and solar panel options continue to alter **real** capacity, generation and mass without generating stored energy; motor/wheel selection changes actual 6-wheel force/slip through original rover physics.
+- Optional constrained geology/biological rover instrument suites change actual compatible sensor jobs, installed mass and power draw, while preserving the full original default suite and original T06 remote rover equipment.
+- New optional extended spacecraft avionics module increases real T02 avionics consumption, ship dry mass and original T03 radio LOS/bandwidth/transmitter requirements; no magic interstellar link.
+- Existing 7E blueprint apply now requires a verified original run, correct named machine ID and retained observation/photo IDs; bench-only/imported/unmodified designs cannot silently alter an unrelated vehicle or claim installation success.
+- **Restore previous installed assembly** repeats parked safety checks and changes actual original store without refilling consumables. T15 event ledger refuses new entries at its cap instead of truncating older provenance.
+- Adds actual T15 unit and offline Chromium Workbench/restore tests; `tests/technology-contracts.json` explicitly documents 3 new optional catalog parts, preserving the original T00 historical baseline. See `docs/ASSET-ENGINEERING-T15.md` and `reports/T15-TEST-RESULTS.md`.
+
 # STARFALL T14 — Instrument Evidence, Scientific Map Layers and Ruin Photo Coordinates (2026-11-02)
 
 - Added additive `StarfallScienceT14` for the existing eight original instrument ratings, calibrated-baseline diagnostics, physically limited resolution/uncertainty/temperature/health and source-owned observation provenance. Seeded values remain explicitly simulated.
