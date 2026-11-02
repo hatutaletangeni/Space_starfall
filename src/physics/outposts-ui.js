@@ -108,6 +108,37 @@ function refreshRadioHardware(body){
   'CONTACT '+(report.lastContactS===null?'NONE':('T+'+fmt(report.lastContactS,1)+' s · '+report.lastPeerId)),
   'RECENT PACKETS '+(report.queuedPacketIds.slice(-4).join(', ')||'NONE')
  ].join('\\n');
+ refreshDeepSpace(body,item);
+}
+function refreshDeepSpace(body,item){
+ const T=root.StarfallDeepSpaceT08,box=$('outpost-t08-diagnostic'),mode=$('outpost-t08-mode'),
+  peer=$('outpost-t08-peer');
+ if(!T){box.textContent='T08 radio adapter not available';return;}
+ const p=item?T.repair(item.radioT04?.deepT08):null,prior=peer.value;
+ const remote=store.items.filter(x=>x.kind==='antenna'&&x.id!==item?.id&&x.bodyId!==item?.bodyId);
+ peer.replaceChildren();
+ for(const i of remote){const option=document.createElement('option');option.value=i.id;
+  option.textContent=(i.bodySnapshot?.name||i.bodyId)+' / '+i.id;peer.append(option);}
+ if(remote.some(x=>x.id===p?.peerId))peer.value=p.peerId;
+ else if(remote.some(x=>x.id===prior))peer.value=prior;
+ mode.value=p?.mode||'OFF';
+ if(!item){box.textContent='No existing antenna selected. Build, wire and power one here, then another on the remote world.';return;}
+ const d=T.inspected(item,powerReports.get(item.bodyId)),other=store.items.find(x=>x.id===d.peerId),
+  far=other?T.inspected(other,powerReports.get(other.bodyId)):null;
+ const packets=root.StarfallCommsT03?.transport?.list()||[];
+ const relevant=packets.filter(x=>x.route?.includes(item.id)).slice(-6);
+ box.textContent=[
+ 'T08 REAL INSTALLED HARDWARE '+item.id,
+ 'STATE '+d.mode+' · '+(d.powered?'POWERED':'OFFLINE: '+d.reason)+' · '+d.ratedPowerW+' W extra real 48V load',
+ 'TARGET '+(d.peerId||'NOT CONFIGURED')+' · '+(other?'REAL ANTENNA ON '+other.bodyId:'NO SAVED REMOTE STATION'),
+ 'PEER '+(far?.mode||'MISSING')+' / '+(far?.powered?'POWERED':'OFFLINE '+(far?.reason||'NO PEER')),
+ 'PHY RATE '+d.bandwidthBps+' bit/s nameplate · '+d.rangeScene+' scene-unit rated RF range',
+ 'IN-FLIGHT '+relevant.map(p=>p.id+' '+p.state+' '+p.sendBytes+'/'+p.encodedBytes+' bytes'+(p.lastLink?' · '+p.lastLink.delayS.toFixed(2)+' s delay':'')).join(' | '),
+ 'ROUTING: local ship/rover ↔ local antenna ↔ both powered deep dishes ↔ remote antenna ↔ remote rover',
+ d.mode==='FICTIONAL'?'FICTIONAL MODE explicitly chosen: 120s minimum modeled carrier wait, not real light-speed interstellar travel':
+  'Real radio c latency. Other stars are physically very distant; no fast interstellar RF link.',
+ !remote.length?'NO OTHER COMMISSIONABLE STATION: travel and build/wire one, or deploy a real powered base kit.':''
+ ].join('\\n');
 }
 function selectedRadio(){const i=store.items.find(x=>x.id===$('outpost-radio-device').value);if(i?.kind!=='antenna')throw Error('Select an existing surface antenna');return i;}
 function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT.outpostContext(),bodyId=ctx.body?.id||null,all=bodyId?store.items.filter(x=>x.bodyId===bodyId):[];
@@ -150,6 +181,23 @@ $('outpost-disconnect').onclick=wrapped(()=>{if(!store.unlink($('outpost-node-a'
 $('outpost-launch-relay').onclick=wrapped(()=>{const ctx=RT.outpostContext();if(!ctx.landed||!ctx.eva)throw Error('Deploy a relay while exploring the surface');const relay=store.addRelay(ctx.body);dirty=true;persist();show('Simulated relay deployed: '+relay.id+' · analytic orbit (no cinematic rocket launch)');});
 $('outpost-send').onclick=wrapped(sendData);
 $('outpost-radio-device').onchange=()=>refresh();
+$('outpost-t08-apply').onclick=wrapped(()=>{
+ const T=root.StarfallDeepSpaceT08,item=selectedRadio(),mode=$('outpost-t08-mode').value,
+  peer=$('outpost-t08-peer').value;
+ if(!T)throw Error('T08 radio adapter missing');
+ T.configure(item,mode,peer,RT.time);
+ // Immediately recalculate the real same-owner T02 bus demand. No free
+ // amplifier; if installed wattage exceeds available supply it is shed.
+ advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
+ dirty=true;persist();refresh();show('T08 '+mode+' antenna commissioned on '+item.id+' → '+(peer||'OFF')+
+  '. Verify real 48V power and matching remote hardware in T08 diagnostics.');
+});
+$('outpost-t08-off').onclick=wrapped(()=>{
+ const item=selectedRadio();root.StarfallDeepSpaceT08.configure(item,'OFF','',RT.time);
+ advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
+ dirty=true;persist();refresh();show('T08 deep-space transceiver disabled. Local radio is unchanged.');
+});
+
 $('outpost-radio-mode').onchange=()=>{};$('outpost-radio-target').onchange=()=>{};
 $('outpost-radio-apply').onclick=wrapped(()=>{
  const item=selectedRadio();if(!root.StarfallAntennaT04)throw Error('T04 radio model missing');
