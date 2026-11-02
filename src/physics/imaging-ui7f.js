@@ -190,13 +190,15 @@ function tick(_dt){
  if(!busy&&store.jobs.length){
   const job=store.jobs[0],s=sources().find(x=>x.assetId===job.assetId&&x.type===job.sourceType);
   if(s){
-   const link=linkFor(s);if(link.connected){
+   if(root.StarfallCommsT03){if(job.deliveredS===null)root.StarfallCommsT03.camera(job);else if(RT.galaxy.byId.has(s.bodyId))perform(job,s).catch(e=>{err(e);});}
+   else{const link=linkFor(s);if(link.connected){
     if(job.deliveredS===null){store.markDelivered(job.id,t+Math.max(.05,Number(link.delayS)||.05));dirty=true;}
     else if(t>=job.deliveredS)perform(job,s).catch(e=>{store.finishJob(job.id);dirty=true;persist();err(e);});
    }else if(job.deliveredS!==null){/* delayed onboard command continues even if link has since blacked out */if(t>=job.deliveredS)perform(job,s).catch(e=>{store.finishJob(job.id);dirty=true;persist();err(e);});}
+   }
   }
  }
- const changes=store.tick(t,step,p=>{const s=sourceForPhoto(p);return s?linkFor(s):{connected:false};},(p,seconds,bandwidth)=>{
+ const changes=root.StarfallCommsT03?[]:store.tick(t,step,p=>{const s=sourceForPhoto(p);return s?linkFor(s):{connected:false};},(p,seconds,bandwidth)=>{
   const s=sourceForPhoto(p);if(!s)return-1;
   const budget=Math.min(bandwidth*seconds,p.bytes-p.progressBytes),rate=s.type==='satellite'?125:45,joules=rate*seconds;
   if(availableEnergy(s)<joules+250)return -1;
@@ -208,5 +210,5 @@ function tick(_dt){
  if(!$('imaging7f').hidden&&now-lastUI>900){lastUI=now;refresh();if(current&&store.get(current)?.status==='downlinked'&&$('imaging7f-photo').hidden)showPhoto(current).catch(err);}
 }
 addEventListener('pagehide',()=>{if(energyDirty){root.StarfallLaunchUI?.persist?.();RT.persistVehicles?.();}if(dirty)persist();});
-root.StarfallImagingUI7F={open,store,tick,refresh,get localAssetCount(){return sources().length;}};
+root.StarfallImagingUI7F={open,store,tick,refresh,persist,get localAssetCount(){return sources().length;}};
 })(window);
