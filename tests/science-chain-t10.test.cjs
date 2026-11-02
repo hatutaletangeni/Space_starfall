@@ -1,0 +1,63 @@
+'use strict';
+const assert=require('node:assert/strict');
+const C=require('../src/physics/science-chain-t10.js');
+const O=require('../src/physics/outposts.js');
+const unit=x=>{const d=Math.hypot(...x);return x.map(a=>a/d)};
+const body={id:'planet-A',radius:1000,landable:true,systemId:'star-1',position:[0,0,0]};
+const local=unit([1,0,0]);
+const store=new O.Store(742),storage=store.add('storage',body,local,[0,0,1],()=>0).item,
+  lab=store.add('lab',body,unit([1,.03,0]),[0,0,1],()=>0).item;
+const stored=store.items.find(x=>x.id===storage.id),station=store.items.find(x=>x.id===lab.id);
+const source={id:'rover-1',bodyId:body.id,local:unit([1,.005,0]),sampleInventory:[]};
+const context={landed:true,eva:true,bodyId:body.id,local:unit([1,.007,0])};
+const sample={id:'specimen-rover-1-4',type:'regolith',massKg:.15,volumeL:.1,
+  sourceId:source.id,bodyId:body.id,location:local,extractedAtS:10,
+  instrument:'sampler',observationId:'reading-4',contaminated:false};
+source.sampleInventory.push(sample);
+assert.equal(C.capacity(stored).count,0);
+assert.throws(()=>C.transfer(store,stored,sample,source,body,context,false,20),/OFFLINE/);
+assert.equal(source.sampleInventory.length,1);
+const remote={...context,bodyId:'planet-B'};
+assert.throws(()=>C.transfer(store,stored,sample,source,body,remote,true,20),/same world/);
+const far={...context,local:unit([0,1,0])};
+assert.throws(()=>C.transfer(store,stored,sample,source,body,far,true,20),/18 scene-unit/);
+const moved=C.transfer(store,stored,sample,source,body,context,true,20);
+assert.equal(moved.massKg,.15);
+assert.equal(source.sampleInventory.length,0,'rover inventory must debit once');
+assert.equal(C.capacity(stored).count,1);
+assert.equal(stored.t10.receipts.length,1);
+assert.equal(moved.custody.at(-1).to,stored.id);
+source.sampleInventory.push(sample);
+assert.throws(()=>C.transfer(store,stored,sample,source,body,context,true,20),/duplication/);
+const existing=store.serialize();const reload=new O.Store(742,existing);
+assert.equal(C.capacity(reload.items.find(i=>i.id===stored.id)).count,1,'save/reload persisted real sample');
+assert.equal(reload.items.find(i=>i.id===stored.id).t10.samples[0].id,sample.id);
+const observation={id:'obs-planet-A-42',instrument:'spectrometer',bodyId:body.id,receivedAtS:31,
+  uncertainty:.09,probeId:source.id,value:.48,unit:'fraction'};
+assert.throws(()=>C.analyze(store,station,observation,40,false),/PAUSED/);
+assert.throws(()=>C.analyze(store,station,{...observation,receivedAtS:90},40,true),/first be received/);
+const job=C.analyze(store,station,observation,40,true);
+assert.equal(job.status,'RUNNING');assert.equal(job.readyAtS,60);
+C.advanceLab(station,45,false);
+assert.equal(station.t10.analysis[0].status,'PAUSED');
+C.advanceLab(station,50,true);
+assert.equal(station.t10.analysis[0].readyAtS,70,'resume requires a full new bounded powered processing interval');
+C.advanceLab(station,65,true);
+assert.equal(station.t10.analysis[0].status,'RUNNING');
+C.advanceLab(station,70,true);
+assert.equal(station.t10.analysis[0].status,'COMPLETE');
+assert.match(station.t10.analysis[0].result,/Model-derived evidence/);
+assert.equal(C.analyze(store,station,observation,81,true).id,job.id,'duplicate analysis never cloned');
+const reset=new O.Store(742,store.serialize());
+assert.equal(reset.items.find(x=>x.id===station.id).t10.analysis.length,1);
+const first={id:'legacy-observation-1',instrument:'thermometer',bodyId:body.id,location:local,value:2,
+  unit:'K',uncertainty:.3,timeS:10,quality:'model-derived'},report={delayS:.1};
+for(let n=0;n<400;n++){const o={...first,id:'legacy-observation-'+(n+1)};store.addReceipt(station,o,31+n,report);}
+assert.equal(store.receipts.length,400);
+assert.throws(()=>store.addReceipt(station,{...first,id:'overflow'},500,report),/full/);
+assert.equal(store.receipts.length,400,'no shift drops oldest earned evidence');
+const saved=store.serialize(),again=new O.Store(742,saved);
+assert.equal(again.receipts.length,400);
+store.remove(station.id);
+assert.equal(store.receipts.length,400,'lab dismantle cannot erase unique science journal receipts');
+console.log('PASS T10 source-owned specimen physical debit→same-world powered storage, no teleport/duplication, bounded lab and power pause, 400 journal receipts preserved across reload/dismantle');
