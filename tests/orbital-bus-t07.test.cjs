@@ -13,7 +13,7 @@ globalThis.StarfallFieldScience=science;globalThis.Starfall3D={groundHeight:samp
 globalThis.StarfallRuntime={galaxy:{seed:742}};
 function sat(kind='observatory',id='sat-seven'){
  return{id,kind,systemId:body.systemId,bodyId:body.id,altitudeM:250000,epochS:0,
- phase:P/2,axis:[0,1,0],mu,powerJ:4e6};
+ phase:-P/2,axis:[0,1,0],mu,powerJ:4e6};
 }
 const s=sat(),o=S.ensure(s),b=T.bus(s);
 assert.equal(b.mode,'NADIR_IMAGING');
@@ -60,6 +60,8 @@ S.step(s,body,star,50,units,X.orbit);
 assert.equal(b.mode,'NADIR_IMAGING');assert.equal(o.pointing,'nadir');
 assert(b.pointingErrorDeg<=2.2);
 assert(o.energyJ>=0);
+const eclipse=sat('observatory','sat-shadow');eclipse.phase=P/2;
+assert.throws(()=>T.preflight(eclipse,body,star,55,units,X.orbit,'camera'),/ECLIPSE/);
 const cam=T.schedule(s,'camera',50);
 let found=false;
 for(let time=55;time<150;time+=5){S.step(s,body,star,time,units,X.orbit);if(o.storage.some(x=>x.t07JobId===cam.id)){found=true;break;}}
