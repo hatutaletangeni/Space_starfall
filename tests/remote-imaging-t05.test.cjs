@@ -45,4 +45,14 @@ assert.equal(waiting.renderState,'AWAITING_RENDER');assert.equal(waiting.deliver
 const restored=new camera.Store(m.serialize());assert.equal(restored.jobs[0].renderReason,'No WebGL GPU context');
 const token=restored.markRendering(job.id);assert.equal(token.renderState,'RENDERING');
 assert.equal(restored.photos.length,0,'a failed render must not forge gallery entries');
+const importedRecord={id:'photo-zz',schema:1,sourceType:'rover',sourceAssetId:'probe',
+ bodyId:'catalog-0-p0',systemId:'catalog-0',mode:'forward',resolution:256,
+ width:256,height:256,timeS:13,position:[0,1,0],bytes:320,mime:'image/webp',
+ status:'queued',caption:'Recovered authentic image',progressBytes:0};
+assert.equal(restored.importPhoto(importedRecord),true);
+assert.equal(restored.get('photo-zz').restoredArchive,true);
+assert.equal(restored.importPhoto(importedRecord),false,'same archive ID cannot duplicate');
+assert.equal(restored.get('photo-zz').status,'queued','portable restore never invents radio ACK');
+assert(restored.serialize().serial>=parseInt('zz',36),'future 7F IDs must not collide after import');
+assert.throws(()=>restored.importPhoto({...importedRecord,id:'photo-bad',bodyId:''}),/coordinates/);
 console.log('PASS T05 model: isolated real renderer contract, unloaded system retained, no live galaxy activation, size limits, GPU disposal, capture metadata and durable AWAITING_RENDER');
