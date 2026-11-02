@@ -646,7 +646,12 @@ function acquireFieldReading(instrument,nonce=0,fromRover=false){const data=scie
  const point=fromRover?roverLocal:data.local,alt=fromRover?.6:data.altitudeM;
  const result=StarfallFieldScience.sample({body:data.body,seed:GALAXY_SEED,local:point,altitudeM:alt,instrument,simTime,nonce,energyAvailableJ:fromRover&&st.powerEnabled?st.energyJ:Infinity});
  const surfacePoint=point||[0,1,0],biome=BIOMES.classify(data.body,surfacePoint,groundHeight(surfacePoint,data.body),Starfall3D.field(surfacePoint,data.body.seed));
- const observation=Object.freeze({...result,...(fromRover?{sourceAssetId:vehicleStore.get('rover').definition.id,probeId:vehicleStore.get('rover').definition.id}:{}),biome:biome.name,biomeModel:'seeded environmental classification; not measured'});
+ const rawObservation={...result,...(fromRover?{sourceAssetId:vehicleStore.get('rover').definition.id,probeId:vehicleStore.get('rover').definition.id}:{}),biome:biome.name,biomeModel:'seeded environmental classification; not measured'};
+ const detailed=window.StarfallScienceT14?.annotateObservation(rawObservation,{
+   spec:window.StarfallScienceT14.sensorSpecs(StarfallFieldScience.INSTRUMENTS)[instrument],
+   sourceAssetId:fromRover?vehicleStore.get('rover').definition.id:null,
+   calibrated:true,temperatureK:fromRover?st.temperatureK:290,health:fromRover?st.health:1});
+ const observation=Object.freeze(detailed||rawObservation);
  if(fromRover&&st.powerEnabled){vehicleStore.update('rover',{...st,energyJ:st.energyJ-result.powerJ});persistVehicles();}
  return observation;
 }

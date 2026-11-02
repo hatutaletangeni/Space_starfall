@@ -1,0 +1,39 @@
+name: T14 Targeted Science Evidence Browser Contract
+
+on:
+  push:
+    branches: [feature/t14-science-evidence-map]
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t14-targeted-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  science-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify original source sensor metrology and received-evidence geometry
+        run: node tests/science-evidence-t14.test.cjs
+      - name: Build exact latest offline game and verify model-to-bundle parity
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Install isolated Chromium software WebGL test runner
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Verify real offline Chromium source-reading journal and map receipt gate
+        run: python tests/science-evidence-t14-browser.py

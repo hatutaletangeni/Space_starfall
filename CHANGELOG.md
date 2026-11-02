@@ -1,3 +1,12 @@
+# STARFALL T14 — Instrument Evidence, Scientific Map Layers and Ruin Photo Coordinates (2026-11-02)
+
+- Added additive `StarfallScienceT14` for the existing eight original instrument ratings, calibrated-baseline diagnostics, physically limited resolution/uncertainty/temperature/health and source-owned observation provenance. Seeded values remain explicitly simulated.
+- Existing local and deployed rover numeric science readings now carry T14 instrument metadata without changing sensor truth, energy cost, command/ACK route or original Science Journal ownership.
+- Captured 7F rover and orbital images now retain original body-fixed camera coordinates. A TARGET mast image may reference the actually observed ruin ID; no image marker is visible until a real downlink ACK, and old photos without valid coordinates are not given invented locations.
+- Added **received evidence** overlays and filters in the existing Survey Map for journal measurement, orbital swath, downlinked photo, surveyed ruins, ecology, outposts/receivers and known-location pending rover camera requests. Uses exactly T06 rover latitude/longitude, with no extra map archive.
+- Existing observatory now distinguishes inferred seeded catalogue values from actually received instrument readings, including source, time and observation ID; existing Field Science controls show sensor power/range/resolution and conservative metrology quality.
+- Real seeded ruins, ecology, physics/camera behavior, spacecraft ramp and truck X controls remain unchanged. Tests and manual verification limits in `docs/SCIENCE-EVIDENCE-T14.md`; no feature is silently declared physically certified.
+
 # STARFALL T13 — Spacecraft Systems, Docking and Data Custody (2026-11-02)
 
 - Added original-vehicle-state **ship operations** panel with actual fuel, thermal, source→sink electrical load, compatible docking, radio node readiness and software-model provenance.

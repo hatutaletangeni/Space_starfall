@@ -58,7 +58,8 @@ function poseFor(s,mode,timeS=RT.time){
   if(!(geo.altitudeM>25000))throw Error('Orbital camera below minimum imaging altitude');
   const up=V.norm(geo.relative),orbital=V.norm(V.cross(Math.abs(up[1])>.95?[1,0,0]:[0,1,0],up));
   const f=mode==='nadir'?V.mul(up,-1):mode==='oblique'?V.norm(V.add(V.mul(up,-.78),V.mul(orbital,.63))):V.norm(V.add(V.mul(up,-1),V.mul(orbital,.12)));
-  return{body,eye:geo.position,forward:f,up:orbital,altitudeM:geo.altitudeM,headingDeg:null};
+  return{body,eye:geo.position,forward:f,up:orbital,altitudeM:geo.altitudeM,headingDeg:null,
+   captureLocal:V.norm(V.rot(up,body.spinAxis||[0,1,0],-(body.spinAngle||0)))};
  }
  const state=s.local?s.roverLocal:s.rover;
  if(!state?.local)throw Error('Rover position unavailable');
@@ -70,6 +71,7 @@ function poseFor(s,mode,timeS=RT.time){
  const eye=V.add(body.position,V.mul(radial,body.radius+height+3.3));
  if(mode==='left')forward=rotForward(forward,radial,-1.1);
  if(mode==='right')forward=rotForward(forward,radial,1.1);
+ let targetRuinId=null;
  if(mode==='target'){
   const localHere=RT.nearest?.id===body.id;
   const saved=(root.SF.load()?.archaeology6c?.records||[]).filter(x=>x.bodyId===body.id&&x.siteSnapshot?.local)
@@ -78,8 +80,9 @@ function poseFor(s,mode,timeS=RT.time){
   const targets=localHere?root.StarfallRuinsUI?.scene?.()||saved:saved;
   const near=targets.find(x=>x.position&&V.len(V.sub(x.position,eye))<1300);
   if(!near)throw Error('No visible ruins within camera range for TARGET; use FORWARD instead');
-  forward=V.norm(V.sub(near.position,eye));}
- return{body,eye,forward,up:radial,altitudeM:3.3,headingDeg:s.local?null:(state.heading||0)*180/Math.PI};
+  forward=V.norm(V.sub(near.position,eye));targetRuinId=near.id;}
+ return{body,eye,forward,up:radial,altitudeM:3.3,headingDeg:s.local?null:(state.heading||0)*180/Math.PI,
+  captureLocal:[...state.local],targetRuinId};
 }
 function linkFor(s){
  if(s.type==='rover'){
@@ -146,7 +149,7 @@ async function perform(job,s){
   const thumbnail=await thumbnailFor(shot.image);await imagePut(nextId,shot.image,thumbnail);thumbs.set(nextId,thumbnail);
   let photo;try{photo=store.put({sourceType:s.type,sourceAssetId:s.assetId,sourceName:s.label,bodyId:s.bodyId,systemId:pose.body.systemId,
     mode:job.mode,resolution:job.resolution,width:shot.width,height:shot.height,timeS:captureAt,position:pose.eye.slice(),camera:shot.camera,sceneSnapshotVersion:shot.sceneSnapshotVersion||null,renderSource:shot.renderSource||'STARFALL_7F',cameraJobId:job.id,t07JobId:job.t07JobId||null,
-    altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,bytes:shot.bytes,mime:shot.mime,caption,
+    altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,captureLocal:pose.captureLocal,targetRuinId:pose.targetRuinId||null,bytes:shot.bytes,mime:shot.mime,caption,
     observationRefs:job.t07JobId?(()=>{const o=root.StarfallSatelliteOps7C?.ensure?.(s.sat);return[...(o?.storage||[]),...(o?.received||[])].filter(x=>x.t07JobId===job.t07JobId).map(x=>x.id);})():(root.StarfallScienceUI?.journal||[]).filter(x=>x.bodyId===s.bodyId).slice(-5).map(x=>x.id)});
   }catch(e){await imageRemove(nextId);throw e;}
   consumeEnergy(s,shotEnergy);store.finishJob(job.id);store.queueDownlink(photo.id);persist();

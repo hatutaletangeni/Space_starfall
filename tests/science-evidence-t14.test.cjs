@@ -1,0 +1,72 @@
+'use strict';
+const assert=require('node:assert/strict');
+const science=require('../src/physics/science-field.js');
+const survey=require('../src/navigation/survey-map.js');
+const T=require('../src/physics/science-evidence-t14.js');
+const spec=T.sensorSpecs(science.INSTRUMENTS);
+for(const key of Object.keys(science.INSTRUMENTS)){
+ assert(spec[key],'T14 must inventory every installed local instrument '+key);
+ assert(spec[key].energyJ===science.INSTRUMENTS[key].powerW*science.INSTRUMENTS[key].seconds);
+ assert(spec[key].resolution>0&&spec[key].uncertainty>0&&spec[key].maxAltitudeM>=0);
+}
+assert.equal(Object.keys(spec).length,8);
+const b={id:'star-0-p0',landable:true,kind:'planet',type:'Rocky',gravity:1,spinPeriod:900,
+ atmosphere:'Trace',life:true,radius:2400,seed:10};
+const location=[1,0,0],far=[0,0,1];
+const reading=science.sample({body:b,seed:10,local:location,altitudeM:.6,instrument:'magnetometer',simTime:22,nonce:3});
+const tagged=T.annotateObservation(reading,{spec:spec.magnetometer,sourceAssetId:'probe-6'});
+assert(tagged.t14.effectiveUncertainty>=reading.uncertainty);
+assert.equal(tagged.value,reading.value,'metrology adapter must not fabricate a different reading');
+assert.equal(tagged.t14.energyJ,reading.powerJ);
+assert.equal(tagged.t14.source,'seeded simulation');
+assert.equal(tagged.sourceAssetId,'probe-6');
+assert(T.validateEvidence(tagged));
+const q=T.quality({calibrated:false,temperatureK:380,weather:.9,health:.35});
+assert(q.uncertaintyMultiplier>3&&q.flags.length===4);
+assert.equal(T.quality({}).uncertaintyMultiplier,1);
+const distorted=T.annotateObservation(reading,{spec:spec.magnetometer,sourceAssetId:'probe-6',calibrated:false,weather:.9,health:.4,temperatureK:380});
+assert(distorted.t14.effectiveUncertainty>tagged.t14.effectiveUncertainty);
+assert.equal(distorted.value,tagged.value,'quality downgrades confidence, does not assert altered physical composition');
+assert.equal(T.validateEvidence({...tagged,location:[1,2,3]}),false);
+assert.equal(T.validateEvidence({...tagged,id:'<script>'}),false);
+assert.equal(T.validateEvidence({...tagged,t14:{schema:1,effectiveUncertainty:-1}}),false);
+assert.throws(()=>T.sensorSpecs({spectrometer:{...science.INSTRUMENTS.spectrometer,uncertainty:0}}),/invalid rated/);
+assert.throws(()=>T.annotateObservation({...tagged,location:[NaN,1,0]},{spec:spec.magnetometer}),/location/);
+const ll=T.latLon(location),roverLL=require('../src/physics/rover-lifecycle-t06.js').latLon(location);
+assert(Math.abs(ll.lat-roverLL.lat)<1e-8);
+assert(Math.abs(ll.lon-roverLL.lon)<1e-8,'rover navigation and map must agree on longitude');
+const realPhoto={id:'photo-real-7f',bodyId:b.id,sourceType:'rover',sourceAssetId:'probe-6',
+ status:'downlinked',receivedAtS:42,captureLocal:far,timeS:35};
+const stillOnboard={...realPhoto,id:'photo-onboard',status:'stored-local',receivedAtS:null};
+const contaminated={...realPhoto,id:'photo-without-location',captureLocal:null};
+const remoteUnreceived={...tagged,id:'obs-remote-pending'};
+const legitRuin={id:'ruin-seeded-1',bodyId:b.id,level:2,siteSnapshot:{local:far}};
+const hiddenRuin={id:'ruin-unseen',bodyId:b.id,level:0,siteSnapshot:{local:far}};
+const ecology={id:'bio-1',bodyId:b.id,stage:2,local:location};
+const noEvidence=T.evidenceLayers({bodyId:b.id,journal:[],photos:[stillOnboard],ruins:[hiddenRuin],ecology:[]});
+assert.equal(noEvidence.length,0,'no automatic science from target list or unreceived photos');
+const markers=T.evidenceLayers({bodyId:b.id,journal:[tagged,tagged],photos:[realPhoto,stillOnboard,contaminated],
+ ruins:[legitRuin,hiddenRuin],ecology:[ecology],outposts:[{id:'antenna-1',bodyId:b.id,kind:'antenna',local:far}]});
+assert.equal(markers.filter(x=>x.id===tagged.id).length,1);
+assert(markers.some(x=>x.type==='measurement')&&markers.some(x=>x.type==='photo'));
+assert(markers.some(x=>x.type==='ruin')&&markers.some(x=>x.type==='ecology'));
+assert(!markers.some(x=>x.id==='photo-onboard'||x.id==='photo-without-location'||x.id==='ruin-unseen'));
+assert.equal(T.filterMarkers(markers,'photo').length,1);
+assert.equal(T.filterMarkers(markers,'measurement').length,1);
+assert.equal(T.filterMarkers(markers,'orbital').length,0);
+assert.equal(T.filterMarkers(markers,'mission').length,0);
+const orbital={...tagged,id:'orb-sat-1',kind:'orbital-observation',satelliteId:'sat-1',sourceAssetId:undefined,location:far,
+ instrument:'orbital-spectrometer',receivedAtS:60};
+assert.equal(T.evidenceLayers({bodyId:b.id,journal:[orbital]}).filter(x=>x.type==='orbital').length,1);
+assert.equal(T.evidenceLayers({bodyId:b.id,journal:[{...orbital,id:'orb-unreceived',receivedAtS:null}]}).length,0,'onboard orbital model observation is not an ACKed map datum');
+assert.equal(T.evidenceLayers({bodyId:b.id,photos:[{...realPhoto,id:'photo-missing-receipt',receivedAtS:undefined}]}).length,0,'no downlink timestamp = no received photo marker');
+assert.equal(T.evidenceLayers({bodyId:b.id,pending:[{id:'job-1',assetId:'probe-6',bodyId:b.id,local:location,requestedAtS:44}]}).length,1,'genuine pending camera request uses known location but does not unlock image');
+assert.equal(T.evidenceLayers({bodyId:'another-world',journal:[tagged],photos:[realPhoto]}).length,0);
+const mapUnit=survey.unit(far),latitude=T.latLon(far);
+assert(Math.abs(Math.hypot(...mapUnit)-1)<1e-8&&Math.abs(latitude.lat)<1e-8);
+const coverage={};
+assert.equal(survey.visibleByCoverage(coverage,b.id,location),false);
+assert.equal(survey.addCoverage(coverage,b.id,location,b.radius,20),true);
+assert(survey.visibleByCoverage(coverage,b.id,location));
+assert.equal(survey.visibleByCoverage(coverage,b.id,far),false,'no full-planet reveal for a single visit');
+console.log('PASS T14: eight real instrument specifications, finite calibration/thermal quality, original values and joules, shared rover lon/lat, only ACKed local/remote observation and downlinked 7F images, measured coverage not full-world claims');
