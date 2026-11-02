@@ -23,10 +23,17 @@ with sync_playwright() as p:
     target:b.id,attached:b.id,groundDirection:[0,1,0],forward:[0,0,1],up:[0,1,0],landed:true}});
    return SF.load();
   }""")
-  context.add_init_script("(()=>{if(sessionStorage.getItem('t14-fixture'))return;const x=JSON.parse(localStorage.getItem('starfall_save')||'null');if(x?.robotics4?.journal?.entries?.length)return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t14-fixture','1');})()")
+  # One-time guarded import, never a context init_script that could overwrite
+  # accumulated journal evidence on the later genuine save/reload.
   boot.close()
   page=context.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(uri,wait_until='domcontentloaded',timeout=90000)
+  page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallScienceT14&&window.StarfallScienceUI&&window.StarfallSurveyUI)",timeout=50000)
+  page.evaluate("""state=>{
+   window.__STARFALL_IMPORT_PENDING=true;
+   localStorage.setItem('starfall_save',JSON.stringify(state));
+  }""",saved)
+  page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallScienceT14&&window.StarfallScienceUI&&window.StarfallSurveyUI)",timeout=50000)
   a=page.evaluate("""()=>{
    const rt=StarfallRuntime;
