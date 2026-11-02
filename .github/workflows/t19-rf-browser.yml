@@ -1,0 +1,39 @@
+name: T19A Optional RF Analyzer Browser Contract
+
+on:
+  push:
+    branches: [feature/t19-optional-rf-link-budget]
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t19-rf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rf-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify actual T04/T02/telemetry no-new-energy original model
+        run: node tests/rf-analyzer-t19.test.cjs
+      - name: Build standalone and verify exact parity
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Install test-only Chromium software WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Original Outpost UI RF source, loss, recovery, download and reload
+        run: python tests/rf-analyzer-t19-browser.py
