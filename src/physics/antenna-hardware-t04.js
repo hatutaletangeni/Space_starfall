@@ -65,6 +65,13 @@ function gain(endpoint,peer,rotate){
 function link(a,b,body,radioLink,rotate,metresPerSceneUnit=1000){
  if(!a||!b||a.bodyId!==body?.id||b.bodyId!==body.id)return{connected:false,reason:'Missing actual same-world receiver',quality:0};
  if(a.powered===false||b.powered===false)return{connected:false,reason:(!a.powered?a.id+': '+a.reason:b.id+': '+b.reason),quality:0};
+ if(a.kind==='wired-lab-port'||b.kind==='wired-lab-port'){
+  const antenna=a.kind==='wired-radio'?a:b.kind==='wired-radio'?b:null,lab=a.kind==='wired-lab-port'?a:b.kind==='wired-lab-port'?b:null;
+  if(!antenna||!lab||!antenna.busId||antenna.busId!==lab.busId)return{connected:false,reason:'LAB_WIRED_PORT_DISCONNECTED',quality:0};
+  return{connected:true,reason:'Powered same-bus antenna ↔ laboratory data cable',quality:1,delayS:.001,
+   bandwidthBps:1000000,distanceM:V.length(V.sub(a.position,b.position))*metresPerSceneUnit,
+   txPowerW:a.txPowerW??5,rxPowerW:b.rxPowerW??5};
+ }
  const los=radioLink(a.position,b.position,[{position:body.position,radius:body.radius}],min(a.rangeScene,b.rangeScene),metresPerSceneUnit);
  if(!los.connected)return{...los,connected:false,reason:los.reason||'Planetary occultation / beyond antenna horizon'};
  const aGain=gain(a,b,rotate),bGain=gain(b,a,rotate),health=min(a.condition??1,b.condition??1);
