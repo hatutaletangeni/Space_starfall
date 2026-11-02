@@ -10,7 +10,16 @@ with sync_playwright() as p:
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(game,wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!(window.StarfallRuntime?.captureScienceImage && window.StarfallImagingUI7F?.store && window.StarfallImaging7F)',timeout=90000)
+        page.wait_for_function('!!window.StarfallRuntime',timeout=15000)
+        page.wait_for_timeout(400)
+        diagnostic=page.evaluate("""()=>({model:typeof window.StarfallImaging7F,ui:typeof window.StarfallImagingUI7F,
+          renderer:typeof window.StarfallRuntime?.captureScienceImage,
+          root:typeof window.Starfall3D,
+          modal:!!document.getElementById('imaging7f'),
+          button:!!document.getElementById('imaging7f-open'),
+          scriptTail:[...document.scripts].slice(-4).map(s=>s.textContent.slice(0,95))})""")
+        print('7F diagnostic:', diagnostic, 'page errors:', errors[:8],flush=True)
+        assert diagnostic['model']=='object' and diagnostic['ui']=='object' and diagnostic['renderer']=='function',diagnostic
         page.wait_for_timeout(350)
         photo=page.evaluate("""async()=>{
           const rt=window.StarfallRuntime,b=rt.nearest;
