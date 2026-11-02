@@ -46,7 +46,7 @@ with sync_playwright() as p:
           const rt=window.StarfallRuntime,b=rt.nearest,launch=window.StarfallLaunchUI;
           launch.store.rovers.push({id:'test-photo-rover',bodyId:b.id,systemId:b.systemId,
             local:[0,1,0],heading:0,batteryJ:2e7,records:[],commands:[],index:0,remaining:0,status:'parked',lastS:rt.time});
-          const old=launch.remoteLink;launch.remoteLink=(r,t)=>r.id==='test-photo-rover'
+          // Isolate old 7F renderer/downlink regression from new T03 real-radio gating.\n          // The separately checked T03 browser suite must use genuinely powered LOS.\n          window.StarfallCommsT03=null;\n          const old=launch.remoteLink;launch.remoteLink=(r,t)=>r.id==='test-photo-rover'
             ?{connected:true,quality:1,delayS:.001}:old(r,t);
         }""")
         page.locator('#imaging7f-open').evaluate('(el)=>el.click()')
