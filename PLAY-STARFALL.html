@@ -5800,6 +5800,13 @@ async function perform(job,s){
   const captureAt=Math.max(RT.time,job.deliveredS||0),pose=poseFor(s,job.mode,captureAt),shotEnergy=job.resolution===1024?1700:job.resolution===512?900:520;
   if(availableEnergy(s)<shotEnergy+500)throw Error('Camera cannot operate with depleted battery');
   if(store.countFor(s.type,s.assetId)>=(s.type==='rover'?M.MAX_ROVER:M.MAX_SATELLITE)||store.photos.length>=M.MAX_TOTAL)throw Error('Image storage full');
+  store.markRendering(job.id);dirty=true;persist();
+  // A real remote render costs GPU setup. Yield to the visible ship scene and
+  // render at most one 7F job at a time; captureAt remains the frozen source clock.
+  if(RT.nearest?.id!==pose.body.id)await new Promise(resolve=>{
+   if(typeof root.requestIdleCallback==='function')root.requestIdleCallback(resolve,{timeout:300});
+   else setTimeout(resolve,0);
+  });
   const caption='STARFALL SCIENCE | '+s.assetId+' | '+pose.body.name+' | T+'+Math.floor(captureAt)+'s';
   const shot=await cameraCapture(pose,job.mode,job.resolution,$('imaging7f-caption').checked?caption:'',s,captureAt);
   if(shot.bytes>2500000||store.usedBytes()+shot.bytes>M.MAX_BYTES)throw Error('Camera storage byte budget exceeded; select lower resolution');
