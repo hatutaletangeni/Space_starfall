@@ -1,0 +1,17 @@
+/* STARFALL 7E: scoped black-and-gold experimental workbench */
+.research7e-window{width:min(980px,96vw);max-height:88vh;overflow:auto}
+.research7e-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:15px 0}
+.research7e-fields label{display:flex;flex-direction:column;gap:5px;color:#b7c2c9;font:11px/1.5 Consolas,monospace}
+.research7e-fields input,.research7e-fields select,.research7e-fields textarea{background:#09121c;color:#f1e4d1;border:1px solid #52616a;padding:9px;width:100%;max-width:100%}
+.research7e-fields input:focus-visible,.research7e-fields select:focus-visible{outline:2px solid #edbd7a}
+.research7e-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.research7e-row{display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #ffffff15;padding:6px 0;word-break:break-word}
+.research7e-row strong{color:#eec78b;font-weight:500;text-align:right}
+.research7e-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:8px}
+.research7e-result{padding:12px;background:#08121d;border:1px solid #273744}
+.research7e-result h4{margin:0 0 6px;color:#edbb78;font:11px Consolas,monospace}
+.research7e-history-item{width:100%;padding:9px 12px;margin:4px 0;background:#0e1c28;border:1px solid #2d4151;display:flex;justify-content:space-between;gap:8px;text-align:left}
+.research7e-history-item:hover{border-color:#edbb78}
+#research7e-status{min-height:2em;color:#edab9d}#research7e-status[data-success=true]{color:#98d3ba}
+#research7e-results,#research7e-comparison{min-height:50px}
+@media(max-width:620px){.research7e-window{padding:16px}.research7e-fields{grid-template-columns:1fr 1fr}.research7e-actions button{flex:1 1 auto}}
