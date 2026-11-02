@@ -34,6 +34,8 @@ with sync_playwright() as p:
    return{mass:v.stats.massKg,capacity:v.stats.batteryCapacityJ,energy:v.state.energyJ,
     torque:v.stats.driveTorqueNm,solar:v.stats.maxSolarW,source:v.definition.id};
   }""")
+  page.locator('#systems-toggle').click()
+  page.wait_for_function("!document.getElementById('systems-inner').hidden",timeout=15000)
   page.locator('#workbench-open').click()
   page.wait_for_function("!document.querySelector('#workbench').hidden",timeout=15000)
   page.locator('#wb-vehicle').select_option('rover')
