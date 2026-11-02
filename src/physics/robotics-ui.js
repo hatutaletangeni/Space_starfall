@@ -69,6 +69,7 @@ function tick(dt){
 function ingestOrbital(obs){if(!obs||obs.kind!=='orbital-observation'||!S.journal||!Number.isFinite(obs.value)||!Array.isArray(obs.location)||!obs.satelliteId||!obs.bodyId)return false;
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
 function ingestRover(obs){if(!obs||!obs.probeId||!obs.bodyId||!Array.isArray(obs.location)||!Number.isFinite(obs.value))return false;
+ if(obs.t14&&!root.StarfallScienceT14?.validateEvidence(obs))return false;
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
 function ingestShip(obs){
  if(!obs||obs.sourceAssetId!=='starfall-ship'||obs.kind!=='measurement'||
