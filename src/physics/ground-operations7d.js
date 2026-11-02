@@ -93,7 +93,12 @@ function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive
    if(r.batteryJ<g.safeReserveJ+60000){if(T)T.fault(r,time,'Insufficient energy reserve for sample');else r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'POWER','Insufficient energy reserve for sample');break;}
    try{const obs=science.sample({body,seed,local:r.local,altitudeM:.6,instrument:op.value,simTime:time,nonce:(r.records?.length||0),energyAvailableJ:r.batteryJ-g.safeReserveJ});if(!Array.isArray(r.records))r.records=[];
    if(r.records.length>=100||g.queuedObservations.length>=120){if(T)T.fault(r,time,'Onboard science archive full; export/downlink before collecting more');else r.status='safe-stop';break;}
-   const record={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};
+   const rawRecord={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};
+   const record=root.StarfallScienceT14?.annotateObservation(rawRecord,{
+     spec:root.StarfallScienceT14.sensorSpecs(science.INSTRUMENTS)[op.value],
+     sourceAssetId:r.id,calibrated:obs.calibrated!==false,
+     temperatureK:r.ground7d?.temperatureK||290,health:r.roverT06?.health??1,
+     dataBytes:256})||rawRecord;
    if(op.value==='sampler'&&root.StarfallScienceCustodyT10){
      // This is a physically collected, model-derived 150 g regolith plug,
      // NOT a numeric observation converted into a sample after downlink.
