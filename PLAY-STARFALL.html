@@ -106,6 +106,25 @@
 @media(max-width:600px){.sat7c-section{padding:11px}.sat7c-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sat7c-datum{grid-template-columns:1fr}}
 
 </style>
+  <style>
+/* STARFALL 7E: scoped black-and-gold experimental workbench */
+.research7e-window{width:min(980px,96vw);max-height:88vh;overflow:auto}
+.research7e-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:15px 0}
+.research7e-fields label{display:flex;flex-direction:column;gap:5px;color:#b7c2c9;font:11px/1.5 Consolas,monospace}
+.research7e-fields input,.research7e-fields select,.research7e-fields textarea{background:#09121c;color:#f1e4d1;border:1px solid #52616a;padding:9px;width:100%;max-width:100%}
+.research7e-fields input:focus-visible,.research7e-fields select:focus-visible{outline:2px solid #edbd7a}
+.research7e-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.research7e-row{display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #ffffff15;padding:6px 0;word-break:break-word}
+.research7e-row strong{color:#eec78b;font-weight:500;text-align:right}
+.research7e-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:8px}
+.research7e-result{padding:12px;background:#08121d;border:1px solid #273744}
+.research7e-result h4{margin:0 0 6px;color:#edbb78;font:11px Consolas,monospace}
+.research7e-history-item{width:100%;padding:9px 12px;margin:4px 0;background:#0e1c28;border:1px solid #2d4151;display:flex;justify-content:space-between;gap:8px;text-align:left}
+.research7e-history-item:hover{border-color:#edbb78}
+#research7e-status{min-height:2em;color:#edab9d}#research7e-status[data-success=true]{color:#98d3ba}
+#research7e-results,#research7e-comparison{min-height:50px}
+@media(max-width:620px){.research7e-window{padding:16px}.research7e-fields{grid-template-columns:1fr 1fr}.research7e-actions button{flex:1 1 auto}}
+</style>
 </head>
 <body>
   <canvas id="universe" aria-label="Real-time three-dimensional starfield, spacecraft and procedural planets"></canvas>
@@ -206,12 +225,26 @@
   <section id="workbench" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="wb-title">
    <div class="obs-window" style="width:min(810px,98vw)"><div class="obs-head"><div><span class="obs-badge">STARFALL / ENGINEERING SYSTEMS</span><h2 id="wb-title">Vehicle Workbench</h2></div><button id="wb-close" class="science-action" type="button">✕ Close</button></div>
     <p>Preview engineering changes. Applying is allowed only on a landed, safe vehicle. No changes to the ship or rover geometry, hatch or boarding controls.</p>
-    <div class="obs-tools"><label for="wb-vehicle">Vehicle</label><select id="wb-vehicle"><option value="ship">Spacecraft</option><option value="rover">Rover</option></select><button type="button" id="wb-reset" class="science-action">Reset to stock</button><button type="button" id="wb-undo" class="science-action">Undo</button></div>
+    <div class="obs-tools"><button id="research7e-open" type="button" class="science-action">RESEARCH BENCH</button><label for="wb-vehicle">Vehicle</label><select id="wb-vehicle"><option value="ship">Spacecraft</option><option value="rover">Rover</option></select><button type="button" id="wb-reset" class="science-action">Reset to stock</button><button type="button" id="wb-undo" class="science-action">Undo</button></div>
     <div id="wb-slots" class="wb-slots"></div><div id="wb-preview" aria-live="polite"></div><p id="wb-error" role="status" aria-live="polite"></p>
     <div class="obs-tools"><button type="button" id="wb-apply" class="science-action">Apply design</button><button type="button" id="wb-save" class="science-action">Save design</button><button type="button" id="wb-load" class="science-action">Load design</button><button type="button" id="wb-export" class="science-action">Export JSON</button></div>
    </div>
   </section>
-  <section id="field-lab" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="field-title">
+  <section id="research7e" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="research7e-title"><div class="obs-window research7e-window">
+<div class="obs-head"><div><span class="obs-badge">STARFALL / ENGINEERING RESEARCH</span><h2 id="research7e-title">Research &amp; Prototyping Bench</h2></div><button id="research7e-close" type="button" class="science-action">✕ Close</button></div>
+<p>Run controlled trials using STARFALL's existing power, rover and rocket solvers. These are model-derived measurements, not real hardware readings. No currency, XP or progression locks.</p>
+<div class="research7e-fields"><label>Experiment<select id="research7e-type"><option value="rover">Rover traction</option><option value="power">Battery / solar / loads</option><option value="rocket">Rocket ascent</option></select></label><label>Vehicle<select id="research7e-vehicle"><option value="rover">Six-wheel rover</option><option value="ship">Spacecraft</option></select></label><label>Title<input id="research7e-name" maxlength="90" value="Engineering trial"></label><label>Duration (s)<input id="research7e-duration" type="number" min="1" max="1200" value="120"></label></div>
+<div class="research7e-fields" id="research7e-rover"><label>Slope (degrees)<input id="research7e-slope" type="number" min="0" max="45" value="8"></label><label>Bench gear ratio<input id="research7e-gear" type="number" min="0.5" max="6" value="1" step="0.25"></label><label>Wheel radius scale<input id="research7e-wheel" type="number" min="0.6" max="1.8" value="1" step="0.1"></label><label>Gravity (m/s²)<input id="research7e-gravity" type="number" min="0.1" max="100" value="9.81" step="0.1"></label></div>
+<div class="research7e-fields" id="research7e-power"><label>Solar incidence (0–1)<input id="research7e-daylight" type="number" min="0" max="1" value="0.7" step="0.1"></label><label>Starting charge fraction<input id="research7e-charge" type="number" min="0" max="1" value="0.8" step="0.1"></label><label>Motor load fraction<input id="research7e-drive" type="number" min="0" max="1" value="0.4" step="0.1"></label><label>Lights active<input type="checkbox" id="research7e-lights" checked></label></div>
+<div class="research7e-fields" id="research7e-rocket"><label>Engine<select id="research7e-engine"><option value="atlas">Atlas sea-level</option><option value="aether">Aether vacuum</option><option value="cluster">Tri-engine cluster</option></select></label><label>Stages<input id="research7e-stages" type="number" min="1" max="3" value="2"></label><label>Tank modules<input id="research7e-tanks" type="number" min="1" max="16" value="4"></label><label>Boosters<input id="research7e-boosters" type="number" min="0" max="4" value="2"></label><label>Air density kg/m³<input id="research7e-rho" type="number" min="0" max="40" value="1.1" step="0.1"></label><label>Target altitude (m)<input id="research7e-altitude" type="number" min="50000" max="1000000" value="180000"></label></div>
+<div class="research7e-actions"><button id="research7e-run" type="button" class="science-action">RUN CONTROLLED TEST</button><button id="research7e-save-bp" type="button" class="science-action">SAVE VALIDATED BLUEPRINT</button></div><p id="research7e-status" role="status" aria-live="polite"></p><div id="research7e-results" aria-live="polite"></div>
+<h3>Compare measured model outcomes</h3><div class="research7e-fields"><label>First run<select id="research7e-compare-a"></select></label><label>Second run<select id="research7e-compare-b"></select></label></div><div class="research7e-actions"><button id="research7e-compare" type="button" class="science-action">COMPARE RUNS</button></div><div id="research7e-comparison"></div>
+<h3>Blueprint Library</h3><div class="research7e-fields"><label>Blueprint<select id="research7e-blueprint"></select></label></div><div class="research7e-actions"><button id="research7e-apply-bp" type="button" class="science-action">APPLY COMPATIBLE DESIGN</button><button id="research7e-export" type="button" class="science-action">EXPORT BLUEPRINT JSON</button></div>
+<p id="research7e-bp-note">Gear and wheel experimental tuning remains bench-only until the live vehicle controller has matching component interfaces.</p>
+<div class="research7e-fields"><label>Import blueprint JSON<textarea id="research7e-import-json" rows="3" placeholder="Paste a Starfall 7E blueprint JSON document"></textarea></label></div>
+<div class="research7e-actions"><button id="research7e-import" type="button" class="science-action">IMPORT BLUEPRINT</button></div><h3>Recent simulation runs</h3><div id="research7e-history"></div>
+</div></section>
+<section id="field-lab" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="field-title">
   <div class="obs-window field-window"><div class="obs-head"><div><span class="obs-badge">STARFALL / SCIENCE & ROBOTICS</span><h2 id="field-title">Field Laboratory</h2></div><button type="button" class="science-action" id="field-close">✕ Close</button></div>
   <p>Real instrument range limits and seeded geological measurements. Autonomous rover navigation is local, incremental, and terrain-aware. It is disabled until commanded.</p>
   <div class="field-tabs" role="tablist"><button type="button" data-tab="survey" class="science-action" aria-selected="true">INSTRUMENTS</button><button type="button" data-tab="autonomy" class="science-action">ROVER & SCRIPTS</button><button type="button" data-tab="journal" class="science-action">SCIENCE JOURNAL</button></div>
@@ -4625,6 +4658,248 @@ $('sat7c-view-assets').onclick=()=>{const id=selected;$('launch-dialog').hidden=
 root.StarfallSatelliteOpsUI={tick,refresh,open,get selected(){return selected;},groundStation};addEventListener('pagehide',()=>{if(dirty)persist();});
 })(window);
 
+</script>
+  <script>
+/* STARFALL 7E — bounded engineering experiment and blueprint records.
+   Test output is computed by existing STARFALL engineering/flight/rover solvers.
+   It is simulated evidence, NOT measurements from a real-world instrument.
+   No currency, progression gate, dynamic code execution or mandatory services. */
+(function(root){'use strict';
+const SCHEMA=1,MAX_PLANS=50,MAX_RUNS=160,MAX_BLUEPRINTS=45;
+const clone=x=>JSON.parse(JSON.stringify(x));
+const finite=x=>typeof x==='number'&&Number.isFinite(x);
+const bound=(v,a,b)=>Math.max(a,Math.min(b,v));
+const text=(x,max=90)=>String(x??'').trim().slice(0,max);
+const TYPES=['rover','power','rocket'];
+const isObj=x=>x&&typeof x==='object'&&!Array.isArray(x);
+const safeId=x=>typeof x==='string'&&/^[\w:.-]{1,120}$/.test(x);
+function validDefinition(def){
+ const M=root.StarfallVehicles;
+ if(!M||!isObj(def)||M.validate(def).length)throw Error('A valid installed ship or rover configuration is required');
+ return clone(def);
+}
+function normalize(input){
+ if(!isObj(input)||!TYPES.includes(input.type))throw Error('Choose a supported experiment');
+ const type=input.type,title=text(input.title||input.type+' engineering trial');
+ if(!title)throw Error('Experiment name required');
+ const raw=isObj(input.conditions)?input.conditions:{},c={};
+ const num=(key,fallback,lo,hi)=>{const v=raw[key]===undefined?fallback:Number(raw[key]);if(!finite(v)||v<lo||v>hi)throw Error(key+' must be '+lo+' to '+hi);return v;};
+ c.durationS=num('durationS',120,1,1200);
+ if(type==='rover'){
+  c.slopeDeg=num('slopeDeg',8,0,45);c.gravityMS2=num('gravityMS2',9.81,.1,100);
+  c.gearRatio=num('gearRatio',1,.5,6);c.wheelScale=num('wheelScale',1,.6,1.8);
+ }else if(type==='power'){
+  c.daylight=num('daylight',.7,0,1);c.chargeFraction=num('chargeFraction',.8,0,1);
+  c.driveFraction=num('driveFraction',.4,0,1);c.lights=!!raw.lights;
+ }else{
+  c.gravityMS2=num('gravityMS2',9.81,.1,100);c.radiusM=num('radiusM',6371000,100000,100000000);
+  c.rho0=num('rho0',1.1,0,40);c.targetAltitudeM=num('targetAltitudeM',180000,50000,1000000);
+ }
+ let def=null;
+ if(type!=='rocket'){def=validDefinition(input.definition);if(type==='rover'&&def.kind!=='rover')throw Error('Rover experiments require a rover design');}
+ const rocket=type==='rocket'?clone(input.rocket||{engine:'atlas',payload:'relay',stages:2,tanks:4,boosters:2}):null;
+ if(rocket&&JSON.stringify(rocket).length>4000)throw Error('Rocket configuration is too large');
+ const world=isObj(input.world)?input.world:{};
+ return{type,title,definition:def,rocket,conditions:c,sourceAssetId:text(input.sourceAssetId||def?.id||'rocket-bench',120),bodyId:text(world.bodyId||'bench-body',120),systemId:text(world.systemId||'bench-system',120),observations:(Array.isArray(input.observations)?input.observations:[]).filter(safeId).slice(0,12),notes:text(input.notes,300)};
+}
+function roverRun(plan){
+ const R=root.StarfallRoverDynamics,M=root.StarfallVehicles;
+ if(!R?.sixWheels||!M)throw Error('Rover dynamics model unavailable');
+ const st=M.evaluate(plan.definition),c=plan.conditions,ratio=c.gearRatio,radius=Math.max(.1,st.wheelRadiusM*c.wheelScale);
+ const body={id:plan.bodyId,seed:plan.bodyId,type:'Rocky',radius:4000};
+ const angle=Math.tan(c.slopeDeg*Math.PI/180);
+ const terrain=v=>Math.atan2(v[0],v[1])*4000*angle;
+ const model=R.sixWheels({body,local:[0,1,0],forward:[1,0,0],surfaceHeight:terrain,sceneRadius:4000,sceneToMeters:1,
+  vehicle:{massKg:st.massKg,driveTorqueNm:st.driveTorqueNm*ratio,wheelRadiusM:radius,traction:st.traction},gravityMS2:c.gravityMS2,dt:.02,command:1,enabled:true});
+ const speed=model.safe?Math.min(model.speedSceneS,12/ratio):0;
+ const duration=c.durationS,energyJ=Math.min(st.batteryCapacityJ,Math.max(0,speed*model.maxForceN*duration/Math.max(.2,.8)));
+ const predictedForceN=Math.min(st.driveTorqueNm*ratio*6/radius,st.massKg*c.gravityMS2*st.traction);
+ return{model:'six-contact rover traction + bounded motor-speed bench approximation',unit:'N',
+  predicted:{maxForceN:predictedForceN,energyJ:energyJ,distanceM:speed*duration},
+  simulated:{maxForceN:model.maxForceN,energyJ,distanceM:speed*duration,slopeDeg:model.slopeDeg,slip:model.slip,material:model.material},
+  success:model.safe&&energyJ<=st.batteryCapacityJ,reason:!model.safe?'Unsafe terrain slope or slip':energyJ>st.batteryCapacityJ?'Battery reserve insufficient':'Bench terrain traversal feasible'};
+}
+function powerRun(plan){
+ const P=root.StarfallPower,M=root.StarfallVehicles;
+ if(!P?.step||!M)throw Error('Power model unavailable');
+ const st=M.evaluate(plan.definition),c=plan.conditions,capacity=st.batteryCapacityJ,initial=capacity*c.chargeFraction;
+ let state={energyJ:initial,temperatureK:290,loads:{avionics:true,lights:c.lights,radiator:true,drive:true,instruments:true}};
+ const sunlight={luminosityW:3.828e26,distanceM:149597870700,incidence:c.daylight,transmission:1,occluded:c.daylight===0,ambientK:240};
+ const activity={driveW:st.drivePowerW*c.driveFraction,lightsW:c.lights?(plan.definition.kind==='ship'?1200:180):0};
+ const generation=P.generation(st,sunlight),load=P.loadPower(st,state,activity);
+ const wanted=Object.entries(load).reduce((sum,[key,v])=>sum+(state.loads[key]?v:0),0);
+ const forecast=bound(initial+(generation.totalW-wanted)*c.durationS,0,capacity);
+ let sheds=new Set(),elapsed=0,deliveredJ=0,generatedJ=0,lastTemp=state.temperatureK;
+ while(elapsed<c.durationS-1e-9){
+  const step=Math.min(20,c.durationS-elapsed),r=P.step(st,state,step,sunlight,activity);
+  state=r.state;r.shed.forEach(x=>sheds.add(x));deliveredJ+=r.usedJ;generatedJ+=r.generated.totalW*step;lastTemp=state.temperatureK;elapsed+=step;
+ }
+ return{model:'shared power bus / priority loads / thermal integrator',unit:'J',
+  predicted:{batteryRemainingJ:forecast,powerDemandW:wanted,generatedW:generation.totalW},
+  simulated:{batteryRemainingJ:state.energyJ,temperatureK:lastTemp,batteryConsumedJ:deliveredJ,totalGenerationJ:generatedJ,shed:[...sheds]},
+  success:sheds.size===0&&finite(state.energyJ),reason:sheds.size?'Load shedding: '+[...sheds].join(', '):'Electrical test completed without load shedding'};
+}
+function rocketRun(plan){
+ const X=root.StarfallLaunch,F=root.StarfallRocketFlight7B;
+ if(!X?.build||!F?.init)throw Error('Rocket flight solver unavailable');
+ const c=plan.conditions,mu=c.gravityMS2*c.radiusM*c.radiusM;
+ const p=X.build(plan.rocket,{surfaceGravityMS2:c.gravityMS2,radiusM:c.radiusM,mu});
+ const f=F.init(p,{radiusM:c.radiusM,mu,rho0:c.rho0,scaleHeightM:8500,areaM2:14},{mode:'assisted',targetAltitudeM:c.targetAltitudeM});
+ let elapsed=0,maxAltitudeM=0,last=null;
+ while(elapsed<c.durationS-1e-8&&['powered','coast','awaiting-stage'].includes(f.phase)){
+  const segment=Math.min(30,c.durationS-elapsed),r=F.advance(f,p,segment);
+  elapsed+=r.advancedS;last=r.orbit;
+  maxAltitudeM=Math.max(maxAltitudeM,r.orbit?.altitudeM||0);
+  if(r.advancedS<=1e-9)break;
+ }
+ last=F.elements(f,mu,c.radiusM);
+ return{model:'7B force-integrated planar rocket, simplified atmosphere',unit:'m/s',
+  predicted:{idealDeltaVMS:p.deltaVMS,launchTWR:p.launchTWR,requiredDeltaVMS:p.requiredDeltaVMS},
+  simulated:{elapsedS:elapsed,maximumAltitudeM:maxAltitudeM,finalAltitudeM:last?.altitudeM??0,finalSpeedMS:last?.speedMS??0,phase:f.phase,stableOrbit:!!last?.stable,stagesSeparated:f.discards.length},
+  success:!!last?.stable&&f.phase==='orbit',reason:f.reason||('Flight state: '+f.phase)};
+}
+function runModel(plan){if(plan.type==='rover')return roverRun(plan);if(plan.type==='power')return powerRun(plan);return rocketRun(plan);}
+function restore(saved){
+ const empty={schema:SCHEMA,serial:0,plans:[],runs:[],blueprints:[]};
+ if(!isObj(saved)||saved.schema!==SCHEMA)return empty;
+ const ids=new Set(),keep=(arr,max)=>Array.isArray(arr)?arr.filter(x=>isObj(x)&&safeId(x.id)&&!ids.has(x.id)&&(ids.add(x.id),true)).slice(-max).map(clone):[];
+ return{schema:SCHEMA,serial:finite(saved.serial)?bound(Math.floor(saved.serial),0,1e9):0,
+  plans:keep(saved.plans,MAX_PLANS),runs:keep(saved.runs,MAX_RUNS),blueprints:keep(saved.blueprints,MAX_BLUEPRINTS)};
+}
+class Store{
+ constructor(saved){this.data=restore(saved);}
+ next(prefix){this.data.serial++;return prefix+'-'+this.data.serial.toString(36);}
+ plan(input){const p=normalize(input);p.id=this.next('exp');p.schema=SCHEMA;this.data.plans.push(p);if(this.data.plans.length>MAX_PLANS)this.data.plans.shift();return clone(p);}
+ run(planId,timeS=0){const p=this.data.plans.find(x=>x.id===planId);if(!p)throw Error('Experiment plan not found');
+  const result=runModel(p),run={id:this.next('run'),schema:SCHEMA,planId:p.id,type:p.type,title:p.title,sourceAssetId:p.sourceAssetId,
+   timeS:finite(timeS)?bound(timeS,0,1e13):0,bodyId:p.bodyId,systemId:p.systemId,conditions:clone(p.conditions),
+   sourceDefinition:p.definition?clone(p.definition):null,observationRefs:p.observations.slice(),...result};
+  this.data.runs.push(run);if(this.data.runs.length>MAX_RUNS)this.data.runs.shift();return clone(run);}
+ blueprint(runId,title){const r=this.data.runs.find(x=>x.id===runId);if(!r)throw Error('Test run not found');
+  if(!r.success)throw Error('Cannot validate failed/incomplete engineering test');
+  const p=this.data.plans.find(x=>x.id===r.planId);
+  if(!p)throw Error('Original test plan is no longer present');
+  const b={id:this.next('bp'),schema:SCHEMA,title:text(title||r.title),type:r.type,sourceRunId:r.id,sourceAssetId:r.sourceAssetId,
+   definition:p.definition?validDefinition(p.definition):null,rocket:p.rocket?clone(p.rocket):null,conditions:clone(p.conditions),
+   predicted:clone(r.predicted),simulated:clone(r.simulated),observationRefs:r.observationRefs.slice(),
+   model:r.model,createdS:r.timeS,benchOnly:r.type==='rocket'||p.type==='rover'&&(p.conditions.gearRatio!==1||p.conditions.wheelScale!==1)};
+  this.data.blueprints.push(b);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(b);}
+ compare(a,b){const x=this.data.runs.find(r=>r.id===a),y=this.data.runs.find(r=>r.id===b);
+  if(!x||!y||x.type!==y.type)throw Error('Compare two runs of the same test type');
+  const keys=Object.keys(x.simulated).filter(k=>finite(x.simulated[k])&&finite(y.simulated[k]));
+  return keys.map(key=>({metric:key,first:x.simulated[key],second:y.simulated[key],difference:y.simulated[key]-x.simulated[key]}));}
+ exportBlueprint(id){const b=this.data.blueprints.find(x=>x.id===id);if(!b)throw Error('Unknown blueprint');
+  return JSON.stringify({format:'starfall-blueprint-7e',schema:SCHEMA,blueprint:b},null,2);}
+ importBlueprint(raw){if(typeof raw!=='string'||raw.length>100000)throw Error('Blueprint exceeds 100 KB import limit');
+  let pack;try{pack=JSON.parse(raw);}catch(_){throw Error('Invalid blueprint JSON');}
+  if(pack?.format!=='starfall-blueprint-7e'||pack?.schema!==SCHEMA||!isObj(pack.blueprint))throw Error('Unsupported blueprint format');
+  const b=pack.blueprint;
+  if(!safeId(b.sourceRunId)||!TYPES.includes(b.type)||!isObj(b.conditions)||!isObj(b.simulated)||!isObj(b.predicted)||!text(b.title))throw Error('Invalid blueprint metadata');
+  if(b.definition)validDefinition(b.definition);
+  else if(b.type!=='rocket')throw Error('Blueprint must have a validated vehicle');
+  if(b.type==='rocket'&&(!isObj(b.rocket)||JSON.stringify(b.rocket).length>4000))throw Error('Rocket design missing');
+  const fresh={id:this.next('bp'),schema:SCHEMA,title:text(b.title),type:b.type,sourceRunId:b.sourceRunId,sourceAssetId:text(b.sourceAssetId),
+   definition:b.definition?clone(b.definition):null,rocket:b.rocket?clone(b.rocket):null,conditions:clone(b.conditions),
+   predicted:clone(b.predicted),simulated:clone(b.simulated),observationRefs:Array.isArray(b.observationRefs)?b.observationRefs.filter(safeId).slice(0,12):[],
+   model:text(b.model,120),createdS:finite(b.createdS)?b.createdS:0,benchOnly:!!b.benchOnly,
+   imported:true};this.data.blueprints.push(fresh);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(fresh);}
+ serialize(){return clone(this.data);}
+ get plans(){return clone(this.data.plans);}
+ get runs(){return clone(this.data.runs);}
+ get blueprints(){return clone(this.data.blueprints);}
+}
+const API={SCHEMA,MAX_PLANS,MAX_RUNS,MAX_BLUEPRINTS,TYPES,normalize,runModel,restore,Store};
+root.StarfallResearch7E=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+</script><script>
+/* STARFALL 7E — optional, accessible engineering trial workbench. Offline only. */
+(function(root){'use strict';
+const $=id=>document.getElementById(id),R=root.StarfallResearch7E,RT=root.StarfallRuntime;
+if(!R||!RT||!$('research7e'))return;
+const store=new R.Store(root.SF.load().research7e),fmt=(n,d=2)=>typeof n==='number'&&Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:d}):String(n??'—');
+const status=(msg,ok=false)=>{const el=$('research7e-status');el.textContent=msg;el.dataset.success=ok?'true':'false';};
+const save=()=>root.SF.save({research7e:store.serialize()});
+const make=(tag,txt,cls)=>{const n=document.createElement(tag);if(txt!==undefined)n.textContent=txt;if(cls)n.className=cls;return n;};
+function row(box,label,value){const p=make('div',undefined,'research7e-row');p.append(make('span',label),make('strong',typeof value==='number'?fmt(value):String(value??'—')));box.append(p);}
+function renderInputs(){
+ const type=$('research7e-type').value;
+ $('research7e-rover').hidden=type!=='rover';$('research7e-power').hidden=type!=='power';$('research7e-rocket').hidden=type!=='rocket';
+ $('research7e-vehicle').disabled=type==='rocket';if(type==='rover')$('research7e-vehicle').value='rover';
+}
+function inputNum(id){return Number($(id).value);}
+function options(){
+ const type=$('research7e-type').value,kind=$('research7e-vehicle').value;
+ const definition=type==='rocket'?null:RT.vehicleStore.get(kind).definition;
+ const conditions={durationS:inputNum('research7e-duration')};
+ if(type==='rover'){Object.assign(conditions,{slopeDeg:inputNum('research7e-slope'),gearRatio:inputNum('research7e-gear'),wheelScale:inputNum('research7e-wheel'),gravityMS2:inputNum('research7e-gravity')});}
+ if(type==='power'){Object.assign(conditions,{daylight:inputNum('research7e-daylight'),chargeFraction:inputNum('research7e-charge'),driveFraction:inputNum('research7e-drive'),lights:$('research7e-lights').checked});}
+ if(type==='rocket'){Object.assign(conditions,{gravityMS2:inputNum('research7e-gravity'),rho0:inputNum('research7e-rho'),targetAltitudeM:inputNum('research7e-altitude')});}
+ const rocket=type==='rocket'?{engine:$('research7e-engine').value,payload:'relay',stages:inputNum('research7e-stages'),tanks:inputNum('research7e-tanks'),boosters:inputNum('research7e-boosters')}:undefined;
+ const observations=(root.StarfallScienceUI?.journal||[]).slice(-12).map(x=>x.id).filter(x=>typeof x==='string');
+ return {type,title:$('research7e-name').value||type+' bench test',definition,rocket,conditions,
+  world:{bodyId:RT.nearest?.id||'bench-body',systemId:RT.nearest?.systemId||'bench-system'},
+  sourceAssetId:definition?.id||'rocket-bench',observations,
+  notes:'Controlled engineering model run. Not an instrument reading from physical hardware.'};
+}
+function metricBox(box,obj){box.replaceChildren();Object.entries(obj||{}).forEach(([k,v])=>row(box,k,Array.isArray(v)?v.join(', '):v));}
+function populateSelect(id,records,label,selected){const node=$(id);node.replaceChildren();for(const r of records){const o=make('option');o.value=r.id;o.textContent=label(r);node.append(o);}if(selected&&records.some(x=>x.id===selected))node.value=selected;}
+function render(){
+ const runs=store.runs.slice().reverse(),bps=store.blueprints.slice().reverse(),recent=runs.slice(0,14);
+ const table=$('research7e-history');table.replaceChildren();
+ for(const r of recent){const line=make('button',undefined,'research7e-history-item');line.type='button';
+  line.append(make('span',r.title+' · '+r.id),make('span',r.success?'COMPLETED':'FAILED / INCOMPLETE'));
+  line.title=r.reason;line.onclick=()=>showRun(r);table.append(line);}
+ populateSelect('research7e-compare-a',runs,r=>r.title+' / '+r.id);populateSelect('research7e-compare-b',runs,r=>r.title+' / '+r.id);
+ populateSelect('research7e-blueprint',bps,r=>r.title+(r.benchOnly?' [bench-only]':'')+(r.imported?' [imported]':''));
+ $('research7e-save-bp').disabled=!runs.length||!runs[0].success;
+ $('research7e-apply-bp').disabled=!bps.length;
+ if(!runs.length)$('research7e-results').textContent='Run a controlled test to see the prediction and the simulated outcome.';
+ if(!bps.length)$('research7e-bp-note').textContent='No validated blueprint recorded yet.';
+}
+function showRun(r){
+ const results=$('research7e-results');results.replaceChildren();
+ results.append(make('h3',r.title+' · '+r.id));
+ results.append(make('p','Model: '+r.model));
+ const cols=make('div',undefined,'research7e-columns');
+ const p=make('div',undefined,'research7e-result'),s=make('div',undefined,'research7e-result');
+ p.append(make('h4','PREDICTED'));s.append(make('h4','SIMULATED IN GAME MODEL'));
+ const a=make('div'),b=make('div');metricBox(a,r.predicted);metricBox(b,r.simulated);
+ p.append(a);s.append(b);cols.append(p,s);results.append(cols,make('p',(r.success?'PASS · ':'INCOMPLETE · ')+r.reason));
+}
+$('research7e-open').onclick=()=>{renderInputs();render();$('research7e').hidden=false;$('workbench').hidden=true;$('research7e-type').focus();};
+function close(){$('research7e').hidden=true;}
+$('research7e-close').onclick=close;$('research7e').addEventListener('click',e=>{if(e.target===$('research7e'))close();});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('research7e').hidden){close();e.stopImmediatePropagation();}},true);
+$('research7e-type').onchange=renderInputs;
+$('research7e-run').onclick=()=>{try{
+ const p=store.plan(options());const r=store.run(p.id,RT.time);save();render();showRun(r);
+ status('Trial '+r.id+' recorded. Simulation is a bounded engineering model, not a physical-world measurement.',true);
+ }catch(e){status(e.message);}};
+$('research7e-save-bp').onclick=()=>{try{
+ const runs=store.runs;if(!runs.length)throw Error('Run an experiment first');
+ const b=store.blueprint(runs[runs.length-1].id,$('research7e-name').value);
+ save();render();$('research7e-blueprint').value=b.id;status('Validated test blueprint '+b.id+' saved.',true);
+ }catch(e){status(e.message);}};
+$('research7e-compare').onclick=()=>{try{
+ const rows=store.compare($('research7e-compare-a').value,$('research7e-compare-b').value);
+ const box=$('research7e-comparison');box.replaceChildren();for(const v of rows)row(box,v.metric,fmt(v.first)+' → '+fmt(v.second)+' (Δ '+fmt(v.difference)+')');
+ if(!rows.length)box.textContent='No comparable numeric metrics';
+ status('Comparing runs under their recorded conditions. Compare controlled conditions for meaningful results.',true);
+ }catch(e){status(e.message);}};
+function download(name,data){const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=make('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+$('research7e-export').onclick=()=>{try{const id=$('research7e-blueprint').value;download('starfall-blueprint-7e.json',store.exportBlueprint(id));status('Blueprint exported.',true);}catch(e){status(e.message);}};
+$('research7e-import').onclick=()=>{try{const b=store.importBlueprint($('research7e-import-json').value);save();render();$('research7e-blueprint').value=b.id;status('Blueprint imported. Imported model evidence is not independently verified here; test locally before applying.',true);}catch(e){status(e.message);}};
+$('research7e-apply-bp').onclick=()=>{try{const b=store.blueprints.find(x=>x.id===$('research7e-blueprint').value);
+ if(!b)throw Error('Select a blueprint');
+ if(b.imported)throw Error('Imported blueprints require local revalidation before applying to a live vehicle');
+ if(b.benchOnly)throw Error('This trial uses bench-only tuning. The stock vehicle controller has no compatible live gear/rocket parameter interface.');
+ if(!b.definition)throw Error('This is a rocket test plan, not a live ship/rover assembly');
+ const result=RT.configureVehicle(b.definition.kind,b.definition);
+ RT.persistVehicles();status('Applied validated '+b.definition.kind+' design safely: '+fmt(result.next?.massKg)+' kg.',true);
+ }catch(e){status(e.message);}};
+renderInputs();render();
+root.StarfallResearchUI7E={open:()=>$('research7e-open').click(),store};
+})(window);
 </script>
 </body>
 </html>
