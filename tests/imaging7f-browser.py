@@ -72,6 +72,8 @@ with sync_playwright() as p:
         assert page.evaluate("window.StarfallImagingUI7F.store.photos[0].status")=='downlinked'
         page.locator('#imaging7f-list .im7f-card').first.evaluate('(el)=>el.click()')
         page.wait_for_function("document.getElementById('imaging7f-photo').src.startsWith('data:image/')",timeout=10000)
+        page.evaluate('window.StarfallImagingUI7F.refresh()')
+        page.wait_for_selector('#imaging7f-list .im7f-thumb',timeout=10000)
         assert page.locator('#imaging7f-list .im7f-thumb').count()==1
         # Authoritative orbit coordinates must produce a second genuine world image.
         satellite=page.evaluate("""()=>{
