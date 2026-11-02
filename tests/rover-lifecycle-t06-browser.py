@@ -27,11 +27,11 @@ with sync_playwright() as p:
    return SF.load();
   }""")
   context.add_init_script("(()=>{if(localStorage.getItem('t06-landed-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");localStorage.setItem('t06-landed-initialized','1');})()")
+  boot.close()
   page=context.new_page()
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallRoverT06 && window.StarfallImagingUI7F)",timeout=45000)
-  boot.close()
   setUp=page.evaluate("""()=>{
     const rt=StarfallRuntime,body=rt.nearest,O=StarfallOutposts,T=StarfallRoverT06,
       UI=StarfallLaunchUI,ship=rt.engineeringAssetPoses().shipPose;
