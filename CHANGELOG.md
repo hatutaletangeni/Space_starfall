@@ -1,3 +1,18 @@
+# STARFALL — Update 7E: Engineering Research & Blueprints (release candidate)
+
+**2026-11-02 · Branch `feature/update-7e` · Baseline `release/update-7d`**
+
+- Added **RESEARCH BENCH** inside the existing Vehicle Workbench, without changing the ship, EVA, rover, truck or launch controls.
+- Added versioned deterministic engineering `ExperimentPlan`, `TestRun`, and `ValidatedBlueprint` storage, with bounds and safe defaults for older saves.
+- Added controlled **rover traction/gearing**, **electric power/thermal**, and **force-integrated rocket ascent** experiments using the installed STARFALL models.
+- Added distinct **PREDICTED** versus **SIMULATED** outcomes, side-by-side numeric comparisons, run history and explicit failure reasons. Suborbital trajectories are not marked as successful orbital insertions.
+- Added blueprint JSON export/import, schema validation, provenance, safe live application only through existing vehicle safety checks, and an explicit bench-only restriction for unsupported live gearing/rocket changes.
+- Kept Creative/Assisted exploration free of credits/XP/technology gates and retained previous 7D saved-game fields.
+- Added Node regression tests and GitHub Actions checks; corrected the obsolete legacy launch test to exercise integrated rocket ascent and replaced hardcoded standalone parity assumptions.
+- **Automated gate: PASS** (GitHub Actions run 41441439763). **Real GPU playthrough, browser cold-restart persistence and archived 7D browser suites: NOT VERIFIED**. See `reports/UPDATE-7E-TEST-RESULTS.md`.
+
+---
+
 # STARFALL — Update 2: Space Science & Physics
 
 - **2A:** Introduced SI unit conversions, mass/density distributions, a deterministic simulation clock, orbital elements and optional Kepler ephemerides behind a disabled-by-default compatibility switch.
