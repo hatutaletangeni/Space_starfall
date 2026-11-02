@@ -190,7 +190,12 @@ async function showPhoto(id){
  im.removeAttribute('src');im.alt='';im.hidden=true;
  if(p.status==='downlinked'){
   const data=await imageGet(id);
-  if(!data)throw Error('Image bytes missing from this device; restore the original browser archive.');
+  if(!data){
+   $('imaging7f-download').disabled=true;
+   $('imaging7f-pending').textContent='T17 MISSING IMAGE FILE: metadata reports receipt, but no original IndexedDB binary is present. Restore a FULL MEDIA expedition backup. An ACK is not a replacement for actual pixels.';
+   $('imaging7f-metadata').textContent+='\\nT17 FILE PRESENCE: MISSING / RESTORE REAL 7F IMAGE BYTES';
+   return;
+  }
   im.src=data;im.alt='Actual Starfall in-game '+p.sourceType+' photo of '+p.bodyId+' ('+p.mode+')';im.hidden=false;
   $('imaging7f-download').disabled=false;
  }else $('imaging7f-download').disabled=true;
