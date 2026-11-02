@@ -26,7 +26,7 @@ with sync_playwright() as p:
     up:[0,1,0],landed:true}});
    return SF.load();
   }""")
-  context.add_init_script("(()=>{if(localStorage.getItem('t06-landed-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");localStorage.setItem('t06-landed-initialized','1');})()")
+  context.add_init_script("(()=>{if(sessionStorage.getItem('t06-landed-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t06-landed-initialized','1');})()")
   boot.close()
   page=context.new_page()
   page.on('pageerror',lambda e:errors.append(str(e)))
