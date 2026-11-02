@@ -5519,6 +5519,22 @@ class Store{
   return copy(p);
  }
  annotate(id,note){const p=this.state.photos.find(x=>x.id===id);if(!p)throw Error('Photo not found');p.note=String(note||'').slice(0,400);return copy(p);}
+ importPhoto(meta){
+  validateCapture(meta);
+  if(!idOK(meta.id)||meta.schema!==SCHEMA||!['stored-local','queued','transmitting','in-transit','downlinked','failed'].includes(meta.status))
+   throw Error('Invalid imported camera record');
+  if(this.state.photos.some(x=>x.id===meta.id))return false;
+  if(this.state.photos.length>=MAX_TOTAL||this.countFor(meta.sourceType,meta.sourceAssetId)>=(meta.sourceType==='rover'?MAX_ROVER:MAX_SATELLITE))
+   throw Error('Camera archive record limit reached');
+  if(this.usedBytes()+meta.bytes>MAX_BYTES)throw Error('Camera archive full: export and remove existing media first');
+  const safe=copy(meta);safe.restoredArchive=true;safe.caption=String(safe.caption||'').slice(0,120);
+  safe.sourceName=String(safe.sourceName||safe.sourceAssetId).slice(0,100);
+  safe.observationRefs=Array.isArray(safe.observationRefs)?safe.observationRefs.filter(idOK).slice(0,12):[];
+  this.state.photos.push(safe);
+  const suffix=/^photo-([0-9a-z]+)$/.exec(safe.id);
+  if(suffix)this.state.serial=Math.max(this.state.serial,parseInt(suffix[1],36));
+  return true;
+ }
  remove(id){const idx=this.state.photos.findIndex(x=>x.id===id);if(idx<0)throw Error('Photo not found');const [p]=this.state.photos.splice(idx,1);return copy(p);}
  serialize(){return copy(this.state);}
 }
