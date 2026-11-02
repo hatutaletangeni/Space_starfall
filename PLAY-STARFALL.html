@@ -5106,7 +5106,7 @@ function fieldRepair(slot,remote=null){
  const ctx=fieldServiceStatus(remote);
  if(!ctx.nearby||roverExitMove||rampTransition||winch7d)throw Error('T12 parked truck / EVA within 18 scene units of this rover required; detach winch');
  if(remote&&['entry','descent','running'].includes(remote.status))throw Error('T12 cannot service a moving or undeployed robot');
- const vehicle=vehicleStore.get('rover'),def=vehicle.definition;
+ const vehicle=vehicleStore.get('rover'),def=remote?Vehicles.presets.rover:vehicle.definition; // deployed capsule uses its fixed factory rover preset, not local Workbench upgrades
  const state=remote?remote.fieldT12:localServiceT12;
  const receipt=StarfallFieldServiceT12.maintain({service:state,slot,atS:simTime,truckEnergyJ,
   installedId:def.slots[slot],rover:remote,health:remote?remote.roverT06?.health:vehicle.state.health});
