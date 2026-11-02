@@ -104,12 +104,16 @@ class Transport{
    }
    p.route=copy(route.hops);p.lastLink={atS:now,bandwidthBps:route.bandwidthBps,delayS:route.delayS,quality:route.quality??null,hops:Array.isArray(route.hopReports)?copy(route.hopReports).slice(0,6):[],reason:route.reason||'powered LOS'};
    p.state='QUEUED_AT_NODE';p.reason='Contact available; awaiting finite shared airtime';
-   const key=route.hops.join('>');
+   // A cross-body dish is one shared physical half-duplex RF channel.
+   // Opposing command/image traffic and unrelated endpoints cannot each
+   // claim its full nominal bitrate while competing for the SAME dish pair.
+   const deep=route.hopReports?.find(h=>h.mode==='HIGH_GAIN'||h.mode==='FICTIONAL');
+   const key=deep?'deep:'+ [deep.from,deep.to].sort().join('<>'):route.hops.join('>');
    if(!candidates.has(key))candidates.set(key,{route,packets:[]});
    candidates.get(key).packets.push(p);
   }
   for(const {route,packets} of candidates.values()){
-   const capacity=Math.max(0,Math.floor(route.bandwidthBps*dt/8));
+   const capacity=Math.max(0,Math.floor(Math.min(route.bandwidthBps,...packets.map(p=>p.lastLink?.bandwidthBps||route.bandwidthBps))*dt/8));
    let left=capacity;
    const priorities=[...new Set(packets.map(p=>p.priority))].sort((a,b)=>a-b);
    for(const priority of priorities){
