@@ -136,10 +136,24 @@ function step(item,body,simS,actualPowered){
  const k=C.thermalLeakWPerK,eq=outK+control/k;
  h.tempK=clamp(eq+(h.tempK-eq)*Math.exp(-k*dt/C.thermalCapacityJK),C.absoluteMinK,C.absoluteMaxK);
  h.thermalLoadW=control;h.heatLossW=-hLoss;h.lastS=simS;
- if(h.airlock==='CYCLING_OUT'&&simS>=h.airlockUntilS){
-  h.airlock='OPEN_OUT';h.airlockUntilS=null;
- }else if(h.airlock==='CYCLING_IN'&&simS>=h.airlockUntilS){
-  h.airlock='CLOSED';h.airlockUntilS=null;
+ // A cycle cannot complete using imaginary actuator energy. A new leak or
+ // atmosphere fault while cycling OUT aborts that opening before exterior
+ // door release; during brownout, both actuators hold their remaining time.
+ const cabinPressure=pressure(h.oxygenMol+h.inertMol+h.carbonMol,h.tempK,h.volumeM3),
+  cabinO2=pressure(h.oxygenMol,h.tempK,h.volumeM3),
+  cabinCO2=pressure(h.carbonMol,h.tempK,h.volumeM3),
+  airlockUnsafe=h.seal<.75||cabinPressure<C.totalMinKPa||cabinPressure>C.totalMaxKPa||
+   cabinO2<C.oxygenMinKPa||cabinO2>C.oxygenMaxKPa||cabinCO2>C.carbonAlarmKPa||
+   h.tempK<C.tempMinK||h.tempK>C.tempMaxK;
+ if(h.airlock==='CYCLING_OUT'&&airlockUnsafe){
+  h.airlock='CLOSED';h.airlockUntilS=null;h.fault='AIRLOCK_ABORTED: cabin unsafe';
+  h.alarmHistory.push({code:'AIRLOCK_ABORTED_UNSAFE',timeS:simS});
+ }else if(h.airlock==='CYCLING_OUT'||h.airlock==='CYCLING_IN'){
+  if(!powered)h.airlockUntilS+=dt;
+  else if(simS>=h.airlockUntilS){
+   h.airlock=h.airlock==='CYCLING_OUT'?'OPEN_OUT':'CLOSED';
+   h.airlockUntilS=null;
+  }
  }
  derive(item,h,powered,simS,body);
  return inspect(item,body,powered);
