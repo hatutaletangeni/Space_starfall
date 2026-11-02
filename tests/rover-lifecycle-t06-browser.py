@@ -52,12 +52,14 @@ with sync_playwright() as p:
     if(!UI.store.deploy(m,rt.time,()=>body))throw Error('Capsule rejected: '+m.failure);
     const rover=UI.store.rovers.find(x=>x.launchId===m.id);
     if(rover.roverT06.state!=='ENTRY')throw Error('Capsule falsely deployed instantly');
+    if(UI.sceneRovers().length)throw Error('Capsule rendered fake healthy surface rover before touchdown');
     if(StarfallCommsT03.routeFor({sourceId:'starfall-ship',destId:rover.id,bodyId:body.id,systemId:body.systemId},rt.time).connected)
       throw Error('Unlanded rover has impossible instant radio endpoint');
     UI.store.update(m.entryAtS+12,()=>body);
     if(rover.roverT06.state!=='DESCENT')throw Error('Capsule has no powered descent');
     UI.store.update(m.entryAtS+38.001,()=>body);
     if(rover.roverT06.state!=='READY')throw Error('Touchdown not physically cleared: '+JSON.stringify({missionPhase:m.phase,entryAtS:m.entryAtS,descentAtS:m.descentAtS,roverStatus:rover.status,hardware:rover.roverT06.state,landing:m.landingT06}));
+    if(!UI.sceneRovers().length)throw Error('Landed healthy rover not rendered from source-owned position');
     rover.batteryJ=8000000; // controlled pre-mission energy, not a free offworld recharge
     const route=StarfallCommsT03.routeFor({sourceId:'starfall-ship',destId:rover.id,bodyId:body.id,systemId:body.systemId},rt.time+38);
     if(!route.connected||!route.hops.includes(rover.id))throw Error('Real powered onboard radio missing: '+JSON.stringify(route));
