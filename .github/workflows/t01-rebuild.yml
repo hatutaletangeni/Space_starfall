@@ -1,0 +1,33 @@
+name: T01 rebuild offline standalone
+on:
+  push:
+    branches:
+      - feature/t01-offworld-operations-clock
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build reproducible offline standalone
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Commit generated standalone only when different
+        shell: bash
+        run: |
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PLAY-STARFALL.html
+            git commit -m "build(t01): synchronize offline standalone with editable modules"
+            git push origin HEAD:feature/t01-offworld-operations-clock
+          fi
