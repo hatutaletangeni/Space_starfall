@@ -43,15 +43,17 @@ function vec(a,b){return a.map((v,i)=>v+(b[i]||0));}
 function direction(up,heading){const pole=Math.abs(up[1])>.95?[1,0,0]:[0,1,0],base=V.norm(V.cross(up,pole)),tangent=V.norm(V.cross(up,base));
  return V.norm(V.add(V.mul(base,Math.cos(heading)),V.mul(tangent,Math.sin(heading))));}
 function rotForward(f,u,a){return V.norm(V.add(V.mul(f,Math.cos(a)),V.mul(V.cross(u,f),Math.sin(a))));}
-function poseFor(s,mode){
- const body=RT.galaxy.byId.get(s.bodyId);if(!body?.position||!body.landable)throw Error('Target planet is not currently loaded; navigate to it first');
+function poseFor(s,mode,timeS=RT.time){
+ const asset=s.local?{bodyId:s.bodyId,systemId:RT.nearest?.systemId}:s.type==='satellite'?s.sat:s.rover;
+ const body=root.StarfallMissionOperationsUI?.resolveBody?.(asset,timeS)||RT.galaxy.byId.get(s.bodyId);
+ if(!body?.position||!body.landable)throw Error('AWAITING_RENDER: destination world body ephemeris is missing; no invented terrain');
  if(s.type==='satellite'){
   const sat=s.sat,o=Sat.ensure(sat);
   if(!Sat.PAYLOADS[o.sensor]||o.sensor!=='camera'||sat.kind!=='observatory')throw Error('Select an observatory with a terrain camera payload');
   if(!o.enabled||o.pointing!=='nadir'||o.energyJ<1800)throw Error('Satellite camera requires powered nadir pointing');
   const system=RT.galaxy.byId.get(sat.systemId),star=system?.star?.position||system?.position;
   if(!star)throw Error('Satellite star ephemeris unavailable');
-  const geo=Sat.geometry(sat,body,star,RT.time,units,X.orbit);
+  const geo=Sat.geometry(sat,body,star,timeS,units,X.orbit);
   if(!geo.sunlit)throw Error('Orbital camera requires sunlight; wait for daylight pass');
   if(!(geo.altitudeM>25000))throw Error('Orbital camera below minimum imaging altitude');
   const up=V.norm(geo.relative),orbital=V.norm(V.cross(Math.abs(up[1])>.95?[1,0,0]:[0,1,0],up));
@@ -68,7 +70,12 @@ function poseFor(s,mode){
  const eye=V.add(body.position,V.mul(radial,body.radius+height+3.3));
  if(mode==='left')forward=rotForward(forward,radial,-1.1);
  if(mode==='right')forward=rotForward(forward,radial,1.1);
- if(mode==='target'){const targets=root.StarfallRuinsUI?.scene?.()||[];
+ if(mode==='target'){
+  const localHere=RT.nearest?.id===body.id;
+  const saved=(root.SF.load()?.archaeology6c?.records||[]).filter(x=>x.bodyId===body.id&&x.siteSnapshot?.local)
+   .map(x=>{const item=x.siteSnapshot,u=V.rot(item.local,body.spinAxis||[0,1,0],body.spinAngle||0);
+    return{id:item.id,position:V.add(body.position,V.mul(u,body.radius+(root.Starfall3D.groundHeight(item.local,body)||0)+Math.max(0,item.height||0)))};});
+  const targets=localHere?root.StarfallRuinsUI?.scene?.()||saved:saved;
   const near=targets.find(x=>x.position&&V.len(V.sub(x.position,eye))<1300);
   if(!near)throw Error('No visible ruins within camera range for TARGET; use FORWARD instead');
   forward=V.norm(V.sub(near.position,eye));}
@@ -97,9 +104,15 @@ function consumeEnergy(s,j,immediate=true){if(s.type==='satellite'){
  else{s.rover.batteryJ=Math.max(0,s.rover.batteryJ-j);if(immediate)root.StarfallLaunchUI?.persist?.();else energyDirty=true;}
 }
 async function thumbnailFor(data){return new Promise((resolve,reject)=>{const source=new Image();source.onerror=()=>reject(Error('Image thumbnail decode failed'));source.onload=()=>{const ratio=Math.min(1,256/source.width,256/source.height),canvas=document.createElement('canvas');canvas.width=Math.round(source.width*ratio);canvas.height=Math.round(source.height*ratio);const ctx=canvas.getContext('2d');if(!ctx)return reject(Error('Thumbnail rendering unavailable'));ctx.drawImage(source,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.7));};source.src=data;});}
-function cameraCapture(pose,mode,size,caption){
- const rd=RT.captureScienceImage;if(typeof rd!=='function')throw Error('Offscreen renderer not initialized');
- const render=(forward)=>rd({body:pose.body,eye:pose.eye,forward,up:pose.up,size,caption:mode==='panorama'?'':caption,wide:mode==='wide'});
+function cameraCapture(pose,mode,size,caption,s,timeS){
+ const offworld=RT.nearest?.id!==pose.body.id||!RT.galaxy.byId.has(pose.body.id);
+ const rd=RT.captureScienceImage,remote=root.StarfallRemoteImagingT05;
+ if(offworld&&!remote)throw Error('AWAITING_RENDER: isolated GPU camera unavailable');
+ if(!offworld&&typeof rd!=='function')throw Error('Offscreen renderer not initialized');
+ const render=(forward)=>offworld?remote.capture({
+   asset:s.local?{bodyId:s.bodyId,systemId:s.systemId}:s.type==='satellite'?s.sat:s.rover,
+   eye:pose.eye,forward,up:pose.up,size,mode,caption:mode==='panorama'?'':caption,timeS
+ }):rd({body:pose.body,eye:pose.eye,forward,up:pose.up,size,caption:mode==='panorama'?'':caption,wide:mode==='wide'});
  if(mode!=='panorama')return render(pose.forward);
  // Three actual World renders stitched side by side; no fabricated pixels.
  const images=[render(rotForward(pose.forward,pose.up,-.83)),render(pose.forward),render(rotForward(pose.forward,pose.up,.83))];
@@ -109,29 +122,36 @@ function cameraCapture(pose,mode,size,caption){
   pics.forEach((img,i)=>ctx.drawImage(img,i*size,0,size,size));
   if(caption){ctx.fillStyle='#07101bd0';ctx.fillRect(0,size-34,size*3,34);ctx.fillStyle='#f2e0c2';ctx.font='14px monospace';ctx.fillText(caption.slice(0,110),12,size-10);}
   const image=canvas.toDataURL('image/jpeg',.77);
-  return{image,mime:'image/jpeg',width:size*3,height:size,bytes:Math.floor(image.slice(image.indexOf(',')+1).length*3/4),camera:images[1].camera};
+  return{image,mime:'image/jpeg',width:size*3,height:size,bytes:Math.floor(image.slice(image.indexOf(',')+1).length*3/4),camera:images[1].camera,sceneSnapshotVersion:images[1].sceneSnapshotVersion||null,renderSource:images[1].renderSource||'STARFALL_7F'};
  });
 }
 async function perform(job,s){
  if(busy)return;busy=true;
  try{
-  const pose=poseFor(s,job.mode),shotEnergy=job.resolution===1024?1700:job.resolution===512?900:520;
+  const captureAt=Math.max(RT.time,job.deliveredS||0),pose=poseFor(s,job.mode,captureAt),shotEnergy=job.resolution===1024?1700:job.resolution===512?900:520;
   if(availableEnergy(s)<shotEnergy+500)throw Error('Camera cannot operate with depleted battery');
   if(store.countFor(s.type,s.assetId)>=(s.type==='rover'?M.MAX_ROVER:M.MAX_SATELLITE)||store.photos.length>=M.MAX_TOTAL)throw Error('Image storage full');
-  const caption='STARFALL SCIENCE | '+s.assetId+' | '+pose.body.name+' | T+'+Math.floor(RT.time)+'s';
-  const shot=await cameraCapture(pose,job.mode,job.resolution,$('imaging7f-caption').checked?caption:'');
+  const caption='STARFALL SCIENCE | '+s.assetId+' | '+pose.body.name+' | T+'+Math.floor(captureAt)+'s';
+  const shot=await cameraCapture(pose,job.mode,job.resolution,$('imaging7f-caption').checked?caption:'',s,captureAt);
   if(shot.bytes>2500000||store.usedBytes()+shot.bytes>M.MAX_BYTES)throw Error('Camera storage byte budget exceeded; select lower resolution');
   // Save image data first. Image capture failures do NOT consume power or create records.
   const nextId='photo-'+(store.serialize().serial+1).toString(36);
   const thumbnail=await thumbnailFor(shot.image);await imagePut(nextId,shot.image,thumbnail);thumbs.set(nextId,thumbnail);
   let photo;try{photo=store.put({sourceType:s.type,sourceAssetId:s.assetId,sourceName:s.label,bodyId:s.bodyId,systemId:pose.body.systemId,
-    mode:job.mode,resolution:job.resolution,width:shot.width,height:shot.height,timeS:RT.time,position:pose.eye.slice(),camera:shot.camera,
+    mode:job.mode,resolution:job.resolution,width:shot.width,height:shot.height,timeS:captureAt,position:pose.eye.slice(),camera:shot.camera,sceneSnapshotVersion:shot.sceneSnapshotVersion||null,renderSource:shot.renderSource||'STARFALL_7F',cameraJobId:job.id,
     altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,bytes:shot.bytes,mime:shot.mime,caption,
     observationRefs:(root.StarfallScienceUI?.journal||[]).filter(x=>x.bodyId===s.bodyId).slice(-5).map(x=>x.id)});
   }catch(e){await imageRemove(nextId);throw e;}
   consumeEnergy(s,shotEnergy);store.finishJob(job.id);store.queueDownlink(photo.id);persist();
   message('Camera recorded '+photo.id+' ('+Math.round(photo.bytes/1024)+' KB). Image onboard; queued for radio downlink.');
   refresh();return photo;
+ }catch(e){
+  // Render failure remains a durable, resumable 7F job. No fake image, archive
+  // entry, battery debit, gallery unlock or accepted science evidence.
+  store.renderPending(job.id,e?.message||String(e),RT.time);
+  dirty=true;persist();refresh();
+  message('Camera awaiting real render: '+String(e?.message||e).slice(0,175),false);
+  return null;
  }finally{busy=false;}
 }
 function badge(text){const el=document.createElement('span');el.className='im7f-badge';el.textContent=text;return el;}
@@ -142,7 +162,7 @@ function refresh(){
   const info=document.createElement('small');info.textContent=p.bodyId+' · '+Math.round(p.bytes/1024)+' KB · '+Math.floor(100*p.progressBytes/p.bytes)+'%';btn.append(info);
   btn.onclick=()=>showPhoto(p.id).catch(err);if(p.status==='downlinked'){const photo=document.createElement('img');photo.className='im7f-thumb';photo.alt='Downlinked terrain image preview';photo.loading='lazy';btn.prepend(photo);if(thumbs.has(p.id))photo.src=thumbs.get(p.id);else imageGet(p.id,true).then(data=>{if(data){thumbs.set(p.id,data);if(photo.isConnected)photo.src=data;}}).catch(()=>{});}list.append(btn);}
  if(!records.length)list.textContent='No image records match this filter.';
- const jobs=store.jobs;$('imaging7f-jobs').textContent=jobs.length?jobs.map(j=>j.assetId+' '+j.mode.toUpperCase()+' · command queued').join('\n'):'No pending image commands.';
+ const jobs=store.jobs;$('imaging7f-jobs').textContent=jobs.length?jobs.map(j=>j.assetId+' '+j.mode.toUpperCase()+' · '+(j.renderState==='AWAITING_RENDER'?'AWAITING_RENDER: '+j.renderReason:j.deliveredS===null?'AWAITING RADIO COMMAND':'ONBOARD CAPTURE')).join('\n'):'No pending image commands.';
  const src=selected();$('imaging7f-link').textContent=src?(linkFor(src).connected?'RADIO LINK: READY · '+'Battery '+safe(availableEnergy(src)/3600)+' Wh':'RADIO BLACKOUT · '+(linkFor(src).reason||'awaiting pass')):'Select a deployed science rover or observatory satellite.';
  $('imaging7f-budget').textContent='Storage: '+(store.usedBytes()/1048576).toFixed(2)+' / '+(M.MAX_BYTES/1048576)+' MiB · '+store.photos.length+' / '+M.MAX_TOTAL+' photos';
 }
@@ -190,7 +210,7 @@ function tick(_dt){
  if(!busy&&store.jobs.length){
   const job=store.jobs[0],s=sources().find(x=>x.assetId===job.assetId&&x.type===job.sourceType);
   if(s){
-   if(root.StarfallCommsT03){if(job.deliveredS===null)root.StarfallCommsT03.camera(job);else if(RT.nearest?.id===s.bodyId&&performance.now()-lastT03CaptureAttempt>5000){lastT03CaptureAttempt=performance.now();perform(job,s).catch(e=>{err(e);});}}
+   if(root.StarfallCommsT03){if(job.deliveredS===null)root.StarfallCommsT03.camera(job);else if(performance.now()-lastT03CaptureAttempt>5000){lastT03CaptureAttempt=performance.now();perform(job,s).catch(e=>{err(e);});}}
    else{const link=linkFor(s);if(link.connected){
     if(job.deliveredS===null){store.markDelivered(job.id,t+Math.max(.05,Number(link.delayS)||.05));dirty=true;}
     else if(t>=job.deliveredS)perform(job,s).catch(e=>{store.finishJob(job.id);dirty=true;persist();err(e);});
