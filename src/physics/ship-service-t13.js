@@ -87,8 +87,8 @@ function verifyLatch({state,body,shipLocal,target,ship}){
 }
 function cycle({state,ship,shipLocal,body,target,timeS,report,rover,source=null}){
  const s=verifyLatch({state,body,shipLocal,target,ship});
- if(!ship.state.powerEnabled||ship.state.loads?.avionics===false||!radio({ship,report}).ready)
-  throw Error('T13 ship service bus must have powered unshed avionics');
+ if(!ship.state.powerEnabled||(target.kind!=='grid-battery'&&(ship.state.loads?.avionics===false||!radio({ship,report}).ready)))
+  throw Error('T13 ship service bus must have powered unshed avionics; grid-battery manual shore-start is separate');
  if(ship.state.temperatureK>390||s.connectorK>355)throw Error('T13 ship or umbilical port overheated');
  if(!valid(timeS)||timeS<s.readyAtS)throw Error('T13 socket charge cycle still cooling down');
  const t=root.StarfallPowerLedgerT02;if(!t?.transfer)throw Error('T13 original T02 power ledger missing');
