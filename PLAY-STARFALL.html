@@ -2614,7 +2614,7 @@ function advance(s,body,star,time,units,orbit){
 function radioReady(s){
  const o=root.StarfallSatelliteOps7C.ensure(s),b=bus(s);
  return o.enabled&&o.radioEnabled&&o.energyJ>=root.StarfallSatelliteOps7C.CONFIG.radioW*2+
-  (b.mode==='SAFE'?0:100)&&b.mode!=='SAFE'&&b.health>.15;
+  (b.mode==='SAFE'?0:100)&&b.mode!=='SAFE'&&b.desiredMode!=='SAFE'&&b.health>.15;
 }
 function predict(s,body,star,at,units,orbit,receiverAt,radioLink,bodyAt=null,count=3){
  if(!finite(at)||typeof receiverAt!=='function'||typeof radioLink!=='function')return{passes:[],sunWindows:[],reason:'No prediction ephemeris/receiver'};
