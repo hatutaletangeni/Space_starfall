@@ -2,6 +2,7 @@
 (function (root) {
   'use strict';
   const memory = Object.create(null);
+  let durableStatus={durable:false,reason:'Storage has not been tested yet'};
   const object = value => value && typeof value === 'object' && !Array.isArray(value);
   const read = key => {
     try {
@@ -11,12 +12,33 @@
     return memory[key] ?? null;
   };
   const write = (key, value) => {
-    memory[key] = value;
-    try { root.localStorage.setItem(key, JSON.stringify(value)); return true; }
-    catch (_) { return false; }
+    const json = JSON.stringify(value);
+    try {
+      root.localStorage.setItem(key, json);
+      if (root.localStorage.getItem(key) !== json) throw Error('Persistent write read-back mismatch');
+      memory[key] = value;
+      durableStatus = {durable:true,reason:''};
+      return true;
+    } catch (error) {
+      // Keep best-effort in-memory play in restricted file:// origins, but
+      // NEVER claim the expedition persisted to disk.
+      memory[key] = value;
+      durableStatus = {durable:false,reason:String(error?.message||error)};
+      return false;
+    }
   };
   const initial = () => ({ version: 2, credits: 200, discoveries: [], awards: {}, orbital: {} });
   const SF = {
+    storageStatus() {
+      try {
+        const testKey='starfall-t17-durability',token='proof';
+        root.localStorage.setItem(testKey,token);
+        if(root.localStorage.getItem(testKey)!==token)throw Error('Storage read-back mismatch');
+        root.localStorage.removeItem(testKey);
+        durableStatus={durable:true,reason:''};
+      } catch (e) { durableStatus={durable:false,reason:String(e?.message||e)}; }
+      return {...durableStatus};
+    },
     RNG: class {
       constructor(seed) { this.s = (seed | 0) || 1; }
       next() { this.s = (Math.imul(this.s, 1664525) + 1013904223) | 0; return (this.s >>> 0) / 4294967296; }
