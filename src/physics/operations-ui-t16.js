@@ -276,7 +276,7 @@ initCards();
 const output=make('p','Select original controls to perform any physical command; this T16 display is read-only.','op16-note');
 output.id='op16-action-result';cards.get('main')?.block?.append(output);
 function focusGuard(){
- const ids=['workbench','research7e','imaging7f','field-lab','outpost','asset-manager','launch-dialog'];
+ const ids=['workbench','research7e','imaging7f','field-lab','outpost','asset-manager','launch-dialog','archive-t17'];
  let previous=null;
  let launcher=null;
  document.addEventListener('pointerdown',e=>{const b=e.target?.closest?.('button');if(b&&!ids.some(id=>$(id)?.contains(b)))launcher=b;},true);
