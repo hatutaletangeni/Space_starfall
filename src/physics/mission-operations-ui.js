@@ -45,32 +45,50 @@ function orbitalReceipt(obs,s){if(!obs?.id)return;
  eventOnce('OBSERVATION_RECEIVED','t01-satellite-observation:'+obs.id,clock.lastSimulatedS,s.id,{observationId:obs.id});}
 function stepSource(start,end,seconds){
  const ops=root.StarfallOutpostUI;
- // Legacy launch controls still own force integration; T01 only advances deployed assets.
+ // Source records are the only writable physics state. On a per-asset model
+ // exception preserve that asset's previous state, report a fault, and keep
+ // all other assets independent. No remote job is magically completed.
  for(const r of launch.rovers){
-  if(finite(r.lastS)&&r.lastS>end+1e-8)continue; // no time travel for newly deployed probes
-  let body=resolveBody(r,end);if(!body){failure(r.id,'Destination body snapshot or ephemeris unavailable; probe frozen',end);continue;}
-  if(!r.bodySnapshot||r.bodySnapshot.parentId&&!r.bodySnapshot.parentOrbit&&RT.galaxy.byId.get(r.bodySnapshot.parentId)){r.bodySnapshot=snapshot(body);}
-  const before=r.batteryJ,oldState=r.status,pending=r.ground7d?.pending?.length||0;
-  G.tick(r,end,{body,seed,science:F,unitScale:P.SCENE_METERS_PER_UNIT,
-   height:(local,b)=>root.Starfall3D.groundHeight(local,b),link:root.StarfallLaunchUI.remoteLink(r,end),
-   onReceive:scienceReceipt});
-  if(oldState!==r.status)eventOnce('ASSET_EVENT','t01-rover:'+r.id+':'+Math.round(end*100),end,r.id,{from:oldState,to:r.status});
-  if((r.ground7d?.pending?.length||0)<pending)eventOnce('COMMAND_DELIVERED','t01-command:'+r.id+':'+Math.round(end*100),end,r.id);
-  if(finite(before)&&finite(r.batteryJ)&&before!==r.batteryJ)lastKnownEnergy.set(r.id,r.batteryJ);
+  if(finite(r.lastS)&&r.lastS>end+1e-8||r.t01Fault)continue;
+  const body=resolveBody(r,end);if(!body){failure(r.id,'Destination body snapshot or ephemeris unavailable; probe frozen',end);continue;}
+  if(!r.bodySnapshot||r.bodySnapshot.parentId&&!r.bodySnapshot.parentOrbit&&RT.galaxy.byId.get(r.bodySnapshot.parentId))r.bodySnapshot=snapshot(body);
+  const before=copy(r),arrived=[];
+  try{
+   G.tick(r,end,{body,seed,science:F,unitScale:P.SCENE_METERS_PER_UNIT,
+    height:(local,b)=>root.Starfall3D.groundHeight(local,b),
+    link:root.StarfallLaunchUI.remoteLink(r,end),
+    onReceive:obs=>arrived.push(obs)});
+   if(before.status!==r.status)eventOnce('ASSET_EVENT','t01-rover:'+r.id+':'+Math.round(end*100),end,r.id,{from:before.status,to:r.status});
+   if((r.ground7d?.pending?.length||0)<(before.ground7d?.pending?.length||0))
+    eventOnce('COMMAND_DELIVERED','t01-command:'+r.id+':'+Math.round(end*100),end,r.id);
+   for(const obs of arrived)scienceReceipt(obs,r);
+   if(finite(before.batteryJ)&&finite(r.batteryJ)&&before.batteryJ!==r.batteryJ)lastKnownEnergy.set(r.id,r.batteryJ);
+  }catch(error){
+   for(const k of Object.keys(r))delete r[k];Object.assign(r,before);
+   r.t01Fault=String(error.message||error).slice(0,130);failure(r.id,r.t01Fault,end);
+  }
  }
  for(const s of launch.satellites){
-  const state=S.ensure(s);if(state.lastS!==null&&state.lastS>end+1e-8)continue;
+  const state=S.ensure(s);if(state.lastS!==null&&state.lastS>end+1e-8||s.t01Fault)continue;
   const body=resolveBody(s,end);if(!body){failure(s.id,'Orbital body snapshot or ephemeris unavailable; satellite frozen',end);continue;}
   if(!s.bodySnapshot||s.bodySnapshot.parentId&&!s.bodySnapshot.parentOrbit&&RT.galaxy.byId.get(s.bodySnapshot.parentId))s.bodySnapshot=snapshot(body);
   const sys=RT.galaxy.byId.get(s.systemId),star=sys?.star?.position||sys?.position;
   if(!star){failure(s.id,'Host star ephemeris unavailable; satellite frozen',end);continue;}
-  const before=state.energyJ,oldEnabled=state.enabled;
-  S.step(s,body,star,end,P.SCENE_METERS_PER_UNIT,L.orbit);
-  for(const obs of S.receive(s,end))orbitalReceipt(obs,s);
-  if(oldEnabled!==state.enabled)eventOnce('POWER_STATE_CHANGED','t01-power:'+s.id+':'+Math.round(end*100),end,s.id,{enabled:state.enabled});
-  if(state.energyJ!==before)lastKnownEnergy.set(s.id,state.energyJ);
+  const before=copy(s);
+  try{
+   S.step(s,body,star,end,P.SCENE_METERS_PER_UNIT,L.orbit);
+   // This is a truthful saved numeric downlink, never a fabricated Camera 7F
+   // image. If journal owner is unavailable, hold in-transit data in 7C.
+   if(root.StarfallScienceUI?.ingestOrbital)for(const obs of S.receive(s,end))orbitalReceipt(obs,s);
+   if(before.ops7c?.enabled!==s.ops7c?.enabled)
+    eventOnce('POWER_STATE_CHANGED','t01-power:'+s.id+':'+Math.round(end*100),end,s.id,{enabled:s.ops7c?.enabled});
+   if(s.ops7c.energyJ!==before.ops7c?.energyJ)lastKnownEnergy.set(s.id,s.ops7c.energyJ);
+  }catch(error){
+   for(const k of Object.keys(s))delete s[k];Object.assign(s,before);
+   s.t01Fault=String(error.message||error).slice(0,130);failure(s.id,s.t01Fault,end);
+  }
  }
- if(ops?.advancePowerTo){ops.advancePowerTo(end,(id,t)=>resolveBody(id,t));}
+ if(ops?.advancePowerTo)ops.advancePowerTo(end,(asset,t)=>resolveBody(asset,t));
 }
 // Register owner function only: the scheduler never invents received images, radio
 // routes or physical science results. T03/T05 will add truthful job handlers.
