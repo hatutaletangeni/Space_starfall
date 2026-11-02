@@ -80,9 +80,9 @@ class Transport{
    if(!route?.connected){p.state='OFFLINE';p.reason='Receiver unreachable after propagation: '+String(route?.reason||'offline');p.sendBytes=0;p.recvBytes=0;p.arrivalS=null;p.retries++;p.eligibleS=now+Math.min(60,2**Math.min(p.retries,5));continue;}
    try{
     const accepted=receive(p,now);
-    if(accepted===false){p.state='PAUSED';p.reason='Destination storage or handler unavailable';p.eligibleS=now+5;continue;}
-   }catch(e){p.state='PAUSED';p.reason='Delivery handler fault: '+String(e?.message||e).slice(0,120);p.eligibleS=now+5;continue;}
-   if(this.receipts.length>=4000){p.state='PAUSED';p.reason='Receipt ledger full; archive with export before accepting more';continue;}
+    if(accepted===false){p.state='IN_FLIGHT';p.reason='Destination storage or handler unavailable; received bytes held for retry';p.arrivalS=now+5;continue;}
+   }catch(e){p.state='IN_FLIGHT';p.reason='Delivery handler retry: '+String(e?.message||e).slice(0,120);p.arrivalS=now+5;continue;}
+   if(this.receipts.length>=4000){p.state='IN_FLIGHT';p.arrivalS=now+5;p.reason='Receipt ledger full; archive with export before accepting more';continue;}
    this.receipts.push(p.id);p.recvBytes=p.encodedBytes;p.state='RECEIVED';p.ackAtS=now+Math.max(.001,Number(route.delayS)||.001);
    p.custody=p.destId;p.reason='Payload accepted by authoritative destination';this.metrics.delivered++;
   }
