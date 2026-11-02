@@ -3897,6 +3897,7 @@ function safeSave(value,seed){
   for(const name of ['launches','satellites','rovers']){
    if(L[name]!==undefined&&(!Array.isArray(L[name])||L[name].length>4000))throw Error('Invalid or oversized '+name+' in launch inventory');
    if(Array.isArray(L[name])&&L[name].some(x=>!plain(x)||typeof x.id!=='string'||typeof x.bodyId!=='string'))throw Error('Damaged '+name+' entry: backup not imported');
+   if(Array.isArray(L[name])&&new Set(L[name].map(x=>x.id)).size!==L[name].length)throw Error('Duplicate '+name+' asset IDs: backup not imported');
   }
  }
  if(value.research7e&&(value.research7e.plans!==undefined&&!Array.isArray(value.research7e.plans)||value.research7e.runs!==undefined&&!Array.isArray(value.research7e.runs)))throw Error('Research save records malformed');
