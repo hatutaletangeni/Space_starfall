@@ -52,7 +52,7 @@ assert.equal(T.requiredWatts(pad),0);
 const old=store.launches[0];assert.throws(()=>T.configure(pad,'commissioned',42,new X.Store(seed,{schema:1,seed,launches:[{...old,phase:'coast'}]})),/active/);
 const legacyLaunch=noSource.launch({body,foundation:pad,design,time:41});
 assert.equal(legacyLaunch.payloadT11.route,'LOCAL_ORBIT');
-assert.throws(()=>noSource.launch({body,foundation:pad,design:{...design,payload:'rover'},time:42,
+assert.throws(()=>new X.Store(seed).launch({body,foundation:pad,design:{...design,payload:'rover'},time:42,
  destinationBody:{...body,id:'star-0-p1'},destinationSystem:localSystem}),/Same-system cross-planet transfer/);
 const remoteStore=new X.Store(seed);
 const launchRover=remoteStore.launch({body,foundation:pad,design:{...design,payload:'rover'},time:42,
