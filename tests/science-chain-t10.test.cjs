@@ -15,7 +15,7 @@ const sample={id:'specimen-rover-1-4',type:'regolith',massKg:.15,volumeL:.1,
   instrument:'sampler',observationId:'reading-4',contaminated:false};
 source.sampleInventory.push(sample);
 assert.equal(C.capacity(stored).count,0);
-assert.throws(()=>C.transfer(store,stored,sample,source,body,context,false,20),/OFFLINE/);
+assert.throws(()=>C.transfer(store,stored,sample,source,body,context,false,20),/offline/i);
 assert.equal(source.sampleInventory.length,1);
 const remote={...context,bodyId:'planet-B'};
 assert.throws(()=>C.transfer(store,stored,sample,source,body,remote,true,20),/same world/);
