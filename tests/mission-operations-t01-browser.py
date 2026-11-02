@@ -42,6 +42,7 @@ with sync_playwright() as p:
         # Save the same simulation time to the real flight record before reload.
         page.evaluate("""()=>{
           const at=StarfallMissionOperationsUI.clock.lastSimulatedS,old=SF.load().flightGalaxy||{};
+          STARFALL_DEBUG.setSimulationTime(at); // Keep authoritative flight time equal to the test clock before pagehide
           SF.save({flightGalaxy:{...old,seed:StarfallRuntime.galaxy.seed,time:at}});
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
