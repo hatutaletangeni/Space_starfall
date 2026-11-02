@@ -15,7 +15,7 @@ function repair(raw){
  return{schema:SCHEMA,mode:['omni','fixed','tracking'].includes(o.mode)?o.mode:'omni',
   boresightLocal:normalized(o.boresightLocal),targetId:typeof o.targetId==='string'?o.targetId.slice(0,160):'',
   radioEnabled:o.radioEnabled!==false,
-  bufferCapacityBytes:TOWER_BUFFER_BYTES,
+  bufferCapacityBytes:TOWER_BUFFER_BYTES,deepT08:root.StarfallDeepSpaceT08?.repair(o.deepT08)||o.deepT08||null,
   inbox:Array.isArray(o.inbox)?o.inbox.filter(v=>v&&typeof v.packetId==='string'&&typeof v.observationId==='string'&&typeof v.sourceId==='string'&&Number.isSafeInteger(v.bytes)&&v.bytes>0&&v.bytes<=TOWER_BUFFER_BYTES&&num(v.receivedAtS))
    .slice(-80).reduce((arr,v)=>{if(!arr.some(x=>x.packetId===v.packetId)&&arr.reduce((n,x)=>n+x.bytes,0)+v.bytes<=TOWER_BUFFER_BYTES)arr.push({packetId:v.packetId,observationId:v.observationId,sourceId:v.sourceId,bytes:v.bytes,receivedAtS:v.receivedAtS});return arr;},[]):[],
   // Last contact is telemetry, not radio delivery authority; packets are T03-owned.
@@ -32,7 +32,7 @@ function configure(item,{mode,targetId='',boresightLocal,radioEnabled}){
  if(radioEnabled!==undefined)next.radioEnabled=!!radioEnabled;
  item.radioT04=next;return deep(next);
 }
-function loadW(item,specWatts=BASE_W){if(item?.kind!=='antenna')return specWatts;const c=repair(item.radioT04);return c.radioEnabled?specWatts+(c.mode==='tracking'?TRACK_W:0):12;}
+function loadW(item,specWatts=BASE_W){if(item?.kind!=='antenna')return specWatts;const c=repair(item.radioT04);return (c.radioEnabled?specWatts+(c.mode==='tracking'?TRACK_W:0):12)+(root.StarfallDeepSpaceT08?.watts(item)||0);}
 function position(item,body,rotate){
  const radial=rotate(item.local,body.spinAxis||[0,1,0],body.spinAngle||0);
  return V.add(body.position,V.mul(radial,body.radius+Math.max(8,item.height||0)));
@@ -134,7 +134,7 @@ function diagnostics(item,body,report,packets,rotate,timeS){
   bufferUsedBytes:backlog,bufferCapacityBytes:TOWER_BUFFER_BYTES,
   packetsAwaitingACK:records.filter(p=>p.state!=='ACKED'&&p.state!=='FAILED'&&p.state!=='EXPIRED').length,
   lastContactS:c.lastContactS,lastPeerId:c.lastPeerId,
-  lastSimulatedS:report?.simulatedAtS??timeS,
+  lastSimulatedS:report?.simulatedAtS??timeS,deepT08:root.StarfallDeepSpaceT08?.inspected(item,report,timeS)||null,
   fault:stationNode.reason|| (backlog>TOWER_BUFFER_BYTES?'RELAY_BUFFER_FULL':''),
   queuedPacketIds:records.map(p=>p.id),receivedReferenceIds:c.inbox.map(x=>x.observationId)};
 }
