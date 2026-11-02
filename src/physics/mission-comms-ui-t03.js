@@ -158,20 +158,35 @@ function imagingScan(at){
  for(const j of store.jobs)if(j.deliveredS===null)camera(j);
  for(const p of store.photos)if(['queued','transmitting','in-transit'].includes(p.status))photo(p);
 }
+function receiveEnergy(p){
+ const wattS=Math.max(.1,8*p.encodedBytes/Math.max(1,p.lastLink?.bandwidthBps||48000));
+ const cost=8*wattS;
+ if(p.destId==='starfall-ship'){
+  const v=RT.vehicleStore.get('ship');if(v.state.energyJ<cost+100)return false;
+  RT.vehicleStore.update('ship',{...v.state,energyJ:v.state.energyJ-cost});return true;
+ }
+ const r=rover(p.destId);
+ if(r){if(r.batteryJ<cost+400000)return false;r.batteryJ-=cost;return true;}
+ const s=sat(p.destId);
+ if(s){const o=S.ensure(s);if(o.energyJ<cost+150)return false;o.energyJ-=cost;s.powerJ=o.energyJ;return true;}
+ return false;
+}
 function receive(p,at){
  if(['ROVER_COMMAND','EMERGENCY_STOP'].includes(p.type)){
-  const r=rover(p.destId);if(!r)return false;
+  const r=rover(p.destId);if(!r||!receiveEnergy(p))return false;
   G.acceptPacket(r,p.ref.commands,at,p.id);return true;
  }
  if(p.type==='CAMERA_REQUEST'){
   const store=root.StarfallImagingUI7F?.store;if(!store)return false;
   const job=store.jobs.find(x=>x.id===p.ref.jobId);
   if(!job)return false;
+  if(!receiveEnergy(p))return false;
   if(job.deliveredS===null)store.markDelivered(job.id,at);return true;
  }
  if(p.type==='ROVER_OBSERVATION'){
   const r=rover(p.sourceId),o=r?.ground7d?.queuedObservations?.find(x=>x.id===p.ref.observationId);
   if(!r||!o||!root.StarfallScienceUI?.ingestRover)return false;
+  if(!receiveEnergy(p))return false;
   root.StarfallScienceUI.ingestRover(o);
   const g=G.migrate(r);if(!g.receivedIds.includes(o.id))g.receivedIds.push(o.id);
   g.queuedObservations=g.queuedObservations.filter(x=>x.id!==o.id);return true;
@@ -179,12 +194,14 @@ function receive(p,at){
  if(p.type==='SATELLITE_OBSERVATION'){
   const s=sat(p.sourceId),o=s&&S.ensure(s),obs=o?.storage.find(x=>x.id===p.ref.observationId);
   if(!obs||!root.StarfallScienceUI?.ingestOrbital)return false;
+  if(!receiveEnergy(p))return false;
   root.StarfallScienceUI.ingestOrbital({...obs,receivedAtS:at});root.StarfallSurveyUI?.recordOrbitalFootprint?.(obs);
   o.storage=o.storage.filter(x=>x.id!==obs.id);if(!o.received.some(x=>x.id===obs.id))o.received.push({...obs,receivedAtS:at});
   return true;
  }
  if(p.type==='IMAGE_REF'){
   const store=root.StarfallImagingUI7F?.store;if(!store||!store.get(p.ref.photoId))return false;
+  if(!receiveEnergy(p))return false;
   // Bytes are received, but the original gallery unlocks only after durable ACK.
   return true;
  }
@@ -216,10 +233,10 @@ function poll(at){
  }
 }
 function persist(){
- const result=root.SF.save({commsT03:{...transport.serialize(),serial}});
- if(result===false){lastWarning='Radio packets could not be saved (browser storage quota).';return false;}
- dirty=false;root.SF.save({launch7:UI.store.serialize()});root.StarfallImagingUI7F?.persist?.();
- RT.persistVehicles?.();return true;
+ const result=root.SF.save({commsT03:{...transport.serialize(),serial},launch7:UI.store.serialize(),
+  engineeringVehicles:RT.vehicleStore.serialize(),imaging7f:root.StarfallImagingUI7F?.store?.serialize()||root.SF.load().imaging7f||{}});
+ if(result===false){lastWarning='Radio and source-owner state could not be saved atomically (browser storage quota).';return false;}
+ dirty=false;lastWarning='';return true;
 }
 function status(assetId){
  const records=transport.list(assetId);
