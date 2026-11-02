@@ -3,7 +3,7 @@
  * This pure layer never creates another mutable energy, orbit or evidence store.
  */
 (function(root){'use strict';
-const SCHEMA=1,TRACK_W=35,BASE_W=165,TOWER_BUFFER_BYTES=524288,RELAY_BUFFER_BYTES=262144,MAX_HOPS=4;
+const SCHEMA=1,TRACK_W=35,BASE_W=165,TOWER_BUFFER_BYTES=4194304,RELAY_BUFFER_BYTES=4194304,MAX_HOPS=4;
 const C=299792458,PI=Math.PI;
 const min=(a,b)=>Math.min(a,b),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const num=x=>typeof x==='number'&&Number.isFinite(x);
