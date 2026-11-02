@@ -46,6 +46,14 @@ function roverNode(r,body){
  return{id:r.id,kind:'rover-radio',bodyId:body.id,position:O.V.add(body.position,O.V.mul(rad,body.radius+3)),
   rangeScene:45,bandwidthBps:48000,txPowerW:34};
 }
+function localRoverId(){return RT.vehicleStore.get('rover').definition.id;}
+function localRoverNode(body){
+ const pos=RT.roverAutonomyPosition?.(),v=RT.vehicleStore.get('rover');
+ if(pos?.bodyId!==body.id||!pos.local||v.state.energyJ<300)return null;
+ const rad=O.rotate(pos.local,body.spinAxis||[0,1,0],body.spinAngle||0);
+ return{id:localRoverId(),kind:'local-rover-radio',bodyId:body.id,
+  position:O.V.add(body.position,O.V.mul(rad,body.radius+3)),rangeScene:45,bandwidthBps:48000,txPowerW:34};
+}
 function satelliteNode(s,body,t){
  const ops=S.ensure(s);
  if(!S.relayOperational(s))return null;
@@ -70,6 +78,7 @@ function routeFor(packet,at,phase='send'){
  const sources=[],targets=[];
  const node=id=>{
   if(id==='starfall-ship')return current;
+  if(id===localRoverId())return localRoverNode(body);
   if(rover(id))return roverNode(rover(id),body);
   if(sat(id))return satelliteNode(sat(id),body,at);
   return towers.find(x=>x.id===id)||null;
@@ -97,6 +106,10 @@ function routeFor(packet,at,phase='send'){
 function energy(packet,j){
  if(!(j>=0&&finite(j)))return false;
  if(j===0)return true;
+ if(packet.sourceId===localRoverId()){
+  const v=RT.vehicleStore.get('rover');if(v.state.energyJ<j+400000)return false;
+  RT.vehicleStore.update('rover',{...v.state,energyJ:v.state.energyJ-j});return true;
+ }
  if(packet.sourceId==='starfall-ship'){
   const v=RT.vehicleStore.get('ship');if(v.state.energyJ<j+100)return false;
   RT.vehicleStore.update('ship',{...v.state,energyJ:v.state.energyJ-j});
@@ -161,6 +174,10 @@ function imagingScan(at){
 function receiveEnergy(p){
  const wattS=Math.max(.1,8*p.encodedBytes/Math.max(1,p.lastLink?.bandwidthBps||48000));
  const cost=8*wattS;
+ if(p.destId===localRoverId()){
+  const v=RT.vehicleStore.get('rover');if(v.state.energyJ<cost+400000)return false;
+  RT.vehicleStore.update('rover',{...v.state,energyJ:v.state.energyJ-cost});return true;
+ }
  if(p.destId==='starfall-ship'){
   const v=RT.vehicleStore.get('ship');if(v.state.energyJ<cost+100)return false;
   RT.vehicleStore.update('ship',{...v.state,energyJ:v.state.energyJ-cost});return true;
