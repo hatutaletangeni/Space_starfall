@@ -74,6 +74,7 @@ with sync_playwright() as p:
           const checks=[
             {...base,launch7:{...base.launch7,seed:seed+1}},
             {...base,launch7:{...base.launch7,rovers:[{not:'valid'}]}},
+            {...base,launch7:{...base.launch7,rovers:[{id:'x',bodyId:'world'},{id:'x',bodyId:'world'}]}},
             {...base,imaging7f:{schema:1,photos:{corrupt:true}}},
             {...base,flightGalaxy:{...base.flightGalaxy,position:[Infinity,1,2]}}
           ];
