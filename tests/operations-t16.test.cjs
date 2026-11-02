@@ -47,6 +47,14 @@ const repaired=M.status({id:'probe-1',kind:'remote-rover',bodyId:'star-0-p0',sys
  mode:'parked',storageUsed:0,storageMax:24});
 assert.equal(repaired.stage,'COMPLETE');
 assert.equal(repaired.statusText,'POWERED');
+const newJobOverOldAck=M.status({id:'probe-1',kind:'remote-rover',
+ packet:{...sent,createdS:100,state:'ACKED',ackAtS:140},
+ job:{id:'camera-next',assetId:'probe-1',createdS:200,deliveredS:null}});
+assert.equal(newJobOverOldAck.stage,'IN_PROGRESS','last ACK must not falsely complete a newer camera request');
+const realPhotoAfterPending=M.status({id:'probe-1',kind:'remote-rover',
+ packet:{...sent,createdS:190,state:'WAITING_FOR_ROUTE'},
+ photo:{...photo,timeS:240,status:'downlinked',receivedAtS:250}});
+assert.equal(realPhotoAfterPending.stage,'COMPLETE','actual newer image receipt must not appear pending because of older command');
 assert.equal(repaired.warnings.length,0);
 const unknown=M.status({id:'starfall-ship',kind:'ship',powered:null,energyJ:null,localTimeS:10});
 assert.equal(unknown.statusText,'POWER UNCONFIRMED');
