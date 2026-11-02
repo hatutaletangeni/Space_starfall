@@ -147,7 +147,7 @@ async function perform(job,s){
   let photo;try{photo=store.put({sourceType:s.type,sourceAssetId:s.assetId,sourceName:s.label,bodyId:s.bodyId,systemId:pose.body.systemId,
     mode:job.mode,resolution:job.resolution,width:shot.width,height:shot.height,timeS:captureAt,position:pose.eye.slice(),camera:shot.camera,sceneSnapshotVersion:shot.sceneSnapshotVersion||null,renderSource:shot.renderSource||'STARFALL_7F',cameraJobId:job.id,t07JobId:job.t07JobId||null,
     altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,bytes:shot.bytes,mime:shot.mime,caption,
-    observationRefs:job.t07JobId?(root.StarfallSatelliteOps7C?.ensure?.(s.sat)?.storage||[]).filter(x=>x.t07JobId===job.t07JobId).map(x=>x.id):(root.StarfallScienceUI?.journal||[]).filter(x=>x.bodyId===s.bodyId).slice(-5).map(x=>x.id)});
+    observationRefs:job.t07JobId?(()=>{const o=root.StarfallSatelliteOps7C?.ensure?.(s.sat);return[...(o?.storage||[]),...(o?.received||[])].filter(x=>x.t07JobId===job.t07JobId).map(x=>x.id);})():(root.StarfallScienceUI?.journal||[]).filter(x=>x.bodyId===s.bodyId).slice(-5).map(x=>x.id)});
   }catch(e){await imageRemove(nextId);throw e;}
   consumeEnergy(s,shotEnergy);store.finishJob(job.id);store.queueDownlink(photo.id);persist();
   message('Camera recorded '+photo.id+' ('+Math.round(photo.bytes/1024)+' KB). Image onboard; queued for radio downlink.');
