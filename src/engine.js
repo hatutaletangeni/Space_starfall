@@ -626,7 +626,7 @@ class Renderer{
  }
  // 7F: World-only capture. The SAME scene renderer, shaders and planet mesh
  // are drawn to a bounded offscreen RGBA8/depth framebuffer; HUD is never captured.
- captureScience(camera,body,{size=512,caption='',quality=.82}={}){
+ captureScience(camera,body,{size=512,caption='',quality=.82,wide=false}={}){
   if(![256,512,1024].includes(size))throw Error('Unsupported camera resolution');
   if(!body?.id||!body.position||!this.latestFrameState)throw Error('A loaded world scene is required');
   if(!this.galaxy.byId.has(body.id))throw Error('Camera target is not currently loaded; visit its system');
@@ -645,7 +645,7 @@ class Renderer{
    gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,color,0);
    gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depth);
    if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw Error('Offscreen camera framebuffer is incomplete');
-   this.captureSize={width:size,height:size};this.aspect=1;this.fov=1.05;this.pixelRatio=1;
+   this.captureSize={width:size,height:size};this.aspect=1;this.fov=wide?1.68:1.05;this.pixelRatio=1;
    this.lastPatchAt=0;this.lastSkyAt=0;
    const base=this.latestFrameState,up=V.norm(camera.up),forward=V.norm(camera.forward),right=V.norm(V.cross(forward,up));
    if(V.len(right)<.01)throw Error('Degenerate camera orientation');
