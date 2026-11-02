@@ -38,7 +38,7 @@ function normalize(input){
  const rocket=type==='rocket'?clone(input.rocket||{engine:'atlas',payload:'relay',stages:2,tanks:4,boosters:2}):null;
  if(rocket&&JSON.stringify(rocket).length>4000)throw Error('Rocket configuration is too large');
  const world=isObj(input.world)?input.world:{};
- return{type,title,definition:def,rocket,conditions:c,sourceAssetId:text(input.sourceAssetId||def?.id||'rocket-bench',120),bodyId:text(world.bodyId||'bench-body',120),systemId:text(world.systemId||'bench-system',120),observations:(Array.isArray(input.observations)?input.observations:[]).filter(safeId).slice(0,12),notes:text(input.notes,300)};
+ return{type,title,definition:def,rocket,conditions:c,sourceAssetId:text(input.sourceAssetId||def?.id||'rocket-bench',120),bodyId:text(world.bodyId||'bench-body',120),systemId:text(world.systemId||'bench-system',120),observations:(Array.isArray(input.observations)?input.observations:[]).filter(safeId).slice(0,12),photoRefs:(Array.isArray(input.photoRefs)?input.photoRefs:[]).filter(safeId).slice(0,12),notes:text(input.notes,300)};
 }
 function roverRun(plan){
  const R=root.StarfallRoverDynamics,M=root.StarfallVehicles;
@@ -111,7 +111,7 @@ class Store{
  run(planId,timeS=0){const p=this.data.plans.find(x=>x.id===planId);if(!p)throw Error('Experiment plan not found');
   const result=runModel(p),run={id:this.next('run'),schema:SCHEMA,planId:p.id,type:p.type,title:p.title,sourceAssetId:p.sourceAssetId,
    timeS:finite(timeS)?bound(timeS,0,1e13):0,bodyId:p.bodyId,systemId:p.systemId,conditions:clone(p.conditions),
-   sourceDefinition:p.definition?clone(p.definition):null,observationRefs:p.observations.slice(),...result};
+   sourceDefinition:p.definition?clone(p.definition):null,observationRefs:p.observations.slice(),photoRefs:(p.photoRefs||[]).slice(),...result};
   this.data.runs.push(run);if(this.data.runs.length>MAX_RUNS)this.data.runs.shift();return clone(run);}
  blueprint(runId,title){const r=this.data.runs.find(x=>x.id===runId);if(!r)throw Error('Test run not found');
   if(!r.success)throw Error('Cannot validate failed/incomplete engineering test');
@@ -119,7 +119,7 @@ class Store{
   if(!p)throw Error('Original test plan is no longer present');
   const b={id:this.next('bp'),schema:SCHEMA,title:text(title||r.title),type:r.type,sourceRunId:r.id,sourceAssetId:r.sourceAssetId,
    definition:p.definition?validDefinition(p.definition):null,rocket:p.rocket?clone(p.rocket):null,conditions:clone(p.conditions),
-   predicted:clone(r.predicted),simulated:clone(r.simulated),observationRefs:r.observationRefs.slice(),
+   predicted:clone(r.predicted),simulated:clone(r.simulated),observationRefs:r.observationRefs.slice(),photoRefs:(r.photoRefs||[]).slice(),
    model:r.model,createdS:r.timeS,benchOnly:r.type==='rocket'||p.type==='rover'&&(p.conditions.gearRatio!==1||p.conditions.wheelScale!==1)};
   this.data.blueprints.push(b);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(b);}
  compare(a,b){const x=this.data.runs.find(r=>r.id===a),y=this.data.runs.find(r=>r.id===b);
@@ -138,7 +138,7 @@ class Store{
   if(b.type==='rocket'&&(!isObj(b.rocket)||JSON.stringify(b.rocket).length>4000))throw Error('Rocket design missing');
   const fresh={id:this.next('bp'),schema:SCHEMA,title:text(b.title),type:b.type,sourceRunId:b.sourceRunId,sourceAssetId:text(b.sourceAssetId),
    definition:b.definition?clone(b.definition):null,rocket:b.rocket?clone(b.rocket):null,conditions:clone(b.conditions),
-   predicted:clone(b.predicted),simulated:clone(b.simulated),observationRefs:Array.isArray(b.observationRefs)?b.observationRefs.filter(safeId).slice(0,12):[],
+   predicted:clone(b.predicted),simulated:clone(b.simulated),observationRefs:Array.isArray(b.observationRefs)?b.observationRefs.filter(safeId).slice(0,12):[],photoRefs:Array.isArray(b.photoRefs)?b.photoRefs.filter(safeId).slice(0,12):[],
    model:text(b.model,120),createdS:finite(b.createdS)?b.createdS:0,benchOnly:!!b.benchOnly,
    imported:true};this.data.blueprints.push(fresh);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(fresh);}
  serialize(){return clone(this.data);}
