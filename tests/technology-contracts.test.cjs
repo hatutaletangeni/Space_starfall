@@ -44,5 +44,14 @@ for(const k of ['foundation','hab','lab','battery','solar','storage','antenna','
  assert(typeof data.acceptanceContracts[k]==='string','Missing hardware acceptance: '+k);
 }
 for(let i=1;i<=18;i++)assert(Array.isArray(data.changeScopes['T'+String(i).padStart(2,'0')]),'Missing T stage scope '+i);
+for(const [globalName, contract] of Object.entries(data.expectedExports)) {
+ const source=globalThis[globalName];
+ assert(source, 'Missing public global contract: '+globalName);
+ for(const name of contract.names)assert(Object.hasOwn(source,name),globalName+' missing export '+name);
+ if(typeof source.SCHEMA==='number')assert.equal(source.SCHEMA,contract.schema,globalName+' schema drift');
+}
+for(const [name,version] of Object.entries(data.saveSchemas)) {
+ assert(Number.isInteger(version)&&version>=1,'Invalid documented save schema: '+name);
+}
 assert.equal(data.verification.modelTestsExecutedHere,false);
 console.log('PASS T00 catalog/schema audit: '+data.inventory.length+' unique records, '+Object.keys(categories).length+' source catalogs; operational gameplay not claimed.');
