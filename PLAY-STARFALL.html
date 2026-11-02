@@ -313,7 +313,11 @@
  <section data-outpost-page="build"><div class="field-route"><label for="outpost-type">Structure<select id="outpost-type"><option value="foundation">Foundation</option><option value="hab">Habitat</option><option value="lab">Field laboratory</option><option value="battery">Battery / 20 kWh</option><option value="solar">Solar array</option><option value="storage">Sample storage</option><option value="antenna">Radio antenna</option><option value="connector">Power connector</option></select></label><label for="outpost-forward">Forward offset<input type="number" min="-150" max="150" step="5" id="outpost-forward" value="-24"/></label><label for="outpost-right">Right offset<input type="number" min="-150" max="150" step="5" id="outpost-right" value="0"/></label></div>
   <p id="outpost-placement" aria-live="polite">Land and walk outside to begin construction.</p><div class="obs-tools"><button class="science-action" type="button" id="outpost-place">BUILD AT PREVIEW</button><button type="button" class="science-action" id="outpost-remove">DISMANTLE SELECTED MODULE A</button></div><p class="field-note">A single low-poly preview marks the selected position. All modules are prebuilt and free to place; this is a sandbox, not crafting or a mission system.</p></section>
  <section data-outpost-page="power" hidden><p id="outpost-power-result" class="field-note"></p><p class="field-note">A direct cable is required for electrical connection; choose a module at each end. Cables carry a simplified DC supply (not a circuit simulator).</p><div class="field-route"><label for="outpost-node-a">Module A<select id="outpost-node-a"></select></label><label for="outpost-node-b">Module B<select id="outpost-node-b"></select></label></div><div class="obs-tools"><button id="outpost-connect" class="science-action" type="button">CONNECT CABLE</button><button id="outpost-disconnect" class="science-action" type="button">DISCONNECT CABLE</button><button id="outpost-toggle-power" class="science-action" type="button">ENABLE / DISABLE SELECTED MODULE</button></div><div class="field-note" id="outpost-wire-list"></div><pre id="outpost-t02-inspector" class="launch-output" aria-live="polite">Select a powered device to inspect sources and watts.</pre><div id="outpost-structure-list" class="outpost-list"></div></section>
- <section data-outpost-page="comms" hidden><label class="obs-micro"><input type="checkbox" id="outpost-enforce-radio"/> Require working radio links for new remote rover commands (OFF by default; existing scripts keep running on signal loss)</label><p class="field-note">Radio range, line-of-sight and light travel delay are modeled. Relays use analytic orbits. Build a staged rocket from ROCKET LAB for a physical-looking, performance-gated deployment; legacy analytic relays remain supported.</p><button id="outpost-launch-relay" class="science-action" type="button">DEPLOY ANALYTIC COMM RELAY</button><div id="outpost-relays" class="outpost-list"></div><div class="field-route"><label for="outpost-radio-device">Antenna<select id="outpost-radio-device"></select></label><label for="outpost-radio-mode">Radio mode<select id="outpost-radio-mode"><option value="omni">Omni / legacy</option><option value="fixed">Fixed pointed dish</option><option value="tracking">Auto-track one target (+35 W)</option></select></label><label for="outpost-radio-target">Physical target<select id="outpost-radio-target"></select></label></div><div class="obs-tools"><button id="outpost-radio-apply" class="science-action" type="button">SET MODE / TRACK TARGET</button><button id="outpost-radio-aim" class="science-action" type="button">AIM FIXED DISH AT TARGET</button><button id="outpost-radio-reset" class="science-action" type="button">SAFE RESET TO OMNI</button><button id="outpost-radio-power" class="science-action" type="button">RADIO ENABLE / DISABLE</button></div><pre id="outpost-radio-diagnostic" class="launch-output" aria-live="polite">Build and wire a surface antenna to inspect actual link hardware.</pre></section>
+ <section data-outpost-page="comms" hidden><label class="obs-micro"><input type="checkbox" id="outpost-enforce-radio"/> Require working radio links for new remote rover commands (OFF by default; existing scripts keep running on signal loss)</label><p class="field-note">Radio range, line-of-sight and light travel delay are modeled. Relays use analytic orbits. Build a staged rocket from ROCKET LAB for a physical-looking, performance-gated deployment; legacy analytic relays remain supported.</p><button id="outpost-launch-relay" class="science-action" type="button">DEPLOY ANALYTIC COMM RELAY</button><div id="outpost-relays" class="outpost-list"></div><div class="field-route"><label for="outpost-radio-device">Antenna<select id="outpost-radio-device"></select></label><label for="outpost-radio-mode">Radio mode<select id="outpost-radio-mode"><option value="omni">Omni / legacy</option><option value="fixed">Fixed pointed dish</option><option value="tracking">Auto-track one target (+35 W)</option></select></label><label for="outpost-radio-target">Physical target<select id="outpost-radio-target"></select></label></div><div class="obs-tools"><button id="outpost-radio-apply" class="science-action" type="button">SET MODE / TRACK TARGET</button><button id="outpost-radio-aim" class="science-action" type="button">AIM FIXED DISH AT TARGET</button><button id="outpost-radio-reset" class="science-action" type="button">SAFE RESET TO OMNI</button><button id="outpost-radio-power" class="science-action" type="button">RADIO ENABLE / DISABLE</button></div><h3>T08 · Deep-space mission ground stations</h3><p class="field-note">Commission a **separately powered high-gain transceiver** on an existing antenna on each planet. The original short-range radio remains available. Each dish must target the other's real saved antenna ID, and both need sufficient wired solar/battery power. Neither a landed ship nor a free satellite can substitute for the receiving station.</p>
+<div class="field-route"><label>Deep-space hardware<select id="outpost-t08-mode"><option value="OFF">NOT INSTALLED / DISABLED</option><option value="HIGH_GAIN">PHYSICAL high-gain RF (+1100 W)</option><option value="FICTIONAL">FICTIONAL interstellar carrier (+2200 W)</option></select></label><label>Exact target station<select id="outpost-t08-peer"></select></label></div>
+<div class="obs-tools"><button type="button" class="science-action" id="outpost-t08-apply">COMMISSION / SET PEER</button><button type="button" class="science-action" id="outpost-t08-off">DISABLE DEEP-SPACE SYSTEM</button></div>
+<pre id="outpost-t08-diagnostic" class="launch-output" aria-live="polite">Two real, powered installed stations are needed for a planet-to-planet route; no receiver is created automatically.</pre>
+<pre id="outpost-radio-diagnostic" class="launch-output" aria-live="polite">Build and wire a surface antenna to inspect actual link hardware.</pre></section>
  <section data-outpost-page="lab" hidden><div class="field-route"><label for="outpost-lab">Receiver lab<select id="outpost-lab"></select></label></div><p id="outpost-radio" class="field-note">No powered lab selected.</p><button id="outpost-send" class="science-action" type="button">SEND FIELD MEASUREMENTS</button><div class="outpost-records" id="outpost-data" aria-live="polite"></div><div class="obs-tools"><button class="science-action" id="outpost-export-receipts" type="button">EXPORT RECEIPTS CSV</button></div></section>
  <p id="outpost-structure-count" class="field-note"></p><p id="outpost-status" role="status" aria-live="polite"></p><div class="obs-tools"><button type="button" id="outpost-export" class="science-action">EXPORT STRUCTURES JSON</button></div>
  </div>
@@ -3147,7 +3151,7 @@ function repair(raw){
  return{schema:SCHEMA,mode:['omni','fixed','tracking'].includes(o.mode)?o.mode:'omni',
   boresightLocal:normalized(o.boresightLocal),targetId:typeof o.targetId==='string'?o.targetId.slice(0,160):'',
   radioEnabled:o.radioEnabled!==false,
-  bufferCapacityBytes:TOWER_BUFFER_BYTES,
+  bufferCapacityBytes:TOWER_BUFFER_BYTES,deepT08:root.StarfallDeepSpaceT08?.repair(o.deepT08)||o.deepT08||null,
   inbox:Array.isArray(o.inbox)?o.inbox.filter(v=>v&&typeof v.packetId==='string'&&typeof v.observationId==='string'&&typeof v.sourceId==='string'&&Number.isSafeInteger(v.bytes)&&v.bytes>0&&v.bytes<=TOWER_BUFFER_BYTES&&num(v.receivedAtS))
    .slice(-80).reduce((arr,v)=>{if(!arr.some(x=>x.packetId===v.packetId)&&arr.reduce((n,x)=>n+x.bytes,0)+v.bytes<=TOWER_BUFFER_BYTES)arr.push({packetId:v.packetId,observationId:v.observationId,sourceId:v.sourceId,bytes:v.bytes,receivedAtS:v.receivedAtS});return arr;},[]):[],
   // Last contact is telemetry, not radio delivery authority; packets are T03-owned.
@@ -3164,7 +3168,7 @@ function configure(item,{mode,targetId='',boresightLocal,radioEnabled}){
  if(radioEnabled!==undefined)next.radioEnabled=!!radioEnabled;
  item.radioT04=next;return deep(next);
 }
-function loadW(item,specWatts=BASE_W){if(item?.kind!=='antenna')return specWatts;const c=repair(item.radioT04);return c.radioEnabled?specWatts+(c.mode==='tracking'?TRACK_W:0):12;}
+function loadW(item,specWatts=BASE_W){if(item?.kind!=='antenna')return specWatts;const c=repair(item.radioT04);return (c.radioEnabled?specWatts+(c.mode==='tracking'?TRACK_W:0):12)+(root.StarfallDeepSpaceT08?.watts(item)||0);}
 function position(item,body,rotate){
  const radial=rotate(item.local,body.spinAxis||[0,1,0],body.spinAngle||0);
  return V.add(body.position,V.mul(radial,body.radius+Math.max(8,item.height||0)));
@@ -3266,12 +3270,152 @@ function diagnostics(item,body,report,packets,rotate,timeS){
   bufferUsedBytes:backlog,bufferCapacityBytes:TOWER_BUFFER_BYTES,
   packetsAwaitingACK:records.filter(p=>p.state!=='ACKED'&&p.state!=='FAILED'&&p.state!=='EXPIRED').length,
   lastContactS:c.lastContactS,lastPeerId:c.lastPeerId,
-  lastSimulatedS:report?.simulatedAtS??timeS,
+  lastSimulatedS:report?.simulatedAtS??timeS,deepT08:root.StarfallDeepSpaceT08?.inspected(item,report,timeS)||null,
   fault:stationNode.reason|| (backlog>TOWER_BUFFER_BYTES?'RELAY_BUFFER_FULL':''),
   queuedPacketIds:records.map(p=>p.id),receivedReferenceIds:c.inbox.map(x=>x.observationId)};
 }
 const API={SCHEMA,BASE_W,TRACK_W,TOWER_BUFFER_BYTES,RELAY_BUFFER_BYTES,MAX_HOPS,repair,configure,loadW,station,position,gain,link,candidates,bufferLoad,diagnostics};
 root.StarfallAntennaT04=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
+/* STARFALL T08 — real commissioned high-gain antennas on existing T04
+ * Outpost items, no new station class, power source or packet engine.
+ * T03 owns actual byte progress, in-flight delay, custody and ACK.
+ */
+(function(root){'use strict';
+const C=299792458,LY=9.4607304725808e15,UNIT=()=>root.StarfallPhysics?.SCENE_METERS_PER_UNIT||1000;
+const TYPES=Object.freeze(['OFF','HIGH_GAIN','FICTIONAL']);
+const RATED=Object.freeze({HIGH_GAIN:{watts:1100,txW:420,bandwidthBps:256000,maxScene:3e7,bufferBytes:4194304},
+ FICTIONAL:{watts:2200,txW:900,bandwidthBps:128000,maxScene:0,bufferBytes:2097152}});
+const V={sub:(a,b)=>a.map((v,i)=>v-b[i]),add:(a,b)=>a.map((v,i)=>v+b[i]),mul:(a,n)=>a.map(x=>x*n),norm:a=>{const d=Math.hypot(...a);return d>1e-9?a.map(x=>x/d):[0,0,1]},len:a=>Math.hypot(...a),dot:(a,b)=>a.reduce((n,x,i)=>n+x*b[i],0)};
+const finite=Number.isFinite,clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function repair(raw){
+ const o=raw?.schema===1?raw:{};
+ return{schema:1,mode:TYPES.includes(o.mode)?o.mode:'OFF',
+  peerId:typeof o.peerId==='string'&&/^[\w.:-]{0,160}$/.test(o.peerId)?o.peerId:'',
+  enabled:o.enabled!==false,health:finite(o.health)?clamp(o.health,0,1):1,
+  commissionedAtS:finite(o.commissionedAtS)&&o.commissionedAtS>=0?o.commissionedAtS:null,
+  lastContactS:finite(o.lastContactS)&&o.lastContactS>=0?o.lastContactS:null,
+  fault:String(o.fault||'').slice(0,160)};
+}
+function configure(item,mode,peerId,at=0){
+ if(item?.kind!=='antenna'||!TYPES.includes(mode))throw Error('T08 requires an existing real outpost antenna');
+ if(!finite(at)||at<0)throw Error('T08 invalid commissioning time');
+ if(mode!=='OFF'&&(!peerId||typeof peerId!=='string'||peerId===item.id||!/^[\w.:-]{1,160}$/.test(peerId)))
+  throw Error('Select a distinct real remote antenna ID for the deep-space pointing target');
+ const p=repair(item.radioT04?.deepT08);
+ p.mode=mode;p.peerId=mode==='OFF'?'':peerId;p.enabled=mode!=='OFF';p.commissionedAtS=mode==='OFF'?null:at;p.fault='';
+ if(!item.radioT04)item.radioT04=root.StarfallAntennaT04?.repair(null)||{};
+ item.radioT04.deepT08=p;return{...p};
+}
+function watts(item){
+ const p=repair(item?.radioT04?.deepT08);
+ return p.mode==='OFF'||!p.enabled?0:RATED[p.mode].watts;
+}
+function inspected(item,power,at=0){
+ const p=repair(item?.radioT04?.deepT08),spec=RATED[p.mode],line=power?.byId?.[item?.id],
+ enabled=item?.kind==='antenna'&&item.enabled!==false&&item.condition>.1&&p.enabled&&p.mode!=='OFF';
+ const powered=!!(enabled&&line?.power===true&&line.servedW>=watts(item)+root.StarfallAntennaT04.BASE_W-1);
+ return{itemId:item?.id||null,bodyId:item?.bodyId||null,mode:p.mode,peerId:p.peerId,commissionedAtS:p.commissionedAtS,
+  powered,radioEnabled:!!(item?.radioT04?.radioEnabled!==false&&p.enabled),health:p.health,
+  ratedPowerW:spec?.watts||0,servedW:line?.servedW||0,bandwidthBps:spec?.bandwidthBps||0,
+  rangeScene:spec?.maxScene||0,bufferBytes:spec?.bufferBytes||0,
+  reason:!item?'NO_STATION':p.mode==='OFF'?'HIGH_GAIN_NOT_INSTALLED':!enabled?'ANTENNA_DISABLED_OR_DAMAGED':
+   !line?.power?'T02_GRID_OFFLINE':!powered?'DEEP_SPACE_DC_UNDERSERVED':'ONLINE',fault:p.fault};
+}
+function station(item,body,power,rotate){
+ const hw=root.StarfallAntennaT04,node=hw?.station(item,body,power,rotate);
+ if(!node)return null;const info=inspected(item,power);
+ return{...node,systemId:body.systemId,deep:info,deepHardware:repair(item.radioT04?.deepT08)};
+}
+function blocked(a,b,occluders){
+ // Conservative finite spherical occluders; body surface endpoint can be close
+ // to its own radius, but no ray can cut through the body interior.
+ const ab=V.sub(b,a),den=V.dot(ab,ab);
+ if(den<1e-8)return false;
+ for(const o of occluders){
+  if(!o?.position||!finite(o.radius)||o.radius<=0)continue;
+  const f=V.sub(o.position,a),t=clamp(V.dot(f,ab)/den,0,1),closest=V.add(a,V.mul(ab,t));
+  if(V.len(V.sub(closest,o.position))<o.radius-1e-8)return true;
+ }
+ return false;
+}
+function deepLink(a,b,occluders=[],unit=UNIT()){
+ if(!a||!b||!a.deep||!b.deep)return{connected:false,reason:'Two installed deep-space antenna endpoints required'};
+ const x=a.deep,y=b.deep,mode=x.mode;
+ if(!x.powered||!y.powered||!x.radioEnabled||!y.radioEnabled)return{connected:false,reason:'Ground station high-gain/fictional hardware not powered'};
+ if(mode==='OFF'||mode!==y.mode)return{connected:false,reason:'Both deep-space stations must have the same commissioned mode'};
+ if(x.peerId!==b.id||y.peerId!==a.id)return{connected:false,reason:'Deep-space dishes must be pointed at each other, using exact saved target IDs'};
+ if(a.bodyId===b.bodyId)return{connected:false,reason:'Deep-space mode reserved for different real celestial bodies'};
+ if(blocked(a.position,b.position,occluders))return{connected:false,reason:'PLANETARY_OCCULTATION: a body blocks the actual antenna ray'};
+ const d=V.len(V.sub(a.position,b.position));
+ if(!finite(d)||d<=0)return{connected:false,reason:'No valid orbital source positions'};
+ const crossSystem=a.systemId!==b.systemId;
+ if(crossSystem&&mode!=='FICTIONAL'){
+  return{connected:false,reason:'REAL_INTERSTELLAR_RF: no viable installed link; shortest conceptual separation ≥1 ly, one-way light time ≥1 year. Commission explicit FICTIONAL endpoints for expedited messages.',
+   minimumLightSeconds:LY/C,scientificDistanceNote:'The procedural game galaxy does not encode physical interstellar star separations; ≥1 ly is only a conservative lower bound'};
+ }
+ const rating=RATED[mode];
+ if(mode==='HIGH_GAIN'&&d>rating.maxScene)return{connected:false,reason:'DEEP_SPACE_RANGE: high-gain station link budget exceeded'};
+ const distanceM=d*unit;
+ const lightTimeS=mode==='FICTIONAL'?120+distanceM/C:distanceM/C;
+ const margin=mode==='FICTIONAL'?Math.min(x.health,y.health):
+  Math.min(x.health,y.health)/(1+Math.pow(d/(rating.maxScene*.65),2));
+ if(margin<.08)return{connected:false,reason:'HIGH_GAIN_SNR: below receiver lock threshold'};
+ const bandwidthBps=Math.max(128,Math.floor(rating.bandwidthBps*margin));
+ return{connected:true,reason:mode==='FICTIONAL'?'FICTIONAL INTERSTELLAR DATA RELAY · explicitly commissioned hardware':'Modeled RF high-gain link with finite path loss and c latency',
+  mode,delayS:Math.max(.001,lightTimeS),lightTimeS:distanceM/C,
+  bandwidthBps,quality:margin,txPowerW:rating.txW,distanceM,distanceScene:d,
+  energyMode:mode==='FICTIONAL'?'FICTIONAL': 'RF',
+  hopReports:[{from:a.id,to:b.id,mode,distanceM,delayS:Math.max(.001,lightTimeS),bandwidthBps,quality:margin}]};
+}
+function plan({packet,time,source,destination,localNodes,allStations,bodyAt,localLink,unit=UNIT(),bufferLoad=()=>0}){
+ if(!packet||!source||!destination)return{connected:false,reason:'NO_SOURCE_OR_DESTINATION: real powered endpoints required'};
+ if(source.bodyId===destination.bodyId)return{connected:false,reason:'T03/T04 owns same-body routes'};
+ const involved=[...allStations].filter(n=>n?.powered&&n.deep?.powered&&n.deep?.mode!=='OFF');
+ const candidates=[],nodes=[source,...localNodes.filter(n=>n.id!==source.id&&n.id!==destination.id),destination];
+ const byId=new Map(nodes.map(n=>[n.id,n]));const others=involved.filter(n=>!byId.has(n.id)).sort((a,b)=>a.id.localeCompare(b.id));
+ for(const n of others)byId.set(n.id,n);
+ const available=[...byId.values()];let expansions=0;
+ function visit(path,links){
+  if(++expansions>1200)return;
+  const cur=path.at(-1);
+  if(cur.id===destination.id){
+   if(!links.some(l=>l.mode==='HIGH_GAIN'||l.mode==='FICTIONAL'))return;
+   const bw=Math.min(...links.map(x=>x.bandwidthBps)),delay=links.reduce((n,x)=>n+x.delayS,0);
+   const route={connected:true,hops:path.map(n=>n.id),
+    hopReports:links.map((x,i)=>({from:path[i].id,to:path[i+1].id,delayS:x.delayS,
+      bandwidthBps:x.bandwidthBps,quality:x.quality,distanceM:x.distanceM||null,mode:x.mode||'LOCAL'})),
+    bandwidthBps:bw,delayS:delay,quality:Math.min(...links.map(x=>x.quality??1)),
+    txPowerW:source.txPowerW||34,reason:links.map(x=>x.reason||'local link').join(' / '),
+    deepSpace:true,mode:links.some(x=>x.mode==='FICTIONAL')?'FICTIONAL':'RF',
+    pathDistanceM:links.reduce((n,x)=>n+(x.distanceM||0),0)};
+   candidates.push(route);return;
+  }
+  if(path.length>=6)return;
+  for(const next of available){
+   if(next.id===cur.id||path.some(x=>x.id===next.id))continue;
+   if(next.id!==destination.id){
+    if(!['wired-radio','orbital-radio'].includes(next.kind))continue;
+    const cap=next.deep?.bufferBytes||4194304;
+    if(bufferLoad(next.id)+(packet.encodedBytes||packet.bytes||0)>cap)continue;
+   }
+   const same=cur.bodyId===next.bodyId;
+   if(!same&&!(cur.deep?.powered&&next.deep?.powered))continue;
+   const link=same?localLink(cur,next,bodyAt(cur.bodyId,time)):deepLink(cur,next,
+     [bodyAt(cur.bodyId,time),bodyAt(next.bodyId,time),...(packet.occluders||[])],unit);
+   if(!link?.connected)continue;
+   visit([...path,next],[...links,link]);
+  }
+ }
+ visit([source],[]);
+ candidates.sort((a,b)=>a.mode.localeCompare(b.mode)||b.quality-a.quality||a.delayS-b.delayS||a.hops.length-b.hops.length||a.hops.join('>').localeCompare(b.hops.join('>')));
+ return candidates[0]||{connected:false,reason:'T08_NO_ROUTE: commission and power high-gain antennas on BOTH worlds, point each at the other ID; ensure wired T02 power, local LOS to ship/rover, and unobstructed moving planetary line of sight. No remote free station.'};
+}
+const API={SCHEMA:1,RATED,TYPES,LY,C,repair,configure,watts,inspected,station,blocked,deepLink,plan};
+root.StarfallDeepSpaceT08=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof window!=='undefined'?window:globalThis);
 
@@ -4626,6 +4770,37 @@ function refreshRadioHardware(body){
   'CONTACT '+(report.lastContactS===null?'NONE':('T+'+fmt(report.lastContactS,1)+' s · '+report.lastPeerId)),
   'RECENT PACKETS '+(report.queuedPacketIds.slice(-4).join(', ')||'NONE')
  ].join('\\n');
+ refreshDeepSpace(body,item);
+}
+function refreshDeepSpace(body,item){
+ const T=root.StarfallDeepSpaceT08,box=$('outpost-t08-diagnostic'),mode=$('outpost-t08-mode'),
+  peer=$('outpost-t08-peer');
+ if(!T){box.textContent='T08 radio adapter not available';return;}
+ const p=item?T.repair(item.radioT04?.deepT08):null,prior=peer.value;
+ const remote=store.items.filter(x=>x.kind==='antenna'&&x.id!==item?.id&&x.bodyId!==item?.bodyId);
+ peer.replaceChildren();
+ for(const i of remote){const option=document.createElement('option');option.value=i.id;
+  option.textContent=(i.bodySnapshot?.name||i.bodyId)+' / '+i.id;peer.append(option);}
+ if(remote.some(x=>x.id===p?.peerId))peer.value=p.peerId;
+ else if(remote.some(x=>x.id===prior))peer.value=prior;
+ mode.value=p?.mode||'OFF';
+ if(!item){box.textContent='No existing antenna selected. Build, wire and power one here, then another on the remote world.';return;}
+ const d=T.inspected(item,powerReports.get(item.bodyId)),other=store.items.find(x=>x.id===d.peerId),
+  far=other?T.inspected(other,powerReports.get(other.bodyId)):null;
+ const packets=root.StarfallCommsT03?.transport?.list()||[];
+ const relevant=packets.filter(x=>x.route?.includes(item.id)).slice(-6);
+ box.textContent=[
+ 'T08 REAL INSTALLED HARDWARE '+item.id,
+ 'STATE '+d.mode+' · '+(d.powered?'POWERED':'OFFLINE: '+d.reason)+' · '+d.ratedPowerW+' W extra real 48V load',
+ 'TARGET '+(d.peerId||'NOT CONFIGURED')+' · '+(other?'REAL ANTENNA ON '+other.bodyId:'NO SAVED REMOTE STATION'),
+ 'PEER '+(far?.mode||'MISSING')+' / '+(far?.powered?'POWERED':'OFFLINE '+(far?.reason||'NO PEER')),
+ 'PHY RATE '+d.bandwidthBps+' bit/s nameplate · '+d.rangeScene+' scene-unit rated RF range',
+ 'IN-FLIGHT '+relevant.map(p=>p.id+' '+p.state+' '+p.sendBytes+'/'+p.encodedBytes+' bytes'+(p.lastLink?' · '+p.lastLink.delayS.toFixed(2)+' s delay':'')).join(' | '),
+ 'ROUTING: local ship/rover ↔ local antenna ↔ both powered deep dishes ↔ remote antenna ↔ remote rover',
+ d.mode==='FICTIONAL'?'FICTIONAL MODE explicitly chosen: 120s minimum modeled carrier wait, not real light-speed interstellar travel':
+  'Real radio c latency. Other stars are physically very distant; no fast interstellar RF link.',
+ !remote.length?'NO OTHER COMMISSIONABLE STATION: travel and build/wire one, or deploy a real powered base kit.':''
+ ].join('\\n');
 }
 function selectedRadio(){const i=store.items.find(x=>x.id===$('outpost-radio-device').value);if(i?.kind!=='antenna')throw Error('Select an existing surface antenna');return i;}
 function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT.outpostContext(),bodyId=ctx.body?.id||null,all=bodyId?store.items.filter(x=>x.bodyId===bodyId):[];
@@ -4668,6 +4843,23 @@ $('outpost-disconnect').onclick=wrapped(()=>{if(!store.unlink($('outpost-node-a'
 $('outpost-launch-relay').onclick=wrapped(()=>{const ctx=RT.outpostContext();if(!ctx.landed||!ctx.eva)throw Error('Deploy a relay while exploring the surface');const relay=store.addRelay(ctx.body);dirty=true;persist();show('Simulated relay deployed: '+relay.id+' · analytic orbit (no cinematic rocket launch)');});
 $('outpost-send').onclick=wrapped(sendData);
 $('outpost-radio-device').onchange=()=>refresh();
+$('outpost-t08-apply').onclick=wrapped(()=>{
+ const T=root.StarfallDeepSpaceT08,item=selectedRadio(),mode=$('outpost-t08-mode').value,
+  peer=$('outpost-t08-peer').value;
+ if(!T)throw Error('T08 radio adapter missing');
+ T.configure(item,mode,peer,RT.time);
+ // Immediately recalculate the real same-owner T02 bus demand. No free
+ // amplifier; if installed wattage exceeds available supply it is shed.
+ advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
+ dirty=true;persist();refresh();show('T08 '+mode+' antenna commissioned on '+item.id+' → '+(peer||'OFF')+
+  '. Verify real 48V power and matching remote hardware in T08 diagnostics.');
+});
+$('outpost-t08-off').onclick=wrapped(()=>{
+ const item=selectedRadio();root.StarfallDeepSpaceT08.configure(item,'OFF','',RT.time);
+ advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
+ dirty=true;persist();refresh();show('T08 deep-space transceiver disabled. Local radio is unchanged.');
+});
+
 $('outpost-radio-mode').onchange=()=>{};$('outpost-radio-target').onchange=()=>{};
 $('outpost-radio-apply').onclick=wrapped(()=>{
  const item=selectedRadio();if(!root.StarfallAntennaT04)throw Error('T04 radio model missing');
@@ -6954,7 +7146,58 @@ function hop(a,b,body){
  if(!h.connected)return null;
  return{connected:true,delayS:Math.max(.001,h.delayS),bandwidthBps:Math.min(a.bandwidthBps,b.bandwidthBps),quality:h.quality,txPowerW:a.txPowerW};
 }
+// T08 extends the existing T03/T04 route resolver, not the packet ledger.
+function crossRoute(packet,at){
+ const deep=root.StarfallDeepSpaceT08,hw=root.StarfallAntennaT04,ui=root.StarfallOutpostUI;
+ if(!deep||!hw||!ui)return null;
+ const ctx=RT.outpostContext(),shipBodyId=ctx?.landed?ctx.bodyId:null;
+ const ownerBody=id=>id==='starfall-ship'?shipBodyId:
+  id===localRoverId()?RT.roverAutonomyPosition?.()?.bodyId:
+  rover(id)?.bodyId||sat(id)?.bodyId||ui.store.items.find(x=>x.id===id)?.bodyId||null;
+ const from=ownerBody(packet.sourceId),to=ownerBody(packet.destId);
+ if(!from||!to||from===to)return null;
+ const cache=new Map(),bodyAt=(id,t)=>{
+  const key=id+':'+Math.round(t*1000)/1000;
+  if(cache.has(key))return cache.get(key);
+   const snapshot=ui.store.items.find(x=>x.bodyId===id&&x.bodySnapshot)||
+   UI.store.rovers.find(x=>x.bodyId===id&&x.bodySnapshot)||
+   UI.store.satellites.find(x=>x.bodyId===id&&x.bodySnapshot)||
+   id;
+  const b=calcBody(typeof snapshot==='string'?id:id===snapshot.bodyId?snapshot:id,t);
+  cache.set(key,b);return b;
+ };
+ const nodes=[];
+ for(const item of ui.store.items.filter(x=>x.kind==='antenna')){
+  const body=bodyAt(item.bodyId,at);if(!body?.position)continue;
+  const st=deep.station(item,body,ui.powerReports.get(body.id),O.rotate);
+  if(st?.powered)nodes.push(st);
+ }
+ for(const v of UI.store.satellites){
+  const body=bodyAt(v.bodyId,at);if(!body?.position)continue;
+  const sn=satelliteNode(v,body,at);if(sn)nodes.push(sn);
+ }
+ const resolve=(id,bodyId)=>{
+  const b=bodyAt(bodyId,at);if(!b?.position)return null;
+  if(id==='starfall-ship')return shipNode(b,at);
+  if(id===localRoverId())return localRoverNode(b);
+  const r=rover(id);if(r)return roverNode(r,b);
+  const satellite=sat(id);if(satellite)return satelliteNode(satellite,b,at);
+  const tower=nodes.find(n=>n.id===id);if(tower)return tower;
+  return labNode(ui.store.items.find(x=>x.id===id),b,nodes.filter(n=>n.bodyId===b.id&&n.kind==='wired-radio'));
+ };
+ const source=resolve(packet.sourceId,from),dest=resolve(packet.destId,to);
+ if(!source||!dest)return{connected:false,reason:'T08 endpoint offline: ship must be physically landed/powered; rover and station must be deployed and supplied'};
+ const occluders=[...RT.galaxy.byId.values()].filter(x=>x?.kind!=='star'&&x?.radius>0&&Array.isArray(x.position))
+  .filter(x=>x.id!==from&&x.id!==to).slice(0,35).map(x=>({position:x.position,radius:x.radius,id:x.id}));
+ const plan=deep.plan({packet:{...packet,occluders},time:at,source,destination:dest,
+  localNodes:nodes,allStations:nodes.filter(x=>x.kind==='wired-radio'),bodyAt,
+  localLink:(a,b,body)=>hw.link(a,b,body,O.radioLink,O.rotate,P.SCENE_METERS_PER_UNIT),
+  unit:P.SCENE_METERS_PER_UNIT,
+  bufferLoad:id=>hw.bufferLoad(transport.packets,id)});
+ return plan;
+}
 function routeFor(packet,at,phase='send'){
+ const cross=crossRoute(packet,at);if(cross)return cross;
  const body=calcBody(packet.bodyId,at);
  if(!body?.position||!finite(body.radius))return{connected:false,reason:'Destination ephemeris is not loaded/cached; no invented radio route'};
  const current=shipNode(body,at),towers=towerNodes(body),hw=root.StarfallAntennaT04;
@@ -7018,10 +7261,12 @@ function energy(packet,j){
  if(s){const o=S.ensure(s);if(o.energyJ<j+150)return false;o.energyJ-=j;s.powerJ=o.energyJ;return true;}
  // Powered antenna already draws T02's modeled 165 W operating load. A later
  // T04 dynamic load model must split TX amplifier demand; never double-debit.
- return !!root.StarfallOutpostUI?.powerReports?.get(packet.bodyId)?.byId?.[packet.sourceId]?.power;
+ return !!root.StarfallOutpostUI?.powerReports?.get(root.StarfallOutpostUI?.store?.items.find(x=>x.id===packet.sourceId)?.bodyId||packet.bodyId)?.byId?.[packet.sourceId]?.power;
 }
-function queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS=RT.time}){
- const packet=transport.queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS});dirty=true;return packet;
+function queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS=RT.time,ttlS}){
+ // Deep-space missions may wait for multiple orbital contacts or long light time.
+ const shipBody=RT.outpostContext()?.bodyId,remote=(sourceId==='starfall-ship'||destId==='starfall-ship')&&shipBody&&shipBody!==bodyId;
+ const packet=transport.queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS,ttlS:ttlS??(remote?3.154e9:86400)});dirty=true;return packet;
 }
 function command(r,script,time=RT.time,isStop=false){
  if(!r)throw Error('Select an actual deployed rover');
