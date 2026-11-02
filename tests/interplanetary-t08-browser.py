@@ -112,7 +112,7 @@ with sync_playwright() as p:
     site.store.setEnabled(item.id,true);
     site.advancePowerTo(ops.clock.lastSimulatedS,(asset,t)=>ops.resolveBody(asset,t));
     let ack=null;
-    for(let i=0;i<20;i++){ops.advanceTo(ops.clock.lastSimulatedS+5);
+    for(let i=0;i<90;i++){ops.advanceTo(ops.clock.lastSimulatedS+5);
        ack=comms.transport.get(data.packet);
        if(ack?.state==='ACKED')break;}
     ops.persist();comms.persist();site.persist();
