@@ -45,6 +45,7 @@ class Store{
   this.state.jobs.push(job);return copy(job);
  }
  markDelivered(id,time){const j=this.state.jobs.find(x=>x.id===id);if(!j)throw Error('Capture command missing');j.deliveredS=time;return copy(j);}
+ linkOrbitalJob(id,jobId){const j=this.state.jobs.find(x=>x.id===id);if(!j||!/^t07-[a-z0-9-]{1,120}$/.test(jobId))throw Error('Real 7F image and orbital 7C science ID required');j.t07JobId=jobId;return copy(j);}
  renderPending(id,reason,timeS){
   const j=this.state.jobs.find(x=>x.id===id);if(!j)throw Error('Camera job not found');
   j.renderState='AWAITING_RENDER';j.renderReason=String(reason||'Renderer unavailable').slice(0,220);
