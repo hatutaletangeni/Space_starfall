@@ -104,7 +104,7 @@ async function importBackup(file,{approved=false}={}){
  if(!file||file.size<50||file.size>M.MAX_JSON_BYTES+M.MAX_MEDIA_BYTES+4096)
   throw Error('Wrong file size: select an expedition JSON smaller than 160 MiB.');
  busy=true;
- let frozen=false,mediaBefore=null,rawBefore=null,mediaChanged=false;
+ let frozen=false,switched=false,mediaBefore=null,rawBefore=null,mediaChanged=false;
  try{
   const local=visibleState();
   if(!local.durable)throw Error('Persistent localStorage is unavailable: import safely refused. Export and enable browser storage.');
@@ -129,6 +129,7 @@ async function importBackup(file,{approved=false}={}){
   // Verifies committed durable state using original SF.load path, not a new owner.
   M.validateState(root.SF.load(),seed());
   display('RESTORE VERIFIED · original save and '+staged.size+' images switched together. Reloading the original game.',true);
+  switched=true;
   root.location.reload();
   return summary;
  }catch(error){
@@ -141,7 +142,7 @@ async function importBackup(file,{approved=false}={}){
     failures.join(' | ')+' · Original cause: '+safe(error.message));
   }
   throw error;
- }finally{if(frozen)root.__STARFALL_IMPORT_PENDING=false;busy=false;}
+ }finally{if(frozen&&!switched)root.__STARFALL_IMPORT_PENDING=false;busy=false;}
 }
 $('archive-t17-export-state').onclick=()=>exportBackup(false).catch(e=>display('EXPORT FAILED · '+safe(e.message),false));
 $('archive-t17-export-full').onclick=()=>exportBackup(true).catch(e=>display('EXPORT FAILED · '+safe(e.message),false));
