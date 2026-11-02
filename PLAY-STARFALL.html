@@ -2813,7 +2813,7 @@ function diagnostics(item,body,report,packets,rotate,timeS){
   rangeScene:stationNode.rangeScene,bandwidthBps:stationNode.bandwidthBps,
   temperatureK:item.temperatureK,health:item.condition,
   bufferUsedBytes:backlog,bufferCapacityBytes:TOWER_BUFFER_BYTES,
-  packetsAwaitingACK:records.filter(p=>p.ack!=='ACKED').length,
+  packetsAwaitingACK:records.filter(p=>p.state!=='ACKED'&&p.state!=='FAILED'&&p.state!=='EXPIRED').length,
   lastContactS:c.lastContactS,lastPeerId:c.lastPeerId,
   lastSimulatedS:report?.simulatedAtS??timeS,
   fault:stationNode.reason|| (backlog>TOWER_BUFFER_BYTES?'RELAY_BUFFER_FULL':''),
