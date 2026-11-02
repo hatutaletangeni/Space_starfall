@@ -67,7 +67,8 @@ function report(id){
   packet=M.packetFor(id,root.StarfallCommsT03?.transport?.packets||[]);
  const list=photos?.photos?.filter(p=>p.sourceAssetId===id)||[],last=list.at(-1)||null,
   job=photos?.jobs?.filter(j=>j.assetId===id).at(-1)||null;
- const common={id,kind:a.kind,bodyId:a.bodyId,systemId:a.systemId,localTimeS:time,packet,photo:last,job,
+ const realParent=root.StarfallEngineering7AUI?.registry?.assets?.get(id)?.parentId||null;
+ const common={id,kind:a.kind,bodyId:a.bodyId,systemId:a.systemId,parentId:realParent,localTimeS:time,packet,photo:last,job,
   pendingFiles:list.filter(x=>x.status!=='downlinked').length,
   sourceModel:'SIMULATED / ORIGINAL SOURCE OWNER; no laboratory certification'};
  if(['ship','rover'].includes(a.kind)){
@@ -149,7 +150,7 @@ function fillCard(card,s){
  const phase=make('p',s.stage==='FAILED'||s.warnings.length?'CHECK · '+M.stage[s.stage]:M.stage[s.stage],'op16-state');
  phase.dataset.stage=s.stage;target.append(phase);
  addRow(target,'SOURCE',s.id+' / '+s.kind);
- addRow(target,'LOCATION',(s.bodyId||'UNRESOLVED')+' · '+(s.systemId||'SYSTEM UNKNOWN'));
+ addRow(target,'LOCATION',(s.bodyId||'UNRESOLVED')+' · '+(s.systemId||'SYSTEM UNKNOWN')+(s.parentId?' · PARENT '+s.parentId:''));
  addRow(target,'ELECTRICAL',s.statusText+' · '+(s.energyJ===null?'ENERGY NOT MODELED':num(s.energyJ,0)+' J')+
   (s.capacityJ!==null?' / '+num(s.capacityJ,0)+' J':''),
   'Supply '+num(s.supplyW,0)+' W · load '+num(s.loadW,0)+' W (source model)');
@@ -201,6 +202,25 @@ function openOwner(id){
  if(ok)refreshAll(true); // Initial status must match the selected real asset immediately on panel open.
  return ok;
 }
+function labelDisabledControls(){
+ // Every reported reason comes from original owner state or original
+ // Workbench validation, not from a speculative T16 status flag.
+ const wb=$('wb-apply');if(wb?.disabled){
+  const k=$('wb-vehicle')?.value||'ship',errors=root.StarfallEngineeringUI?.preview?.()||[];
+  const why=errors.length?'Invalid Workbench assembly: '+errors.slice(0,3).join('; '):
+   !RT.safeToReconfigure(k)?'Land and safely park '+k+'; disconnect T13 ship umbilical or stop T12 rover service first':
+   'No installable part change is currently validated';
+  wb.title=why;wb.setAttribute('aria-description',why);
+ }
+ const pairs=[['sat7c-capture','sat7c-status'],['sat7c-downlink','sat7c-status'],
+  ['imaging7f-download','imaging7f-pending'],['research7e-apply-bp','research7e-bp-note']];
+ for(const [btnId,readId] of pairs){
+  const el=$(btnId),src=$(readId);
+  if(!el?.disabled||!src)return;
+  const reason=String(src.textContent||'').trim().slice(0,190);
+  if(reason){el.title=reason;el.setAttribute('aria-description',reason);}
+ }
+}
 function renderAssetOptions(){
  const sel=$('op16-asset');if(!sel)return;
  const items=realAssets(),old=sel.value||'starfall-ship',ids=new Set(items.map(x=>x.id));
@@ -249,6 +269,7 @@ function refreshAll(force=false){
   const str=JSON.stringify(r);
   if(force||str!==v.last){fillCard(v,r);v.last=str;}
  }
+ labelDisabledControls();
  if(!$('panel')?.hidden)renderLog();
 }
 initCards();
