@@ -66,7 +66,18 @@ function remoteLink(r,time=RT.time){if(!r)return{connected:false,reason:'No sele
  return{connected:false,reason:'Surface horizon or satellite blackout; onboard program continues',delayS:0};}
 function groundHeight7d(local,body){return Starfall3D.groundHeight(local,body);}
 function receiveRover(obs,r){if(!obs||!root.StarfallScienceUI?.ingestRover)return;root.StarfallScienceUI.ingestRover(obs);}
-function refreshProbe(){const r=store.rovers.find(x=>x.id===$('launch-probe').value);$('launch-probe-status').textContent=r?['STATUS: '+r.status,'WORLD: '+(RT.galaxy.byId.get(r.bodyId)?.name||r.bodyId),'BATTERY: '+format(r.batteryJ/3.6e6,2)+' kWh','RADIO: '+remoteLink(r).reason,'MISSION: '+(r.ground7d?.mode||'LEGACY')+' · '+(r.ground7d?.reason||'Ready'),'PROGRAM: '+r.index+'/'+r.commands.length,'UPLINK QUEUE: '+(r.ground7d?.pending?.length||0),'ONBOARD DATA: '+(r.ground7d?.queuedObservations?.length||0),'PACKETS: '+(root.StarfallCommsT03?.status(r.id).packets.filter(x=>x.state!=='ACKED').length||0),'DISTANCE: '+format(r.ground7d?.distanceM||0,1)+' m','ONBOARD READINGS: '+r.records.length+' · RECEIVED: '+(r.ground7d?.receivedIds?.length||0),...r.records.filter(o=>r.ground7d?.receivedIds?.includes(o.id)).slice(-5).map(o=>o.instrument+' · '+format(o.value,3)+' '+o.unit+' ±'+format(o.uncertainty,2))].join('\n'):'No deployed rover. Launch a rover capsule first.';}
+function refreshCommsT03(id){
+ const box=$('launch-comms-t03');if(!box)return;const svc=root.StarfallCommsT03;
+ if(!svc){box.textContent='Radio transport not initialized';return;}
+ const packets=svc.status(id).packets.slice(-14).reverse();
+ box.textContent=packets.length?packets.map(p=>[
+  p.type+' / '+p.id+' · '+p.state,
+  Math.floor(p.sendBytes)+' / '+p.encodedBytes+' encoded bytes ('+Math.floor(100*p.sendBytes/p.encodedBytes)+'%)',
+  'ROUTE '+(p.route.join(' → ')||'none')+' · '+(p.lastLink?Math.round(p.lastLink.bandwidthBps)+' bit/s · '+(p.lastLink.delayS*1000).toFixed(3)+' ms':'no live link'),
+  'CUSTODY '+p.custody+' · '+(p.reason||p.ack)
+ ].join(' | ')).join('\\n'):'No radio packets for this asset. Deployed commands remain pending when out of contact.';
+}
+function refreshProbe(){const r=store.rovers.find(x=>x.id===$('launch-probe').value);$('launch-probe-status').textContent=r?['STATUS: '+r.status,'WORLD: '+(RT.galaxy.byId.get(r.bodyId)?.name||r.bodyId),'BATTERY: '+format(r.batteryJ/3.6e6,2)+' kWh','RADIO: '+remoteLink(r).reason,'MISSION: '+(r.ground7d?.mode||'LEGACY')+' · '+(r.ground7d?.reason||'Ready'),'PROGRAM: '+r.index+'/'+r.commands.length,'UPLINK QUEUE: '+(r.ground7d?.pending?.length||0),'ONBOARD DATA: '+(r.ground7d?.queuedObservations?.length||0),'PACKETS: '+(root.StarfallCommsT03?.status(r.id).packets.filter(x=>x.state!=='ACKED').length||0),'DISTANCE: '+format(r.ground7d?.distanceM||0,1)+' m','ONBOARD READINGS: '+r.records.length+' · RECEIVED: '+(r.ground7d?.receivedIds?.length||0),...r.records.filter(o=>r.ground7d?.receivedIds?.includes(o.id)).slice(-5).map(o=>o.instrument+' · '+format(o.value,3)+' '+o.unit+' ±'+format(o.uncertainty,2))].join('\n'):'No deployed rover. Launch a rover capsule first.';refreshCommsT03(r?.id||null);}
 function launch(){const ctx=RT.outpostContext();if(!ctx.landed||!ctx.body?.landable)throw Error('Land on a solid world to launch');const pad=root.StarfallOutpostUI?.store?.items.find(x=>x.id===$('launch-pad').value);if(!pad)throw Error('Build/select a FOUNDATION in Outposts first');
  const chosen=chosenDesign(),dst=RT.galaxy.byId.get($('launch-destination').value),sys=RT.galaxy.byId.get($('launch-system').value);
  const m=store.launch({body:ctx.body,foundation:pad,design:chosen,time:RT.time,destinationBody:chosen.payload==='rover'?dst:null,destinationSystem:chosen.payload==='rover'?sys:null,unit:P.SCENE_METERS_PER_UNIT});persist();return m;}
