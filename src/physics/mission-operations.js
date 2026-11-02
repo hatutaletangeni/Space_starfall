@@ -15,7 +15,7 @@ class Clock{
   if(!Number.isSafeInteger(seed)||seed<0||!valid(startS))throw Error('T01 invalid seed or start time');
   this.seed=seed;this.lastSimulatedS=startS;this.jobs=[];this.events=[];this.receipts=[];this.fault=null;
   this.handler=null;this.stepsExecuted=0;
-  if(saved&&saved.schema===SCHEMA&&saved.seed===seed){
+  if(saved&&saved.schema===SCHEMA&&saved.seed===seed&&valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS+1e-7){
    if(valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS){this.lastSimulatedS=saved.lastSimulatedS;}
    this.events=bounded(saved.events,MAX_EVENTS).filter(e=>cleanId(e?.id)&&TYPES.includes(e.type)&&valid(e.atS));
    this.receipts=bounded(saved.receipts,MAX_EVENTS).filter(cleanId);
@@ -59,7 +59,9 @@ class Clock{
    if(next>targetS+1e-8)break;
    const start=this.lastSimulatedS;const seconds=next-start;
    // Never write a new cursor if an authoritative model failed to advance.
+   const previousEvents=this.events.slice(),previousReceipts=this.receipts.slice();
    try{if(this.handler)this.handler(start,next,seconds);}catch(e){
+    this.events=previousEvents;this.receipts=previousReceipts;
     this.fault={id:'fault-'+this.seed+'-'+Math.floor(next/STEP_S),reason:String(e.message||e).slice(0,180),targetS:next};
     this.record('FAULT',this.fault.id,start,{reason:this.fault.reason});
     return{status:'FAULT',lastSimulatedS:this.lastSimulatedS,remainingS:targetS-this.lastSimulatedS,steps};
