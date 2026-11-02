@@ -373,7 +373,7 @@ document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.d
 function rotate(yaw,pitch,roll){const right=V.norm(V.cross(forward,up));if(yaw)forward=V.rot(forward,up,yaw);if(pitch){forward=V.rot(forward,right,pitch);up=V.rot(up,right,pitch);}if(roll)up=V.rot(up,forward,roll);forward=V.norm(forward);up=V.norm(V.sub(up,V.mul(forward,V.dot(forward,up))));}
 function pointTowardWaypoint(){const b=siteWaypoint?.planet||target,way=siteWaypoint?V.add(b.position,V.mul(V.rot(siteWaypoint.dir,b.spinAxis||[0,1,0],b.spinAngle||0),b.radius+180)):b.position,delta=V.sub(way,pos);if(V.len(delta)<30)return;
  let d=V.norm(delta);if(landed){const radial=V.norm(V.sub(pos,nearest.position));d=V.norm(V.sub(d,V.mul(radial,V.dot(d,radial))));if(V.len(d)<.1)return;up=radial;}else{let right=V.norm(V.cross(forward,up));if(V.len(V.cross(right,d))<.01)right=[1,0,0];up=V.norm(V.cross(right,d));}forward=d;showToast('Heading aligned · thrust with W.');}
-const busy=()=>['chart','workbench','field-lab','outpost','observatory','integration-modal','controls-modal','ruin-panel','discovery-panel','survey-panel','interior-panel','ecology-panel','events-panel','sandbox-panel'].some(id=>{const e=$(id);return e&&!e.hidden;});
+const busy=()=>['chart','workbench','field-lab','outpost','observatory','integration-modal','controls-modal','ruin-panel','discovery-panel','survey-panel','interior-panel','ecology-panel','events-panel','sandbox-panel','archive-t17'].some(id=>{const e=$(id);return e&&!e.hidden;});
 function isTyping(target){return !!(target?.closest?.('input,textarea,select,[contenteditable=true]'));}
 addEventListener('keydown',ev=>{
  const code=controls.resolve(ev.code)||ev.code;
