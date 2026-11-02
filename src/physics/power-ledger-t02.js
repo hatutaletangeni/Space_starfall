@@ -42,7 +42,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
   const wires=store.wires.filter(w=>live.has(w.a)&&live.has(w.b)),factor=wires.length?1+WIRE_LOSS:1;
   const specs=nodes.map(item=>({item,spec:SPECS[item.kind],generatedW:sun(item,SPECS[item.kind])}));
   const solar=specs.filter(x=>x.generatedW>0),batteries=specs.filter(x=>x.spec.capacityJ>0&&x.item.energyJ>0);
-  const generatedW=solar.reduce((s,x)=>s+x.generatedW,0),dischargeMax=batteries.reduce((s,x)=>s+Math.min(x.spec.maxDischargeW,dt>0?x.item.energyJ*ETA_DISCHARGE/dt:x.spec.maxDischargeW),0);
+  const generatedW=solar.reduce((s,x)=>s+x.generatedW,0),dischargeMax=batteries.reduce((s,x)=>s+Math.min(x.spec.maxDischargeW*ETA_DISCHARGE,dt>0?x.item.energyJ*ETA_DISCHARGE/dt:x.spec.maxDischargeW*ETA_DISCHARGE),0);
   const availableW=Math.min(VOLTS*MAX_A,generatedW+dischargeMax),priority=[...specs].sort((a,b)=>a.spec.priority-b.spec.priority||a.item.id.localeCompare(b.item.id));
   const bus={id:busId,bodyId:body.id,voltageV:availableW>0?VOLTS:0,currentA:0,limitA:MAX_A,
    generationW:generatedW,servedW:0,wireLossW:0,chargedJ:0,dischargedJ:0,lossJ:0,sourceIds:[],loadIds:[],shedIds:[],wireIds:wires.map(w=>w.a+'↔'+w.b)};
