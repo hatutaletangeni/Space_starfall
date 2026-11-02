@@ -173,7 +173,9 @@ function receiveEnergy(p){
 }
 function receive(p,at){
  if(['ROVER_COMMAND','EMERGENCY_STOP'].includes(p.type)){
-  const r=rover(p.destId);if(!r||!receiveEnergy(p))return false;
+  const r=rover(p.destId);if(!r)return false;
+  if(G.migrate(r).acceptedPackets?.includes(p.id))return true;
+  if(!receiveEnergy(p))return false;
   G.acceptPacket(r,p.ref.commands,at,p.id);return true;
  }
  if(p.type==='CAMERA_REQUEST'){
@@ -185,6 +187,7 @@ function receive(p,at){
  }
  if(p.type==='ROVER_OBSERVATION'){
   const r=rover(p.sourceId),o=r?.ground7d?.queuedObservations?.find(x=>x.id===p.ref.observationId);
+  if(r&&G.migrate(r).receivedIds.includes(p.ref.observationId))return true;
   if(!r||!o||!root.StarfallScienceUI?.ingestRover)return false;
   if(!receiveEnergy(p))return false;
   root.StarfallScienceUI.ingestRover(o);
@@ -193,6 +196,7 @@ function receive(p,at){
  }
  if(p.type==='SATELLITE_OBSERVATION'){
   const s=sat(p.sourceId),o=s&&S.ensure(s),obs=o?.storage.find(x=>x.id===p.ref.observationId)||o?.inTransit.find(x=>x.id===p.ref.observationId);
+  if(o?.received.some(x=>x.id===p.ref.observationId))return true;
   if(!obs||!root.StarfallScienceUI?.ingestOrbital)return false;
   if(!receiveEnergy(p))return false;
   root.StarfallScienceUI.ingestOrbital({...obs,receivedAtS:at});root.StarfallSurveyUI?.recordOrbitalFootprint?.(obs);
@@ -201,6 +205,7 @@ function receive(p,at){
  }
  if(p.type==='IMAGE_REF'){
   const store=root.StarfallImagingUI7F?.store;if(!store||!store.get(p.ref.photoId))return false;
+  if(store.get(p.ref.photoId)?.status==='downlinked')return true;
   if(!receiveEnergy(p))return false;
   // Bytes are received, but the original gallery unlocks only after durable ACK.
   return true;
