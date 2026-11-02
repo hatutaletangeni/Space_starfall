@@ -4712,7 +4712,7 @@ function roverRun(plan){
  const model=R.sixWheels({body,local:[0,1,0],forward:[1,0,0],surfaceHeight:terrain,sceneRadius:4000,sceneToMeters:1,
   vehicle:{massKg:st.massKg,driveTorqueNm:st.driveTorqueNm*ratio,wheelRadiusM:radius,traction:st.traction},gravityMS2:c.gravityMS2,dt:.02,command:1,enabled:true});
  const speed=model.safe?Math.min(model.speedSceneS,12/ratio):0;
- const duration=c.durationS,energyJ=Math.min(st.batteryCapacityJ,Math.max(0,speed*model.maxForceN*duration/Math.max(.2,.8)));
+ const duration=c.durationS,energyJ=Math.max(0,speed*model.maxForceN*duration/.8); // required mechanical-work estimate, NOT clamped to available battery
  const predictedForceN=Math.min(st.driveTorqueNm*ratio*6/radius,st.massKg*c.gravityMS2*st.traction);
  return{model:'six-contact rover traction + bounded motor-speed bench approximation',unit:'N',
   predicted:{maxForceN:predictedForceN,energyJ:energyJ,distanceM:speed*duration},
