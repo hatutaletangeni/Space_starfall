@@ -76,7 +76,7 @@ function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satelli
   // Camera position is WORLD position, so without source's body-fixed direction use photo.local only.
   const dir=p.local||p.bodyFixedLocal||p.captureLocal;
   if(dir)push(marker({id:p.id,bodyId,location:dir},'photo','Received image '+p.id.slice(-13),{
-    photoId:p.id,sourceId:p.sourceAssetId,timeS:p.timeS,quality:'ACTUAL WEBGL IMAGE DOWNLINKED'}));
+    photoId:p.id,sourceId:p.sourceAssetId,targetRuinId:p.targetRuinId||null,timeS:p.timeS,quality:'ACTUAL WEBGL IMAGE DOWNLINKED'}));
  }
  for(const r of ruins)if(r?.bodyId===bodyId&&r.level>=1&&r.siteSnapshot?.local)
   push(marker({id:r.id,bodyId,local:r.siteSnapshot.local},'ruin',r.level>=2?'Examined ruin':'Surveyed ruin',{evidenceId:r.id,quality:'PROCEDURAL ARCHAEOLOGY'}));
