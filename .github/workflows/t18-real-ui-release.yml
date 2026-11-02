@@ -35,6 +35,8 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Actual control journey with unmocked DC circuitry, sensor, rollback and evidence
         run: python tests/release-gate-t18-browser.py
+      - name: Reject fabricated evidence or unsupported full-release claim
+        run: python tools/audit-release-t18.py artifacts/t18-release/release-software-webgl.json
       - name: Upload actual screenshot + measured timing evidence
         if: always()
         uses: actions/upload-artifact@v4
