@@ -184,13 +184,13 @@ $('imaging7f-save-note').onclick=()=>{try{if(!current)throw Error('Select a phot
 $('imaging7f-delete').onclick=()=>deletePhoto().catch(err);
 $('imaging7f-photo').onclick=()=>{const img=$('imaging7f-photo');if(img.src)root.open(img.src,'_blank','noopener,noreferrer');};
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('imaging7f').hidden){close();e.stopImmediatePropagation();}},true);
-let lastTime=RT.time,lastCheck=performance.now();
+let lastTime=RT.time,lastCheck=performance.now(),lastT03CaptureAttempt=0;
 function tick(_dt){
  const t=RT.time,step=Math.max(0,Math.min(15,t-lastTime));lastTime=t;
  if(!busy&&store.jobs.length){
   const job=store.jobs[0],s=sources().find(x=>x.assetId===job.assetId&&x.type===job.sourceType);
   if(s){
-   if(root.StarfallCommsT03){if(job.deliveredS===null)root.StarfallCommsT03.camera(job);else if(RT.galaxy.byId.has(s.bodyId))perform(job,s).catch(e=>{err(e);});}
+   if(root.StarfallCommsT03){if(job.deliveredS===null)root.StarfallCommsT03.camera(job);else if(RT.nearest?.id===s.bodyId&&performance.now()-lastT03CaptureAttempt>5000){lastT03CaptureAttempt=performance.now();perform(job,s).catch(e=>{err(e);});}}
    else{const link=linkFor(s);if(link.connected){
     if(job.deliveredS===null){store.markDelivered(job.id,t+Math.max(.05,Number(link.delayS)||.05));dirty=true;}
     else if(t>=job.deliveredS)perform(job,s).catch(e=>{store.finishJob(job.id);dirty=true;persist();err(e);});
