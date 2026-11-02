@@ -73,7 +73,7 @@ assert.throws(()=>A.create({state:wrong,galaxySeed:seed}),/seed/);
 const dangling={...state,outpost5:{...state.outpost5,wires:[{a:'ghost',b:uid(0)}]}};
 assert.throws(()=>A.create({state:dangling,galaxySeed:seed}),/dangling/);
 const coords={...state,launch7:{...state.launch7,rovers:[{id:'probe-1',bodyId:world,local:[NaN,0,1],batteryJ:5e5}]}};
-assert.throws(()=>A.create({state:coords,galaxySeed:seed}),/coordinate/);
+assert.throws(()=>A.create({state:coords,galaxySeed:seed}),/body-fixed position/);
 assert.throws(()=>A.create({state:{...state,credits:-1},galaxySeed:seed}),/credits/);
 const p=cameraMeta(1),mediaState={...state,imaging7f:{schema:1,photos:[p],jobs:[],serial:1}};
 const binary='data:image/webp;base64,'+'A'.repeat(1468); // synthetic structural fixture ONLY, not an authentic WebGL photo
