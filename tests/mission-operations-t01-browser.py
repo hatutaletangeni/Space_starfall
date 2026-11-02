@@ -28,6 +28,13 @@ with sync_playwright() as p:
             mu:planet.gravity*9.80665*Math.pow(planet.radius*1000,2),powerJ:5000000};
           store.rovers.push(r);store.satellites.push(s);
           const report=ops.advanceTo(t+60);
+          // Capture and persist every owner at one authoritative mission time
+          // in this SAME JS turn. Leaving this to a later page.evaluate()
+          // permits requestAnimationFrame to consume an extra fraction/step
+          // of battery between the asserted snapshot and saved evidence.
+          const at=ops.clock.lastSimulatedS,old=SF.load().flightGalaxy||{};
+          STARFALL_DEBUG.setSimulationTime(at);
+          SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
           ops.persist();
           return {report,beforeRoverEnergy:2000000,roverEnergy:r.batteryJ,status:r.status,
             roverLast:r.ground7d?.lastTickS,satelliteLast:s.ops7c?.lastS,
@@ -39,12 +46,7 @@ with sync_playwright() as p:
         assert before['status'] in ('parked','complete'),before
         assert before['roverEnergy']<before['beforeRoverEnergy'] and before['roverEnergy']>=0,before
         assert before['satelliteLast'] is not None and before['satelliteEnergy']>=0,before
-        # Save the same simulation time to the real flight record before reload.
-        page.evaluate("""()=>{
-          const at=StarfallMissionOperationsUI.clock.lastSimulatedS,old=SF.load().flightGalaxy||{};
-          STARFALL_DEBUG.setSimulationTime(at); // Keep authoritative flight time equal to the test clock before pagehide
-          SF.save({flightGalaxy:{...old,seed:StarfallRuntime.galaxy.seed,time:at}});
-        }""")
+        # The preceding atomic simulation turn already persisted the exact source and flight clock.
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallMissionOperationsUI && window.StarfallLaunchUI)",timeout=30000)
         after=page.evaluate("""()=>{
