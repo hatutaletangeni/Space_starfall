@@ -23,7 +23,8 @@ with sync_playwright() as pw:
         page.on('pageerror',lambda err: errors.append(str(err)))
         page.goto(GAME.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('Boolean(window.StarfallRuntime && window.StarfallResearch7E && window.StarfallResearchUI7E)',timeout=90000)
-        assert page.evaluate('window.StarfallRuntime.galaxy.skyCatalog.length')==2368
+        assert page.evaluate('window.StarfallRuntime.galaxy.systems.length')==2368
+        assert page.evaluate('window.StarfallRuntime.galaxy.skyCatalog.length')==2304
         page.locator('#workbench-open').evaluate('(el)=>el.click()')
         assert page.locator('#workbench').evaluate('(el)=>!el.hidden')
         page.locator('#research7e-open').click()
