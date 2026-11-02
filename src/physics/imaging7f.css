@@ -19,3 +19,5 @@
 .im7f-note{color:#b2bcc5;font:11px/1.6 Consolas,monospace}
 #imaging7f-photo[hidden],#imaging7f-detail[hidden],#imaging7f[hidden]{display:none!important}
 @media(max-width:600px){.im7f-window{padding:14px}.im7f-fieldset{grid-template-columns:1fr}.im7f-tools button{flex:1 1 auto}}
+
+.im7f-thumb{width:100%;height:115px;object-fit:cover;border:1px solid #536374;border-radius:4px;background:#0d1822}
