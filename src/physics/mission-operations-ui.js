@@ -49,7 +49,7 @@ function stepSource(start,end,seconds){
  for(const r of launch.rovers){
   if(finite(r.lastS)&&r.lastS>end+1e-8)continue; // no time travel for newly deployed probes
   let body=resolveBody(r,end);if(!body){failure(r.id,'Destination body snapshot or ephemeris unavailable; probe frozen',end);continue;}
-  if(!r.bodySnapshot){r.bodySnapshot=snapshot(body);}
+  if(!r.bodySnapshot||r.bodySnapshot.parentId&&!r.bodySnapshot.parentOrbit&&RT.galaxy.byId.get(r.bodySnapshot.parentId)){r.bodySnapshot=snapshot(body);}
   const before=r.batteryJ,oldState=r.status,pending=r.ground7d?.pending?.length||0;
   G.tick(r,end,{body,seed,science:F,unitScale:P.SCENE_METERS_PER_UNIT,
    height:(local,b)=>root.Starfall3D.groundHeight(local,b),link:root.StarfallLaunchUI.remoteLink(r,end),
@@ -61,7 +61,7 @@ function stepSource(start,end,seconds){
  for(const s of launch.satellites){
   const state=S.ensure(s);if(state.lastS!==null&&state.lastS>end+1e-8)continue;
   const body=resolveBody(s,end);if(!body){failure(s.id,'Orbital body snapshot or ephemeris unavailable; satellite frozen',end);continue;}
-  if(!s.bodySnapshot)s.bodySnapshot=snapshot(body);
+  if(!s.bodySnapshot||s.bodySnapshot.parentId&&!s.bodySnapshot.parentOrbit&&RT.galaxy.byId.get(s.bodySnapshot.parentId))s.bodySnapshot=snapshot(body);
   const sys=RT.galaxy.byId.get(s.systemId),star=sys?.star?.position||sys?.position;
   if(!star){failure(s.id,'Host star ephemeris unavailable; satellite frozen',end);continue;}
   const before=state.energyJ,oldEnabled=state.enabled;
