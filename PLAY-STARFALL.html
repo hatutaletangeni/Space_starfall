@@ -3122,8 +3122,8 @@ function inspect(item,body,actualPowered=false){
   alarms:[...h.alarms],fault:h.fault,lastS:h.lastS,healthy:safe};
 }
 function serviceRover(hab,rover,store,body,at,seconds=30,powered=false){
- const t=root.StarfallPowerLedgerT02,h=ensure(hab,at);
- const s=inspect(hab,body,powered);
+ const t=root.StarfallPowerLedgerT02;
+ const s=inspect(hab,body,powered),h=hab.habT09;
  if(!t||!store||!rover||!body||!s.serviceReady||hab.bodyId!==rover.bodyId)
   throw Error('Powered safe actual habitat and deployed same-world rover required');
  if(!Array.isArray(hab.local)||!Array.isArray(rover.local)||
