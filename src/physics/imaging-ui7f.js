@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id),M=root.StarfallImaging7F,RT=root.Starfal
 if(!M||!RT||!V||!$('imaging7f'))return;
 const store=new M.Store(root.SF.load().imaging7f),units=root.StarfallPhysics.SCENE_METERS_PER_UNIT,DB='starfall-7f-images-v1';
 const safe=n=>Number.isFinite(n)?n.toFixed(1):'—',err=e=>message(String(e.message||e),false);
-let busy=false,lastUI=0,lastPersist=0,dirty=false,energyDirty=false,current=null,dbPromise=null;
+let busy=false,lastUI=0,lastPersist=0,dirty=false,energyDirty=false,current=null,dbPromise=null;const thumbs=new Map();
 function message(t,success=true){const s=$('imaging7f-status');s.textContent=t;s.dataset.success=String(success);}
 function persist(){if(root.SF.save({imaging7f:store.serialize()})===false)message('Image metadata could not be saved; check local storage quota.',false);else{dirty=false;lastPersist=performance.now();}}
 function database(){
@@ -18,11 +18,11 @@ function database(){
   q.onsuccess=()=>resolve(q.result);
  }).catch(e=>{dbPromise=null;throw e;});return dbPromise;
 }
-async function imageGet(id){const db=await database();return new Promise((resolve,reject)=>{
+async function imageGet(id,thumbnail=false){const db=await database();return new Promise((resolve,reject)=>{
  const t=db.transaction('images','readonly'),r=t.objectStore('images').get(id);
- r.onsuccess=()=>resolve(typeof r.result==='string'?r.result:null);r.onerror=()=>reject(Error('Cannot read camera image'));});}
-async function imagePut(id,image){const db=await database();await new Promise((resolve,reject)=>{
- const t=db.transaction('images','readwrite');t.objectStore('images').put(image,id);
+ r.onsuccess=()=>resolve(typeof r.result==='string'?r.result:thumbnail?r.result?.thumbnail||r.result?.image||null:r.result?.image||null);r.onerror=()=>reject(Error('Cannot read camera image'));});}
+async function imagePut(id,image,thumbnail){const db=await database();await new Promise((resolve,reject)=>{
+ const t=db.transaction('images','readwrite');t.objectStore('images').put({image,thumbnail},id);
  t.oncomplete=resolve;t.onerror=()=>reject(Error('Not enough device storage for camera image'));t.onabort=()=>reject(Error('Image transaction aborted'));});}
 async function imageRemove(id){const db=await database();await new Promise((resolve,reject)=>{
  const t=db.transaction('images','readwrite');t.objectStore('images').delete(id);t.oncomplete=resolve;t.onerror=()=>reject(Error('Cannot remove archived image'));});}
@@ -96,6 +96,7 @@ function consumeEnergy(s,j,immediate=true){if(s.type==='satellite'){
  if(s.local){const v=RT.vehicleStore.get('rover');RT.vehicleStore.update('rover',{...v.state,energyJ:Math.max(0,v.state.energyJ-j)});if(immediate)RT.persistVehicles();else energyDirty=true;}
  else{s.rover.batteryJ=Math.max(0,s.rover.batteryJ-j);if(immediate)root.StarfallLaunchUI?.persist?.();else energyDirty=true;}
 }
+async function thumbnailFor(data){return new Promise((resolve,reject)=>{const source=new Image();source.onerror=()=>reject(Error('Image thumbnail decode failed'));source.onload=()=>{const ratio=Math.min(1,256/source.width,256/source.height),canvas=document.createElement('canvas');canvas.width=Math.round(source.width*ratio);canvas.height=Math.round(source.height*ratio);const ctx=canvas.getContext('2d');if(!ctx)return reject(Error('Thumbnail rendering unavailable'));ctx.drawImage(source,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.7));};source.src=data;});}
 function cameraCapture(pose,mode,size,caption){
  const rd=RT.captureScienceImage;if(typeof rd!=='function')throw Error('Offscreen renderer not initialized');
  const render=(forward)=>rd({body:pose.body,eye:pose.eye,forward,up:pose.up,size,caption:mode==='panorama'?'':caption,wide:mode==='wide'});
@@ -122,7 +123,7 @@ async function perform(job,s){
   if(shot.bytes>2500000||store.usedBytes()+shot.bytes>M.MAX_BYTES)throw Error('Camera storage byte budget exceeded; select lower resolution');
   // Save image data first. Image capture failures do NOT consume power or create records.
   const nextId='photo-'+(store.serialize().serial+1).toString(36);
-  await imagePut(nextId,shot.image);
+  const thumbnail=await thumbnailFor(shot.image);await imagePut(nextId,shot.image,thumbnail);thumbs.set(nextId,thumbnail);
   let photo;try{photo=store.put({sourceType:s.type,sourceAssetId:s.assetId,sourceName:s.label,bodyId:s.bodyId,systemId:pose.body.systemId,
     mode:job.mode,resolution:job.resolution,width:shot.width,height:shot.height,timeS:RT.time,position:pose.eye.slice(),camera:shot.camera,
     altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,bytes:shot.bytes,mime:shot.mime,caption,
@@ -139,7 +140,7 @@ function refresh(){
  const filter=$('imaging7f-filter').value,records=store.photos.filter(x=>filter==='all'||x.sourceType===filter||x.status===filter).slice().reverse();
  for(const p of records){const btn=document.createElement('button');btn.type='button';btn.className='im7f-card';btn.append(badge(p.status),document.createTextNode(p.sourceAssetId+' · '+p.mode.toUpperCase()+' · '+p.resolution));
   const info=document.createElement('small');info.textContent=p.bodyId+' · '+Math.round(p.bytes/1024)+' KB · '+Math.floor(100*p.progressBytes/p.bytes)+'%';btn.append(info);
-  btn.onclick=()=>showPhoto(p.id).catch(err);list.append(btn);}
+  btn.onclick=()=>showPhoto(p.id).catch(err);if(p.status==='downlinked'){const photo=document.createElement('img');photo.className='im7f-thumb';photo.alt='Downlinked terrain image preview';photo.loading='lazy';btn.prepend(photo);if(thumbs.has(p.id))photo.src=thumbs.get(p.id);else imageGet(p.id,true).then(data=>{if(data){thumbs.set(p.id,data);if(photo.isConnected)photo.src=data;}}).catch(()=>{});}list.append(btn);}
  if(!records.length)list.textContent='No image records match this filter.';
  const jobs=store.jobs;$('imaging7f-jobs').textContent=jobs.length?jobs.map(j=>j.assetId+' '+j.mode.toUpperCase()+' · command queued').join('\n'):'No pending image commands.';
  const src=selected();$('imaging7f-link').textContent=src?(linkFor(src).connected?'RADIO LINK: READY · '+'Battery '+safe(availableEnergy(src)/3600)+' Wh':'RADIO BLACKOUT · '+(linkFor(src).reason||'awaiting pass')):'Select a deployed science rover or observatory satellite.';
@@ -162,7 +163,7 @@ async function showPhoto(id){
  }else $('imaging7f-download').disabled=true;
  $('imaging7f-pending').textContent=p.status==='downlinked'?'Photo received and ready to inspect / export.':'Onboard image · not visible until the actual downlink finishes.';
 }
-async function deletePhoto(){const id=current;if(!id)return;await imageRemove(id);store.remove(id);current=null;persist();$('imaging7f-detail').hidden=true;refresh();message('Photo bytes and metadata deleted from this device.');}
+async function deletePhoto(){const id=current;if(!id)return;await imageRemove(id);thumbs.delete(id);store.remove(id);current=null;persist();$('imaging7f-detail').hidden=true;refresh();message('Photo bytes and metadata deleted from this device.');}
 function open(){selectSources();$('imaging7f').hidden=false;refresh();$('imaging7f-source').focus();}
 function close(){$('imaging7f').hidden=true;}
 $('imaging7f-open').onclick=open;
