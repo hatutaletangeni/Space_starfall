@@ -1,0 +1,24 @@
+name: T08 focused real-browser test (temporary)
+on:
+  push:
+    branches: [feature/t08-interplanetary-comms]
+jobs:
+  flagship:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Regenerate exact offline file before isolated T08 browser test
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+          node tests/interplanetary-t08.test.cjs
+      - name: Chromium / Playwright
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Actual cross-planet command/camera round-trip
+        run: python tests/interplanetary-t08-browser.py

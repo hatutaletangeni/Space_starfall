@@ -81,7 +81,7 @@ addEventListener('pagehide',save);
 // Passive visited-region recording: no alteration of flight, rover or physics step functions.
 const observer=setInterval(()=>{if(document.hidden)return;visit();if(dirty&&performance.now()-lastSave>6500)save();if(isOpen())draw();},1400);
 function recordOrbitalFootprint(o){if(!o||o.kind!=='orbital-observation'||!o.satelliteId||o.receivedAtS===null||!Array.isArray(o.location)||o.location.length!==3||!o.location.every(Number.isFinite))return false;
- const b=RT.galaxy.byId.get(o.bodyId);if(!b?.radius||!b.landable)return false;
+ const s=root.StarfallLaunchUI?.store?.satellites.find(x=>x.id===o.satelliteId);const b=RT.galaxy.byId.get(o.bodyId)||root.StarfallMissionOperationsUI?.resolveBody?.(s,o.receivedAtS);if(!b?.radius||!b.landable||b.id!==o.bodyId)return false;
  if(o.instrument!=='orbital-camera'&&o.instrument!=='orbital-spectrometer')return false;
  if(!coverage[b.id]&&Object.keys(coverage).length>=40)delete coverage[Object.keys(coverage)[0]];
  if(!M.addCoverage(coverage,b.id,o.location,b.radius,Math.max(12,Math.min(140,(o.footprintRadiusM||1000)/1000))))return false;

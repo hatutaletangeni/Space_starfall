@@ -21,6 +21,19 @@ function uplink(r,program,time,link){const g=migrate(r);if(!Array.isArray(progra
  const record={id,commands:program.map(x=>({...x})),queuedAtS:time,deliverAtS:validLink?time+Math.max(.001,Number(link.delayS)||0):null,status:validLink?'IN_TRANSIT':'AWAITING_LINK'};
  g.pending.push(record);event(g,time,'QUEUED',validLink?'Program uplink in transit':'Awaiting an available radio link');return record;}
 function stop(r,time,link){return uplink(r,[{op:'STOP'}],time,link);}
+function acceptPacket(r,program,time,packetId){
+ const g=migrate(r);if(!Array.isArray(program)||program.length>24||!packetId)throw Error('Invalid physically received command packet');
+ const hw=root.StarfallRoverT06?.hardware(r);
+ if(hw&&['ENTRY','DESCENT','FAULT'].includes(hw.state))throw Error('Rover receiver not deployed/healthy enough to accept a mission');
+ if(!Array.isArray(g.acceptedPackets))g.acceptedPackets=[];
+ if(g.acceptedPackets.includes(packetId))return false;
+ r.commands=program.map(x=>({...x}));r.index=0;r.remaining=0;
+ g.remainingM=0;g.remainingS=0;r.status=program.length?'running':'parked';g.mode=program.length?'DRIVING':'IDLE';
+ if(hw)hw.state=program.length?'TRAVERSING':'READY';
+ g.acceptedPackets.push(packetId);if(g.acceptedPackets.length>500)g.acceptedPackets=g.acceptedPackets.slice(-500);
+ event(g,time,'UPLINK','Packet '+packetId+' accepted by powered rover transceiver');
+ return true;
+}
 function useLink(g,time,link){g.lastLink={atS:time,connected:!!link?.connected,reason:link?.reason||'No receiver',delayS:Math.max(0,Number(link?.delayS)||0)};return g.lastLink;}
 function deliver(r,g,time,link){for(const q of g.pending){if(q.status==='AWAITING_LINK'&&link?.connected){q.status='IN_TRANSIT';q.deliverAtS=time+Math.max(.001,Number(link.delayS)||0);}
   if(q.status==='IN_TRANSIT'&&q.deliverAtS<=time){q.status='DELIVERED';r.commands=q.commands.map(x=>({...x}));r.index=0;r.remaining=0;g.remainingM=0;g.remainingS=0;r.status=q.commands.length?'running':'parked';g.mode=q.commands.length?'DRIVING':'IDLE';event(g,time,'UPLINK','Onboard program accepted');}}
@@ -37,32 +50,85 @@ function terrainStep(r,body,distanceM,height,unitScale=1000){const G=root.Starfa
  const before=heights(r.local),after=heights(next),grade=Math.atan2(Math.abs(after-before),Math.max(.1,distanceM));if(grade>0.48)return{ok:false,reason:'Terrain gradient exceeds 25.6° safe operating limit',data};
  return{ok:true,next,data,energyJ:Math.max(0,distanceM)*(245+Math.max(0,after-before)*115+data.slip*160),speedMS:Math.min(1.65,Math.max(.25,data.speedSceneS))};}
 /* Caller supplies the same seeded height function and actual world-body snapshot used for local navigation. */
-function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive}={}){const r=rover,g=migrate(r);if(!Number.isFinite(time))return g;
- const start=g.lastTickS===null?time:g.lastTickS,elapsed=clamp(time-start,0,15);g.lastTickS=time;r.lastS=time;useLink(g,time,link);deliver(r,g,time,link);const received=downlink(r,g,time,link);if(received.length&&onReceive)for(const obs of received)onReceive(obs,r);
+function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive,transportActive=false}={}){const r=rover,g=migrate(r);if(!Number.isFinite(time))return g;
+ const start=g.lastTickS===null?time:g.lastTickS,elapsed=clamp(time-start,0,15);g.lastTickS=time;r.lastS=time;
+ const T=root.StarfallRoverT06,hw=T?.hardware(r);
+ if(hw&&hw.state==='FAULT')return g;
+ if(hw&&r.status==='running'&&hw.state!=='TRAVERSING'&&hw.state!=='SCIENCE'){hw.state='TRAVERSING';}
+ if(hw){
+  const e=Math.min(elapsed*5,Math.max(0,r.batteryJ));
+  r.batteryJ=Math.max(0,r.batteryJ-e);g.totalEnergyJ+=e;
+  // Passive thermal relaxation is bounded, autonomous computer draws real Joules.
+  g.temperatureK=clamp((Number.isFinite(g.temperatureK)?g.temperatureK:290)+elapsed*((r.status==='running'?.38:-.09)),205,400);
+  if(g.temperatureK>365){T.fault(r,time,'Rover controller overheated · passive cooling required');event(g,time,'THERMAL','Controller thermal hard limit; resume only after safe cool-down');return g;}
+  if(r.batteryJ<g.safeReserveJ&&r.status==='running'){T.fault(r,time,'Power reserve reached; rover hibernated');event(g,time,'POWER','Reserve reached: local motion and science halted, awaiting physical charge');return g;}
+ }
+ useLink(g,time,link);if(!transportActive)deliver(r,g,time,link);const received=transportActive?[]:downlink(r,g,time,link);if(received.length&&onReceive)for(const obs of received)onReceive(obs,r);
  if(r.status!=='running'||!r.commands.length||elapsed<=0)return g;
  let budget=elapsed,cycles=0;while(budget>1e-7&&cycles++<48&&r.index<r.commands.length){const op=r.commands[r.index];
-  if(op.op==='STOP'){r.status='parked';g.mode='SAFE_STOP';r.index=r.commands.length;event(g,time,'STOP','Program stopped safely');break;}
+  if(op.op==='STOP'){r.status='parked';g.mode='SAFE_STOP';r.index=r.commands.length;
+   if(hw)hw.state='SAFE_STOP';event(g,time,'STOP','Program stopped safely');break;}
+  if(op.op==='STATUS'){
+   if(r.batteryJ<g.safeReserveJ+25){if(T)T.fault(r,time,'Computer reserve insufficient for status telemetry');break;}
+   r.batteryJ-=25;g.totalEnergyJ+=25;
+   event(g,time,'TELEMETRY','BODY '+r.bodyId+' · SoC '+Math.round(r.batteryJ/22000000*100)+'% · position '+r.local.map(n=>n.toFixed(4)).join(',')+' · '+g.mode);
+   r.index++;continue;
+  }
+  if(op.op==='CAPTURE'){
+   const ui=root.StarfallImagingUI7F,archive=ui?.store,jobCost=op.resolution===512?900:520;
+   if(!archive||!T){r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'CAMERA','Camera 7F not initialized; job retained');break;}
+   if(r.batteryJ<g.safeReserveJ+jobCost+600){T.fault(r,time,'Camera battery reserve; acquisition paused');break;}
+   const key='t06-cam-'+r.id+'-'+(g.acceptedPackets?.at(-1)||'legacy')+'-'+r.index;
+   if(!hw.cameraJobIds.includes(key)){
+    try{const j=archive.request('rover',r.id,op.mode,op.resolution,time);
+     archive.markDelivered(j.id,time);hw.cameraJobIds.push(key);hw.cameraJobIds=hw.cameraJobIds.slice(-24);
+     ui.persist();event(g,time,'CAMERA','Onboard autonomous camera job '+j.id+' accepted · no fake radio ACK');
+    }catch(e){T.fault(r,time,'Camera onboard storage/job queue: '+e.message);break;}
+   }
+   r.index++;continue;
+  }
   if(op.op==='TURN'){r.heading=(r.heading+op.value*Math.PI/180)%(2*Math.PI);r.index++;continue;}
   if(op.op==='SAMPLE'){
-   if(!science||!body){r.status='fault';g.mode='FAULT';event(g,time,'FAULT','Science/terrain provider unavailable');break;}
-   if(r.batteryJ<g.safeReserveJ+60000){r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'POWER','Insufficient energy reserve for sample');break;}
-   try{const obs=science.sample({body,seed,local:r.local,altitudeM:.6,instrument:op.value,simTime:time,nonce:(r.records?.length||0),energyAvailableJ:r.batteryJ-g.safeReserveJ});if(!Array.isArray(r.records))r.records=[];const record={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};r.records.push(record);r.records=r.records.slice(-100);g.queuedObservations.push(record);g.queuedObservations=g.queuedObservations.slice(-120);r.batteryJ-=obs.powerJ;g.totalEnergyJ+=obs.powerJ;event(g,time,'SAMPLE','Measurement stored onboard, awaiting downlink');r.index++;}catch(e){r.status='fault';g.mode='FAULT';event(g,time,'INSTRUMENT',e.message);break;}continue;}
+   if(!science||!body){if(T)T.fault(r,time,'Science/terrain provider unavailable','FAULT');else r.status='fault';g.mode='FAULT';event(g,time,'FAULT','Science/terrain provider unavailable');break;}
+   if(r.batteryJ<g.safeReserveJ+60000){if(T)T.fault(r,time,'Insufficient energy reserve for sample');else r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'POWER','Insufficient energy reserve for sample');break;}
+   try{const obs=science.sample({body,seed,local:r.local,altitudeM:.6,instrument:op.value,simTime:time,nonce:(r.records?.length||0),energyAvailableJ:r.batteryJ-g.safeReserveJ});if(!Array.isArray(r.records))r.records=[];
+   if(r.records.length>=100||g.queuedObservations.length>=120){if(T)T.fault(r,time,'Onboard science archive full; export/downlink before collecting more');else r.status='safe-stop';break;}
+   const record={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};r.records.push(record);g.queuedObservations.push(record);r.batteryJ-=obs.powerJ;g.totalEnergyJ+=obs.powerJ;event(g,time,'SAMPLE','Measurement stored onboard, awaiting downlink');r.index++;}catch(e){if(T)T.fault(r,time,'INSTRUMENT '+e.message,'FAULT');else r.status='fault';g.mode='FAULT';event(g,time,'INSTRUMENT',e.message);break;}continue;}
   if(op.op==='WAIT'){if(!g.remainingS)g.remainingS=op.value;const dt=Math.min(budget,g.remainingS);g.remainingS-=dt;budget-=dt;const e=dt*12;r.batteryJ=Math.max(0,r.batteryJ-e);g.totalEnergyJ+=e;if(g.remainingS<1e-6){g.remainingS=0;r.index++;}continue;}
-  if(op.op==='DRIVE'){
-   if(!body||!height){r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'TERRAIN','Terrain unavailable; drive paused instead of teleporting');break;}
-   if(!g.remainingM)g.remainingM=op.value;if(g.remainingM<1e-7){g.remainingM=0;r.index++;continue;}
-   const distance=Math.min(.8,g.remainingM,budget*1.5),step=terrainStep(r,body,distance,height,unitScale);
-   if(!step.ok){r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'HAZARD',step.reason);break;}
-   if(r.batteryJ-step.energyJ<g.safeReserveJ){r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'POWER','Battery reserve reached; rover halted safely');break;}
-   r.local=step.next;r.batteryJ-=step.energyJ;g.totalEnergyJ+=step.energyJ;g.distanceM+=distance;g.remainingM-=distance;budget-=distance/Math.max(.1,step.speedMS);
-   if(g.remainingM<1e-5){g.remainingM=0;r.index++;}continue;
+  let nav=null;
+  if(T&&['GO_TO','RETURN','DOCK'].includes(op.op)){
+   if(!body||!height){T.fault(r,time,'Cannot navigate without actual destination terrain');break;}
+   let target=op.op==='GO_TO'?op.local:hw.homeLocal;
+   if(op.op==='DOCK'){
+    const station=T.dockingTarget(r,body,root.StarfallOutpostUI?.store?.items||[],unitScale);
+    if(!station){T.fault(r,time,'No enabled charged outpost battery port on destination planet');break;}
+    target=station.battery.local;
+   }
+   nav=T.route(r,body,target,unitScale);
+   if(!nav.ok){T.fault(r,time,nav.reason);break;}
+   if(nav.distanceM<=2){
+    g.remainingM=0;r.index++;
+    if(op.op==='DOCK'){hw.state='RECOVERY';r.status='parked';g.mode='RECOVERY';event(g,time,'DOCK','Arrived near physical charge port; operator must connect for real battery transfer');break;}
+    event(g,time,'WAYPOINT','Reached '+op.op+' at '+T.latLon(r.local).lat.toFixed(3)+'° latitude');
+    continue;
+   }
+   r.heading=nav.heading;
   }
-  r.status='fault';g.mode='FAULT';event(g,time,'OPCODE','Unsupported program operation');break;
+  if(op.op==='DRIVE'||nav){
+   if(!body||!height){r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'TERRAIN','Terrain unavailable; drive paused instead of teleporting');break;}
+   if(nav)g.remainingM=nav.distanceM;else if(!g.remainingM)g.remainingM=op.value;if(g.remainingM<1e-7){g.remainingM=0;r.index++;continue;}
+   const distance=Math.min(.8,g.remainingM,budget*1.5),step=terrainStep(r,body,distance,height,unitScale);
+   if(!step.ok){if(T)T.fault(r,time,step.reason);else{r.status='safe-stop';g.mode='SAFE_STOP';}event(g,time,'HAZARD',step.reason);break;}
+   if(r.batteryJ-step.energyJ<g.safeReserveJ){if(T)T.fault(r,time,'Battery reserve reached; rover halted safely');else{r.status='safe-stop';g.mode='SAFE_STOP';}event(g,time,'POWER','Battery reserve reached; rover halted safely');break;}
+   r.local=step.next;r.batteryJ-=step.energyJ;g.totalEnergyJ+=step.energyJ;g.distanceM+=distance;g.remainingM-=distance;budget-=distance/Math.max(.1,step.speedMS);
+   if(nav?T.route(r,body,nav.targetLocal,unitScale).distanceM<2:g.remainingM<1e-5){g.remainingM=0;r.index++;}continue;
+  }
+  if(T)T.fault(r,time,'Unsupported program operation','FAULT');else r.status='fault';g.mode='FAULT';event(g,time,'OPCODE','Unsupported program operation');break;
  }
- if(r.index>=r.commands.length&&r.status==='running'){r.status='complete';g.mode='COMPLETE';event(g,time,'COMPLETE','Onboard program complete');}
+ if(r.index>=r.commands.length&&r.status==='running'){r.status='complete';g.mode='COMPLETE';if(hw)hw.state='READY';event(g,time,'COMPLETE','Onboard program complete');}
  return g;}
 function recover({truckLocal,roverLocal,radiusScene,truckEnergyJ,body,height,limitScene=55,unitScale=1000}){if(!Array.isArray(truckLocal)||!Array.isArray(roverLocal)||!body)throw Error('Truck/rover positions unavailable');const distance=arcMeters(truckLocal,roverLocal,radiusScene);if(distance>limitScene)throw Error('Winch cable limit: '+distance.toFixed(1)+' > '+limitScene+' scene units');if(distance<3)throw Error('Truck and rover already close enough');
  const n=Math.max(3,Math.ceil(distance/5));if(typeof height!=='function')throw Error('Terrain unavailable for winch safety check');const h1=height(truckLocal,body),h2=height(roverLocal,body);for(let i=1;i<n;i++){const a=i/n,dir=norm(truckLocal.map((x,j)=>x*(1-a)+roverLocal[j]*a)),h=height(dir,body),line=h1*(1-a)+h2*a;if(!Number.isFinite(h)||h>line+1.6)throw Error('Winch cable obstructed by ridge');}
  const pullScene=Math.max(0,distance-13),loadKg=1200,workJ=Math.max(50000,pullScene*unitScale*.15*loadKg*9.81*.12);if(truckEnergyJ<workJ+30000)throw Error('Truck lacks sufficient reserve for a safe pull');return{distanceBefore:distance,pullScene,workJ,remainingJ:truckEnergyJ-workJ};}
-const API={migrate,uplink,stop,tick,terrainStep,advance,arcMeters,recover};root.StarfallGroundOps7D=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+const API={migrate,uplink,stop,acceptPacket,tick,terrainStep,advance,arcMeters,recover};root.StarfallGroundOps7D=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof window!=='undefined'?window:globalThis);

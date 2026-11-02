@@ -494,7 +494,7 @@ class Renderer{
    else{const rocky=planet.type==='Volcanic'?[.34,.21,.17]:planet.type==='Ice'?[.61,.72,.75]:planet.type==='Desert'?[.58,.43,.29]:[.39,.43,.40];triangle(ax,cx,tip,rocky);triangle(cx,bx,tip,V.mix(rocky,[.16,.18,.20],.24));triangle(bx,dx,tip,rocky);triangle(dx,ax,tip,V.mix(rocky,[.14,.19,.16],.14));}
   }this.props=makeMesh(this.gl,p,n,c,indices);
  }
- render(state){this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
+ render(state){if(!this.captureSize)this.latestFrameState=state;const renderW=this.captureSize?.width||this.canvas.width,renderH=this.captureSize?.height||this.canvas.height;this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
   this.updatePatch(near,viewer,alt);this.propsPlanet=null;this.updateCelestial(cam);
   const nearSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
   const radial=near?V.norm(V.sub(cam.eye,near.position)):[0,1,0];
@@ -520,15 +520,15 @@ class Renderer{
    this.setFloat(prog,'uHeadlampPower',state.headlights?2.2:0);
    const occ=l.occluder;this.gl.uniform4fv(this.loc(prog,'uOccluder'),occ?[...V.sub(occ.center,origin),occ.radius]:[0,0,0,0]);
   };
-  gl.viewport(0,0,this.canvas.width,this.canvas.height);gl.clearColor(.006,.012,.023,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
+  gl.viewport(0,0,renderW,renderH);gl.clearColor(.006,.012,.023,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
   let p=this.p.bg;gl.useProgram(p);gl.bindVertexArray(this.skyVao);this.setVec(p,'uForward',cam.forward);this.setVec(p,'uRight',cam.right);this.setVec(p,'uUp',cam.up);this.setVec(p,'uRadial',radial);this.setVec(p,'uSkyColor',sky);this.setVec(p,'uLight',light);this.setVec(p,'uStarColor',lighting.starColor);this.setFloat(p,'uStarPower',lighting.starPower);this.setFloat(p,'uDaylight',dayDot);this.setFloat(p,'uMoonGlow',lighting.moonPower);this.setFloat(p,'uSunAngular',0.04);this.setFloat(p,'uAspect',this.aspect);this.setFloat(p,'uTan',Math.tan(this.fov/2));this.setFloat(p,'uAltitude',alt);gl.drawArrays(gl.TRIANGLES,0,3);this.frameDrawCalls++;
   p=this.p.star;gl.useProgram(p);this.setMat(p,'uVP',M.mul(M.perspective(this.fov,this.aspect,1,100000),view));this.setFloat(p,'uDpr',this.pixelRatio);this.setFloat(p,'uAlpha',1-atmo*daytime*.97);this.setFloat(p,'uTime',performance.now()*.001);this.setVec(p,'uOffset',[0,0,0]);gl.bindVertexArray(this.deep.vao);gl.drawArrays(gl.POINTS,0,this.deep.count);this.frameDrawCalls++;gl.bindVertexArray(this.celestial.vao);gl.drawArrays(gl.POINTS,0,this.celestial.count);this.frameDrawCalls++;
   this.spaceAlpha=1-atmo*daytime*.97;this.updateEffects(cam,nearSystem);
-  p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setFloat(p,'uFocal',this.canvas.height*.7);
+  p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setFloat(p,'uFocal',renderH*.7);
   gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);gl.drawArrays(gl.POINTS,0,this.effectCount);this.frameDrawCalls++;gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   // Massive suns use a separate far-space projection. Their coordinates are relative
   // to the camera so Float32 matrices retain local precision in billion-unit sectors.
-  this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*this.canvas.height;if(pixels<1.5)continue;
+  this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*renderH;if(pixels<1.5)continue;
    p=this.p.sun;gl.useProgram(p);this.setMat(p,'uViewProj',sunVP);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uTime',this.galaxy.time);const model=M.scaleTranslate(rel,sys.star.radius);this.renderMesh(p,this.sunSphere,model);
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
   }
@@ -537,7 +537,7 @@ class Renderer{
   const rendered=[],rings=[];this.renderedBodies=0;this.culledBodies=0;
   // Star-system broad-phase culling, then view-frustum + projected-size LOD.
   for(const sys of this.galaxy.nearbySystems(origin,1600000)){const starDist=V.len(V.sub(sys.position,origin));if(starDist>sys.maxOrbit+1600000)continue;
-   for(const body of sys.bodies){const rel=V.sub(body.position,origin),dist=V.len(rel),facing=V.dot(V.norm(rel),cam.forward),angular=body.radius/Math.max(1,dist-body.radius),pixels=angular*this.canvas.height;
+   for(const body of sys.bodies){const rel=V.sub(body.position,origin),dist=V.len(rel),facing=V.dot(V.norm(rel),cam.forward),angular=body.radius/Math.max(1,dist-body.radius),pixels=angular*renderH;
     if(dist>1600000||facing<-.26&&dist>body.radius*1.8||pixels<1.55){this.culledBodies++;continue;}
     const lod=pixels>180?2:pixels>30?1:0;
     const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340; if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
@@ -624,6 +624,61 @@ class Renderer{
   }
   gl.bindVertexArray(null);this.lastDrawCalls=this.frameDrawCalls;
  }
+ // 7F: World-only capture. The SAME scene renderer, shaders and planet mesh
+ // are drawn to a bounded offscreen RGBA8/depth framebuffer; HUD is never captured.
+ captureScience(camera,body,{size=512,caption='',quality=.82,wide=false}={}){
+  if(![256,512,1024].includes(size))throw Error('Unsupported camera resolution');
+  if(!body?.id||!body.position||!this.latestFrameState)throw Error('A loaded world scene is required');
+  if(!this.galaxy.byId.has(body.id))throw Error('Camera target is not currently loaded; visit its system');
+  if(this.captureSize)throw Error('Camera is already capturing');
+  if(!Array.isArray(camera?.eye)||!Array.isArray(camera?.forward)||!Array.isArray(camera?.up))throw Error('Missing 3-D camera pose');
+  const gl=this.gl,oldFbo=gl.getParameter(gl.FRAMEBUFFER_BINDING),oldViewport=gl.getParameter(gl.VIEWPORT);
+  const previous={aspect:this.aspect,fov:this.fov,pixelRatio:this.pixelRatio};
+  let fb=null,color=null,depth=null;
+  try{
+   fb=gl.createFramebuffer();color=gl.createTexture();depth=gl.createRenderbuffer();
+   if(!fb||!color||!depth)throw Error('Insufficient GPU resources for imaging');
+   gl.bindTexture(gl.TEXTURE_2D,color);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,size,size,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+   gl.bindRenderbuffer(gl.RENDERBUFFER,depth);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,size,size);
+   gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,color,0);
+   gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depth);
+   if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw Error('Offscreen camera framebuffer is incomplete');
+   this.captureSize={width:size,height:size};this.aspect=1;this.fov=wide?1.68:1.05;this.pixelRatio=1;
+   this.lastPatchAt=0;this.lastSkyAt=0;
+   const base=this.latestFrameState,up=V.norm(camera.up),forward=V.norm(camera.forward),right=V.norm(V.cross(forward,up));
+   if(V.len(right)<.01)throw Error('Degenerate camera orientation');
+   const eye=camera.eye,target=V.add(eye,V.mul(forward,500)),pose={eye,target,forward,right,up:V.norm(V.cross(right,forward))};
+   const altitude=Math.max(0,V.len(V.sub(eye,body.position))-body.radius);
+   this.render({...base,camera:pose,nearest:body,altitude,position:eye,viewerPosition:eye,
+     weather:null,interior:null,avatarBase:null,avatarWalking:false,avatarDelta:0,headlights:false,
+     shipPosition:base.shipPosition,shipForward:base.shipForward||forward,shipUp:base.shipUp||up,
+     infrastructure:base.infrastructure||[],ruins:base.ruins||[],ecology:base.ecology||[]});
+   const pixels=new Uint8Array(size*size*4);
+   gl.readPixels(0,0,size,size,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+   if(gl.getError()!==gl.NO_ERROR)throw Error('Camera readback failed');
+   const out=document.createElement('canvas');out.width=size;out.height=size;
+   const ctx=out.getContext('2d',{willReadFrequently:false});if(!ctx)throw Error('Image encoder unavailable');
+   const frame=ctx.createImageData(size,size),rowBytes=size*4;
+   for(let row=0;row<size;row++)frame.data.set(pixels.subarray((size-1-row)*rowBytes,(size-row)*rowBytes),row*rowBytes);
+   ctx.putImageData(frame,0,0);
+   if(caption){ctx.fillStyle='#070e19bd';ctx.fillRect(0,size-40,size,40);
+    ctx.fillStyle='#f3e2c8';ctx.font=Math.max(10,Math.round(size/46))+'px monospace';
+    ctx.fillText(String(caption).slice(0,68),12,size-16,size-24);}
+   let image=out.toDataURL('image/webp',quality);
+   if(!image.startsWith('data:image/webp'))image=out.toDataURL('image/jpeg',quality);
+   if(!/^data:image\/(webp|jpeg);base64,/.test(image))throw Error('Camera image encoder failed');
+   return{image,mime:image.slice(5,image.indexOf(';')),width:size,height:size,
+     bytes:Math.floor(image.slice(image.indexOf(',')+1).length*3/4),camera:{eye:[...eye],forward:[...forward],up:[...up]}};
+  }finally{
+   this.captureSize=null;this.aspect=previous.aspect;this.fov=previous.fov;this.pixelRatio=previous.pixelRatio;
+   gl.bindFramebuffer(gl.FRAMEBUFFER,oldFbo);gl.viewport(...oldViewport);
+   gl.bindRenderbuffer(gl.RENDERBUFFER,null);gl.bindTexture(gl.TEXTURE_2D,null);
+   if(depth)gl.deleteRenderbuffer(depth);if(color)gl.deleteTexture(color);if(fb)gl.deleteFramebuffer(fb);
+  }
+ }
+
  dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
 }
 root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:(planet,localDirection)=>ST.sample(planet,localDirection,groundHeight,field,shade,(body,d)=>Renderer.prototype.terrainNormal.call(null,body,d))};

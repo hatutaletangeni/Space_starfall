@@ -1,0 +1,87 @@
+name: Starfall Engineering Regression
+
+on:
+  push:
+    branches: [main, "release/**", "feature/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  offline-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: JavaScript syntax of every editable source
+        shell: bash
+        run: |
+          set -eu
+          find src -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
+      - name: All Node model and regression suites
+        shell: bash
+        run: |
+          set -eu
+          for test in tests/*.test.cjs; do
+            echo "RUN $test"
+            node "$test"
+          done
+      - name: Strict offline standalone parity
+        run: python tests/standalone-parity.py
+      - name: Rebuild standalone and recheck reproducibility
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+          git diff --exit-code -- PLAY-STARFALL.html
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test-only Playwright + Chromium
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Exercise real STARFALL standalone UI in headless Chromium
+        run: |
+          python tests/research7e-browser.py
+          python tests/imaging7f-browser.py
+          python tests/expedition-hardening-browser.py
+          python tests/mission-operations-t01-browser.py
+          python tests/power-ledger-t02-browser.py
+          python tests/mission-transport-t03-browser.py
+          python tests/antenna-hardware-t04-browser.py
+          python tests/remote-imaging-t05-browser.py
+          python tests/rover-lifecycle-t06-browser.py
+          python tests/orbital-bus-t07-browser.py
+          python tests/interplanetary-t08-browser.py
+      - name: Upload actual software-WebGL screenshot and performance data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-7f-software-webgl-qa
+          path: artifacts/7f-expedition-ci/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload real remote-camera WebGL readback for visual QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-t05-remote-camera-actual-webgl
+          path: artifacts/t05-camera-evidence/
+          if-no-files-found: ignore
+          retention-days: 14
