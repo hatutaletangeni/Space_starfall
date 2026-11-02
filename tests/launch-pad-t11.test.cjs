@@ -62,4 +62,13 @@ assert(Math.abs(Math.hypot(...launchRover.payloadT11.siteLocal)-1)<1e-12);
 assert.equal(remoteStore.rovers.length,0);
 assert.equal(T.canDeploy(remoteStore.launches[0]).ok,false);
 assert.equal(new X.Store(seed,remoteStore.serialize()).launches[0].payloadT11.id,launchRover.payloadT11.id);
+// This is a real 7B force-step release, not a fixture that forces orbit/deployment.
+const real=new X.Store(seed),rocket=real.launch({body,foundation:pad,design,time:1});
+const lookup=id=>id===body.id?body:null;
+for(let time=1;time<=1501&&real.launches[0].phase!=='deployed'&&real.launches[0].phase!=='failed';time+=30)real.update(time,lookup);
+assert.equal(real.launches[0].phase,'deployed','A real successful physical orbit should release payload via T11');
+assert.equal(real.satellites.length,1,'Satellite born only after valid orbital insertion');
+assert.equal(real.launches[0].payloadT11.assetId,real.satellites[0].id);
+assert.equal(real.satellites[0].payloadT11.launchId,rocket.id);
+assert.equal(real.launches[0].payloadT11.attached,false);
 console.log('PASS T11: pad commissioning/connected 90W load, launch occupancy, payload custody, deploy orbit guard, stable manifest saves, destination-site normalization and unsupported trajectory rejection');
