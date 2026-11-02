@@ -11,19 +11,26 @@
     } catch (_) { /* Private browsing and file URLs can deny storage. */ }
     return memory[key] ?? null;
   };
+  const showDurability = (ok,reason='') => {
+    const b=root.document?.getElementById?.('archive-t17-banner');if(!b)return;
+    b.hidden=!!ok;
+    if(!ok)b.textContent='SAVE FAILED / NONPERSISTENT · '+String(reason||'Browser storage denied').slice(0,170)+
+     ' · Your current state is only held in memory. Open SAVE / RESTORE and export an offline backup.';
+  };
   const write = (key, value) => {
     const json = JSON.stringify(value);
     try {
       root.localStorage.setItem(key, json);
       if (root.localStorage.getItem(key) !== json) throw Error('Persistent write read-back mismatch');
       memory[key] = value;
-      durableStatus = {durable:true,reason:''};
+      durableStatus = {durable:true,reason:''};showDurability(true);
       return true;
     } catch (error) {
       // Keep best-effort in-memory play in restricted file:// origins, but
       // NEVER claim the expedition persisted to disk.
       memory[key] = value;
       durableStatus = {durable:false,reason:String(error?.message||error)};
+      showDurability(false,durableStatus.reason);
       return false;
     }
   };
