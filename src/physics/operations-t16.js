@@ -23,7 +23,8 @@ function packetState(p){
   route:Array.isArray(p.route)&&p.route.length?p.route.join(' → '):null,
   delayS:number(p.lastLink?.delayS),bandwidthBps:number(p.lastLink?.bandwidthBps),
   quality:number(p.lastLink?.quality),sentBytes:number(p.sendBytes),totalBytes:number(p.encodedBytes),
-  createdS:number(p.createdS),receivedS:number(p.ackAtS),id:p.id};
+  createdS:number(p.createdS),receivedS:good?number(p.ackAtS):null,
+  expectedArrivalS:good?null:number(p.arrivalS),retryEligibleS:good?null:number(p.eligibleS),id:p.id};
 }
 function photoState(p,job=null){
  if(!p&&!job)return{stage:'READY',label:'NO IMAGE REQUEST',reason:'No original camera job or photo selected.',recovery:'Select an installed imager and submit the original camera request.'};
