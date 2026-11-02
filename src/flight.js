@@ -673,6 +673,7 @@ function truckSystems(){const truck=truckWorldState(),robot=roverWorldState(),bo
 function truckWinch(){
  if(!landed||!eva||truckOccupied||roverExitMove||rampTransition)throw Error('Exit truck and stand still to attach a winch cable');
  if(winch7d)throw Error('Recovery already connected: CANCEL before restarting');
+ if(!evaLocal||StarfallOutposts.arc(evaLocal,truckLocal,truckBody.radius)>18)throw Error('T12 walk back within 18 scene units of parked truck to attach winch');
  const t=truckWorldState(),r=roverWorldState();
  if(!t||!r||truckBody!==roverBody)throw Error('Truck and local science rover must be on the same physical surface');
  const dest=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,13);
@@ -707,6 +708,7 @@ function wiredSource(sourceId,vehicleLocal,maxRange){
 }
 function truckRecharge(sourceId,deliveredJ=360000){
  if(!landed||!eva||truckOccupied||!truckLocal||truckBody!==nearest)throw Error('Park and exit truck on the battery world to connect its port');
+ if(!evaLocal||StarfallOutposts.arc(evaLocal,truckLocal,truckBody.radius)>18)throw Error('T12 truck charge requires astronaut at physical socket');
  const{ui,battery}=wiredSource(sourceId,truckLocal,50),T=StarfallFieldServiceT12;
  const receipt=T.transfer({source:battery,sourceBodyId:truckBody.id,targetId:'starfall-truck',
   targetBodyId:truckBody.id,sourceLocal:battery.local,targetLocal:truckLocal,radiusScene:truckBody.radius,
@@ -723,6 +725,7 @@ function truckRecharge(sourceId,deliveredJ=360000){
 function roverRechargeLocal(sourceId){
  if(!landed||!eva||truckOccupied||truckBody!==nearest||roverBody!==nearest||!roverLocal)throw Error('T12 service: park truck and work beside the local rover');
  if(StarfallOutposts.arc(roverLocal,truckLocal,truckBody.radius)>24)throw Error('T12 service truck must be within 24 scene units of the rover');
+ if(!evaLocal||StarfallOutposts.arc(evaLocal,roverLocal,truckBody.radius)>18)throw Error('T12 astronaut must walk within 18 scene units of the local rover charging port');
  const{ui,battery}=wiredSource(sourceId,roverLocal,36),cfg=vehicleStore.get('rover');
  if(!cfg.definition.slots.docking||!cfg.definition.slots.battery)throw Error('T12 rover docking port or battery not installed');
  const receipt=StarfallFieldServiceT12.transfer({source:battery,sourceBodyId:truckBody.id,targetId:'starfall-rover',
@@ -736,7 +739,7 @@ function roverRechargeLocal(sourceId){
 }
 function fieldServiceStatus(remote=null){
  const body=nearest,local=remote?.local||roverLocal;
- const nearby=!!(landed&&eva&&!truckOccupied&&truckBody===body&&local&&(!remote||remote.bodyId===body.id)&&StarfallOutposts.arc(truckLocal,local,body.radius)<=18);
+ const nearby=!!(landed&&eva&&!truckOccupied&&truckBody===body&&local&&(!remote||remote.bodyId===body.id)&&StarfallOutposts.arc(truckLocal,local,body.radius)<=18&&evaLocal&&StarfallOutposts.arc(evaLocal,local,body.radius)<=18);
  const s=remote?StarfallFieldServiceT12.createService(remote.fieldT12):localServiceT12;
  const health=remote?remote.roverT06?.health:vehicleStore.get('rover').state.health;
  return{nearby,bodyId:body?.id,parts:StarfallFieldServiceT12.diagnosis({service:s,rover:remote,health}),
