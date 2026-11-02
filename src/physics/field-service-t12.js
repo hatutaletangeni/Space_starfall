@@ -77,7 +77,7 @@ function createService(raw){
  const r=raw&&typeof raw==='object'?raw:{};
  const conditions={};for(const k of FAULT_SLOTS)conditions[k]=finite(r.conditions?.[k])?clamp(r.conditions[k],0,1):1;
  return{schema:12,conditions,readyAtS:finite(r.readyAtS)?Math.max(0,r.readyAtS):0,
-  records:Array.isArray(r.records)?r.records.filter(x=>x&&x.id&&x.slot&&finite(x.atS)).slice(0,200):[],
+  records:Array.isArray(r.records)?r.records.filter(x=>x&&x.id&&x.slot&&finite(x.atS)):[],
   portTemperatureK:finite(r.portTemperatureK)?clamp(r.portTemperatureK,150,500):290};
 }
 function diagnosis({service,rover=null,health=1}){
