@@ -26,7 +26,7 @@ with sync_playwright() as p:
           return SF.load();
         }""")
         snapshot=json.dumps(json.dumps(saved))
-        context.add_init_script("(()=>{if(localStorage.getItem('t04-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");localStorage.setItem('t04-fixture-installed','1');})()")
+        context.add_init_script("(()=>{if(sessionStorage.getItem('t04-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t04-fixture-installed','1');})()")
         # The first tab's pagehide autosave must happen BEFORE the new tab's
         # initial-save injection. Never overwrite a newer outpost/packet store.
         initial.close()
