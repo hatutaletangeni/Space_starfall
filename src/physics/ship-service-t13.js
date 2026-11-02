@@ -33,8 +33,13 @@ function radio({ship,report}={}){
  if(st.powerEnabled&&(!report||report.shed?.includes('avionics')||
     (report.draws?.avionics||0)<(stats?.avionicsW||Infinity)-1e-8))
   return{ready:false,reason:'SHIP_RADIO: realistic electrical bus avionics shed / not yet updated'};
+ const avionics=root.StarfallVehicles?.components?.[v.definition.slots.avionics]||{};
+ const rangeScene=Number.isFinite(avionics.radioRangeScene)?avionics.radioRangeScene:45;
+ const bandwidthBps=Number.isFinite(avionics.radioBandwidthBps)?avionics.radioBandwidthBps:128000;
+ const txPowerW=Number.isFinite(avionics.radioTxPowerW)?avionics.radioTxPowerW:60;
  return{ready:true,mode:st.powerEnabled?'T02 SERVED AVIONICS':'LEGACY EMERGENCY DC (BATTERY-DEBITED)',
-  rangeScene:45,bandwidthBps:128000,reason:'Physical 45-scene-unit radio with finite power and LOS'};
+  rangeScene,bandwidthBps,txPowerW,
+  reason:'Original installed '+v.definition.slots.avionics+' physical '+rangeScene+'-scene-unit radio with real bus draw and LOS'};
 }
 function diagnostic({ship,report,state,landed,bodyId,scienceCount=0}){
  const s=repair(state),st=ship?.state||{},t=ship?.stats||{},r=radio({ship,report});
