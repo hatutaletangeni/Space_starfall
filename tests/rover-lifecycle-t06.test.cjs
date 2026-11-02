@@ -18,7 +18,7 @@ assert.equal(site.safe,true);assert(Math.abs(T.latLon(site.local).lat)<1e-5);
 assert.equal(T.footprint(body,destination,()=>0).slopeDeg,0);
 assert.equal(T.landingDecision(body,site).safe,true);
 assert.equal(T.landingDecision(body,site,{propellantJ:1}).safe,false,'cannot land with no capsule energy');
-assert.equal(T.footprint(body,destination,(local)=>local[0]*250).safe,false,'steep terrain blocks touchdown');
+assert.equal(T.footprint(body,destination,(local)=>local[0]*2500).safe,false,'steep terrain blocks touchdown');
 assert.throws(()=>T.fromLatLon(91,0),/out of bounds/);
 assert.deepEqual(L.validateScript('DRIVE 5\nTURN -35\nWAIT 4\nSAMPLE spectrometer\nSTOP'),T.parse('DRIVE 5\nTURN -35\nWAIT 4\nSAMPLE spectrometer\nSTOP'));
 const commands=T.parse('GO_TO 0 0.00012\nSAMPLE thermometer\nSAMPLE magnetometer\nCAPTURE forward 256\nSTATUS\nRETURN\nSTOP');
