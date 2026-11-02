@@ -93,6 +93,37 @@ with sync_playwright() as p:
           return StarfallCommsT03.routeFor({sourceId:'starfall-ship',destId:r.id,bodyId:r.bodyId,systemId:r.systemId},rt.time);
         }""")
         assert online['connected'],online
+        # 7C orbital repeater: no fake satellite position. Sample the genuine
+        # StarfallLaunch.orbit Kepler geometry until mutual LOS, then depower 7C.
+        orbital=page.evaluate("""()=>{
+          const rt=StarfallRuntime,body=rt.nearest,site=StarfallOutpostUI,launch=StarfallLaunchUI,
+            s={id:'t04-orbit-test',kind:'relay',bodyId:body.id,systemId:body.systemId,
+              altitudeM:180000,epochS:rt.time,phase:0,axis:[1,0,0],
+              mu:Math.max(.01,body.gravity)*9.80665*(body.radius*StarfallPhysics.SCENE_METERS_PER_UNIT)**2,
+              powerJ:5e6},
+            rover=launch.store.rovers.find(x=>x.id==='t04-real-rover');
+          launch.store.satellites.push(s);
+          const tower=site.store.items.find(x=>x.id==='__TOWER__');
+          site.store.setEnabled(tower.id,false);
+          site.advancePowerTo(rt.time,()=>body);
+          let chosen=null;
+          for(let i=0;i<96;i++){
+            s.phase=i*Math.PI*2/96;
+            const p=StarfallCommsT03.routeFor({sourceId:'starfall-ship',destId:rover.id,
+              bodyId:body.id,systemId:body.systemId},rt.time);
+            if(p.connected&&p.hops.includes(s.id)){chosen=p;break;}
+          }
+          if(!chosen)throw Error('No true powered orbit relay mutual LOS in 96 Kepler samples');
+          StarfallSatelliteOps7C.ensure(s).radioEnabled=false;
+          const gone=StarfallCommsT03.routeFor({sourceId:'starfall-ship',destId:rover.id,
+            bodyId:body.id,systemId:body.systemId},rt.time);
+          if(gone.connected)throw Error('De-powered 7C relay must not be usable');
+          launch.store.satellites=launch.store.satellites.filter(x=>x.id!==s.id);
+          site.store.setEnabled(tower.id,true);site.advancePowerTo(rt.time,()=>body);
+          return{hops:chosen.hops,bitrate:chosen.bandwidthBps,quality:chosen.quality,
+            disabled:!gone.connected};
+        }""".replace('__TOWER__',setup['tower']))
+        assert orbital['disabled'] and orbital['bitrate']>0 and 't04-orbit-test' in orbital['hops'],orbital
         received=page.evaluate("""()=>{
           const rt=StarfallRuntime,T=StarfallCommsT03,ops=StarfallMissionOperationsUI,site=StarfallOutpostUI;
           const r=StarfallLaunchUI.store.rovers.find(x=>x.id==='t04-real-rover'),G=StarfallGroundOps7D;
