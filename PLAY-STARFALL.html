@@ -465,9 +465,10 @@
 <section id="sat7c-section" class="sat7c-section" aria-label="Satellite operations">
  <small>7C / ORBITAL OPERATIONS · SCIENCE & RELAY NETWORKS</small><h3>Satellite Operations Console</h3>
  <p class="sat7c-description">Use the same orbital ephemeris for spacecraft display, sunlight, surface footprint and radio. Measurements remain onboard until a valid ground link receives them. Payload values are seeded engineering approximations.</p>
- <div class="launch-fields"><label>Deployed satellite<select id="sat7c-list" aria-label="Select deployed satellite"></select></label><label>Sensor payload<select id="sat7c-sensor"></select></label><label>Attitude control<select id="sat7c-pointing"><option value="nadir">Nadir / surface survey</option><option value="safe">Safe / conserve power</option></select></label></div>
+ <div class="launch-fields"><label>Deployed satellite<select id="sat7c-list" aria-label="Select deployed satellite"></select></label><label>Sensor payload<select id="sat7c-sensor"></select></label><label>Attitude control<select id="sat7c-pointing"><option value="nadir">Nadir / surface survey</option><option value="safe">SAFE / conserve power</option><option value="SOLAR_TRACK">SOLAR_TRACK · solar array</option><option value="GROUND_TRACK">GROUND_TRACK · target station</option><option value="RELAY_TRACK">RELAY_TRACK · radio pass</option></select></label></div>
  <div class="launch-actions"><label class="launch-copy"><input type="checkbox" id="sat7c-enabled" checked> Bus enabled</label><label class="launch-copy"><input type="checkbox" id="sat7c-radio" checked> Radio enabled</label></div>
- <div id="sat7c-metrics" aria-live="polite"></div>
+ <div class="launch-actions"><button type="button" id="sat7c-schedule">SCHEDULE SCIENCE EXPOSURE</button><button type="button" id="sat7c-predict">PREDICT NEXT ORBIT / ECLIPSE / LINK</button></div>
+<pre id="sat7c-t07-status" class="launch-output" aria-live="polite">T07 · No orbital spacecraft selected.</pre><div id="sat7c-metrics" aria-live="polite"></div>
  <h3>Orbital link windows</h3><div id="sat7c-passes">No pass predictions yet.</div>
  <h3>Sensor data & transmissions</h3><div class="launch-actions"><button type="button" data-imaging7f-open data-imaging7f-type="satellite" class="science-action">ORBITAL PHOTO</button><button type="button" id="sat7c-capture">ACQUIRE ORBITAL OBSERVATION</button><button type="button" id="sat7c-downlink">DOWNLINK STORED DATA</button><button type="button" id="sat7c-refresh">REFRESH</button><button type="button" id="sat7c-view-assets">VIEW IN ASSET HIERARCHY</button></div>
  <div id="sat7c-data" class="sat7c-data"></div><div id="sat7c-status" role="status">Deploy a satellite to begin operations.</div>
@@ -2403,7 +2404,7 @@ const CONFIG=Object.freeze({schema:1,capacityJ:5e6,solarW:1150,busW:52,radioW:12
 const PAYLOADS=Object.freeze({camera:{label:'Orbital terrain camera',powerW:185,unit:'m',parameter:'terrainElevationM',uncertainty:35,needsSun:true},spectrometer:{label:'Orbital mineral spectrometer',powerW:240,unit:'fraction',parameter:'silicateFraction',uncertainty:.075},atmosphere:{label:'Atmospheric radiometer',powerW:170,unit:'K',parameter:'temperatureK',uncertainty:9}});
 function ensure(s){if(!s||!s.id)throw Error('Satellite missing ID');const state=s.ops7c&&s.ops7c.schema===1?s.ops7c:{};if(state._normalized7c===true)return state;
  const power=Number.isFinite(state.energyJ)?state.energyJ:Number.isFinite(s.powerJ)?s.powerJ:5e6;
- const o={schema:1,_normalized7c:true,energyJ:clamp(power,0,CONFIG.capacityJ),capacityJ:CONFIG.capacityJ,solarW:CONFIG.solarW,temperatureK:Number.isFinite(state.temperatureK)?clamp(state.temperatureK,180,430):288,heaterW:0,enabled:state.enabled!==false,radioEnabled:state.radioEnabled!==false,sensor:PAYLOADS[state.sensor]?state.sensor:s.kind==='observatory'?'camera':'none',pointing:state.pointing==='safe'?'safe':'nadir',storage:Array.isArray(state.storage)?state.storage.filter(validObservation).slice(-CONFIG.storageMax):[],inTransit:Array.isArray(state.inTransit)?state.inTransit.filter(v=>validObservation(v)&&Number.isFinite(v.receivedAtS)).slice(-CONFIG.storageMax):[],received:Array.isArray(state.received)?state.received.filter(validObservation).slice(-180):[],lastS:Number.isFinite(state.lastS)?state.lastS:null,lastCaptureS:Number.isFinite(state.lastCaptureS)?state.lastCaptureS:-Infinity,lastLink:state.lastLink||null,lastEclipse:!!state.lastEclipse,lastSolarW:Number.isFinite(state.lastSolarW)?state.lastSolarW:0,lastLoadW:Number.isFinite(state.lastLoadW)?state.lastLoadW:0};s.ops7c=o;s.powerJ=o.energyJ;return o;}
+ const o={schema:1,_normalized7c:true,energyJ:clamp(power,0,CONFIG.capacityJ),capacityJ:CONFIG.capacityJ,solarW:CONFIG.solarW,temperatureK:Number.isFinite(state.temperatureK)?clamp(state.temperatureK,180,430):288,heaterW:0,enabled:state.enabled!==false,radioEnabled:state.radioEnabled!==false,sensor:PAYLOADS[state.sensor]?state.sensor:s.kind==='observatory'?'camera':'none',pointing:state.pointing==='safe'?'safe':'nadir',storage:Array.isArray(state.storage)?state.storage.filter(validObservation).slice(-CONFIG.storageMax):[],inTransit:Array.isArray(state.inTransit)?state.inTransit.filter(v=>validObservation(v)&&Number.isFinite(v.receivedAtS)).slice(-CONFIG.storageMax):[],received:Array.isArray(state.received)?state.received.filter(validObservation).slice(-180):[],lastS:Number.isFinite(state.lastS)?state.lastS:null,lastCaptureS:Number.isFinite(state.lastCaptureS)?state.lastCaptureS:-Infinity,lastLink:state.lastLink||null,lastEclipse:!!state.lastEclipse,lastSolarW:Number.isFinite(state.lastSolarW)?state.lastSolarW:0,lastLoadW:Number.isFinite(state.lastLoadW)?state.lastLoadW:0,t07:state.t07&&typeof state.t07==='object'?state.t07:null};s.ops7c=o;s.powerJ=o.energyJ;return o;}
 function validObservation(v){return v&&typeof v.id==='string'&&v.id.length<160&&typeof v.bodyId==='string'&&Number.isFinite(v.timeS)&&Number.isFinite(v.value)&&Array.isArray(v.location)&&v.location.length===3&&v.location.every(Number.isFinite);}
 function geometry(s,body,star,time,sceneMetres,orbit){const q=orbit(s,body,time,sceneMetres),relative=sub(q.position,body.position),starDir=unit(sub(star,body.position)),r=length(relative),projection=dot(relative,starDir);const shadow=projection<0&&Math.sqrt(Math.max(0,r*r-projection*projection))<=body.radius;
  const local=unit(relative);return{...q,relative,nadir:local,sunlit:!shadow,shadow,altitudeM:Math.max(0,(r-body.radius)*sceneMetres),rScene:r};}
@@ -2412,8 +2413,8 @@ function step(s,body,star,time,unitScale,orbit){const o=ensure(s);if(!Number.isF
  for(let i=0;i<n;i++){const at=time-dt+(i+.5)*delta,g=geometry(s,body,star,at,unitScale,orbit);shadow=g.shadow;solar=g.sunlit?CONFIG.solarW:0;load=o.enabled?CONFIG.busW+(o.pointing==='nadir'?CONFIG.pointingW:0):2;const heater=o.enabled&&o.temperatureK<278?24:0;load+=heater;o.heaterW=heater;const target=shadow?(heater?281:236):(o.enabled?309:291);o.temperatureK=clamp(target+(o.temperatureK-target)*Math.exp(-delta/900),180,430);
   const available=o.energyJ+solar*delta;if(available<load*delta){o.energyJ=0;o.enabled=false;load=2;}else o.energyJ=clamp(available-load*delta,0,CONFIG.capacityJ);
  }
- const current=geometry(s,body,star,time,unitScale,orbit);o.lastEclipse=current.shadow;o.lastSolarW=current.sunlit?CONFIG.solarW:0;o.lastLoadW=(o.enabled?CONFIG.busW+(o.pointing==='nadir'?CONFIG.pointingW:0):2)+o.heaterW;o.lastS=time;s.powerJ=o.energyJ;return o;}
-function capture(s,body,star,time,seed,unitScale,orbit,science,terrain){const o=ensure(s),p=PAYLOADS[o.sensor];if(!p)throw Error('Select an installed science payload');if(s.kind!=='observatory')throw Error('This is a relay-only bus, not a science satellite');if(!o.enabled||o.pointing!=='nadir')throw Error('Satellite must be powered and pointed nadir');if(o.storage.length>=CONFIG.storageMax)throw Error('Onboard science storage is full: downlink first');if(o.temperatureK<235||o.temperatureK>350)throw Error('Payload outside simplified operating thermal envelope');if(time-o.lastCaptureS<5)throw Error('Sensor requires a five-second acquisition interval');
+ const current=geometry(s,body,star,time,unitScale,orbit);o.lastEclipse=current.shadow;o.lastSolarW=current.sunlit?CONFIG.solarW:0;o.lastLoadW=(o.enabled?CONFIG.busW+(o.pointing==='nadir'?CONFIG.pointingW:0):2)+o.heaterW;o.lastS=time;s.powerJ=o.energyJ;if(root.StarfallOrbitalBusT07){root.StarfallOrbitalBusT07.advance(s,body,star,time,unitScale,orbit);}return o;}
+function capture(s,body,star,time,seed,unitScale,orbit,science,terrain){const o=ensure(s),p=PAYLOADS[o.sensor];if(root.StarfallOrbitalBusT07)root.StarfallOrbitalBusT07.preflight(s,body,star,time,unitScale,orbit,o.sensor);if(!p)throw Error('Select an installed science payload');if(s.kind!=='observatory')throw Error('This is a relay-only bus, not a science satellite');if(!o.enabled||o.pointing!=='nadir')throw Error('Satellite must be powered and pointed nadir');if(o.storage.length>=CONFIG.storageMax)throw Error('Onboard science storage is full: downlink first');if(o.temperatureK<235||o.temperatureK>350)throw Error('Payload outside simplified operating thermal envelope');if(time-o.lastCaptureS<5)throw Error('Sensor requires a five-second acquisition interval');
  const g=geometry(s,body,star,time,unitScale,orbit);if(g.altitudeM<25000)throw Error('Orbit too low for this sensor model');if(p.needsSun&&!g.sunlit)throw Error('Terrain camera requires sunlight: satellite is eclipsed');const energy=p.powerW*4+CONFIG.pointingW*4;if(o.energyJ<energy)throw Error('Insufficient battery for acquisition');if(!body?.landable)throw Error('Surface survey payload cannot characterize a gas giant with this instrument');
  const rot=root.StarfallOutposts?.rotate;const local=rot?unit(rot(g.nadir,body.spinAxis||[0,1,0],-(body.spinAngle||0))):g.nadir;
  const truth=science.localTruth(body,seed,local,time);let value=p.parameter==='terrainElevationM'?(typeof terrain==='function'?terrain(local,body)*unitScale:0):truth[p.parameter];if(!Number.isFinite(value))throw Error('Sensor ground truth unavailable');const hash=science.hash(seed+':orbital:'+s.id+':'+Math.floor(time/5)+':'+o.sensor),noise=((hash/4294967295)-.5)*p.uncertainty;
@@ -2422,12 +2423,230 @@ function capture(s,body,star,time,seed,unitScale,orbit,science,terrain){const o=
  if(o.storage.some(x=>x.id===obs.id)||o.received.some(x=>x.id===obs.id))throw Error('Observation already recorded');o.energyJ-=energy;s.powerJ=o.energyJ;o.lastCaptureS=time;o.storage.push(obs);return obs;}
 function radio(s,body,star,time,unitScale,orbit,receiver,radioLink){const o=ensure(s);if(!o.enabled||!o.radioEnabled||o.energyJ<CONFIG.radioW*2)return{connected:false,reason:'Satellite radio offline or underpowered',delayS:0,quality:0};if(!receiver)return{connected:false,reason:'No active ground receiver on this body',delayS:0,quality:0};
  const g=geometry(s,body,star,time,unitScale,orbit);return radioLink(g.position,receiver,[{position:body.position,radius:body.radius}],CONFIG.radioRangeScene,unitScale);}
-function downlink(s,body,star,time,unitScale,orbit,receiver,radioLink){const o=ensure(s),link=radio(s,body,star,time,unitScale,orbit,receiver,radioLink);if(!link.connected)throw Error('Cannot downlink: '+link.reason);if(!o.storage.length)throw Error('No queued onboard observations');const batch=o.storage.slice(0,8),bitrate=Math.max(50000,Math.min(1e6,1e6*link.quality));let txTime=0;const pending=batch.map(v=>{txTime+=Math.max(1,Number(v.dataBytes)||85000)*8/bitrate;return {...v,receivedAtS:time+txTime+Math.max(.001,link.delayS),radioQuality:link.quality};});const cost=CONFIG.radioW*txTime;if(o.energyJ<cost)throw Error('Not enough battery for downlink');o.energyJ-=cost;s.powerJ=o.energyJ;o.storage=o.storage.slice(batch.length);o.inTransit.push(...pending);o.inTransit=o.inTransit.slice(-CONFIG.storageMax);o.lastLink={timeS:time,quality:link.quality,delayS:link.delayS};return{records:pending,link};}
+function downlink(s,body,star,time,unitScale,orbit,receiver,radioLink){if(root.StarfallCommsT03)return{records:root.StarfallCommsT03.queueSatellite(s,time),link:{reason:'T03 shared per-byte transport owns ACK and delivery'}};const o=ensure(s),link=radio(s,body,star,time,unitScale,orbit,receiver,radioLink);if(!link.connected)throw Error('Cannot downlink: '+link.reason);if(!o.storage.length)throw Error('No queued onboard observations');const batch=o.storage.slice(0,8),bitrate=Math.max(50000,Math.min(1e6,1e6*link.quality));let txTime=0;const pending=batch.map(v=>{txTime+=Math.max(1,Number(v.dataBytes)||85000)*8/bitrate;return {...v,receivedAtS:time+txTime+Math.max(.001,link.delayS),radioQuality:link.quality};});const cost=CONFIG.radioW*txTime;if(o.energyJ<cost)throw Error('Not enough battery for downlink');o.energyJ-=cost;s.powerJ=o.energyJ;o.storage=o.storage.slice(batch.length);o.inTransit.push(...pending);o.inTransit=o.inTransit.slice(-CONFIG.storageMax);o.lastLink={timeS:time,quality:link.quality,delayS:link.delayS};return{records:pending,link};}
 function passWindows(s,body,star,time,unitScale,orbit,receiverAt,radioLink,count=3){const o=ensure(s),result=[];if(!o.enabled||!o.radioEnabled)return result;const period=orbit(s,body,time,unitScale).periodS;if(!Number.isFinite(period)||period<=0)return result;let inPass=false,start=0;const end=time+Math.min(period*3,108000),stepSeconds=Math.max(10,period/100,(end-time)/600);
  for(let t=time;t<=end;t+=stepSeconds){const receiver=receiverAt(t),position=orbit(s,body,t,unitScale).position,valid=!!receiver&&radioLink(position,receiver,[{position:body.position,radius:body.radius}],CONFIG.radioRangeScene,unitScale).connected;if(valid&&!inPass){start=t;inPass=true;}if(!valid&&inPass){result.push({startS:start,endS:t});inPass=false;if(result.length>=count)break;}}if(inPass&&result.length<count)result.push({startS:start,endS:end});return result;}
-function relayOperational(s){const o=ensure(s);return o.enabled&&o.radioEnabled&&o.energyJ>=CONFIG.radioW*2;}
+function relayOperational(s){const o=ensure(s);return o.enabled&&o.radioEnabled&&o.energyJ>=CONFIG.radioW*2&&(!root.StarfallOrbitalBusT07||root.StarfallOrbitalBusT07.radioReady(s));}
 function receive(s,time){const o=ensure(s),ready=o.inTransit.filter(x=>x.receivedAtS<=time);o.inTransit=o.inTransit.filter(x=>x.receivedAtS>time);const seen=new Set(o.received.map(x=>x.id));const fresh=ready.filter(x=>!seen.has(x.id));o.received.push(...fresh);o.received=o.received.slice(-180);return fresh;}
 const API={CONFIG,PAYLOADS,ensure,validObservation,geometry,step,capture,radio,downlink,receive,relayOperational,passWindows};root.StarfallSatelliteOps7C=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
+/* STARFALL T07 — additive operational spacecraft bus for the original 7C store.
+ * Satellite charge/observations: s.ops7c. Orbit: StarfallLaunch.orbit(s,...).
+ * No second battery, satellite inventory or radio packet ledger.
+ */
+(function(root){'use strict';
+const C=Object.freeze({schema:1,maxJobs:20,maxHistory:48,reserveJ:140000,slewDegS:3.0,
+ slewW:44,trackW:17,antennaW:12,maxTemperatureK:348,minTemperatureK:238,
+ maxPointingErrorDeg:2.2,solarRatedW:1150,predictionSamples:480});
+const MODES=Object.freeze(['SAFE','SOLAR_TRACK','NADIR_IMAGING','GROUND_TRACK','RELAY_TRACK']);
+const DUR=Object.freeze({camera:12,spectrometer:16,atmosphere:10});
+const copy=x=>JSON.parse(JSON.stringify(x));
+const finite=Number.isFinite,clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
+const length=x=>Math.hypot(...x);
+const norm=x=>{const d=length(x);return d>1e-12?x.map(v=>v/d):[0,1,0];};
+const sub=(a,b)=>a.map((v,i)=>v-b[i]);
+function bus(s){
+ const o=root.StarfallSatelliteOps7C.ensure(s),previous=o.t07||{};
+ if(previous._normalizedT07)return previous;
+ const target=MODES.includes(previous.mode)?previous.mode:(s.kind==='relay'?'RELAY_TRACK':o.pointing==='safe'?'SAFE':'NADIR_IMAGING');
+ const b={schema:1,_normalizedT07:true,mode:target,
+  desiredMode:MODES.includes(previous.desiredMode)?previous.desiredMode:target,
+  pointingErrorDeg:finite(previous.pointingErrorDeg)?clamp(previous.pointingErrorDeg,0,180):0,
+  lastS:finite(previous.lastS)?previous.lastS:o.lastS,
+  jobs:Array.isArray(previous.jobs)?previous.jobs.filter(x=>x?.id&&x.status!=='COMPLETED').slice(-C.maxJobs):[],
+  completed:Array.isArray(previous.completed)?previous.completed.filter(x=>x?.id).slice(-C.maxHistory):[],
+  seq:Math.max(0,Math.min(1000000,Math.floor(previous.seq||0))),
+  faults:Array.isArray(previous.faults)?previous.faults.slice(-24):[],
+  activeW:Math.max(0,Number(previous.activeW)||0),
+  state:String(previous.state||'READY').slice(0,50),
+  health:finite(previous.health)?clamp(previous.health,0,1):1,
+  momentumNms:Math.max(0,Number(previous.momentumNms)||0),
+  lastOrbit:previous.lastOrbit||null,lastContactS:finite(previous.lastContactS)?previous.lastContactS:null,
+  lastObservationId:previous.lastObservationId||null};
+ o.t07=b;return b;
+}
+function addFault(b,at,why){
+ const message=String(why).slice(0,190);if(!b.faults.length||b.faults.at(-1).reason!==message)
+  b.faults.push({timeS:at,reason:message});
+ b.faults=b.faults.slice(-24);
+}
+function command(s,mode,at=0){
+ if(!MODES.includes(mode))throw Error('Unknown satellite attitude mode');
+ const b=bus(s),o=root.StarfallSatelliteOps7C.ensure(s);
+ if(!o.enabled&&mode!=='SAFE')throw Error('Sat bus is powered OFF; restore battery before slewing');
+ if(mode==='RELAY_TRACK'&&s.kind!=='relay'&&s.kind!=='observatory')throw Error('No compatible antenna bus');
+ b.desiredMode=mode;
+ b.pointingErrorDeg=Math.max(b.pointingErrorDeg,mode===b.mode?0:
+  mode==='SAFE'?6:mode==='SOLAR_TRACK'?38:mode==='NADIR_IMAGING'?48:55);
+ b.state=mode===b.mode?'HOLDING':'SLEWING';
+ if(mode==='SAFE')o.pointing='safe';
+ return{...copy(b),requestedAtS:at};
+}
+function inspect(s,body,star,at,units,orbit){
+ const b=bus(s),o=root.StarfallSatelliteOps7C.ensure(s);
+ if(!body?.position||!Array.isArray(star)||typeof orbit!=='function')throw Error('Source-owned orbital ephemeris unavailable');
+ const M=root.StarfallSatelliteOps7C,g=M.geometry(s,body,star,at,units,orbit);
+ const radius=g.rScene*units,mu=s.mu||Math.max(1,body.gravity*9.80665*Math.pow(body.radius*units,2));
+ let speedMS=null;
+ if(finite(s.inertial2d?.mu)&&finite(g.periapsisM)&&finite(g.apoapsisM)){
+  const a=body.radius*units+(g.periapsisM+g.apoapsisM)/2;
+  speedMS=Math.sqrt(Math.max(0,s.inertial2d.mu*(2/radius-1/a)));
+ }else if(mu>0&&radius>0)speedMS=Math.sqrt(mu/radius);
+ const subpoint=root.StarfallOutposts?.rotate?norm(root.StarfallOutposts.rotate(g.nadir,body.spinAxis||[0,1,0],-(body.spinAngle||0))):g.nadir;
+ const orbitalElements={altitudeM:g.altitudeM,periodS:g.periodS??null,
+  periapsisM:finite(g.periapsisM)?g.periapsisM:null,apoapsisM:finite(g.apoapsisM)?g.apoapsisM:null,
+  eccentricity:finite(g.eccentricity)?g.eccentricity:null,
+  speedMS:finite(speedMS)?speedMS:null,relativePositionScene:g.relative.slice(),
+  model:s.inertial2d?'7B achieved bound two-body Kepler elements':'legacy 7C circular ephemeris fallback'};
+ return{satelliteId:s.id,bodyId:s.bodyId,timeS:at,position:g.position.slice(),subpoint,
+  footprintRadiusM:Math.max(150,Math.min(5000,g.altitudeM*.012)),sunlit:g.sunlit,
+  eclipse:g.shadow,orbit:orbitalElements,batteryJ:o.energyJ,capacityJ:o.capacityJ,
+  temperatureK:o.temperatureK,solarRatedW:C.solarRatedW,solarActualW:o.lastSolarW,
+  loadW:o.lastLoadW+Math.max(0,b.activeW),enabled:o.enabled,radioEnabled:o.radioEnabled,
+  mode:b.mode,desiredMode:b.desiredMode,pointingErrorDeg:b.pointingErrorDeg,
+  health:b.health,jobs:b.jobs.length,records:o.storage.length,received:o.received.length,
+  nextScheduledS:b.jobs.filter(x=>x.status==='QUEUED').map(x=>x.eligibleAtS).sort((a,c)=>a-c)[0]??null,
+  faults:b.faults.slice(-4)};
+}
+function preflight(s,body,star,at,units,orbit,sensor){
+ const M=root.StarfallSatelliteOps7C,o=M.ensure(s),b=bus(s);
+ if(s.kind!=='observatory')throw Error('RELAY_ONLY: no installed science payload');
+ if(!M.PAYLOADS[sensor])throw Error('INSTALLED_PAYLOAD_REQUIRED: invalid observatory instrument');
+ if(!o.enabled||o.energyJ<C.reserveJ)throw Error('SATELLITE_POWER: bus below reserve');
+ if(b.desiredMode!=='NADIR_IMAGING'||b.mode!=='NADIR_IMAGING'||b.pointingErrorDeg>C.maxPointingErrorDeg||o.pointing!=='nadir')
+  throw Error('ATTITUDE_UNSETTLED: request NADIR_IMAGING and wait for slew');
+ if(o.temperatureK<C.minTemperatureK||o.temperatureK>C.maxTemperatureK)throw Error('THERMAL: sensor out of envelope');
+ if(b.health<.2)throw Error('SATELLITE_FAULT: bus damaged');
+ if(o.storage.length>=M.CONFIG.storageMax)throw Error('STORAGE_FULL: keep onboard and schedule downlink');
+ if(!body?.landable)throw Error('SOLID_WORLD_REQUIRED: no terrestrial survey model');
+ const g=M.geometry(s,body,star,at,units,orbit);
+ if(g.altitudeM<25000||g.altitudeM>5e7||(finite(g.periapsisM)&&g.periapsisM<25000))
+  throw Error('ORBIT_UNSAFE: acquisition outside stable imaging altitude envelope');
+ if(M.PAYLOADS[sensor].needsSun&&!g.sunlit)throw Error('ECLIPSE: camera sunlight required');
+ return{g,o,b};
+}
+function schedule(s,sensor,at,opts={}){
+ const M=root.StarfallSatelliteOps7C,o=M.ensure(s),b=bus(s);
+ if(s.kind!=='observatory'||!M.PAYLOADS[sensor])throw Error('Only observatory installed payloads may acquire science');
+ if(!finite(at)||at<0)throw Error('Invalid original mission time');
+ if(b.jobs.length>=C.maxJobs)throw Error('Onboard spacecraft job queue is full');
+ if(o.storage.length+b.jobs.length>=M.CONFIG.storageMax)throw Error('Finite science recorder capacity reached');
+ const ordinal=++b.seq,id='t07-'+s.id+'-'+ordinal.toString(36);
+ const job={id,satelliteId:s.id,sensor,createdAtS:at,eligibleAtS:at+DUR[sensor],
+  durationS:DUR[sensor],attempts:0,lastAttemptS:null,lastReason:'',status:'QUEUED'};
+ b.jobs.push(job);return copy(job);
+}
+function emitImage(s,j,o,at){
+ if(j.sensor!=='camera')return;
+ const archive=root.StarfallImagingUI7F?.store;
+ if(!archive)return;
+ // Original 7C measurement and real 7F image are distinct entities linked
+ // by the same capture job ID. A render failure creates no synthetic image.
+ try{
+  const existing=archive.jobs.find(x=>x.t07JobId===j.id);
+  if(existing)return;
+  const job=archive.request('satellite',s.id,'nadir',256,at);
+  archive.markDelivered(job.id,at);
+  const mutable=archive.jobs.find(x=>x.id===job.id);
+  if(mutable)mutable.t07JobId=j.id;
+  j.photoJobId=job.id;
+  root.StarfallImagingUI7F.persist();
+ }catch(e){j.photoReason=String(e.message||e).slice(0,150);}
+}
+function advance(s,body,star,time,units,orbit){
+ const o=root.StarfallSatelliteOps7C.ensure(s),b=bus(s);
+ if(!finite(time))return b;
+ const old=finite(b.lastS)?b.lastS:time,elapsed=Math.max(0,time-old);
+ const dt=Math.min(elapsed,3600);
+ if(elapsed>3600)addFault(b,time,'AWAITING_REVIEW: T07 cannot integrate more than one hour of lost spacecraft control time');
+ b.lastS=time;
+ const movement=dt*C.slewDegS;
+ if(b.pointingErrorDeg>0){
+  b.pointingErrorDeg=Math.max(0,b.pointingErrorDeg-movement);
+  if(b.pointingErrorDeg<=C.maxPointingErrorDeg){b.mode=b.desiredMode;b.pointingErrorDeg=0;b.state='HOLDING';}
+  else b.state='SLEWING';
+ }
+ const activeSlew=b.state==='SLEWING',extraW=o.enabled?
+  (activeSlew?C.slewW:(b.mode==='SAFE'?0:C.trackW)):0;
+ const debit=Math.min(o.energyJ,extraW*dt);o.energyJ=Math.max(0,o.energyJ-debit);
+ s.powerJ=o.energyJ;b.activeW=extraW;
+ if(o.energyJ<C.reserveJ&&b.mode!=='SAFE'){
+  b.mode='SAFE';b.desiredMode='SAFE';b.state='BROWNOUT';o.pointing='safe';
+  addFault(b,time,'Bus reserve reached; science and relay pointing paused');
+ }else if(b.mode==='NADIR_IMAGING'&&b.pointingErrorDeg<=C.maxPointingErrorDeg)o.pointing='nadir';
+ else if(b.mode==='SAFE')o.pointing='safe';
+ if(!body?.position||!star||typeof orbit!=='function')return b;
+ try{
+  const status=inspect(s,body,star,time,units,orbit);
+  b.lastOrbit={timeS:time,altitudeM:status.orbit.altitudeM,periodS:status.orbit.periodS,
+   eclipse:status.eclipse,footprintRadiusM:status.footprintRadiusM,velocityMS:status.orbit.speedMS};
+ }catch(e){addFault(b,time,'ORBIT_UNAVAILABLE: '+String(e.message||e));return b;}
+ const F=root.StarfallFieldScience,height=root.Starfall3D?.groundHeight;
+ for(const j of b.jobs){
+  if(j.status!=='QUEUED'||j.eligibleAtS>time)continue;
+  if(!F||!height){j.lastReason='Science or terrain provider unavailable';continue;}
+  j.attempts++;j.lastAttemptS=time;
+  if(j.attempts>36){j.status='PAUSED';j.lastReason='Too many denied capture windows; operator review required';continue;}
+  try{
+   preflight(s,body,star,time,units,orbit,j.sensor);
+   const oldSensor=o.sensor;o.sensor=j.sensor;
+   let obs;
+   try{obs=root.StarfallSatelliteOps7C.capture(s,body,star,time,root.StarfallRuntime?.galaxy?.seed??s.seed??742,
+     units,orbit,F,height);}finally{o.sensor=oldSensor;}
+   if(o.storage.some(x=>x.id===obs.id)){
+    obs.t07JobId=j.id;obs.captureDurationS=j.durationS;
+    obs.captureStartS=j.createdAtS;obs.numericNotImage=j.sensor==='camera';
+    j.observationId=obs.id;j.status='COMPLETED';j.completedAtS=time;j.lastReason='';
+    b.lastObservationId=obs.id;emitImage(s,j,o,time);
+    b.completed.push(copy(j));b.completed=b.completed.slice(-C.maxHistory);
+   }
+  }catch(e){j.lastReason=String(e.message||e).slice(0,180);
+   if(/ATTITUDE_UNSETTLED|ECLIPSE|THERMAL|ORBIT_UNSAFE|POWER|STORAGE|interval/i.test(j.lastReason))
+    j.eligibleAtS=time+Math.max(5,Math.min(120,j.durationS));
+   else{j.status='PAUSED';addFault(b,time,j.lastReason);}
+  }
+ }
+ b.jobs=b.jobs.filter(j=>j.status!=='COMPLETED');return b;
+}
+function radioReady(s){
+ const o=root.StarfallSatelliteOps7C.ensure(s),b=bus(s);
+ return o.enabled&&o.radioEnabled&&o.energyJ>=root.StarfallSatelliteOps7C.CONFIG.radioW*2+
+  (b.mode==='SAFE'?0:100)&&b.mode!=='SAFE'&&b.health>.15;
+}
+function predict(s,body,star,at,units,orbit,receiverAt,radioLink,bodyAt=null,count=3){
+ if(!finite(at)||typeof receiverAt!=='function'||typeof radioLink!=='function')return{passes:[],sunWindows:[],reason:'No prediction ephemeris/receiver'};
+ const q=orbit(s,body,at,units),period=q.periodS;
+ if(!(finite(period)&&period>0))return{passes:[],sunWindows:[],reason:'No valid achieved Kepler period'};
+ const end=at+Math.min(period*3,86400),step=Math.max(10,(end-at)/C.predictionSamples);
+ const passes=[],sunWindows=[];let pass=null,sun=null;
+ for(let t=at;t<=end+step*.4;t+=step){
+  let b=body;if(bodyAt){b=bodyAt(t);if(!b?.position)break;}
+  let g;try{g=root.StarfallSatelliteOps7C.geometry(s,b,star,t,units,orbit);}catch(_){continue;}
+  const raw=receiverAt(t,b),receiver=Array.isArray(raw)?raw:raw?.position;
+  const link=receiver&&radioLink(g.position,receiver,[{position:b.position,radius:b.radius}],
+   root.StarfallSatelliteOps7C.CONFIG.radioRangeScene,units);
+  if(link?.connected&&!pass)pass={startS:t,endS:t};
+  if(link?.connected&&pass)pass.endS=t+step;
+  else if(!link?.connected&&pass){passes.push(pass);pass=null;}
+  if(g.sunlit&&!sun)sun={startS:t,endS:t};
+  if(g.sunlit&&sun)sun.endS=t+step;
+  else if(!g.sunlit&&sun){sunWindows.push(sun);sun=null;}
+  if(passes.length>=count&&sunWindows.length>=count)break;
+ }
+ if(pass)passes.push(pass);if(sun)sunWindows.push(sun);
+ const o=root.StarfallSatelliteOps7C.ensure(s);
+ return{passes:passes.slice(0,count),sunWindows:sunWindows.slice(0,count),
+  nextContactS:passes[0]?.startS??null,
+  nextSolarS:sunWindows[0]?.startS??null,
+  estimatedBatteryFullS:o.lastSolarW>o.lastLoadW?(o.capacityJ-o.energyJ)/(o.lastSolarW-o.lastLoadW):null,
+  predictionModel:'Sampled single authoritative Kepler state and actual current receiver sites; no invented interplanetary endpoint'};
+}
+const API={CONFIG:C,MODES,DUR,bus,command,inspect,preflight,schedule,advance,radioReady,predict};
+root.StarfallOrbitalBusT07=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof window!=='undefined'?window:globalThis);
 
 </script><script>
@@ -5430,9 +5649,9 @@ const $=id=>document.getElementById(id),M=root.StarfallSatelliteOps7C,RT=root.St
 if(!M||!RT||!$('sat7c-list'))return;
 const fmt=(v,n=1)=>Number.isFinite(v)?v.toLocaleString('en-US',{maximumFractionDigits:n}):'Unavailable';
 let selected='',lastView=0,lastSaved=0,lastModelTime=-Infinity,dirty=false,statusText='Choose an orbital satellite to operate.';
-const satellites=()=>root.StarfallLaunchUI?.store?.satellites||[],bodyOf=s=>RT.galaxy.byId.get(s.bodyId);
+const satellites=()=>root.StarfallLaunchUI?.store?.satellites||[],bodyOf=s=>root.StarfallMissionOperationsUI?.resolveBody?.(s,RT.time)||RT.galaxy.byId.get(s.bodyId),T7=root.StarfallOrbitalBusT07;
 function starOf(s){const system=RT.galaxy.byId.get(s.systemId);return system?.star?.position||system?.position||null;}
-function groundStation(body,at=RT.time){const ctx=RT.outpostContext();if(ctx.landed&&ctx.bodyId===body.id&&Array.isArray(ctx.position)){const d=(at-RT.time)*2*Math.PI/Math.max(1,body.spinPeriod||86400),up=O.rotate(ctx.local,body.spinAxis||[0,1,0],(body.spinAngle||0)+d),radius=O.V.len(O.V.sub(ctx.position,body.position))+5;return{position:O.V.add(body.position,O.V.mul(up,radius)),label:'Expedition ground radio'};}
+function groundStation(body,at=RT.time){const ctx=RT.outpostContext();if(ctx.landed&&ctx.bodyId===body.id&&Array.isArray(ctx.position)&&RT.vehicleStore.get('ship').state.energyJ>200){const d=(at-RT.time)*2*Math.PI/Math.max(1,body.spinPeriod||86400),up=O.rotate(ctx.local,body.spinAxis||[0,1,0],(body.spinAngle||0)+d),radius=O.V.len(O.V.sub(ctx.position,body.position))+5;return{position:O.V.add(body.position,O.V.mul(up,radius)),label:'Expedition ground radio'};}
  const site=root.StarfallOutpostUI,items=site?.store?.items||[],p=site?.powerReports?.get(body.id);for(const item of items){if(item.bodyId!==body.id||item.kind!=='antenna'||item.enabled===false||p?.byId?.[item.id]?.power!==true)continue;
   const past=(at-RT.time)*2*Math.PI/Math.max(1,body.spinPeriod||86400),dir=O.rotate(item.local,body.spinAxis||[0,1,0],(body.spinAngle||0)+past),position=O.V.add(body.position,O.V.mul(dir,body.radius+Math.max(8,item.height||0)));return{position,label:'Powered outpost antenna '+item.id.slice(-6)};}
  return null;}
@@ -5445,13 +5664,38 @@ function metric(el,label,value,caption){const card=document.createElement('div')
 function refresh(){const picker=$('sat7c-list'),prev=selected||picker.value,ss=satellites();picker.replaceChildren();for(const s of ss){const op=document.createElement('option');op.value=s.id;op.textContent=(RT.galaxy.byId.get(s.bodyId)?.name||s.bodyId)+' / '+s.kind.toUpperCase()+' / '+s.id.slice(-8);picker.append(op);}selected=ss.some(s=>s.id===prev)?prev:ss[0]?.id||'';picker.value=selected;
  const metrics=$('sat7c-metrics'),data=$('sat7c-data'),passes=$('sat7c-passes');metrics.replaceChildren();data.replaceChildren();passes.replaceChildren();
  const s=selectedSatellite();if(!s){metrics.textContent='No deployed satellites. Launch a communications or science satellite from a FOUNDATION to create an orbital asset.';announce('No orbital satellites available.');return;}
- const o=M.ensure(s),b=bodyOf(s),star=starOf(s);$('sat7c-enabled').checked=o.enabled;$('sat7c-radio').checked=o.radioEnabled;$('sat7c-pointing').value=o.pointing;const options=$('sat7c-sensor');options.replaceChildren();for(const k of s.kind==='relay'?['none']:['camera','spectrometer','atmosphere']){const op=document.createElement('option');op.value=k;op.textContent=M.PAYLOADS[k]?.label||'No science payload (relay-only)';options.append(op);}options.value=o.sensor;
+ const o=M.ensure(s),b=bodyOf(s),star=starOf(s);$('sat7c-enabled').checked=o.enabled;$('sat7c-radio').checked=o.radioEnabled;$('sat7c-pointing').value=T7?({SAFE:'safe',NADIR_IMAGING:'nadir'}[T7.bus(s).desiredMode]||T7.bus(s).desiredMode):o.pointing;const options=$('sat7c-sensor');options.replaceChildren();for(const k of s.kind==='relay'?['none']:['camera','spectrometer','atmosphere']){const op=document.createElement('option');op.value=k;op.textContent=M.PAYLOADS[k]?.label||'No science payload (relay-only)';options.append(op);}options.value=o.sensor;
  $('sat7c-capture').disabled=s.kind==='relay';$('sat7c-status').textContent=statusText;
  if(!b||!star){metrics.textContent='This system is not loaded: the satellite state remains saved but live orbit and link calculations are unavailable until its system is activated.';return;}
  let g,link;try{g=M.geometry(s,b,star,RT.time,P.SCENE_METERS_PER_UNIT,X.orbit);const station=groundStation(b);link=M.radio(s,b,star,RT.time,P.SCENE_METERS_PER_UNIT,X.orbit,station?.position,O.radioLink);
- const cells=document.createElement('div');cells.className='sat7c-metrics';metric(cells,'ORBIT HEIGHT',fmt(g.altitudeM/1000,0)+' km','Achieved Kepler orbit');metric(cells,'ILLUMINATION',g.shadow?'ECLIPSE':'SUNLIT','Cylindrical shadow model');metric(cells,'SOLAR INPUT',fmt(o.lastSolarW,0)+' W','Rated 1.15 kW, modeled');metric(cells,'DC BUS LOAD',fmt(o.lastLoadW,0)+' W','Conservative baseline');metric(cells,'THERMAL',fmt(o.temperatureK-273.15,1)+' °C','Lumped heater/radiator model');metric(cells,'DOWNLINK',link.connected?'IN VIEW':'NO LINK',link.connected?'Delay '+fmt(link.delayS*1000,2)+' ms':link.reason);metric(cells,'DATA QUEUE',(o.storage.length+o.inTransit.length)+' / '+M.CONFIG.storageMax+' files','Max 24 onboard records');metrics.append(cells);ratioBar(metrics,'BATTERY',o.energyJ,o.capacityJ);
+ const cells=document.createElement('div');cells.className='sat7c-metrics';metric(cells,'ORBIT HEIGHT',fmt(g.altitudeM/1000,0)+' km','Achieved Kepler orbit');
+ if(T7){const v=T7.inspect(s,b,star,RT.time,P.SCENE_METERS_PER_UNIT,X.orbit),bus=T7.bus(s);
+  metric(cells,'ORBIT SPEED',fmt(v.orbit.speedMS/1000,3)+' km/s',v.orbit.model);
+  metric(cells,'PERIOD',fmt(v.orbit.periodS/60,1)+' min','Using original 7B/7C achieved orbit');
+  metric(cells,'ATTITUDE',v.mode+' → '+v.desiredMode,fmt(v.pointingErrorDeg,1)+'° error · '+fmt(bus.health*100,0)+'% bus health');
+  metric(cells,'POINTING LOAD',fmt(bus.activeW,0)+' W',bus.state+' · max '+fmt(T7.CONFIG.slewDegS,1)+'°/s');
+  metric(cells,'PAYLOAD QUEUE',bus.jobs.length+' acquisition(s)',bus.completed.length+' recorded numeric exposures');
+  $('sat7c-t07-status').textContent=[
+   'T07 SOURCE '+s.id+' · '+s.kind.toUpperCase()+' / bus '+bus.state,
+   'PERIAPSIS '+fmt(v.orbit.periapsisM/1000,1)+' km / APOAPSIS '+fmt(v.orbit.apoapsisM/1000,1)+' km / ECCENTRICITY '+fmt(v.orbit.eccentricity,5),
+   'NADIR FOOTPRINT '+fmt(v.footprintRadiusM/1000,2)+' km · fixed subpoint '+v.subpoint.map(x=>fmt(x,4)).join('/'),
+   'BATTERY '+fmt(v.batteryJ/3.6e6,3)+' kWh · SOLAR '+fmt(v.solarActualW,0)+' / '+fmt(v.solarRatedW,0)+' W · LOAD '+fmt(v.loadW,0)+' W',
+   'ACQUISITIONS '+bus.jobs.map(j=>j.sensor+': '+j.status+' T+'+fmt(j.eligibleAtS,0)+'s'+(j.lastReason?' / '+j.lastReason:'')).join(' | '),
+   'FAULTS '+(bus.faults.slice(-3).map(f=>f.reason).join(' | ')||'None'),
+   'MANEUVERS UNAVAILABLE: no onboard propellant/impulse hardware; Kepler orbit unmodified'
+  ].join('\\n');
+ }metric(cells,'ILLUMINATION',g.shadow?'ECLIPSE':'SUNLIT','Cylindrical shadow model');metric(cells,'SOLAR INPUT',fmt(o.lastSolarW,0)+' W','Rated 1.15 kW, modeled');metric(cells,'DC BUS LOAD',fmt(o.lastLoadW,0)+' W','Conservative baseline');metric(cells,'THERMAL',fmt(o.temperatureK-273.15,1)+' °C','Lumped heater/radiator model');metric(cells,'DOWNLINK',link.connected?'IN VIEW':'NO LINK',link.connected?'Delay '+fmt(link.delayS*1000,2)+' ms':link.reason);metric(cells,'DATA QUEUE',(o.storage.length+o.inTransit.length)+' / '+M.CONFIG.storageMax+' files','Max 24 onboard records');metrics.append(cells);ratioBar(metrics,'BATTERY',o.energyJ,o.capacityJ);
  const st=document.createElement('p');st.className='sat7c-description';st.textContent=(station?'Receiver: '+station.label:'No powered ground receiver on this world')+' · satellite ID '+s.id+' · time T+'+fmt(RT.time,0)+'s';metrics.append(st);
- const schedule=M.passWindows(s,b,star,RT.time,P.SCENE_METERS_PER_UNIT,X.orbit,t=>groundStation(b,t)?.position,O.radioLink,3);passes.textContent=schedule.length?schedule.map((p,i)=>'PASS '+(i+1)+' · T+'+fmt(p.startS-RT.time,0)+'s until T+'+fmt(p.endS-RT.time,0)+'s · '+fmt(p.endS-p.startS,0)+'s window').join('\n'):'No receiver passes predicted within three orbital periods.';
+ const sched=T7?T7.predict(s,b,star,RT.time,P.SCENE_METERS_PER_UNIT,X.orbit,
+  (t,atBody)=>groundStation(atBody,t)?.position,O.radioLink,
+  t=>root.StarfallMissionOperationsUI?.resolveBody?.(s,t)||b):
+  {passes:M.passWindows(s,b,star,RT.time,P.SCENE_METERS_PER_UNIT,X.orbit,t=>groundStation(b,t)?.position,O.radioLink,3),sunWindows:[]};
+ const schedule=sched.passes;
+ passes.textContent=[
+  schedule.length?schedule.map((p,i)=>'REAL LINK PASS '+(i+1)+' · T+'+fmt(p.startS-RT.time,0)+'s – T+'+fmt(p.endS-RT.time,0)+'s · '+fmt(p.endS-p.startS,0)+'s window').join('\\n'):'No commissioned powered receiver passes in sampled orbital horizon',
+  sched.sunWindows?.length?sched.sunWindows.map((p,i)=>'SUN WINDOW '+(i+1)+' · T+'+fmt(p.startS-RT.time,0)+'s – T+'+fmt(p.endS-RT.time,0)+'s').join('\\n'):'Sun visibility windows unavailable',
+  'Battery time-to-full with current solar/load: '+fmt(sched.estimatedBatteryFullS,0)+' simulated s'
+ ].join('\\n');
  }catch(err){metrics.textContent='Orbit/radio unavailable: '+err.message;}
  const entries=[...o.storage.map(x=>({...x,mode:'ONBOARD'})),...o.inTransit.map(x=>({...x,mode:'IN TRANSIT'})),...o.received.slice(-10).map(x=>({...x,mode:'DOWNLINKED'}))].sort((a,b)=>b.timeS-a.timeS).slice(0,28);
  if(!entries.length)data.textContent='No observations yet. Select a sensor, orient NADIR, acquire a dataset, then transmit it when a ground link is available.';
@@ -5465,13 +5709,21 @@ function open(id){if(id)selected=id;root.StarfallLaunchUI?.open?.();refresh();$(
 $('sat7c-list').onchange=e=>{selected=e.target.value;refresh();};$('sat7c-refresh').onclick=refresh;
 $('sat7c-enabled').onchange=()=>run(()=>{const s=selectedSatellite();if(!s)throw Error('Select a satellite');const o=M.ensure(s);if(!o.enabled&&o.energyJ<=150)throw Error('Battery exhausted: wait for solar charging');o.enabled=$('sat7c-enabled').checked;announce(o.enabled?'Satellite bus enabled':'Satellite placed in low-power standby');});
 $('sat7c-radio').onchange=()=>run(()=>{const o=M.ensure(selectedSatellite());o.radioEnabled=$('sat7c-radio').checked;announce('Radio '+(o.radioEnabled?'enabled':'disabled'));});
-$('sat7c-pointing').onchange=()=>run(()=>{const o=M.ensure(selectedSatellite());o.pointing=$('sat7c-pointing').value;announce('Attitude target '+o.pointing.toUpperCase());});
+$('sat7c-pointing').onchange=()=>run(()=>{const s=selectedSatellite(),o=M.ensure(s),value=$('sat7c-pointing').value;
+ if(T7)T7.command(s,value==='safe'?'SAFE':value==='nadir'?'NADIR_IMAGING':value,RT.time);
+ else o.pointing=value;
+ announce('Attitude target '+(T7?.bus(s).desiredMode||o.pointing).toUpperCase()+' queued · slew uses finite time & power');});
 $('sat7c-sensor').onchange=()=>run(()=>{const s=selectedSatellite(),o=M.ensure(s),sensor=$('sat7c-sensor').value;if(!M.PAYLOADS[sensor]&&sensor!=='none')throw Error('Sensor unavailable');if(s.kind==='relay'&&sensor!=='none')throw Error('Relay satellite has no science sensor');o.sensor=sensor;announce('Sensor configured: '+sensor);});
-$('sat7c-capture').onclick=()=>run(()=>{const s=selectedSatellite(),b=bodyOf(s),star=starOf(s);if(!b||!star)throw Error('Destination world is unloaded');const record=M.capture(s,b,star,RT.time,RT.galaxy.seed,P.SCENE_METERS_PER_UNIT,X.orbit,root.StarfallFieldScience,root.Starfall3D?.groundHeight);announce('Captured '+record.instrument+' · stored '+record.dataBytes+' bytes until downlink.');});
+$('sat7c-capture').onclick=()=>run(()=>{const s=selectedSatellite(),b=bodyOf(s),star=starOf(s);if(!b||!star)throw Error('Destination ephemeris unavailable');if(T7){
+ const j=T7.schedule(s,M.ensure(s).sensor,RT.time);
+ announce('Real '+j.durationS+' s '+j.sensor+' exposure queued onboard as '+j.id+'. Next T01 clock tick performs acquisition only after valid orbit/daylight/pointing/power.');
+ }else{const record=M.capture(s,b,star,RT.time,RT.galaxy.seed,P.SCENE_METERS_PER_UNIT,X.orbit,root.StarfallFieldScience,root.Starfall3D?.groundHeight);announce('Captured '+record.instrument+' · stored '+record.dataBytes+' bytes until downlink.');}});
 $('sat7c-downlink').onclick=()=>run(()=>{const s=selectedSatellite(),b=bodyOf(s),star=starOf(s);if(!b||!star)throw Error('Satellite world is unloaded');const rec=groundStation(b),v=root.StarfallCommsT03?{records:root.StarfallCommsT03.queueSatellite(s,RT.time),link:{delayS:0}}:M.downlink(s,b,star,RT.time,P.SCENE_METERS_PER_UNIT,X.orbit,rec?.position,O.radioLink);
   announce(root.StarfallCommsT03?'Queued '+v.records.length+' dataset(s) in shared physical radio transport. Data stays onboard until complete ACK.':'Transmitting '+v.records.length+' dataset(s) · propagation delay '+fmt(v.link.delayS*1000,3)+' ms. Journal/map update only after receipt.');});
 $('sat7c-view-assets').onclick=()=>{const id=selected;$('launch-dialog').hidden=true;root.StarfallAssetUI7A1?.select?.(id,true);};
-root.StarfallSatelliteOpsUI={tick,refresh,open,get selected(){return selected;},groundStation};addEventListener('pagehide',()=>{if(dirty)persist();});
+$('sat7c-schedule').onclick=()=>$('sat7c-capture').click();
+ $('sat7c-predict').onclick=refresh;
+ root.StarfallSatelliteOpsUI={tick,refresh,open,get selected(){return selected;},groundStation};addEventListener('pagehide',()=>{if(dirty)persist();});
 })(window);
 
 </script>
