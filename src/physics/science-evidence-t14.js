@@ -65,13 +65,14 @@ function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satelli
  const push=m=>{if(!m||m.bodyId!==bodyId||!safeId(m.id)||seen.has(m.id))return;
   try{m.local=unit(m.local);}catch(_){return;}
   seen.add(m.id);res.push(m);};
- for(const o of journal)if(o?.bodyId===bodyId&&validateEvidence(o)){
+ for(const o of journal)if(o?.bodyId===bodyId&&validateEvidence(o)&&
+  (o.kind!=='orbital-observation'||finite(o.receivedAtS))){
    const type=o.kind==='orbital-observation'?'orbital':'measurement';
    push(marker(o,type,(o.instrument||'Instrument')+' / '+o.id.slice(-12),
     {evidenceId:o.id,sourceId:o.probeId||o.satelliteId||o.sourceAssetId||'legacy-on-foot',
      value:o.value,unit:o.unit||'',quality:o.t14?.qualityFlags?.join(', ')||o.quality||'MODEL',timeS:o.timeS}));
  }
- for(const p of photos)if(p?.bodyId===bodyId&&p.status==='downlinked'&&p.receivedAtS!==null&&safeId(p.id)){
+ for(const p of photos)if(p?.bodyId===bodyId&&p.status==='downlinked'&&finite(p.receivedAtS)&&safeId(p.id)){
   // Actual camera optics were rendered and bytes downlinked. No inferred photo from numeric 7C camera.
   // Camera position is WORLD position, so without source's body-fixed direction use photo.local only.
   const dir=p.local||p.bodyFixedLocal||p.captureLocal;
@@ -85,7 +86,7 @@ function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satelli
  for(const x of outposts)if(x?.bodyId===bodyId&&x?.local&&x.kind==='antenna')
   push(marker(x,'relay','Outpost receiver '+x.id.slice(-10),{sourceId:x.id}));
  for(const x of pending)if(x?.bodyId===bodyId&&x.local&&x.requestedAtS!==undefined)
-  push(marker(x,'pending','Pending surveyed command',{sourceId:x.assetId}));
+  push(marker(x,'pending','Pending camera job · position currently known; not yet evidence',{sourceId:x.assetId}));
  return res;
 }
 function filterMarkers(markers,filter='all'){const accepted=['all','measurement','orbital','photo','ruin','ecology','outpost','relay','pending','mission','rover'];if(!accepted.includes(filter))throw Error('T14 invalid map filter');
