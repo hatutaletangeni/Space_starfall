@@ -43,7 +43,7 @@ function photoState(p,job=null){
   createdS:number(p.timeS),receivedS:number(p.receivedAtS),sentBytes:number(p.progressBytes),
   totalBytes:number(p.bytes),sourceId:p.sourceAssetId,photoId:p.id};
 }
-function status({id,kind,bodyId,systemId,energyJ=null,capacityJ=null,powered=null,health=null,temperatureK=null,
+function status({id,kind,bodyId,systemId,parentId=null,energyJ=null,capacityJ=null,powered=null,health=null,temperatureK=null,
  supplyW=null,loadW=null,storageUsed=null,storageMax=null,pendingFiles=0,packet=null,photo=null,job=null,
  localTimeS=null,remoteTimeS=null,mode=null,limits=null,signal=null,fault=null,sourceModel=''}) {
  if(typeof id!=='string'||!id||!kind)throw Error('T16 refuses unknown asset identity');
@@ -59,7 +59,7 @@ function status({id,kind,bodyId,systemId,energyJ=null,capacityJ=null,powered=nul
  if(photo&&cam.stage!=='COMPLETE')recommendations.push(cam.recovery);
  const phase=FAILED.has(mode)||fault?'FAILED':packet?r.stage:photo||job?cam.stage:mode&&SUCCESS.has(mode)?'COMPLETE':'READY';
  const statusText=phase==='FAILED'?'FAULT':powered===false?'STANDBY':powered===true?'POWERED':'POWER UNCONFIRMED';
- return{schema:16,id,kind,bodyId:bodyId||null,systemId:systemId||null,stage:phase,
+ return{schema:16,id,kind,bodyId:bodyId||null,systemId:systemId||null,parentId:parentId||null,stage:phase,
   statusText,energyJ:e,capacityJ:cap,powered,supplyW:number(supplyW),loadW:number(loadW),health:number(health),
   temperatureK:number(temperatureK),storageUsed:number(storageUsed),storageMax:number(storageMax),
   pendingFiles:finite(pendingFiles)?Math.max(0,pendingFiles):0,localTimeS:number(localTimeS),remoteTimeS:number(remoteTimeS),
