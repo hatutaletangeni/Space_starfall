@@ -8,7 +8,7 @@ if(!M||!RT||!G||!S||!L||!root.StarfallLaunchUI)return;
 const launch=root.StarfallLaunchUI.store,seed=RT.galaxy.seed,existing=root.SF.load().missionOps;
 const clock=new M.Clock(seed,RT.time,existing);
 const snapshots=new Map(),lastKnownEnergy=new Map(),faultIds=new Set();
-const names=['id','systemId','parentId','kind','type','name','seed','radius','gravity','landable','atmosphere','life','water','spinPeriod','spinPhase','spinAxis','orbitRadius','orbitPeriod','phase','tilt','position','spinAngle'];
+const names=['id','systemId','parentId','kind','type','name','seed','radius','gravity','landable','atmosphere','life','water','sky','sites','ring','axialTilt','spinPeriod','spinPhase','spinAxis','orbitRadius','orbitPeriod','phase','tilt','position','spinAngle'];
 const finite=Number.isFinite,copy=x=>JSON.parse(JSON.stringify(x));
 function snapshot(body){if(!body?.id)return null;const v={};for(const k of names)if(body[k]!==undefined)v[k]=copy(body[k]);
  if(body.parentId){const p=RT.galaxy.byId.get(body.parentId)||snapshots.get(body.parentId);if(p)v.parentOrbit=snapshotShallow(p);}
