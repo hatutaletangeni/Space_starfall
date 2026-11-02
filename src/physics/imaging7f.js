@@ -19,13 +19,13 @@ function restore(raw){
  const out={schema:SCHEMA,serial:0,photos:[],jobs:[]};
  if(!raw||raw.schema!==SCHEMA)return out;
  out.serial=finite(raw.serial)?clamp(Math.floor(raw.serial),0,1e9):0;
- const used=new Set();for(const p of (Array.isArray(raw.photos)?raw.photos:[]).slice(-MAX_TOTAL)){
+ const used=new Set();for(const p of (Array.isArray(raw.photos)?raw.photos:[])){
   if(!p||!idOK(p.id)||used.has(p.id))continue;
   try{validateCapture(p);}catch(_){continue;}
   if(!['stored-local','queued','transmitting','in-transit','downlinked','failed'].includes(p.status))continue;
   used.add(p.id);out.photos.push(copy({...p,sourceName:String(p.sourceName||p.sourceAssetId).slice(0,100),caption:String(p.caption||'').slice(0,120)}));
  }
- out.jobs=(Array.isArray(raw.jobs)?raw.jobs:[]).filter(x=>x&&idOK(x.id)&&idOK(x.assetId)&&['rover','satellite'].includes(x.sourceType)&&finite(x.createdS)&&x.createdS>=0&&!used.has(x.id)).slice(-MAX_JOB).map(copy);
+ out.jobs=(Array.isArray(raw.jobs)?raw.jobs:[]).filter(x=>x&&idOK(x.id)&&idOK(x.assetId)&&['rover','satellite'].includes(x.sourceType)&&finite(x.createdS)&&x.createdS>=0&&!used.has(x.id)).map(copy);
  return out;
 }
 class Store{
