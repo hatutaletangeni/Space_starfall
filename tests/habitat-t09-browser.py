@@ -123,10 +123,20 @@ with sync_playwright() as p:
   after=page.evaluate("""id=>{
     const U=StarfallOutpostUI,hab=U.store.items.find(x=>x.id===id),
      b=StarfallRuntime.galaxy.byId.get(hab?.bodyId),H=StarfallHabitatT09;
+    const raw=JSON.parse(localStorage.getItem('starfall_save')||'{}'),state=SF.load();
     return{exists:!!hab,config:hab?.habT09?.schema,pressure:hab?.habT09?.totalKPa,
      tank:hab?.habT09?.oxygenTankMol,wires:U.store.wires.length,
-     mode:H.inspect(hab,b,true).state,gridLoad:StarfallOutposts.SPECS.hab.watts,
-     xControlStillExists:!!document.getElementById('controls-modal')};
+     mode:hab?H.inspect(hab,b,true).state:'NO_SOURCE_HABITAT',
+     gridLoad:StarfallOutposts.SPECS.hab.watts,
+     xControlStillExists:!!document.getElementById('controls-modal'),
+     debug:{sessionMarker:sessionStorage.getItem('t09-fixture'),
+       runtimeSeed:StarfallRuntime.galaxy.seed,storeSeed:U.store.seed,
+       rawItems:raw.outpost5?.items?.length,rawIds:raw.outpost5?.items?.map(x=>x.id),
+       sfItems:state.outpost5?.items?.length,
+       rawStoredHab:raw.outpost5?.items?.find(x=>x.id===id)?.habT09?.schema,
+       rawBytes:(localStorage.getItem('starfall_save')||'').length,
+       restoreCount:U.store.items.length}};
+
   }""",initial['id'])
   assert after['exists'] and after['config']==1 and after['wires']==2,after
   assert abs(after['tank']-savedCheck['oxygen'])<1e-3,after
