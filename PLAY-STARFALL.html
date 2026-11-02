@@ -299,7 +299,7 @@
   <p>Real instrument range limits and seeded geological measurements. Autonomous rover navigation is local, incremental, and terrain-aware. It is disabled until commanded.</p>
   <div class="field-tabs" role="tablist"><button type="button" data-tab="survey" class="science-action" aria-selected="true">INSTRUMENTS</button><button type="button" data-tab="autonomy" class="science-action">ROVER & SCRIPTS</button><button type="button" data-tab="journal" class="science-action">SCIENCE JOURNAL</button></div>
   <section class="field-page" data-field-page="survey"><label class="obs-micro" for="field-instrument">Instrument</label> <select id="field-instrument"></select><button type="button" class="science-action" id="field-measure">MEASURE ON SITE</button>
-    <div id="field-range" class="field-note"></div><p id="field-status" role="status"></p><div id="field-latest" class="field-result" aria-live="polite"></div></section>
+    <div id="field-range" class="field-note"></div><pre id="field-t14-metrology" class="field-note" aria-live="polite">Select a real mounted sensor to inspect metrology ratings.</pre><p id="field-status" role="status"></p><div id="field-latest" class="field-result" aria-live="polite"></div></section>
   <section class="field-page" data-field-page="autonomy" hidden><label class="obs-micro"><input type="checkbox" id="field-rover-physics"> Enable advanced rover wheel/traction model</label>
     <div class="field-note" id="field-rover-diagnostics">Rover telemetry unavailable</div><p class="field-note">The rover navigates from its current parked position. You can manually drive at any time; autonomous controls will pause for safety.</p>
     <div class="field-route"><label>Forward <input type="number" id="field-forward" min="-120" max="120" value="45" step="5"></label><label>Right <input type="number" id="field-right" min="-120" max="120" value="0" step="5"></label><button type="button" class="science-action" id="field-waypoint">ROUTE TO WAYPOINT</button><button type="button" class="science-action" id="field-return">RETURN TO START</button></div>
@@ -1941,13 +1941,14 @@ function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satelli
  const push=m=>{if(!m||m.bodyId!==bodyId||!safeId(m.id)||seen.has(m.id))return;
   try{m.local=unit(m.local);}catch(_){return;}
   seen.add(m.id);res.push(m);};
- for(const o of journal)if(o?.bodyId===bodyId&&validateEvidence(o)){
+ for(const o of journal)if(o?.bodyId===bodyId&&validateEvidence(o)&&
+  (o.kind!=='orbital-observation'||finite(o.receivedAtS))){
    const type=o.kind==='orbital-observation'?'orbital':'measurement';
    push(marker(o,type,(o.instrument||'Instrument')+' / '+o.id.slice(-12),
     {evidenceId:o.id,sourceId:o.probeId||o.satelliteId||o.sourceAssetId||'legacy-on-foot',
      value:o.value,unit:o.unit||'',quality:o.t14?.qualityFlags?.join(', ')||o.quality||'MODEL',timeS:o.timeS}));
  }
- for(const p of photos)if(p?.bodyId===bodyId&&p.status==='downlinked'&&p.receivedAtS!==null&&safeId(p.id)){
+ for(const p of photos)if(p?.bodyId===bodyId&&p.status==='downlinked'&&finite(p.receivedAtS)&&safeId(p.id)){
   // Actual camera optics were rendered and bytes downlinked. No inferred photo from numeric 7C camera.
   // Camera position is WORLD position, so without source's body-fixed direction use photo.local only.
   const dir=p.local||p.bodyFixedLocal||p.captureLocal;
@@ -1961,7 +1962,7 @@ function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satelli
  for(const x of outposts)if(x?.bodyId===bodyId&&x?.local&&x.kind==='antenna')
   push(marker(x,'relay','Outpost receiver '+x.id.slice(-10),{sourceId:x.id}));
  for(const x of pending)if(x?.bodyId===bodyId&&x.local&&x.requestedAtS!==undefined)
-  push(marker(x,'pending','Pending surveyed command',{sourceId:x.assetId}));
+  push(marker(x,'pending','Pending camera job · position currently known; not yet evidence',{sourceId:x.assetId}));
  return res;
 }
 function filterMarkers(markers,filter='all'){const accepted=['all','measurement','orbital','photo','ruin','ecology','outpost','relay','pending','mission','rover'];if(!accepted.includes(filter))throw Error('T14 invalid map filter');
@@ -5585,7 +5586,7 @@ function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galax
 }
 function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChildren();$('obs-name').textContent=selected?.name||'—';$('obs-quality').textContent=p?.classification||'Unknown';
  const journal=root.StarfallScienceUI?.journal||[],observed=journal.filter(x=>x.bodyId===selected?.id&&
- (x.receivedAtS!==null||x.kind==='measurement')&&Number.isFinite(x.timeS)&&Number.isFinite(x.value));
+ (Number.isFinite(x.receivedAtS)||x.kind==='measurement')&&Number.isFinite(x.timeS)&&Number.isFinite(x.value));
  const latest=observed.sort((a,b)=>b.timeS-a.timeS).slice(0,6);
  for(const r of [{label:'Instrument evidence state',value:latest.length?'OBSERVED (seeded measurements)':'INFERRED / UNSCANNED',quality:latest.length?'Real source journal receipts, NOT calibrated astronomical truth':'Procedural catalogue only'},
  ...latest.map(x=>({label:'Observed '+x.instrument,value:String(x.value)+' '+(x.unit||'')+' at T+'+x.timeS.toFixed(1)+' s',quality:'Source '+(x.satelliteId||x.probeId||x.sourceAssetId||'field journal')+' · observation '+x.id})),
@@ -5778,8 +5779,22 @@ function refresh(force=false){const now=performance.now();if(!force&&now-lastRef
  $('field-robot-state').textContent='STATE: '+status+' · command '+(controller.index+1)+' / '+controller.script.length+' · '+(controller.reason||controller.event||'')+(controller.planner?' · '+controller.planner.expanded+' terrain nodes':'');
  $('field-range').textContent='MODE '+data.mode+' · BODY '+(data.body?.name||'—')+' · altitude '+fmt(data.altitudeM,1)+' m · instrument physical limits and power requirements apply';
  $('field-rover-physics').checked=RT.science4Settings.roverPhysics;
+ const key=$('field-instrument').value,sp=root.StarfallScienceT14?.sensorSpecs(S.INSTRUMENTS)?.[key];
+ const state=data.roverState||{},quality=root.StarfallScienceT14?.quality({calibrated:true,
+   temperatureK:Number.isFinite(state.temperatureK)?state.temperatureK:290,
+   health:Number.isFinite(state.health)?state.health:1})||{uncertaintyMultiplier:1,flags:[]};
+ $('field-t14-metrology').textContent=sp?[
+ 'MOUNTED INSTRUMENT '+key.toUpperCase()+' · '+sp.family,
+ 'OBSERVES '+sp.parameter+' ['+sp.unit+'] · resolution '+sp.resolution+' · nominal uncertainty ±'+sp.uncertainty,
+ 'POWER '+sp.powerW+' W for '+sp.acquisitionS+' s · cost '+sp.energyJ+' J · altitude ≤'+sp.maxAltitudeM+' m',
+ 'ENVELOPE '+sp.envelope,
+ 'CALIBRATION LEGACY BASELINE (no field-calibration certificate); modeled confidence '+Math.round(quality.confidenceModel*100)+'%',
+ 'QUALIFIERS '+(quality.flags.join(', ')||'No extra hardware/thermal degradation known'),
+ 'Source physics are seeded estimates, not independent laboratory confirmation.'].join('\n'):'T14 instrument catalog not available.';
+
 }
 for(const [key,spec] of Object.entries(S.INSTRUMENTS)){const opt=document.createElement('option');opt.value=key;opt.textContent=spec.name+' ('+spec.seconds+' s / '+spec.powerW+' W / ≤'+spec.maxAltitudeM+' m)';$('field-instrument').append(opt);}
+$('field-instrument').onchange=()=>refresh(true);
 $('field-open').onclick=()=>{$('field-lab').hidden=false;refresh(true);};
 $('field-close').onclick=()=>{$('field-lab').hidden=true;};
 $('field-lab').addEventListener('click',e=>{if(e.target===$('field-lab'))$('field-lab').hidden=true;});
@@ -6533,6 +6548,26 @@ function range(){return Number($('survey-range').value)||350;}
 function isOpen(){return !$('survey-panel').hidden;}
 function visit(){const p=current();if(!p)return;if(!coverage[p.bodyId]&&Object.keys(coverage).length>=40){delete coverage[Object.keys(coverage)[0]];}if(M.addCoverage(coverage,p.bodyId,p.local,p.body.radius,50)){dirty=true;rasterKey='';}}
 function resetCenter(p){if(!p){center=null;lastBodyId=null;return;}if(lastBodyId!==p.bodyId||!center){if(lastBodyId!==p.bodyId)selected=null;lastBodyId=p.bodyId;center=[...p.local];rasterKey='';}else if($('survey-follow').checked&&M.arc(center,p.local,p.body.radius)>8){center=[...p.local];rasterKey='';}}
+function pendingJobsT14(p){
+ // A queued camera request is NOT a captured image nor received evidence.
+ // Plot it only at a real current deployed/local rover position; do not
+ // invent geolocations for off-world satellites or delayed future commands.
+ const jobs=root.StarfallImagingUI7F?.store?.jobs||[],found=[];
+ const ownId=RT.vehicleStore.get('rover').definition.id;
+ for(const job of jobs){
+  let loc=null;if(job.sourceType==='rover'){
+    if(job.assetId===ownId&&RT.roverAutonomyPosition?.()?.bodyId===p.bodyId)
+      loc=RT.roverAutonomyPosition().local;
+    else{
+      const r=root.StarfallLaunchUI?.store?.rovers.find(x=>x.id===job.assetId);
+      if(r?.bodyId===p.bodyId&&['parked','running','complete','safe-stop'].includes(r.status))loc=r.local;
+    }
+  }
+  if(loc)found.push({id:'pending-'+job.id,bodyId:p.bodyId,local:loc,
+    assetId:job.assetId,requestedAtS:job.createdS});
+ }
+ return found.slice(-16);
+}
 function markers(p){if(!p)return[];const found=[],ids=new Set();const push=(m)=>{if(!m?.local||m.bodyId!==p.bodyId||ids.has(m.id))return;try{m.local=M.unit(m.local);}catch(_){return;}ids.add(m.id);found.push(m);};
  push({id:'explorer',bodyId:p.bodyId,local:p.local,label:'Explorer',type:'explorer'});
  if(p.shipLocal)push({id:'ship',bodyId:p.bodyId,local:p.shipLocal,label:'Landed spacecraft',type:'ship'});
@@ -6548,7 +6583,7 @@ function markers(p){if(!p)return[];const found=[],ids=new Set();const push=(m)=>
   photos:root.StarfallImagingUI7F?.store?.photos||[],
   ruins:root.StarfallRuinsUI?.records||[],
   ecology:root.StarfallEcologyUI?.records||[],
-  outposts:root.StarfallOutpostUI?.store?.items||[]})||[];
+  outposts:root.StarfallOutpostUI?.store?.items||[],pending:pendingJobsT14(p)})||[];
  for(const m of evidence)push(m);
  return root.StarfallScienceT14?.filterMarkers(found,$('survey-t14-filter').value)||found;
 }
