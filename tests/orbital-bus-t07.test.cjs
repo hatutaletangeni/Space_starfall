@@ -65,7 +65,7 @@ assert.throws(()=>T.preflight(eclipse,body,star,55,units,X.orbit,'camera'),/ECLI
 const cam=T.schedule(s,'camera',50);
 let found=false;
 for(let time=55;time<150;time+=5){S.step(s,body,star,time,units,X.orbit);if(o.storage.some(x=>x.t07JobId===cam.id)){found=true;break;}}
-assert(found,'sunlit camera exposure must produce only numeric 7C observation once ready');
+assert(found,'sunlit camera failed: '+JSON.stringify({jobs:b.jobs,mode:b.mode,desired:b.desiredMode,error:b.pointingErrorDeg,pointing:o.pointing,energy:o.energyJ,storage:o.storage.map(x=>x.instrument),shadow:S.geometry(s,body,star,150,units,X.orbit).shadow}));
 const camera=o.storage.find(x=>x.t07JobId===cam.id);
 assert(camera.numericNotImage===true,'7C numeric camera record is not real 7F image bytes');
 assert(!camera.image,'7C must not fake a stored image');
