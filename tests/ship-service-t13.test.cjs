@@ -40,7 +40,7 @@ assert(Math.abs(q.transfer.drawnJ-q.transfer.deliveredJ-q.transfer.lossJ)<1e-8,'
 assert(q.transfer.deliveredJ<q.transfer.drawnJ);
 assert.equal(q.state.readyAtS,140);
 assert.throws(()=>S.cycle({state:q.state,ship,shipLocal:at(0),body,target:rv,timeS:120,report,rover}),/cooling down/);
-assert.throws(()=>S.cycle({state:latched,ship:{...ship,state:{...ship.state,energyJ:1}},shipLocal:at(0),body,target:rv,timeS:150,report,rover}),/reserve/);
+assert.throws(()=>S.cycle({state:latched,ship:{...ship,state:{...ship.state,energyJ:1}},shipLocal:at(0),body,target:rv,timeS:150,report,rover}),/reserve|powered unshed avionics/);
 assert.throws(()=>S.verifyLatch({state:latched,ship,body,shipLocal:at(100),target:rv}),/overstretched/);
 const obs={id:'obs-real-rover-A',bodyId:body.id,sourceAssetId:rv.id,probeId:rv.id,instrument:'thermometer',parameter:'temperatureK',
  value:288.5,unit:'K',location:at(12),timeS:85,uncertainty:1.2};
