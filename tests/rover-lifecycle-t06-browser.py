@@ -44,6 +44,7 @@ with sync_playwright() as p:
     }
     if(!point)throw Error('No safe actual terrain within powered ship radio range; T06 site requirements respected');
     const m={id:'launch-t06-browser',phase:'orbit',payload:'rover',local:ship.local,
+     startS:rt.time,lastUpdateS:rt.time,padId:'controlled-t06-payload',
      bodyId:body.id,systemId:body.systemId,destinationBodyId:body.id,
      destinationSystemId:body.systemId,destinationSnapshot:{...body},
      landingTargetLocal:point};
@@ -57,6 +58,7 @@ with sync_playwright() as p:
     if(rover.roverT06.state!=='DESCENT')throw Error('Capsule has no powered descent');
     UI.store.update(rt.time+38,()=>body);
     if(rover.roverT06.state!=='READY')throw Error('Touchdown not physically cleared: '+JSON.stringify(m.landingT06));
+    rover.batteryJ=8000000; // controlled pre-mission energy, not a free offworld recharge
     const route=StarfallCommsT03.routeFor({sourceId:'starfall-ship',destId:rover.id,bodyId:body.id,systemId:body.systemId},rt.time+38);
     if(!route.connected||!route.hops.includes(rover.id))throw Error('Real powered onboard radio missing: '+JSON.stringify(route));
     const saved=JSON.stringify({pos:rt.outpostContext().position,target:rt.target.id,body:rt.nearest.id});
