@@ -3991,6 +3991,7 @@ function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT
  'Nameplate: '+fmt(powerLine?.loadNameplateW||0,0)+' W load · '+fmt(powerLine?.nameplateW||0,0)+' W source rating',
  'Actual: '+fmt(powerLine?.generatedW||0,1)+' W generated · '+fmt(powerLine?.servedW||0,1)+' W served · '+fmt(powerLine?.shedW||0,1)+' W shed',
  'Real sources: '+(powerLine?.sourceIds?.join(', ')||'NONE — no connected producing source'),
+ 'Metered sources: '+(Object.entries(powerLine?.sourceWatts||{}).map(([id,watts])=>id.slice(-11)+' '+fmt(watts,2)+' W').join(' · ')||'NONE'),
  'Storage: '+fmt((powerLine?.batteryJ||0)/3.6e6,3)+' kWh / '+fmt((powerLine?.capacityJ||0)/3.6e6,3)+' kWh',
  'Battery limits: '+fmt(powerLine?.chargeLimitW||0,0)+' W charge / '+fmt(powerLine?.dischargeLimitW||0,0)+' W discharge',
  'Temperature '+fmt(powerLine?.temperatureK||0,1)+' K · condition '+fmt((powerLine?.condition||0)*100,1)+'%',
