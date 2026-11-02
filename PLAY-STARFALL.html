@@ -186,6 +186,18 @@
 #launch-emergency{border:1px solid #ed9a80!important;color:#ffdbcd!important;font-weight:800!important;letter-spacing:.05em}
 #launch-emergency:focus-visible{outline:3px solid #ffd5ae;outline-offset:3px}
 
+</style><style>
+/* T19A scoped, compact within the existing Outpost RADIO tab. */
+#rf-t19{margin:14px 0 8px;border-top:1px solid rgba(118,190,237,.5);padding:12px 0;color:#d5eafd}
+#rf-t19 h3{margin:4px 0 8px;color:#b5dfff;font-size:13px;letter-spacing:.05em}
+#rf-t19 .obs-tools{display:flex;gap:6px;flex-wrap:wrap}
+#rf-t19 .obs-tools button{font-size:11px;max-width:100%;white-space:normal}
+#rf-t19-chart{display:block;max-width:100%;height:auto;border:1px solid rgba(91,161,212,.55);border-radius:6px;margin:7px 0;background:#12283f}
+#rf-t19-status{font-size:11px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto}
+#rf-t19-count,#rf-t19-feedback{color:#b8d9f2;overflow-wrap:anywhere}
+#rf-t19 button:focus-visible,#rf-t19 select:focus-visible{outline:2px solid #8de0ff;outline-offset:3px}
+@media(max-width:640px){#rf-t19{padding:8px 0}#rf-t19 .obs-tools button{flex:1 1 130px}}
+
 </style>
 </head>
 <body>
@@ -367,7 +379,22 @@
 <div class="field-route"><label>Deep-space hardware<select id="outpost-t08-mode"><option value="OFF">NOT INSTALLED / DISABLED</option><option value="HIGH_GAIN">PHYSICAL high-gain RF (+1100 W)</option><option value="FICTIONAL">FICTIONAL interstellar carrier (+2200 W)</option></select></label><label>Exact target station<select id="outpost-t08-peer"></select></label></div>
 <div class="obs-tools"><button type="button" class="science-action" id="outpost-t08-apply">COMMISSION / SET PEER</button><button type="button" class="science-action" id="outpost-t08-off">DISABLE DEEP-SPACE SYSTEM</button></div>
 <pre id="outpost-t08-diagnostic" class="launch-output" aria-live="polite">Two real, powered installed stations are needed for a planet-to-planet route; no receiver is created automatically.</pre>
-<pre id="outpost-radio-diagnostic" class="launch-output" aria-live="polite">Build and wire a surface antenna to inspect actual link hardware.</pre></section>
+<pre id="outpost-radio-diagnostic" class="launch-output" aria-live="polite">Build and wire a surface antenna to inspect actual link hardware.</pre>
+<section id="rf-t19" class="rf-t19" aria-label="Optional RF link margin recorder">
+ <h3>T19A · RF link margin / commissioning trace (optional)</h3>
+ <p class="field-note">Analyze actual T02 powered RF hardware and T03's physical route. This passive diagnostic sends NO packet and draws no extra energy beyond the existing antenna operating load. The original T03 packets remain authoritative. Thermal-noise floor is an illustrative assumption, not measured RF SNR.</p>
+ <div class="field-route"><label for="rf-t19-target">Installed receiver<select id="rf-t19-target" aria-label="Choose actual receiver to inspect"></select></label></div>
+ <div class="obs-tools">
+  <button id="rf-t19-refresh" class="science-action" type="button">INSPECT LIVE RF ROUTE</button>
+  <button id="rf-t19-measure" class="science-action" type="button">RECORD CURRENT MODEL READING</button>
+  <button id="rf-t19-export" class="science-action" type="button">EXPORT SOURCE HISTORY</button>
+  <button id="rf-t19-clear" class="science-action" type="button">CLEAR HISTORY (CONFIRM)</button>
+ </div>
+ <div id="rf-t19-count" class="field-note">No installed antenna trace</div>
+ <canvas id="rf-t19-chart" width="580" height="150" role="img" aria-label="Historical original T03 link-quality proxy by recorded time, offline periods indicated"></canvas>
+ <pre id="rf-t19-status" class="launch-output" role="status" aria-live="polite">Choose a powered, installed RF transmitter and real receiver.</pre>
+ <p id="rf-t19-feedback" class="field-note" role="status" aria-live="polite"></p>
+</section></section>
  <section data-outpost-page="lab" hidden><div class="field-route"><label for="outpost-lab">Receiver lab<select id="outpost-lab"></select></label></div><p id="outpost-radio" class="field-note">No powered lab selected.</p><button id="outpost-send" class="science-action" type="button">SEND FIELD MEASUREMENTS</button><div class="outpost-records" id="outpost-data" aria-live="polite"></div><h3>T10 · Laboratory workbench & sample custody</h3><p class="field-note">Only received measurements from the existing science journal can be processed. A physical specimen needs an existing source inventory, an EVA operator and a nearby powered storage unit. Camera 7F remains the owner of photo bytes.</p>
 <div class="field-route"><label for="t10-sample-storage">Physical storage module<select id="t10-sample-storage"></select></label><label for="t10-lab-observation">Received numeric observation<select id="t10-lab-observation"></select></label></div>
 <div class="obs-tools"><button type="button" class="science-action" id="t10-process">START 20 s LAB ANALYSIS</button><button type="button" class="science-action" id="t10-transfer">TRANSFER NEARBY ROVER SPECIMEN</button></div>
@@ -4266,7 +4293,8 @@ function repair(raw){
   // Last contact is telemetry, not radio delivery authority; packets are T03-owned.
   lastContactS:num(o.lastContactS)&&o.lastContactS>=0?o.lastContactS:null,
   lastPeerId:typeof o.lastPeerId==='string'?o.lastPeerId.slice(0,160):'',
-  fault:String(o.fault||'').slice(0,130)};
+  fault:String(o.fault||'').slice(0,130),
+  budgetT19:root.StarfallRFAnalyzerT19?.restore(o.budgetT19)||o.budgetT19||null};
 }
 function configure(item,{mode,targetId='',boresightLocal,radioEnabled}){
  if(item?.kind!=='antenna')throw Error('T04 only real Outpost antennas can be commissioned');
@@ -9944,6 +9972,235 @@ $('archive-t17-close').onclick=()=>{$('archive-t17').hidden=true;};
 $('archive-t17').onclick=e=>{if(e.target===$('archive-t17'))$('archive-t17').hidden=true;};
 visibleState();
 root.StarfallExpeditionArchiveUI17={exportBackup,importBackup,validateMediaBinary,readAllMedia,replaceMedia,storage,visibleState};
+})(window);
+</script><script>
+/* STARFALL optional T19A RF diagnostics.
+ * Original T02 owns all energy, T03 owns all packet ACKs, T04 owns the
+ * physical antenna. A recorder is NOT an RF transmission or an SNR meter.
+ * No invented packets, receiver availability or remotely commanded device.
+ */
+(function(root){'use strict';
+const SCHEMA=19,MAX_SAMPLES=48,MIN_QUALITY=.08;
+const finite=Number.isFinite,copy=x=>JSON.parse(JSON.stringify(x)),clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const validId=x=>typeof x==='string'&&x.length>0&&x.length<=160&&/^[\w:./-]+$/.test(x);
+const safe=x=>String(x??'').slice(0,180);
+function restore(raw){
+ const history=raw&&raw.schema===SCHEMA&&Array.isArray(raw.samples)?raw.samples:[];
+ // Reject unsupported or corrupt entries without silently modifying canonical
+ // power/radio/planet ownership. Only optional diagnostic history is affected.
+ const seen=new Set(),samples=[];
+ for(const s of history){
+  if(!s||!validId(s.sourceId)||!validId(s.targetId)||!finite(s.timeS)||s.timeS<0||
+   typeof s.connected!=='boolean'||typeof s.id!=='string'||!validId(s.id)||seen.has(s.id))continue;
+  seen.add(s.id);
+  samples.push({id:s.id,sourceId:s.sourceId,targetId:s.targetId,timeS:s.timeS,
+   connected:s.connected,reason:safe(s.reason),bodyId:validId(s.bodyId)?s.bodyId:null,
+   watts:finite(s.watts)&&s.watts>=0?s.watts:null,
+   supplyV:finite(s.supplyV)&&s.supplyV>=0?s.supplyV:null,
+   quality:finite(s.quality)?clamp(s.quality,0,1):null,
+   bitrate:finite(s.bitrate)&&s.bitrate>=0?s.bitrate:null,
+   delayS:finite(s.delayS)&&s.delayS>=0?s.delayS:null,
+   hops:Array.isArray(s.hops)?s.hops.filter(validId).slice(0,6):[],
+   ackId:validId(s.ackId)?s.ackId:null,
+   ackAtS:finite(s.ackAtS)&&s.ackAtS>=0?s.ackAtS:null});
+ }
+ return{schema:SCHEMA,samples};
+}
+function snapshot({sourceId,targetId,bodyId,timeS,station,report,route,packet}={}){
+ if(!validId(sourceId)||!validId(targetId)||sourceId===targetId||
+  !validId(bodyId)||!finite(timeS)||timeS<0)throw Error('T19 actual source, distinct receiver, planet and simulation time required');
+ const powered=station?.powered===true&&report?.power===true;
+ const connected=powered&&route?.connected===true;
+ const reason=!powered?'SOURCE_DC_BUS_OFFLINE / CHECK SOLAR, BATTERY, CABLE AND RADIO MODE':
+  !route?.connected?safe(route?.reason||'NO_PHYSICAL_ROUTE / CHECK POWER, LOS, TARGET AND T08 COMMISSIONING'):
+  'SOURCE-OWNED ROUTE AVAILABLE; NO TEST PACKET TRANSMITTED';
+ return{sourceId,targetId,bodyId,timeS,connected,reason,
+  watts:finite(report?.servedW)?Math.max(0,report.servedW):null,
+  supplyV:finite(report?.voltageV)?Math.max(0,report.voltageV):null,
+  quality:connected&&finite(route?.quality)?clamp(route.quality,0,1):null,
+  bitrate:connected&&finite(route?.bandwidthBps)?Math.max(0,route.bandwidthBps):null,
+  delayS:connected&&finite(route?.delayS)?Math.max(0,route.delayS):null,
+  hops:connected&&Array.isArray(route.hops)?route.hops.filter(validId).slice(0,6):[],
+  ackId:packet?.state==='ACKED'&&packet?.destId===targetId&&packet?.sourceId===sourceId&&validId(packet.id)?packet.id:null,
+  ackAtS:packet?.state==='ACKED'&&packet?.destId===targetId&&packet?.sourceId===sourceId&&finite(packet.ackAtS)?packet.ackAtS:null};
+}
+function record(item,data){
+ if(item?.kind!=='antenna')throw Error('T19 hardware owner must be an installed Outpost antenna');
+ if(item.id!==data?.sourceId||item.bodyId!==data?.bodyId)throw Error('T19 refuses mismatched antenna and planet');
+ const config=item.radioT04;
+ if(!config||config.schema!==1)throw Error('T19 original T04 radio config is missing');
+ const old=restore(config.budgetT19);
+ if(old.samples.length>=MAX_SAMPLES)throw Error('T19 trace full (48 samples): EXPORT first, then CLEAR with explicit confirmation');
+ const previous=old.samples.at(-1),time=data.timeS;
+ if(!finite(time)||time<0||(previous&&time<previous.timeS))
+  throw Error('T19 nonmonotonic mission time; no trace written');
+ const packetId=data.ackId;
+ const sample={...data,id:'rf-t19-'+item.id+'-'+String(previous?old.samples.length+1:1)+'-'+Math.round(time*1000)};
+ if(!validId(sample.id)){
+  sample.id='rf-t19-'+old.samples.length+'-'+Math.floor(time).toString(36);
+ }
+ if(!validId(sample.id)||old.samples.some(x=>x.id===sample.id))throw Error('T19 sample ID collision; no trace written');
+ const next={schema:SCHEMA,samples:[...old.samples,copy(sample)]};
+ // One source owner / no second energy or radio ledger.
+ item.radioT04={...config,budgetT19:next};
+ return copy(sample);
+}
+function clear(item){
+ if(item?.kind!=='antenna'||item.radioT04?.schema!==1)throw Error('T19 original antenna unavailable');
+ const previous=restore(item.radioT04.budgetT19);
+ item.radioT04={...item.radioT04,budgetT19:{schema:SCHEMA,samples:[]}};
+ return previous.samples.length;
+}
+function qualityMarginDb(q){
+ return finite(q)&&q>0?20*Math.log10(q/MIN_QUALITY):null;
+}
+function estimateThermalNoiseDbm(bandwidthHz,tempK=290,noiseFigureDb=6){
+ if(!finite(bandwidthHz)||bandwidthHz<=0||!finite(tempK)||tempK<=0||!finite(noiseFigureDb))
+  return null;
+ return -173.83+10*Math.log10(bandwidthHz)+10*Math.log10(tempK/290)+noiseFigureDb;
+}
+const API={SCHEMA,MAX_SAMPLES,MIN_QUALITY,restore,snapshot,record,clear,qualityMarginDb,estimateThermalNoiseDbm};
+root.StarfallRFAnalyzerT19=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+</script><script>
+/* T19A optional original Outpost RADIO tab diagnostics.
+ * Reads T03.routeFor/T04.station/T02 grid; records ONLY source-owned trace.
+ * Does not transmit a ping, deduct arbitrary Joules or forge radio ACK.
+ */
+(function(root){'use strict';
+const $=id=>document.getElementById(id),A=root.StarfallRFAnalyzerT19,T=root.StarfallAntennaT04,
+ UI=root.StarfallOutpostUI,C=root.StarfallCommsT03,O=root.StarfallOutposts,RT=root.StarfallRuntime;
+if(!A||!T||!UI||!C||!O||!RT||!$('rf-t19'))return;
+const txt=(id,v)=>{if($(id))$(id).textContent=String(v);};
+const num=(v,d=2)=>Number.isFinite(v)?v.toLocaleString('en-US',{maximumFractionDigits:d}):'NOT MEASURED';
+const source=()=>UI.store.items.find(x=>x.id===$('outpost-radio-device').value&&x.kind==='antenna')||null;
+const world=id=>{
+ const item=UI.store.items.find(x=>x.id===id);
+ if(item)return{bodyId:item.bodyId,systemId:item.bodySnapshot?.systemId||RT.galaxy.byId.get(item.bodyId)?.systemId};
+ const r=root.StarfallLaunchUI?.store?.rovers.find(x=>x.id===id)||
+   root.StarfallLaunchUI?.store?.satellites.find(x=>x.id===id);
+ if(r)return{bodyId:r.bodyId,systemId:r.systemId};
+ if(id==='starfall-ship')return RT.engineeringAssetPoses()?.shipPose||null;
+ const local=RT.vehicleStore?.get('rover')?.definition?.id;
+ if(id===local)return RT.roverAutonomyPosition?.()||null;
+ return null;
+};
+function candidates(){
+ const current=source(),opts=new Map(),add=(id,label)=>{if(typeof id!=='string'||!id||id===current?.id||opts.has(id)||!world(id)?.bodyId)return;
+  opts.set(id,label+' · '+id);};
+ add('starfall-ship','Ship radio');
+ const local=RT.vehicleStore?.get('rover')?.definition?.id;add(local,'Local science rover');
+ for(const i of UI.store.items.filter(x=>x.kind==='antenna'&&x.id!==current?.id))add(i.id,'Outpost antenna');
+ for(const i of root.StarfallLaunchUI?.store?.rovers||[])add(i.id,'Deployed rover');
+ for(const i of root.StarfallLaunchUI?.store?.satellites||[])add(i.id,'Real orbital asset');
+ return opts;
+}
+function selection(){
+ const pick=$('rf-t19-target'),old=pick.value,targets=candidates(),sourceItem=source();
+ if(!sourceItem){pick.replaceChildren();txt('rf-t19-status','Build and wire an actual powered antenna before measuring.');return;}
+ if(pick.options.length!==targets.size||[...targets.keys()].some((id,i)=>pick.options[i]?.value!==id)){
+  pick.replaceChildren();
+  for(const [id,label] of targets){const o=document.createElement('option');o.value=id;o.textContent=label;pick.add(o);}
+ }
+ if(targets.has(old))pick.value=old;
+ $('rf-t19-measure').disabled=!pick.value;
+ const count=A.restore(sourceItem.radioT04?.budgetT19).samples.length;
+ $('rf-t19-measure').disabled||=count>=A.MAX_SAMPLES;
+ $('rf-t19-export').disabled=count===0;$('rf-t19-clear').disabled=count===0;
+ txt('rf-t19-count',count+'/'+A.MAX_SAMPLES+' samples on original antenna '+sourceItem.id);
+}
+function inspect(){
+ const x=source(),targetId=$('rf-t19-target').value;
+ if(!x||!targetId)throw Error('Select a real installed antenna and existing receiver');
+ const dst=world(targetId),body=RT.galaxy.byId.get(x.bodyId)||x.bodySnapshot;
+ if(!body?.position||!dst?.bodyId)throw Error('Current source world or receiver ephemeris not loaded. No synthetic radio target.');
+ const realLine=UI.powerReports.get(x.bodyId)?.byId?.[x.id]||null;
+ const station=T.station(x,body,UI.powerReports.get(x.bodyId),O.rotate);
+ const bodyId=dst.bodyId,sys=dst.systemId||RT.galaxy.byId.get(bodyId)?.systemId||x.bodySnapshot?.systemId||'unknown';
+ // No T03 queue() call. This is a route calculation only; actual packet
+ // transmission and its power cost must still use original mission controls.
+ let route=null,reason='';
+ try{route=C.routeFor({sourceId:x.id,destId:targetId,bodyId,systemId:sys,encodedBytes:256},RT.time);}
+ catch(e){reason=e.message;route={connected:false,reason};}
+ const packet=C.transport.packets.filter(p=>p.sourceId===x.id&&p.destId===targetId&&p.state==='ACKED')
+  .sort((a,b)=>(b.ackAtS||0)-(a.ackAtS||0))[0]||null;
+ return A.snapshot({sourceId:x.id,targetId,bodyId:x.bodyId,timeS:RT.time,
+  station,report:realLine,route,packet});
+}
+function draw(sourceItem){
+ const canvas=$('rf-t19-chart');if(!canvas)return;
+ const ctx=canvas.getContext('2d');if(!ctx)return;
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);ctx.fillStyle='#12283f';ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle='#426d8b';ctx.lineWidth=1;
+ for(const y of [.08,.25,.5,.75,1]){
+  const py=h-24-y*(h-44);ctx.beginPath();ctx.moveTo(33,py);ctx.lineTo(w-8,py);ctx.stroke();
+  ctx.font='11px sans-serif';ctx.fillStyle='#bcd8ed';ctx.fillText(y.toFixed(2),3,py+3);
+ }
+ const history=A.restore(sourceItem?.radioT04?.budgetT19).samples.filter(s=>s.targetId===$('rf-t19-target').value);
+ if(!history.length){ctx.font='12px sans-serif';ctx.fillStyle='#bcd8ed';ctx.fillText('No recorded observations for this receiver (no invented historical RF)',44,26);return;}
+ const xAt=i=>40+i*(w-52)/Math.max(1,history.length-1);
+ const yAt=q=>h-24-(q||0)*(h-44);
+ ctx.strokeStyle='#91dafb';ctx.lineWidth=2;ctx.beginPath();
+ history.forEach((s,i)=>{const x=xAt(i),y=yAt(s.quality);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+ ctx.stroke();
+ history.forEach((s,i)=>{ctx.fillStyle=s.connected?'#8ee4b5':'#f2b39b';ctx.beginPath();ctx.arc(xAt(i),yAt(s.quality),3.5,0,Math.PI*2);ctx.fill();});
+}
+function status(s){
+ const q=s.quality,proxy=A.qualityMarginDb(q),noise=A.estimateThermalNoiseDbm(s.bitrate);
+ txt('rf-t19-status',[
+  'T19A READ-ONLY ROUTE MEASUREMENT · '+(s.connected?'AVAILABLE PHYSICAL PATH':'OFFLINE / NO ROUTE'),
+  'ANTENNA '+s.sourceId+' → '+s.targetId+' · WORLD '+s.bodyId+' · CLOCK T+'+num(s.timeS,1)+' s',
+  'ORIGINAL T02 '+num(s.watts,1)+' W served · '+num(s.supplyV,1)+' V. This is the antenna operating load; analysis does NOT add a packet or energy.',
+  'ORIGINAL T03 '+(s.connected?s.hops.join(' → '):s.reason),
+  'REAL ROUTE '+(s.connected?num(s.quality,3)+' normalized quality · '+num(s.bitrate,0)+' bit/s · '+num(s.delayS,5)+' s propagation':'UNKNOWN QUALITY/DELAY; NO PHYSICAL CONTACT'),
+  'T04 quality margin proxy '+(proxy===null?'NOT MEASURABLE':num(proxy,2)+' dB relative to 0.08 model cutoff'),
+  'Illustrative thermal-noise floor '+(noise===null?'NOT MEASURABLE':num(noise,1)+' dBm, at 290 K and 6 dB noise figure; channel width assumed equal to bit rate'),
+  'RF SNR / measured receive power: NOT MODELED; do not treat this noise estimate or quality margin as a physical SNR.',
+  'Last REAL T03 ACK '+(s.ackId||'NONE')+(s.ackAtS===null?'':' @ T+'+num(s.ackAtS,1)+' s'),
+  'If offline: verify original T02 supply, radio enable, pointing, LOS, buffer, and T08 counterpart hardware.'
+ ].join('\n'));
+}
+function inspectOnly(){try{selection();const s=inspect();status(s);draw(source());return s;}catch(e){txt('rf-t19-status','INSPECTION FAILED · '+e.message);draw(source());return null;}}
+function saveVerify(item){
+ UI.persist();
+ let raw;
+ try{raw=JSON.parse(root.localStorage.getItem('starfall_save')||'null');}catch(_){}
+ const stored=raw?.outpost5?.items?.find(x=>x.id===item.id)?.radioT04?.budgetT19?.samples;
+ const own=A.restore(item.radioT04?.budgetT19).samples;
+ if(!Array.isArray(stored)||stored.length!==own.length||stored.at(-1)?.id!==own.at(-1)?.id)
+  throw Error('This browser did not persist the source-owned RF trace. Export the existing session before closing.');
+}
+$('rf-t19-refresh').onclick=()=>inspectOnly();
+$('rf-t19-target').onchange=()=>{selection();inspectOnly();};
+$('rf-t19-measure').onclick=()=>{
+ try{
+  const s=inspect(),item=source();
+  const sample=A.record(item,s);saveVerify(item);
+  status(s);draw(item);selection();
+  txt('rf-t19-feedback','RECORDED '+sample.id+' in the original antenna save. No packet queued, energy manufactured, or ACK invented.');
+ }catch(e){txt('rf-t19-feedback','NOT RECORDED / '+e.message);selection();}
+};
+$('rf-t19-export').onclick=()=>{
+ const item=source();if(!item)return;
+ const samples=A.restore(item.radioT04?.budgetT19).samples;
+ const blob=new Blob([JSON.stringify({schema:19,sourceId:item.id,bodyId:item.bodyId,samples},null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='starfall-rf-'+item.id+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+ txt('rf-t19-feedback','Exported '+samples.length+' original sample IDs; no network access required.');
+};
+$('rf-t19-clear').onclick=()=>{
+ const item=source();if(!item)return;
+ const count=A.restore(item.radioT04?.budgetT19).samples.length;
+ if(!count||!root.confirm('Clear '+count+' RF diagnostics on '+item.id+'? EXPORT FIRST. This does not alter original radio packets or other equipment.'))return;
+ try{A.clear(item);saveVerify(item);selection();draw(item);txt('rf-t19-feedback','Cleared '+count+' confirmed trace records; original packets and antenna unchanged.');}
+ catch(e){txt('rf-t19-feedback','CLEAR ERROR · '+e.message);}
+};
+$('outpost-radio-device').addEventListener('change',()=>{selection();inspectOnly();});
+$('outpost-open').addEventListener('click',()=>{selection();});
+for(const b of $('outpost').querySelectorAll('[data-outpost-tab]'))b.addEventListener('click',()=>{
+ if(b.dataset.outpostTab==='comms'){selection();inspectOnly();}
+});
+root.StarfallRFAnalyzerUI19={inspect,refresh:inspectOnly,selection};
 })(window);
 </script>
 </body>
