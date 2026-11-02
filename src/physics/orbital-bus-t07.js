@@ -191,7 +191,7 @@ function predict(s,body,star,at,units,orbit,receiverAt,radioLink,bodyAt=null,cou
   let b=body;if(bodyAt){b=bodyAt(t);if(!b?.position)break;}
   let g;try{g=root.StarfallSatelliteOps7C.geometry(s,b,star,t,units,orbit);}catch(_){continue;}
   const raw=receiverAt(t,b),receiver=Array.isArray(raw)?raw:raw?.position;
-  const link=receiver&&radioLink(g.position,receiver,[{position:b.position,radius:b.radius}],
+  const link=radioReady(s)&&receiver&&radioLink(g.position,receiver,[{position:b.position,radius:b.radius}],
    root.StarfallSatelliteOps7C.CONFIG.radioRangeScene,units);
   if(link?.connected&&!pass)pass={startS:t,endS:t};
   if(link?.connected&&pass)pass.endS=t+step;
