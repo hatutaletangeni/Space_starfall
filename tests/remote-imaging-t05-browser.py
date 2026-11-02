@@ -47,6 +47,25 @@ with sync_playwright() as p:
   }""")
   assert prepared['worldId']!=prepared['mainBody'] and prepared['bytes']>1200,prepared
   (artifacts/'actual-unloaded-planet.webp').write_bytes(base64.b64decode(prepared['original'].split(',',1)[1]))
+  comparison=page.evaluate("""async()=>{
+    const rt=StarfallRuntime,V=Starfall3D.V,b=rt.nearest,local=[0,1,0],up=V.rot(local,b.spinAxis||[0,1,0],b.spinAngle||0);
+    const eye=V.add(b.position,V.mul(up,b.radius+Starfall3D.groundHeight(local,b)+3.3));
+    const along=V.norm(V.cross(up,Math.abs(up[1])>.9?[1,0,0]:[0,1,0]));
+    const forward=V.norm(V.add(V.mul(along,.985),V.mul(up,-.17)));
+    const near=rt.captureScienceImage({body:b,eye,forward,up,size:256});
+    const isolated=StarfallRemoteImagingT05.capture({asset:{bodyId:b.id,systemId:b.systemId,bodySnapshot:b},
+      eye,forward,up,size:256,mode:'forward',timeS:rt.time});
+    const decode=async(data)=>{const image=new Image();image.src=data;await image.decode();
+      const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;
+      const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);return ctx.getImageData(0,0,256,256).data;};
+    const n=await decode(near.image),r=await decode(isolated.image);
+    let diff=0,count=0;for(let i=1200;i<n.length;i+=17)if(i%4!==3){diff+=Math.abs(n[i]-r[i]);count++;}
+    return{meanChannelDelta:diff/count,localBytes:near.bytes,isolatedBytes:isolated.bytes,
+      playerUnchanged:rt.nearest.id===b.id};
+  }""")
+  assert comparison['localBytes']>1200 and comparison['isolatedBytes']>1200 and comparison['playerUnchanged'],comparison
+  assert comparison['meanChannelDelta']<105,'Same-world near/isolated rendering differs too much: '+str(comparison)
+
   # Camera 7F receives an already accepted onboard command; T08 is required
   # for a genuinely delivered Planet A->B uplink. No fake radio is installed.
   result=page.evaluate("""()=>{
@@ -92,8 +111,32 @@ with sync_playwright() as p:
   }""")
   assert saved['hasRealImage'] and saved['photo']['status']!='downlinked',saved
   assert saved['targetStillUnloaded'] and saved['mainWorld']==prepared['mainBody'],saved
+  page.locator('#imaging7f-open').evaluate('(e)=>e.click()')
+  with page.expect_download(timeout=30000) as exporting:
+   page.locator('#imaging7f-export-archive').evaluate('(e)=>e.click()')
+  download=exporting.value
+  archive_path=download.path()
+  assert archive_path.stat().st_size>photo['bytes']
+  # Explicitly remove only this controlled photo to test archive recovery.
+  removed=page.evaluate("""async()=>{
+    const ui=StarfallImagingUI7F,p=ui.store.photos.find(p=>p.sourceAssetId==='t05-remote-rover');
+    const db=await new Promise((ok,no)=>{const r=indexedDB.open('starfall-7f-images-v1');r.onsuccess=()=>ok(r.result);r.onerror=no;});
+    await new Promise((ok,no)=>{const t=db.transaction('images','readwrite');t.objectStore('images').delete(p.id);
+      t.oncomplete=ok;t.onerror=no;});
+    ui.store.remove(p.id);ui.persist();return p.id;
+  }""")
+  assert page.evaluate("StarfallImagingUI7F.store.photos.length")==0
+  page.locator('#imaging7f-archive-file').set_input_files(str(archive_path))
+  page.wait_for_function("window.StarfallImagingUI7F.store.photos.some(p=>p.sourceAssetId==='t05-remote-rover')",timeout=30000)
+  imported=page.evaluate("""async()=>{
+    const p=StarfallImagingUI7F.store.photos.find(x=>x.sourceAssetId==='t05-remote-rover');
+    const db=await new Promise((ok,no)=>{const r=indexedDB.open('starfall-7f-images-v1');r.onsuccess=()=>ok(r.result);r.onerror=no;});
+    const rec=await new Promise((ok,no)=>{const r=db.transaction('images').objectStore('images').get(p.id);r.onsuccess=()=>ok(r.result);r.onerror=no;});
+    return{restored:p.restoredArchive,hasMedia:!!rec?.image?.startsWith('data:image/'),status:p.status,id:p.id};
+  }""")
+  assert imported['id']==removed and imported['restored'] and imported['hasMedia'] and imported['status']!='downlinked',imported
   assert not errors,errors
-  print('PASS T05 true remote WebGL: body '+prepared['worldId']+' unloaded from main cache, '+str(photo['bytes'])+
+  print('PASS T05 real world photo / near-vs-remote scene difference '+str(comparison['meanChannelDelta'])+' / portable archive restoration: '+str(imported['restored'])+'; true remote WebGL: body '+prepared['worldId']+' unloaded from main cache, '+str(photo['bytes'])+
    ' photo bytes, '+str(photo['pixelDiversity'])+' real pixel variants; 7F onboard photo/thumbnail persisted, no fake interplanetary ACK, no teleport, no HTTP')
  finally:
   browser.close()
