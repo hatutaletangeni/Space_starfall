@@ -93,7 +93,19 @@ function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive
    if(r.batteryJ<g.safeReserveJ+60000){if(T)T.fault(r,time,'Insufficient energy reserve for sample');else r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'POWER','Insufficient energy reserve for sample');break;}
    try{const obs=science.sample({body,seed,local:r.local,altitudeM:.6,instrument:op.value,simTime:time,nonce:(r.records?.length||0),energyAvailableJ:r.batteryJ-g.safeReserveJ});if(!Array.isArray(r.records))r.records=[];
    if(r.records.length>=100||g.queuedObservations.length>=120){if(T)T.fault(r,time,'Onboard science archive full; export/downlink before collecting more');else r.status='safe-stop';break;}
-   const record={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};r.records.push(record);g.queuedObservations.push(record);r.batteryJ-=obs.powerJ;g.totalEnergyJ+=obs.powerJ;event(g,time,'SAMPLE','Measurement stored onboard, awaiting downlink');r.index++;}catch(e){if(T)T.fault(r,time,'INSTRUMENT '+e.message,'FAULT');else r.status='fault';g.mode='FAULT';event(g,time,'INSTRUMENT',e.message);break;}continue;}
+   const record={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};
+   if(op.value==='sampler'&&root.StarfallScienceCustodyT10){
+     // This is a physically collected, model-derived 150 g regolith plug,
+     // NOT a numeric observation converted into a sample after downlink.
+     const inventory=Array.isArray(r.sampleInventory)?r.sampleInventory:[];
+     if(inventory.length>=12)throw Error('Physical rover sample cartridge full (12); return to storage before more sampling');
+     const specimen=root.StarfallScienceCustodyT10.cleanSample({id:'specimen-'+record.id,
+       type:'regolith',massKg:.15,volumeL:.1,bodyId:body.id,location:r.local.slice(),
+       extractedAtS:time,sourceId:r.id,instrument:'sampler',observationId:record.id,
+       contaminated:false,custody:[{atS:time,from:'terrain',to:r.id,method:'physical sampler cartridge',operator:'rover'}]});
+     inventory.push(specimen);r.sampleInventory=inventory;
+   }
+   r.records.push(record);g.queuedObservations.push(record);r.batteryJ-=obs.powerJ;g.totalEnergyJ+=obs.powerJ;event(g,time,'SAMPLE','Measurement stored onboard, awaiting downlink');r.index++;}catch(e){if(T)T.fault(r,time,'INSTRUMENT '+e.message,'FAULT');else r.status='fault';g.mode='FAULT';event(g,time,'INSTRUMENT',e.message);break;}continue;}
   if(op.op==='WAIT'){if(!g.remainingS)g.remainingS=op.value;const dt=Math.min(budget,g.remainingS);g.remainingS-=dt;budget-=dt;const e=dt*12;r.batteryJ=Math.max(0,r.batteryJ-e);g.totalEnergyJ+=e;if(g.remainingS<1e-6){g.remainingS=0;r.index++;}continue;}
   let nav=null;
   if(T&&['GO_TO','RETURN','DOCK'].includes(op.op)){
