@@ -100,7 +100,12 @@ with sync_playwright() as p:
           const T=StarfallCommsT03,ops=StarfallMissionOperationsUI,
           r=StarfallLaunchUI.store.rovers.find(x=>x.id==='t03-live-probe');
           const pending=T.transport.list().find(p=>p.type==='EMERGENCY_STOP');
-          if(!r||!pending)throw Error('Queued real packet or rover missing after save');
+          if(!r||!pending)throw Error('Queued real packet or rover missing after save: '+JSON.stringify({
+           savedRovers:SF.load().launch7?.rovers?.map(v=>v.id),loadedRovers:StarfallLaunchUI.store.rovers.map(v=>v.id),
+           savedPackets:SF.load().commsT03?.packets?.map(v=>v.id),loadedPackets:T.transport.list().map(v=>v.id),
+           savedLaunchSeed:SF.load().launch7?.seed,runtimeSeed:StarfallRuntime.galaxy.seed,
+           storedByteCount:localStorage.getItem('starfall_save')?.length||0
+          }));
           for(let i=0;i<10;i++)ops.advanceTo(95+i*5);
           const p=T.transport.get(pending.id);
           return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length};
