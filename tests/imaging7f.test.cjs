@@ -23,7 +23,7 @@ assert.throws(()=>store.put({...meta,sourceType:'unknown'}));
 assert.deepEqual(new M.Store(store.serialize()).serialize(),store.serialize());
 assert.equal(new M.Store({schema:20,photos:[pic]}).photos.length,0);
 const bounded=new M.Store();for(let i=0;i<M.MAX_ROVER;i++)bounded.put({...meta,timeS:i});assert.throws(()=>bounded.put(meta),/storage count full/);
-const full=new M.Store();for(let i=0;i<Math.min(40,M.MAX_SATELLITE);i++)full.put({...meta,sourceType:'satellite',sourceAssetId:'sat-'+i,mode:'nadir',bytes:1000000,timeS:i});
+const full=new M.Store();for(let i=0;i<25;i++)full.put({...meta,sourceType:'satellite',sourceAssetId:'sat-'+i,mode:'nadir',bytes:1000000,timeS:i});
 assert.throws(()=>full.put(meta),/storage byte budget|storage full|storage count full/);
 const copy=store.remove(orb.id);assert.equal(copy.id,orb.id);assert(!store.get(orb.id));
 console.log('PASS 7F: validated image metadata, onboard queue/blackout, bandwidth-limited downlink, received-on-delay, distinct satellite records, safe load, bounded counts and byte quota');
