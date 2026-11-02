@@ -1,0 +1,39 @@
+name: UI20 Contextual Cockpit Browser
+on:
+  push:
+    branches: [feature/ui20-cockpit-hierarchy]
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+permissions:
+  contents: read
+concurrency:
+  group: ui20-browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ui20-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Rebuild offline HTML and prove byte parity
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Install test-only real Chromium
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Actual WebGL cockpit/controls/truck on original game
+        run: python tests/ui20-cockpit-browser.py
+      - name: Keep screenshots of actual game
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui20-ship-truck-screenshots
+          path: reports/ui20-screenshots/*.png
+          if-no-files-found: warn
+          retention-days: 14
