@@ -34,7 +34,7 @@ with sync_playwright() as p:
         # Actual application event handlers, no stubbed UI state; only invoke DOM
         # elements programmatically if their parent drawer is collapsed.
         panels=[
-            ('workbench-open','workbench','workbench-close'),
+            ('workbench-open','workbench','wb-close'),
             ('field-open','field-lab','field-close'),
             ('outpost-open','outpost','outpost-close'),
             ('launch-open','launch-dialog','launch-close'),
