@@ -22,9 +22,10 @@ function options(){
  if(type==='rocket'){Object.assign(conditions,{gravityMS2:inputNum('research7e-rocket-gravity'),rho0:inputNum('research7e-rho'),targetAltitudeM:inputNum('research7e-altitude')});}
  const rocket=type==='rocket'?{engine:$('research7e-engine').value,payload:'relay',stages:inputNum('research7e-stages'),tanks:inputNum('research7e-tanks'),boosters:inputNum('research7e-boosters')}:undefined;
  const observations=(root.StarfallScienceUI?.journal||[]).slice(-12).map(x=>x.id).filter(x=>typeof x==='string');
+ const photoRefs=(root.StarfallImagingUI7F?.store?.photos||[]).filter(x=>x.status==='downlinked'&&x.bodyId===(RT.nearest?.id)).slice(-12).map(x=>x.id);
  return {type,title:$('research7e-name').value||type+' bench test',definition,rocket,conditions,
   world:{bodyId:RT.nearest?.id||'bench-body',systemId:RT.nearest?.systemId||'bench-system'},
-  sourceAssetId:definition?.id||'rocket-bench',observations,
+  sourceAssetId:definition?.id||'rocket-bench',observations,photoRefs,
   notes:'Controlled engineering model run. Not an instrument reading from physical hardware.'};
 }
 function metricBox(box,obj){box.replaceChildren();Object.entries(obj||{}).forEach(([k,v])=>row(box,k,Array.isArray(v)?v.join(', '):v));}

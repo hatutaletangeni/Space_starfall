@@ -1,3 +1,14 @@
+# STARFALL — Update 7F Camera Telemetry (2026-11-02)
+
+- Added actual WebGL2 offscreen world-image capture from physical rover mast and satellite orbital cameras (including three-shot surface panorama), without HUD screenshot or network assets.
+- Added science camera metadata, battery/storage budgets, delayed radio uplink/downlink, blackout queueing, received-only mission gallery, JPEG/WebP export and reusable image thumbnails.
+- Added IndexedDB payload persistence (additive small photo metadata save), source/position/time/observation provenance, field photo notes, and 7E research blueprint photo references.
+- Integrated gallery launch points into existing Flight Operations, Rover Missions, Satellite Operations, Field Science and 7E Research.
+- Existing gameplay and saved vehicle/rocket/rover state left unchanged. Source and standalone bundling continue to use the same ordered modules.
+- **Limitations:** procedural-engine photographic fidelity rather than real NASA camera realism; remote planets need loaded world and radio; real GPU FPS and full manual gameplay require verification. See `docs/IMAGING-7F.md`.
+
+---
+
 # STARFALL — Update 7E: Engineering Research & Blueprints (release candidate)
 
 **2026-11-02 · Branch `feature/update-7e` · Baseline `release/update-7d`**

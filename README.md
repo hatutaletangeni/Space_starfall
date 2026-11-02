@@ -1,3 +1,22 @@
+# STARFALL — Update 7F: Real Rover & Satellite Camera Telemetry
+
+**Release candidate branch:** `feature/update-7f-imaging` · **Parent:** `feature/update-7e` · **Rollback:** 7E or preserved 7D main.
+
+New: **Mission Photos / Cameras** is a first-class option on the operations panel; it also opens from Field Laboratory, Rover Mission Control, Satellite Operations, Science Journal and 7E Research Bench.
+
+- **Physical scene photographs:** the existing WebGL2 Starfall renderer is called from an offscreen framebuffer at the actual rover or satellite camera pose; this is not a screenshot of the HUD, a stock photograph or generated fake terrain.
+- **Surface views:** rover forward, left, right, near-ruin target and stitched three-shot panorama. **Orbit views:** nadir, oblique horizon and wide context from the authoritative satellite ephemeris.
+- **Downlink:** 256/512/1024 px images have explicit capture power cost, local storage limits, actual rover/satellite radio-path checks, finite modeled bandwidth and propagation delay. Radio blackout pauses queues/transmissions; only received images open in the Gallery.
+- **NASA-inspired science presentation:** mission caption, scene-accurate image, thumbnail, body/asset/time/pose, notes, export; no NASA logos or false real-world attribution.
+- **Persistence:** small versioned photo metadata stored in existing SF save; image bytes/thumbnails in local IndexedDB (device-specific, export your photos). Receipts link to Field Journal and optional 7E research/blueprint evidence IDs.
+- **No gameplay lockouts or modifications** to ship boarding/ramp, truck X enter/exit, nonrideable rover, launch physics, ancient ruins, galaxy terrain or old save keys.
+
+Open **[IMAGING-7F.md](docs/IMAGING-7F.md)** for exact fidelity, storage/data contract, rollback and limitations. **[Offline game](PLAY-STARFALL.html)** can be opened directly after downloading the complete repo ZIP; **[editable project](index.html)** uses `src/` and `python tools/build-standalone.py`.
+
+**Automated verification:** `node tests/imaging7f.test.cjs`, `python tests/standalone-parity.py` and headless Chromium `python tests/imaging7f-browser.py`. Headless software WebGL verifies actual capture, but does not prove real-device GPU FPS, full 7D regression breadth or every prolonged playthrough.
+
+---
+
 # STARFALL — Update 7E Engineering Research (Release Candidate)
 
 STARFALL is a **fully offline browser WebGL2 space exploration, science, and engineering sandbox**. Update 7E builds on the existing verified 7D ground-operations release and adds optional controlled engineering experiments and repeatable design blueprints.

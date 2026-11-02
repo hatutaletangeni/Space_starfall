@@ -125,6 +125,32 @@
 #research7e-results,#research7e-comparison{min-height:50px}
 @media(max-width:620px){.research7e-window{padding:16px}.research7e-fields{grid-template-columns:1fr 1fr}.research7e-actions button{flex:1 1 auto}}
 </style>
+  <style>
+/* 7F additive camera telemetry UI. Strictly scoped; game canvas unaffected. */
+#imaging7f{z-index:80}
+.im7f-window{width:min(1000px,97vw);max-height:91vh;overflow:auto}
+.im7f-fieldset{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:12px 0}
+.im7f-fieldset label{display:flex;flex-direction:column;gap:5px;font:11px Consolas,monospace;color:#b8c6cb}
+.im7f-fieldset select{background:#0a1724;color:#eee7dc;border:1px solid #425d70;padding:10px;width:100%}
+.im7f-tools{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.im7f-tools button{flex:0 1 auto}
+.im7f-status{font:11px/1.7 Consolas,monospace;white-space:pre-wrap;color:#f7b9a8;min-height:30px}
+.im7f-status[data-success=true]{color:#a4d2bb}
+.im7f-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.im7f-card{background:#0e1c29;color:#e0e8e8;border:1px solid #365066;padding:13px;min-height:80px;display:flex;flex-direction:column;text-align:left;gap:9px;font:11px/1.5 Consolas,monospace}
+.im7f-card:hover,.im7f-card:focus-visible{border-color:#edc18d}
+.im7f-card small{color:#a0afb9}
+.im7f-badge{align-self:flex-start;border:1px solid #677580;border-radius:4px;padding:1px 6px;color:#e5bd85;text-transform:uppercase;font:9px Consolas,monospace}
+.im7f-detail{border:1px solid #394857;padding:14px;background:#070e18;margin:18px 0}
+.im7f-photo{display:block;margin:12px auto;max-width:100%;width:auto;height:auto;max-height:55vh;object-fit:contain;border:1px solid #3c5266;cursor:zoom-in}
+.im7f-meta{white-space:pre-wrap;color:#bec8cb;font:11px/1.75 Consolas,monospace}
+.im7f-note{color:#b2bcc5;font:11px/1.6 Consolas,monospace}
+#imaging7f-photo[hidden],#imaging7f-detail[hidden],#imaging7f[hidden]{display:none!important}
+@media(max-width:600px){.im7f-window{padding:14px}.im7f-fieldset{grid-template-columns:1fr}.im7f-tools button{flex:1 1 auto}}
+
+.im7f-thumb{width:100%;height:115px;object-fit:cover;border:1px solid #536374;border-radius:4px;background:#0d1822}
+
+</style>
 </head>
 <body>
   <canvas id="universe" aria-label="Real-time three-dimensional starfield, spacecraft and procedural planets"></canvas>
@@ -179,7 +205,7 @@
  <label class="obs-micro"><input id="systems-power" type="checkbox"> Enable realistic electrical power</label>
  <div id="systems-loads"></div><button class="science-action" id="workbench-open" type="button">OPEN ENGINEERING WORKBENCH</button></div>
 </section>
-<section class="section" aria-label="Scientific fieldwork and robotics"><button id="field-open" class="science-action" type="button">◈ FIELD SCIENCE / ROBOTICS</button><p class="panel-note">Instruments · rover waypoints · autonomous commands · scientific journal</p></section>
+<section class="section" aria-label="Mission imaging"><button id="imaging7f-open" class="science-action" type="button">▣ MISSION PHOTOS / CAMERAS</button><p class="panel-note">Photograph real terrain from rovers and orbital imagers · relay and downlink</p></section> <section class="section" aria-label="Scientific fieldwork and robotics"><button id="field-open" class="science-action" type="button">◈ FIELD SCIENCE / ROBOTICS</button><p class="panel-note">Instruments · rover waypoints · autonomous commands · scientific journal</p></section>
 <section class="section" aria-label="Engineering diagnostics"><button class="science-action" type="button" id="integration-open">▤ DIAGNOSTICS / SYSTEM HEALTH</button><p class="panel-note">Frame-time percentiles · simulation checks · save backup and recovery</p></section>
 <section class="section" aria-label="Local planetary survey map"><button id="survey-open" class="science-action" type="button">⌖ PLANETARY SURVEY MAP</button><p class="panel-note">Stable terrain · explored regions · ship, rover, structures and mapped discoveries</p></section>
 <section class="section" aria-label="Expedition discoveries"><button id="discovery-open" class="science-action" type="button">⌁ EXPEDITION NOTEBOOK / DISCOVERIES</button><p class="panel-note">Anomalies → field inspection → instruments → laboratory records</p></section>
@@ -237,15 +263,29 @@
 <div class="research7e-fields" id="research7e-rover"><label>Slope (degrees)<input id="research7e-slope" type="number" min="0" max="45" value="8"></label><label>Bench gear ratio<input id="research7e-gear" type="number" min="0.5" max="6" value="1" step="0.25"></label><label>Wheel radius scale<input id="research7e-wheel" type="number" min="0.6" max="1.8" value="1" step="0.1"></label><label>Gravity (m/s²)<input id="research7e-gravity" type="number" min="0.1" max="100" value="9.81" step="0.1"></label></div>
 <div class="research7e-fields" id="research7e-power"><label>Solar incidence (0–1)<input id="research7e-daylight" type="number" min="0" max="1" value="0.7" step="0.1"></label><label>Starting charge fraction<input id="research7e-charge" type="number" min="0" max="1" value="0.8" step="0.1"></label><label>Motor load fraction<input id="research7e-drive" type="number" min="0" max="1" value="0.4" step="0.1"></label><label>Lights active<input type="checkbox" id="research7e-lights" checked></label></div>
 <div class="research7e-fields" id="research7e-rocket"><label>Engine<select id="research7e-engine"><option value="atlas">Atlas sea-level</option><option value="aether">Aether vacuum</option><option value="cluster">Tri-engine cluster</option></select></label><label>Stages<input id="research7e-stages" type="number" min="1" max="3" value="2"></label><label>Tank modules<input id="research7e-tanks" type="number" min="1" max="16" value="4"></label><label>Boosters<input id="research7e-boosters" type="number" min="0" max="4" value="2"></label> <label>Rocket-world gravity (m/s²)<input id="research7e-rocket-gravity" type="number" min="0.1" max="100" value="9.81" step="0.1"></label><label>Air density kg/m³<input id="research7e-rho" type="number" min="0" max="40" value="1.1" step="0.1"></label><label>Target altitude (m)<input id="research7e-altitude" type="number" min="50000" max="1000000" value="180000"></label></div>
-<div class="research7e-actions"><button id="research7e-run" type="button" class="science-action">RUN CONTROLLED TEST</button><button id="research7e-save-bp" type="button" class="science-action">SAVE VALIDATED BLUEPRINT</button></div><p id="research7e-status" role="status" aria-live="polite"></p><div id="research7e-results" aria-live="polite"></div>
+<div class="research7e-actions"><button id="research7e-run" type="button" class="science-action">RUN CONTROLLED TEST</button><button id="research7e-save-bp" type="button" class="science-action">SAVE VALIDATED BLUEPRINT</button></div><p id="research7e-status" role="status" aria-live="polite"></p><div id="research7e-results" aria-live="polite"></div><button type="button" data-imaging7f-open class="science-action">VIEW DOWNLINKED PHOTO EVIDENCE</button>
 <h3>Compare measured model outcomes</h3><div class="research7e-fields"><label>First run<select id="research7e-compare-a"></select></label><label>Second run<select id="research7e-compare-b"></select></label></div><div class="research7e-actions"><button id="research7e-compare" type="button" class="science-action">COMPARE RUNS</button></div><div id="research7e-comparison"></div>
 <h3>Blueprint Library</h3><div class="research7e-fields"><label>Blueprint<select id="research7e-blueprint"></select></label></div><div class="research7e-actions"><button id="research7e-apply-bp" type="button" class="science-action">APPLY COMPATIBLE DESIGN</button><button id="research7e-export" type="button" class="science-action">EXPORT BLUEPRINT JSON</button></div>
 <p id="research7e-bp-note">Gear and wheel experimental tuning remains bench-only until the live vehicle controller has matching component interfaces.</p>
 <div class="research7e-fields"><label>Import blueprint JSON<textarea id="research7e-import-json" rows="3" placeholder="Paste a Starfall 7E blueprint JSON document"></textarea></label></div>
 <div class="research7e-actions"><button id="research7e-import" type="button" class="science-action">IMPORT BLUEPRINT</button></div><h3>Recent simulation runs</h3><div id="research7e-history"></div>
 </div></section>
+<section id="imaging7f" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="imaging7f-title"><div class="obs-window im7f-window">
+<div class="obs-head"><div><span class="obs-badge">STARFALL / SCIENCE IMAGING</span><h2 id="imaging7f-title">Mission Camera &amp; Photo Downlink</h2></div><button type="button" id="imaging7f-close" class="science-action">✕ Close</button></div>
+<p>Photos show the actual in-game world from a rover mast or orbital camera. Images remain onboard until radio reception.</p>
+<div class="im7f-fieldset"><label>Camera asset<select id="imaging7f-source"></select></label><label>Optical view<select id="imaging7f-mode"></select></label><label>Resolution<select id="imaging7f-resolution"><option value="256">256 px</option><option selected value="512">512 px</option><option value="1024">1024 px</option></select></label><label>Mission caption<input id="imaging7f-caption" type="checkbox" checked></label></div>
+<div class="im7f-tools"><button type="button" id="imaging7f-request" class="science-action">QUEUE PHOTO COMMAND</button></div>
+<p id="imaging7f-link" class="im7f-note"></p><p id="imaging7f-budget" class="im7f-note"></p><pre id="imaging7f-jobs" class="im7f-note"></pre>
+<p id="imaging7f-status" class="im7f-status" role="status" aria-live="polite">Mission imaging ready</p>
+<h3>Photo telemetry archive</h3>
+<div class="im7f-fieldset"><label>Gallery filter<select id="imaging7f-filter"><option value="all">All</option><option value="rover">Rover</option><option value="satellite">Satellite</option><option value="downlinked">Received</option><option value="queued">Queued</option><option value="stored-local">Onboard</option></select></label></div>
+<div id="imaging7f-list" class="im7f-grid" aria-label="Photo records"></div>
+<section id="imaging7f-detail" class="im7f-detail" hidden><h3>Image inspection</h3><p id="imaging7f-pending" class="im7f-note"></p><img id="imaging7f-photo" class="im7f-photo" alt="" hidden><pre id="imaging7f-metadata" class="im7f-meta"></pre><label for="imaging7f-note" class="im7f-note">Science photo notes</label><textarea id="imaging7f-note" rows="3" maxlength="400" placeholder="What does this photo document?"></textarea><div class="im7f-tools"><button id="imaging7f-save-note" type="button" class="science-action">SAVE FIELD NOTE</button></div>
+<div class="im7f-tools"><button type="button" id="imaging7f-downlink" class="science-action">QUEUE DOWNLINK</button><button type="button" id="imaging7f-download" class="science-action">EXPORT RECEIVED IMAGE</button><button type="button" id="imaging7f-delete" class="science-action">DELETE ARCHIVED PHOTO</button></div></section>
+<p class="im7f-note">Actual sensor imaging consumes energy and device storage. Radio blackout pauses transmissions; files remain unreadable in the gallery until a downlink completes. Photo bytes are stored locally with IndexedDB, not in the legacy save object. Export important mission photos.</p>
+</div></section>
 <section id="field-lab" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="field-title">
-  <div class="obs-window field-window"><div class="obs-head"><div><span class="obs-badge">STARFALL / SCIENCE & ROBOTICS</span><h2 id="field-title">Field Laboratory</h2></div><button type="button" class="science-action" id="field-close">✕ Close</button></div>
+  <div class="obs-window field-window"><div class="obs-head"><div><span class="obs-badge">STARFALL / SCIENCE & ROBOTICS</span><h2 id="field-title">Field Laboratory</h2></div><button type="button" data-imaging7f-open data-imaging7f-type="rover" class="science-action">ROVER CAMERA</button><button type="button" class="science-action" id="field-close">✕ Close</button></div>
   <p>Real instrument range limits and seeded geological measurements. Autonomous rover navigation is local, incremental, and terrain-aware. It is disabled until commanded.</p>
   <div class="field-tabs" role="tablist"><button type="button" data-tab="survey" class="science-action" aria-selected="true">INSTRUMENTS</button><button type="button" data-tab="autonomy" class="science-action">ROVER & SCRIPTS</button><button type="button" data-tab="journal" class="science-action">SCIENCE JOURNAL</button></div>
   <section class="field-page" data-field-page="survey"><label class="obs-micro" for="field-instrument">Instrument</label> <select id="field-instrument"></select><button type="button" class="science-action" id="field-measure">MEASURE ON SITE</button>
@@ -262,7 +302,7 @@
   {"op":"STOP"}
 ]</textarea>
     <div class="obs-tools"><button type="button" class="science-action" id="field-run">RUN SCRIPT</button><button type="button" class="science-action" id="field-pause">PAUSE / RESUME</button><button type="button" class="science-action" id="field-stop">EMERGENCY STOP</button></div><div class="field-note" id="field-robot-state" role="status">IDLE</div></section>
-  <section class="field-page" data-field-page="journal" hidden><div class="obs-tools"><button type="button" class="science-action" id="field-export-json">EXPORT JSON</button><button type="button" class="science-action" id="field-export-csv">EXPORT CSV</button></div><div class="field-route"><label for="field-journal-body">Body filter <select id="field-journal-body"><option value="*">All bodies</option></select></label><label for="field-journal-sort">Sort <select id="field-journal-sort"><option value="time">Newest first</option><option value="body">By body</option><option value="instrument">By instrument</option></select></label></div><div id="field-comparison" class="field-note"></div><div id="field-journal">No recorded measurements yet.</div></section>
+  <section class="field-page" data-field-page="journal" hidden><button type="button" data-imaging7f-open class="science-action">MISSION PHOTOS / EVIDENCE</button><div class="obs-tools"><button type="button" class="science-action" id="field-export-json">EXPORT JSON</button><button type="button" class="science-action" id="field-export-csv">EXPORT CSV</button></div><div class="field-route"><label for="field-journal-body">Body filter <select id="field-journal-body"><option value="*">All bodies</option></select></label><label for="field-journal-sort">Sort <select id="field-journal-sort"><option value="time">Newest first</option><option value="body">By body</option><option value="instrument">By instrument</option></select></label></div><div id="field-comparison" class="field-note"></div><div id="field-journal">No recorded measurements yet.</div></section>
   <div class="field-note">Model fidelity: seeded geological approximation, simplified contact/traction physics, bounded waypoint planner. Existing quick orbital scans remain unchanged. Surface movement uses legacy game-scaled distance, not physical orbital SI distance.</div>
   </div></section>
 <section id="outpost" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="outpost-title">
@@ -428,7 +468,7 @@
  <div class="launch-actions"><label class="launch-copy"><input type="checkbox" id="sat7c-enabled" checked> Bus enabled</label><label class="launch-copy"><input type="checkbox" id="sat7c-radio" checked> Radio enabled</label></div>
  <div id="sat7c-metrics" aria-live="polite"></div>
  <h3>Orbital link windows</h3><div id="sat7c-passes">No pass predictions yet.</div>
- <h3>Sensor data & transmissions</h3><div class="launch-actions"><button type="button" id="sat7c-capture">ACQUIRE ORBITAL OBSERVATION</button><button type="button" id="sat7c-downlink">DOWNLINK STORED DATA</button><button type="button" id="sat7c-refresh">REFRESH</button><button type="button" id="sat7c-view-assets">VIEW IN ASSET HIERARCHY</button></div>
+ <h3>Sensor data & transmissions</h3><div class="launch-actions"><button type="button" data-imaging7f-open data-imaging7f-type="satellite" class="science-action">ORBITAL PHOTO</button><button type="button" id="sat7c-capture">ACQUIRE ORBITAL OBSERVATION</button><button type="button" id="sat7c-downlink">DOWNLINK STORED DATA</button><button type="button" id="sat7c-refresh">REFRESH</button><button type="button" id="sat7c-view-assets">VIEW IN ASSET HIERARCHY</button></div>
  <div id="sat7c-data" class="sat7c-data"></div><div id="sat7c-status" role="status">Deploy a satellite to begin operations.</div>
 </section>
 <h3>Active launches and orbital payloads</h3><div id="launch-log" class="launch-output"></div>
@@ -437,7 +477,7 @@ TURN 45
 DRIVE 10
 SAMPLE spectrometer
 STOP</textarea></label></div>
-<div class="launch-actions"><button id="launch-run">SEND PROGRAM</button><button id="launch-emergency">STOP ROVER</button></div><pre id="launch-probe-status" class="launch-output"></pre><div id="launch-status" role="status"></div>
+<div class="launch-actions"><button type="button" data-imaging7f-open data-imaging7f-type="rover" class="science-action">ROVER PHOTO</button><button id="launch-run">SEND PROGRAM</button><button id="launch-emergency">STOP ROVER</button></div><pre id="launch-probe-status" class="launch-output"></pre><div id="launch-status" role="status"></div>
 </section></div>
   <script>
 /* Shared expedition state. Works offline and tolerates unavailable storage. */
@@ -1301,7 +1341,7 @@ class Renderer{
    else{const rocky=planet.type==='Volcanic'?[.34,.21,.17]:planet.type==='Ice'?[.61,.72,.75]:planet.type==='Desert'?[.58,.43,.29]:[.39,.43,.40];triangle(ax,cx,tip,rocky);triangle(cx,bx,tip,V.mix(rocky,[.16,.18,.20],.24));triangle(bx,dx,tip,rocky);triangle(dx,ax,tip,V.mix(rocky,[.14,.19,.16],.14));}
   }this.props=makeMesh(this.gl,p,n,c,indices);
  }
- render(state){this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
+ render(state){if(!this.captureSize)this.latestFrameState=state;const renderW=this.captureSize?.width||this.canvas.width,renderH=this.captureSize?.height||this.canvas.height;this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
   this.updatePatch(near,viewer,alt);this.propsPlanet=null;this.updateCelestial(cam);
   const nearSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
   const radial=near?V.norm(V.sub(cam.eye,near.position)):[0,1,0];
@@ -1327,15 +1367,15 @@ class Renderer{
    this.setFloat(prog,'uHeadlampPower',state.headlights?2.2:0);
    const occ=l.occluder;this.gl.uniform4fv(this.loc(prog,'uOccluder'),occ?[...V.sub(occ.center,origin),occ.radius]:[0,0,0,0]);
   };
-  gl.viewport(0,0,this.canvas.width,this.canvas.height);gl.clearColor(.006,.012,.023,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
+  gl.viewport(0,0,renderW,renderH);gl.clearColor(.006,.012,.023,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
   let p=this.p.bg;gl.useProgram(p);gl.bindVertexArray(this.skyVao);this.setVec(p,'uForward',cam.forward);this.setVec(p,'uRight',cam.right);this.setVec(p,'uUp',cam.up);this.setVec(p,'uRadial',radial);this.setVec(p,'uSkyColor',sky);this.setVec(p,'uLight',light);this.setVec(p,'uStarColor',lighting.starColor);this.setFloat(p,'uStarPower',lighting.starPower);this.setFloat(p,'uDaylight',dayDot);this.setFloat(p,'uMoonGlow',lighting.moonPower);this.setFloat(p,'uSunAngular',0.04);this.setFloat(p,'uAspect',this.aspect);this.setFloat(p,'uTan',Math.tan(this.fov/2));this.setFloat(p,'uAltitude',alt);gl.drawArrays(gl.TRIANGLES,0,3);this.frameDrawCalls++;
   p=this.p.star;gl.useProgram(p);this.setMat(p,'uVP',M.mul(M.perspective(this.fov,this.aspect,1,100000),view));this.setFloat(p,'uDpr',this.pixelRatio);this.setFloat(p,'uAlpha',1-atmo*daytime*.97);this.setFloat(p,'uTime',performance.now()*.001);this.setVec(p,'uOffset',[0,0,0]);gl.bindVertexArray(this.deep.vao);gl.drawArrays(gl.POINTS,0,this.deep.count);this.frameDrawCalls++;gl.bindVertexArray(this.celestial.vao);gl.drawArrays(gl.POINTS,0,this.celestial.count);this.frameDrawCalls++;
   this.spaceAlpha=1-atmo*daytime*.97;this.updateEffects(cam,nearSystem);
-  p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setFloat(p,'uFocal',this.canvas.height*.7);
+  p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setFloat(p,'uFocal',renderH*.7);
   gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);gl.drawArrays(gl.POINTS,0,this.effectCount);this.frameDrawCalls++;gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   // Massive suns use a separate far-space projection. Their coordinates are relative
   // to the camera so Float32 matrices retain local precision in billion-unit sectors.
-  this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*this.canvas.height;if(pixels<1.5)continue;
+  this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*renderH;if(pixels<1.5)continue;
    p=this.p.sun;gl.useProgram(p);this.setMat(p,'uViewProj',sunVP);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uTime',this.galaxy.time);const model=M.scaleTranslate(rel,sys.star.radius);this.renderMesh(p,this.sunSphere,model);
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
   }
@@ -1344,7 +1384,7 @@ class Renderer{
   const rendered=[],rings=[];this.renderedBodies=0;this.culledBodies=0;
   // Star-system broad-phase culling, then view-frustum + projected-size LOD.
   for(const sys of this.galaxy.nearbySystems(origin,1600000)){const starDist=V.len(V.sub(sys.position,origin));if(starDist>sys.maxOrbit+1600000)continue;
-   for(const body of sys.bodies){const rel=V.sub(body.position,origin),dist=V.len(rel),facing=V.dot(V.norm(rel),cam.forward),angular=body.radius/Math.max(1,dist-body.radius),pixels=angular*this.canvas.height;
+   for(const body of sys.bodies){const rel=V.sub(body.position,origin),dist=V.len(rel),facing=V.dot(V.norm(rel),cam.forward),angular=body.radius/Math.max(1,dist-body.radius),pixels=angular*renderH;
     if(dist>1600000||facing<-.26&&dist>body.radius*1.8||pixels<1.55){this.culledBodies++;continue;}
     const lod=pixels>180?2:pixels>30?1:0;
     const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340; if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
@@ -1431,6 +1471,61 @@ class Renderer{
   }
   gl.bindVertexArray(null);this.lastDrawCalls=this.frameDrawCalls;
  }
+ // 7F: World-only capture. The SAME scene renderer, shaders and planet mesh
+ // are drawn to a bounded offscreen RGBA8/depth framebuffer; HUD is never captured.
+ captureScience(camera,body,{size=512,caption='',quality=.82,wide=false}={}){
+  if(![256,512,1024].includes(size))throw Error('Unsupported camera resolution');
+  if(!body?.id||!body.position||!this.latestFrameState)throw Error('A loaded world scene is required');
+  if(!this.galaxy.byId.has(body.id))throw Error('Camera target is not currently loaded; visit its system');
+  if(this.captureSize)throw Error('Camera is already capturing');
+  if(!Array.isArray(camera?.eye)||!Array.isArray(camera?.forward)||!Array.isArray(camera?.up))throw Error('Missing 3-D camera pose');
+  const gl=this.gl,oldFbo=gl.getParameter(gl.FRAMEBUFFER_BINDING),oldViewport=gl.getParameter(gl.VIEWPORT);
+  const previous={aspect:this.aspect,fov:this.fov,pixelRatio:this.pixelRatio};
+  let fb=null,color=null,depth=null;
+  try{
+   fb=gl.createFramebuffer();color=gl.createTexture();depth=gl.createRenderbuffer();
+   if(!fb||!color||!depth)throw Error('Insufficient GPU resources for imaging');
+   gl.bindTexture(gl.TEXTURE_2D,color);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,size,size,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+   gl.bindRenderbuffer(gl.RENDERBUFFER,depth);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,size,size);
+   gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,color,0);
+   gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depth);
+   if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw Error('Offscreen camera framebuffer is incomplete');
+   this.captureSize={width:size,height:size};this.aspect=1;this.fov=wide?1.68:1.05;this.pixelRatio=1;
+   this.lastPatchAt=0;this.lastSkyAt=0;
+   const base=this.latestFrameState,up=V.norm(camera.up),forward=V.norm(camera.forward),right=V.norm(V.cross(forward,up));
+   if(V.len(right)<.01)throw Error('Degenerate camera orientation');
+   const eye=camera.eye,target=V.add(eye,V.mul(forward,500)),pose={eye,target,forward,right,up:V.norm(V.cross(right,forward))};
+   const altitude=Math.max(0,V.len(V.sub(eye,body.position))-body.radius);
+   this.render({...base,camera:pose,nearest:body,altitude,position:eye,viewerPosition:eye,
+     weather:null,interior:null,avatarBase:null,avatarWalking:false,avatarDelta:0,headlights:false,
+     shipPosition:base.shipPosition,shipForward:base.shipForward||forward,shipUp:base.shipUp||up,
+     infrastructure:base.infrastructure||[],ruins:base.ruins||[],ecology:base.ecology||[]});
+   const pixels=new Uint8Array(size*size*4);
+   gl.readPixels(0,0,size,size,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+   if(gl.getError()!==gl.NO_ERROR)throw Error('Camera readback failed');
+   const out=document.createElement('canvas');out.width=size;out.height=size;
+   const ctx=out.getContext('2d',{willReadFrequently:false});if(!ctx)throw Error('Image encoder unavailable');
+   const frame=ctx.createImageData(size,size),rowBytes=size*4;
+   for(let row=0;row<size;row++)frame.data.set(pixels.subarray((size-1-row)*rowBytes,(size-row)*rowBytes),row*rowBytes);
+   ctx.putImageData(frame,0,0);
+   if(caption){ctx.fillStyle='#070e19bd';ctx.fillRect(0,size-40,size,40);
+    ctx.fillStyle='#f3e2c8';ctx.font=Math.max(10,Math.round(size/46))+'px monospace';
+    ctx.fillText(String(caption).slice(0,68),12,size-16,size-24);}
+   let image=out.toDataURL('image/webp',quality);
+   if(!image.startsWith('data:image/webp'))image=out.toDataURL('image/jpeg',quality);
+   if(!/^data:image\/(webp|jpeg);base64,/.test(image))throw Error('Camera image encoder failed');
+   return{image,mime:image.slice(5,image.indexOf(';')),width:size,height:size,
+     bytes:Math.floor(image.slice(image.indexOf(',')+1).length*3/4),camera:{eye:[...eye],forward:[...forward],up:[...up]}};
+  }finally{
+   this.captureSize=null;this.aspect=previous.aspect;this.fov=previous.fov;this.pixelRatio=previous.pixelRatio;
+   gl.bindFramebuffer(gl.FRAMEBUFFER,oldFbo);gl.viewport(...oldViewport);
+   gl.bindRenderbuffer(gl.RENDERBUFFER,null);gl.bindTexture(gl.TEXTURE_2D,null);
+   if(depth)gl.deleteRenderbuffer(depth);if(color)gl.deleteTexture(color);if(fb)gl.deleteFramebuffer(fb);
+  }
+ }
+
  dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
 }
 root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:(planet,localDirection)=>ST.sample(planet,localDirection,groundHeight,field,shade,(body,d)=>Renderer.prototype.terrainNormal.call(null,body,d))};
@@ -3341,7 +3436,7 @@ function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=w
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
   const portraitBase=eva&&!interiorState&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(truckOccupied?3.4:0.25)+rampLift+(eva&&!truckOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
-  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{tier:site.tier,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
+  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{tier:site.tier,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
  if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
   window.StarfallAssetUI7A1?.tick();if(window.StarfallAssetUI7A1?.hasWorldSelection&&now-lastAssetHighlightAt>160){lastAssetHighlightAt=now;window.StarfallAssetUI7A1.syncHighlight({...camera,fov:renderer.fov},canvas,assetPickCandidates());}refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
@@ -3434,7 +3529,9 @@ function truckRecharge(sourceId,deliveredJ=360000){
  return{batteryJ:truckBatteryJ,...report,sourceId};
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,assetPickView(){return{camera:lastPickingCamera?{...lastPickingCamera,fov:renderer.fov}:null,candidates:assetPickCandidates()};},engineeringAssetPoses(){return{
+window.StarfallRuntime={galaxy,vehicleStore,captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
+ if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
+ return renderer.captureScience({eye,forward,up},body,{size,caption,wide});},assetPickView(){return{camera:lastPickingCamera?{...lastPickingCamera,fov:renderer.fov}:null,candidates:assetPickCandidates()};},engineeringAssetPoses(){return{
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
  roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,systemId:roverBody.systemId,local:roverLocal}:null,
  truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,batteryJ:truckBatteryJ}:null
@@ -4700,7 +4797,7 @@ function normalize(input){
  const rocket=type==='rocket'?clone(input.rocket||{engine:'atlas',payload:'relay',stages:2,tanks:4,boosters:2}):null;
  if(rocket&&JSON.stringify(rocket).length>4000)throw Error('Rocket configuration is too large');
  const world=isObj(input.world)?input.world:{};
- return{type,title,definition:def,rocket,conditions:c,sourceAssetId:text(input.sourceAssetId||def?.id||'rocket-bench',120),bodyId:text(world.bodyId||'bench-body',120),systemId:text(world.systemId||'bench-system',120),observations:(Array.isArray(input.observations)?input.observations:[]).filter(safeId).slice(0,12),notes:text(input.notes,300)};
+ return{type,title,definition:def,rocket,conditions:c,sourceAssetId:text(input.sourceAssetId||def?.id||'rocket-bench',120),bodyId:text(world.bodyId||'bench-body',120),systemId:text(world.systemId||'bench-system',120),observations:(Array.isArray(input.observations)?input.observations:[]).filter(safeId).slice(0,12),photoRefs:(Array.isArray(input.photoRefs)?input.photoRefs:[]).filter(safeId).slice(0,12),notes:text(input.notes,300)};
 }
 function roverRun(plan){
  const R=root.StarfallRoverDynamics,M=root.StarfallVehicles;
@@ -4773,7 +4870,7 @@ class Store{
  run(planId,timeS=0){const p=this.data.plans.find(x=>x.id===planId);if(!p)throw Error('Experiment plan not found');
   const result=runModel(p),run={id:this.next('run'),schema:SCHEMA,planId:p.id,type:p.type,title:p.title,sourceAssetId:p.sourceAssetId,
    timeS:finite(timeS)?bound(timeS,0,1e13):0,bodyId:p.bodyId,systemId:p.systemId,conditions:clone(p.conditions),
-   sourceDefinition:p.definition?clone(p.definition):null,observationRefs:p.observations.slice(),...result};
+   sourceDefinition:p.definition?clone(p.definition):null,observationRefs:p.observations.slice(),photoRefs:(p.photoRefs||[]).slice(),...result};
   this.data.runs.push(run);if(this.data.runs.length>MAX_RUNS)this.data.runs.shift();return clone(run);}
  blueprint(runId,title){const r=this.data.runs.find(x=>x.id===runId);if(!r)throw Error('Test run not found');
   if(!r.success)throw Error('Cannot validate failed/incomplete engineering test');
@@ -4781,7 +4878,7 @@ class Store{
   if(!p)throw Error('Original test plan is no longer present');
   const b={id:this.next('bp'),schema:SCHEMA,title:text(title||r.title),type:r.type,sourceRunId:r.id,sourceAssetId:r.sourceAssetId,
    definition:p.definition?validDefinition(p.definition):null,rocket:p.rocket?clone(p.rocket):null,conditions:clone(p.conditions),
-   predicted:clone(r.predicted),simulated:clone(r.simulated),observationRefs:r.observationRefs.slice(),
+   predicted:clone(r.predicted),simulated:clone(r.simulated),observationRefs:r.observationRefs.slice(),photoRefs:(r.photoRefs||[]).slice(),
    model:r.model,createdS:r.timeS,benchOnly:r.type==='rocket'||p.type==='rover'&&(p.conditions.gearRatio!==1||p.conditions.wheelScale!==1)};
   this.data.blueprints.push(b);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(b);}
  compare(a,b){const x=this.data.runs.find(r=>r.id===a),y=this.data.runs.find(r=>r.id===b);
@@ -4800,7 +4897,7 @@ class Store{
   if(b.type==='rocket'&&(!isObj(b.rocket)||JSON.stringify(b.rocket).length>4000))throw Error('Rocket design missing');
   const fresh={id:this.next('bp'),schema:SCHEMA,title:text(b.title),type:b.type,sourceRunId:b.sourceRunId,sourceAssetId:text(b.sourceAssetId),
    definition:b.definition?clone(b.definition):null,rocket:b.rocket?clone(b.rocket):null,conditions:clone(b.conditions),
-   predicted:clone(b.predicted),simulated:clone(b.simulated),observationRefs:Array.isArray(b.observationRefs)?b.observationRefs.filter(safeId).slice(0,12):[],
+   predicted:clone(b.predicted),simulated:clone(b.simulated),observationRefs:Array.isArray(b.observationRefs)?b.observationRefs.filter(safeId).slice(0,12):[],photoRefs:Array.isArray(b.photoRefs)?b.photoRefs.filter(safeId).slice(0,12):[],
    model:text(b.model,120),createdS:finite(b.createdS)?b.createdS:0,benchOnly:!!b.benchOnly,
    imported:true};this.data.blueprints.push(fresh);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(fresh);}
  serialize(){return clone(this.data);}
@@ -4836,9 +4933,10 @@ function options(){
  if(type==='rocket'){Object.assign(conditions,{gravityMS2:inputNum('research7e-rocket-gravity'),rho0:inputNum('research7e-rho'),targetAltitudeM:inputNum('research7e-altitude')});}
  const rocket=type==='rocket'?{engine:$('research7e-engine').value,payload:'relay',stages:inputNum('research7e-stages'),tanks:inputNum('research7e-tanks'),boosters:inputNum('research7e-boosters')}:undefined;
  const observations=(root.StarfallScienceUI?.journal||[]).slice(-12).map(x=>x.id).filter(x=>typeof x==='string');
+ const photoRefs=(root.StarfallImagingUI7F?.store?.photos||[]).filter(x=>x.status==='downlinked'&&x.bodyId===(RT.nearest?.id)).slice(-12).map(x=>x.id);
  return {type,title:$('research7e-name').value||type+' bench test',definition,rocket,conditions,
   world:{bodyId:RT.nearest?.id||'bench-body',systemId:RT.nearest?.systemId||'bench-system'},
-  sourceAssetId:definition?.id||'rocket-bench',observations,
+  sourceAssetId:definition?.id||'rocket-bench',observations,photoRefs,
   notes:'Controlled engineering model run. Not an instrument reading from physical hardware.'};
 }
 function metricBox(box,obj){box.replaceChildren();Object.entries(obj||{}).forEach(([k,v])=>row(box,k,Array.isArray(v)?v.join(', '):v));}
@@ -4899,6 +4997,308 @@ $('research7e-apply-bp').onclick=()=>{try{const b=store.blueprints.find(x=>x.id=
  }catch(e){status(e.message);}};
 renderInputs();render();
 root.StarfallResearchUI7E={open:()=>$('research7e-open').click(),store};
+})(window);
+</script>
+  <script>
+/* STARFALL 7F: authenticated, bounded image telemetry metadata.
+   Actual image bytes live in IndexedDB; SF only stores tiny versioned metadata.
+   No fake images, no offscreen render in a per-frame loop. */
+(function(root){'use strict';
+const SCHEMA=1,MAX_ROVER=20,MAX_SATELLITE=40,MAX_TOTAL=120,MAX_BYTES=24*1024*1024,MAX_JOB=16;
+const finite=v=>typeof v==='number'&&Number.isFinite(v),clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),copy=x=>JSON.parse(JSON.stringify(x));
+const idOK=x=>typeof x==='string'&&/^[\w:.-]{1,130}$/.test(x);
+function validateCapture(meta){
+ if(!meta||!['rover','satellite'].includes(meta.sourceType))throw Error('Camera source must be rover or satellite');
+ if(!idOK(meta.sourceAssetId)||!idOK(meta.bodyId)||!idOK(meta.systemId))throw Error('Invalid camera source coordinates');
+ if(!['forward','left','right','panorama','target','nadir','oblique','wide'].includes(meta.mode))throw Error('Camera mode unavailable');
+ if(![256,512,1024].includes(meta.resolution))throw Error('Unsupported resolution');
+ if(!(finite(meta.timeS)&&meta.timeS>=0))throw Error('Invalid capture time');
+ if(!Array.isArray(meta.position)||meta.position.length!==3||!meta.position.every(finite))throw Error('Camera location must have three finite coordinates');
+ if(!finite(meta.bytes)||meta.bytes<200||meta.bytes>2_500_000)throw Error('Invalid photo size');
+ return true;
+}
+function restore(raw){
+ const out={schema:SCHEMA,serial:0,photos:[],jobs:[]};
+ if(!raw||raw.schema!==SCHEMA)return out;
+ out.serial=finite(raw.serial)?clamp(Math.floor(raw.serial),0,1e9):0;
+ const used=new Set();for(const p of (Array.isArray(raw.photos)?raw.photos:[]).slice(-MAX_TOTAL)){
+  if(!p||!idOK(p.id)||used.has(p.id))continue;
+  try{validateCapture(p);}catch(_){continue;}
+  if(!['stored-local','queued','transmitting','in-transit','downlinked','failed'].includes(p.status))continue;
+  used.add(p.id);out.photos.push(copy({...p,sourceName:String(p.sourceName||p.sourceAssetId).slice(0,100),caption:String(p.caption||'').slice(0,120)}));
+ }
+ out.jobs=(Array.isArray(raw.jobs)?raw.jobs:[]).filter(x=>x&&idOK(x.id)&&idOK(x.assetId)&&['rover','satellite'].includes(x.sourceType)&&finite(x.createdS)&&x.createdS>=0&&!used.has(x.id)).slice(-MAX_JOB).map(copy);
+ return out;
+}
+class Store{
+ constructor(saved){this.state=restore(saved);}
+ next(p){this.state.serial++;return p+'-'+this.state.serial.toString(36);}
+ get photos(){return copy(this.state.photos);}
+ get jobs(){return copy(this.state.jobs);}
+ get(id){const x=this.state.photos.find(x=>x.id===id);return x?copy(x):null;}
+ countFor(type,id){return this.state.photos.filter(x=>x.sourceType===type&&x.sourceAssetId===id).length;}
+ usedBytes(){return this.state.photos.reduce((a,x)=>a+x.bytes,0);}
+ request(sourceType,assetId,mode,resolution,timeS){
+  if(!['rover','satellite'].includes(sourceType)||!idOK(assetId))throw Error('Invalid camera request');
+  if(!['forward','left','right','panorama','target','nadir','oblique','wide'].includes(mode)||![256,512,1024].includes(resolution))throw Error('Unsupported camera mode or resolution');
+  if(!(finite(timeS)&&timeS>=0))throw Error('Invalid mission time');
+  if(this.state.jobs.length>=MAX_JOB)throw Error('Imaging command queue full');
+  const job={id:this.next('photo-job'),assetId,sourceType,mode,resolution,createdS:timeS,deliveredS:null};
+  this.state.jobs.push(job);return copy(job);
+ }
+ markDelivered(id,time){const j=this.state.jobs.find(x=>x.id===id);if(!j)throw Error('Capture command missing');j.deliveredS=time;return copy(j);}
+ finishJob(id){this.state.jobs=this.state.jobs.filter(x=>x.id!==id);}
+ put(meta){
+  validateCapture(meta);const limit=meta.sourceType==='rover'?MAX_ROVER:MAX_SATELLITE;
+  if(this.state.photos.length>=MAX_TOTAL||this.countFor(meta.sourceType,meta.sourceAssetId)>=limit)throw Error('Camera storage count full; archive and delete old images');
+  if(this.usedBytes()+meta.bytes>MAX_BYTES)throw Error('Camera storage full (24 MiB global cap); archive images');
+  const p={id:this.next('photo'),schema:SCHEMA,status:'stored-local',progressBytes:0,receivedAtS:null,
+   lastError:'',...copy(meta),observationRefs:Array.isArray(meta.observationRefs)?meta.observationRefs.filter(idOK).slice(0,12):[],
+   sourceName:String(meta.sourceName||meta.sourceAssetId).slice(0,100),caption:String(meta.caption||'').slice(0,120)};
+  this.state.photos.push(p);return copy(p);
+ }
+ queueDownlink(id){const p=this.state.photos.find(x=>x.id===id);if(!p)throw Error('Photo not found');
+  if(p.status==='downlinked')return copy(p);
+  if(!['stored-local','failed','queued','transmitting'].includes(p.status))throw Error('Photo is already in transit');
+  p.status='queued';p.lastError='';return copy(p);
+ }
+ tick(timeS,dt,links,draw){
+  if(!finite(timeS)||!finite(dt)||dt<=0)return[];
+  const changes=[],step=clamp(dt,0,15);
+  for(const p of this.state.photos){
+   if(p.status==='in-transit'){if(timeS>=(p.deliveryAtS||0)){p.status='downlinked';p.receivedAtS=timeS;changes.push({id:p.id,type:'received'});}continue;}
+   if(!['queued','transmitting'].includes(p.status))continue;
+   const link=links(p);if(!link?.connected||!(link.quality>0)){p.status='queued';continue;}
+   const bits=p.sourceType==='satellite'?160000:48000,bandwidth=clamp(bits/8*link.quality,500,25000);
+   const affordable=draw(p,step,bandwidth);if(!(affordable>=0)){p.status='queued';p.lastError='Transmitter battery low';continue;}
+   const sent=Math.min(p.bytes-p.progressBytes,Math.floor(bandwidth*step),Math.floor(affordable));
+   if(sent<=0)continue;
+   p.progressBytes+=sent;
+   if(p.progressBytes>=p.bytes){p.progressBytes=p.bytes;p.status='in-transit';p.deliveryAtS=timeS+Math.max(.001,Number(link.delayS)||.001);}
+   else p.status='transmitting';
+   changes.push({id:p.id,type:'progress',sent});
+  }
+  return changes;
+ }
+ annotate(id,note){const p=this.state.photos.find(x=>x.id===id);if(!p)throw Error('Photo not found');p.note=String(note||'').slice(0,400);return copy(p);}
+ remove(id){const idx=this.state.photos.findIndex(x=>x.id===id);if(idx<0)throw Error('Photo not found');const [p]=this.state.photos.splice(idx,1);return copy(p);}
+ serialize(){return copy(this.state);}
+}
+const API={SCHEMA,MAX_ROVER,MAX_SATELLITE,MAX_TOTAL,MAX_BYTES,MAX_JOB,restore,validateCapture,Store};
+root.StarfallImaging7F=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+</script><script>
+/* STARFALL 7F: actual offscreen-rendered science images, local storage, radio telemetry.
+   Image bytes: IndexedDB, mission metadata: existing SF save schema. */
+(function(root){'use strict';
+const $=id=>document.getElementById(id),M=root.StarfallImaging7F,RT=root.StarfallRuntime,Sat=root.StarfallSatelliteOps7C,V=root.Starfall3D?.V,O=root.StarfallOutposts,X=root.StarfallLaunch;
+if(!M||!RT||!V||!$('imaging7f'))return;
+const store=new M.Store(root.SF.load().imaging7f),units=root.StarfallPhysics.SCENE_METERS_PER_UNIT,DB='starfall-7f-images-v1';
+const safe=n=>Number.isFinite(n)?n.toFixed(1):'—',err=e=>message(String(e.message||e),false);
+let busy=false,lastUI=0,lastPersist=0,dirty=false,energyDirty=false,current=null,dbPromise=null;const thumbs=new Map();
+function message(t,success=true){const s=$('imaging7f-status');s.textContent=t;s.dataset.success=String(success);}
+function persist(){if(root.SF.save({imaging7f:store.serialize()})===false)message('Image metadata could not be saved; check local storage quota.',false);else{dirty=false;lastPersist=performance.now();}}
+function database(){
+ if(dbPromise)return dbPromise;
+ dbPromise=new Promise((resolve,reject)=>{
+  if(!root.indexedDB)return reject(Error('This browser cannot store mission photos. IndexedDB is required.'));
+  const q=indexedDB.open(DB,1);
+  q.onupgradeneeded=()=>{if(!q.result.objectStoreNames.contains('images'))q.result.createObjectStore('images');};
+  q.onerror=()=>reject(Error('Image archive unavailable: '+(q.error?.message||'IndexedDB denied')));
+  q.onsuccess=()=>resolve(q.result);
+ }).catch(e=>{dbPromise=null;throw e;});return dbPromise;
+}
+async function imageGet(id,thumbnail=false){const db=await database();return new Promise((resolve,reject)=>{
+ const t=db.transaction('images','readonly'),r=t.objectStore('images').get(id);
+ r.onsuccess=()=>resolve(typeof r.result==='string'?r.result:thumbnail?r.result?.thumbnail||r.result?.image||null:r.result?.image||null);r.onerror=()=>reject(Error('Cannot read camera image'));});}
+async function imagePut(id,image,thumbnail){const db=await database();await new Promise((resolve,reject)=>{
+ const t=db.transaction('images','readwrite');t.objectStore('images').put({image,thumbnail},id);
+ t.oncomplete=resolve;t.onerror=()=>reject(Error('Not enough device storage for camera image'));t.onabort=()=>reject(Error('Image transaction aborted'));});}
+async function imageRemove(id){const db=await database();await new Promise((resolve,reject)=>{
+ const t=db.transaction('images','readwrite');t.objectStore('images').delete(id);t.oncomplete=resolve;t.onerror=()=>reject(Error('Cannot remove archived image'));});}
+function sources(){const result=[],local=RT.roverAutonomyPosition?.(),context=RT.scienceContext?.();
+ if(local?.local&&context?.body?.id===local.bodyId)result.push({key:'local:'+RT.vehicleStore.get('rover').definition.id,type:'rover',label:'Local science rover',assetId:RT.vehicleStore.get('rover').definition.id,bodyId:local.bodyId,local:true,roverLocal:local});
+ for(const r of (root.StarfallLaunchUI?.store?.rovers||[]))result.push({key:'remote:'+r.id,type:'rover',label:'Deployed rover · '+r.id,assetId:r.id,bodyId:r.bodyId,rover:r});
+ for(const s of (root.StarfallLaunchUI?.store?.satellites||[]))if(s.kind==='observatory')result.push({key:'satellite:'+s.id,type:'satellite',label:'Orbital science imager · '+s.id,assetId:s.id,bodyId:s.bodyId,sat:s});
+ return result;
+}
+function selected(){return sources().find(x=>x.key===$('imaging7f-source').value)||null;}
+function modeChoices(type){return type==='satellite'?[['nadir','Nadir / terrain'],['oblique','Oblique horizon'],['wide','Wide orbital context']]:[['forward','Forward mast'],['left','Left mast'],['right','Right mast'],['panorama','Three-frame panorama'],['target','Nearby ruin target']];}
+function selectSources(){const box=$('imaging7f-source'),old=box.value;box.replaceChildren();for(const s of sources()){const option=document.createElement('option');option.value=s.key;option.textContent=s.label;box.append(option);}
+ if(sources().some(x=>x.key===old))box.value=old;selectModes();}
+function selectModes(){const s=selected(),modes=$('imaging7f-mode'),old=modes.value;modes.replaceChildren();
+ for(const [key,label] of modeChoices(s?.type)){const option=document.createElement('option');option.value=key;option.textContent=label;modes.append(option);}
+ if(modeChoices(s?.type).some(x=>x[0]===old))modes.value=old;}
+function vec(a,b){return a.map((v,i)=>v+(b[i]||0));}
+function direction(up,heading){const pole=Math.abs(up[1])>.95?[1,0,0]:[0,1,0],base=V.norm(V.cross(up,pole)),tangent=V.norm(V.cross(up,base));
+ return V.norm(V.add(V.mul(base,Math.cos(heading)),V.mul(tangent,Math.sin(heading))));}
+function rotForward(f,u,a){return V.norm(V.add(V.mul(f,Math.cos(a)),V.mul(V.cross(u,f),Math.sin(a))));}
+function poseFor(s,mode){
+ const body=RT.galaxy.byId.get(s.bodyId);if(!body?.position||!body.landable)throw Error('Target planet is not currently loaded; navigate to it first');
+ if(s.type==='satellite'){
+  const sat=s.sat,o=Sat.ensure(sat);
+  if(!Sat.PAYLOADS[o.sensor]||o.sensor!=='camera'||sat.kind!=='observatory')throw Error('Select an observatory with a terrain camera payload');
+  if(!o.enabled||o.pointing!=='nadir'||o.energyJ<1800)throw Error('Satellite camera requires powered nadir pointing');
+  const system=RT.galaxy.byId.get(sat.systemId),star=system?.star?.position||system?.position;
+  if(!star)throw Error('Satellite star ephemeris unavailable');
+  const geo=Sat.geometry(sat,body,star,RT.time,units,X.orbit);
+  if(!geo.sunlit)throw Error('Orbital camera requires sunlight; wait for daylight pass');
+  if(!(geo.altitudeM>25000))throw Error('Orbital camera below minimum imaging altitude');
+  const up=V.norm(geo.relative),orbital=V.norm(V.cross(Math.abs(up[1])>.95?[1,0,0]:[0,1,0],up));
+  const f=mode==='nadir'?V.mul(up,-1):mode==='oblique'?V.norm(V.add(V.mul(up,-.78),V.mul(orbital,.63))):V.norm(V.add(V.mul(up,-1),V.mul(orbital,.12)));
+  return{body,eye:geo.position,forward:f,up:orbital,altitudeM:geo.altitudeM,headingDeg:null};
+ }
+ const state=s.local?s.roverLocal:s.rover;
+ if(!state?.local)throw Error('Rover position unavailable');
+ let radial=V.norm(V.rot(state.local,body.spinAxis||[0,1,0],body.spinAngle||0));
+ let forward=s.local?V.norm(V.rot(state.forward,body.spinAxis||[0,1,0],body.spinAngle||0)):direction(radial,state.heading||0);
+ forward=V.norm(V.sub(forward,V.mul(radial,V.dot(forward,radial))));
+ if(V.len(forward)<.01)forward=direction(radial,0);
+ const height=Number(root.Starfall3D.groundHeight(state.local,body))||0;
+ const eye=V.add(body.position,V.mul(radial,body.radius+height+3.3));
+ if(mode==='left')forward=rotForward(forward,radial,-1.1);
+ if(mode==='right')forward=rotForward(forward,radial,1.1);
+ if(mode==='target'){const targets=root.StarfallRuinsUI?.scene?.()||[];
+  const near=targets.find(x=>x.position&&V.len(V.sub(x.position,eye))<1300);
+  if(!near)throw Error('No visible ruins within camera range for TARGET; use FORWARD instead');
+  forward=V.norm(V.sub(near.position,eye));}
+ return{body,eye,forward,up:radial,altitudeM:3.3,headingDeg:s.local?null:(state.heading||0)*180/Math.PI};
+}
+function linkFor(s){
+ if(s.type==='rover'){
+  if(s.local){const c=RT.outpostContext(),state=s.roverLocal;
+   if(!c.landed||c.bodyId!==s.bodyId||!c.local)return{connected:false,reason:'No surface ground terminal'};
+   const body=RT.galaxy.byId.get(s.bodyId),distance=root.StarfallGroundOps7D.arcMeters(c.local,state.local,body.radius*units);
+   return distance<=30000?{connected:true,quality:Math.max(.15,1-distance/32000),delayS:Math.max(.001,distance/299792458)}:{connected:false,reason:'Rover beyond direct local radio range'};}
+  return root.StarfallLaunchUI?.remoteLink?.(s.rover,RT.time)||{connected:false,reason:'Radio model unavailable'};
+ }
+ const b=RT.galaxy.byId.get(s.bodyId),star=RT.galaxy.byId.get(s.sat.systemId)?.position,station=b&&root.StarfallSatelliteOpsUI?.groundStation?.(b);
+ if(!b||!star||!station)return{connected:false,reason:'No powered same-body ground receiver'};
+ return Sat.radio(s.sat,b,star,RT.time,units,X.orbit,station.position,O.radioLink);
+}
+function sourceForPhoto(p){const s=sources().find(x=>x.type===p.sourceType&&x.assetId===p.sourceAssetId);
+ return s||null;}
+function availableEnergy(s){if(s.type==='satellite')return Sat.ensure(s.sat).energyJ;
+ return s.local?RT.vehicleStore.get('rover').state.energyJ:s.rover.batteryJ;}
+function consumeEnergy(s,j,immediate=true){if(s.type==='satellite'){
+  const o=Sat.ensure(s.sat);o.energyJ=Math.max(0,o.energyJ-j);s.sat.powerJ=o.energyJ;if(immediate)root.StarfallLaunchUI?.persist?.();else energyDirty=true;return;
+ }
+ if(s.local){const v=RT.vehicleStore.get('rover');RT.vehicleStore.update('rover',{...v.state,energyJ:Math.max(0,v.state.energyJ-j)});if(immediate)RT.persistVehicles();else energyDirty=true;}
+ else{s.rover.batteryJ=Math.max(0,s.rover.batteryJ-j);if(immediate)root.StarfallLaunchUI?.persist?.();else energyDirty=true;}
+}
+async function thumbnailFor(data){return new Promise((resolve,reject)=>{const source=new Image();source.onerror=()=>reject(Error('Image thumbnail decode failed'));source.onload=()=>{const ratio=Math.min(1,256/source.width,256/source.height),canvas=document.createElement('canvas');canvas.width=Math.round(source.width*ratio);canvas.height=Math.round(source.height*ratio);const ctx=canvas.getContext('2d');if(!ctx)return reject(Error('Thumbnail rendering unavailable'));ctx.drawImage(source,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.7));};source.src=data;});}
+function cameraCapture(pose,mode,size,caption){
+ const rd=RT.captureScienceImage;if(typeof rd!=='function')throw Error('Offscreen renderer not initialized');
+ const render=(forward)=>rd({body:pose.body,eye:pose.eye,forward,up:pose.up,size,caption:mode==='panorama'?'':caption,wide:mode==='wide'});
+ if(mode!=='panorama')return render(pose.forward);
+ // Three actual World renders stitched side by side; no fabricated pixels.
+ const images=[render(rotForward(pose.forward,pose.up,-.83)),render(pose.forward),render(rotForward(pose.forward,pose.up,.83))];
+ const canvas=document.createElement('canvas');canvas.width=size*3;canvas.height=size;
+ const ctx=canvas.getContext('2d');if(!ctx)throw Error('Panorama compositor unavailable');
+ return Promise.all(images.map(x=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(Error('Panorama photo decode failed'));img.src=x.image;}))).then(pics=>{
+  pics.forEach((img,i)=>ctx.drawImage(img,i*size,0,size,size));
+  if(caption){ctx.fillStyle='#07101bd0';ctx.fillRect(0,size-34,size*3,34);ctx.fillStyle='#f2e0c2';ctx.font='14px monospace';ctx.fillText(caption.slice(0,110),12,size-10);}
+  const image=canvas.toDataURL('image/jpeg',.77);
+  return{image,mime:'image/jpeg',width:size*3,height:size,bytes:Math.floor(image.slice(image.indexOf(',')+1).length*3/4),camera:images[1].camera};
+ });
+}
+async function perform(job,s){
+ if(busy)return;busy=true;
+ try{
+  const pose=poseFor(s,job.mode),shotEnergy=job.resolution===1024?1700:job.resolution===512?900:520;
+  if(availableEnergy(s)<shotEnergy+500)throw Error('Camera cannot operate with depleted battery');
+  if(store.countFor(s.type,s.assetId)>=(s.type==='rover'?M.MAX_ROVER:M.MAX_SATELLITE)||store.photos.length>=M.MAX_TOTAL)throw Error('Image storage full');
+  const caption='STARFALL SCIENCE | '+s.assetId+' | '+pose.body.name+' | T+'+Math.floor(RT.time)+'s';
+  const shot=await cameraCapture(pose,job.mode,job.resolution,$('imaging7f-caption').checked?caption:'');
+  if(shot.bytes>2500000||store.usedBytes()+shot.bytes>M.MAX_BYTES)throw Error('Camera storage byte budget exceeded; select lower resolution');
+  // Save image data first. Image capture failures do NOT consume power or create records.
+  const nextId='photo-'+(store.serialize().serial+1).toString(36);
+  const thumbnail=await thumbnailFor(shot.image);await imagePut(nextId,shot.image,thumbnail);thumbs.set(nextId,thumbnail);
+  let photo;try{photo=store.put({sourceType:s.type,sourceAssetId:s.assetId,sourceName:s.label,bodyId:s.bodyId,systemId:pose.body.systemId,
+    mode:job.mode,resolution:job.resolution,width:shot.width,height:shot.height,timeS:RT.time,position:pose.eye.slice(),camera:shot.camera,
+    altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,bytes:shot.bytes,mime:shot.mime,caption,
+    observationRefs:(root.StarfallScienceUI?.journal||[]).filter(x=>x.bodyId===s.bodyId).slice(-5).map(x=>x.id)});
+  }catch(e){await imageRemove(nextId);throw e;}
+  consumeEnergy(s,shotEnergy);store.finishJob(job.id);store.queueDownlink(photo.id);persist();
+  message('Camera recorded '+photo.id+' ('+Math.round(photo.bytes/1024)+' KB). Image onboard; queued for radio downlink.');
+  refresh();return photo;
+ }finally{busy=false;}
+}
+function badge(text){const el=document.createElement('span');el.className='im7f-badge';el.textContent=text;return el;}
+function refresh(){
+ const list=$('imaging7f-list');list.replaceChildren();
+ const filter=$('imaging7f-filter').value,records=store.photos.filter(x=>filter==='all'||x.sourceType===filter||x.status===filter).slice().reverse();
+ for(const p of records){const btn=document.createElement('button');btn.type='button';btn.className='im7f-card';btn.append(badge(p.status),document.createTextNode(p.sourceAssetId+' · '+p.mode.toUpperCase()+' · '+p.resolution));
+  const info=document.createElement('small');info.textContent=p.bodyId+' · '+Math.round(p.bytes/1024)+' KB · '+Math.floor(100*p.progressBytes/p.bytes)+'%';btn.append(info);
+  btn.onclick=()=>showPhoto(p.id).catch(err);if(p.status==='downlinked'){const photo=document.createElement('img');photo.className='im7f-thumb';photo.alt='Downlinked terrain image preview';photo.loading='lazy';btn.prepend(photo);if(thumbs.has(p.id))photo.src=thumbs.get(p.id);else imageGet(p.id,true).then(data=>{if(data){thumbs.set(p.id,data);if(photo.isConnected)photo.src=data;}}).catch(()=>{});}list.append(btn);}
+ if(!records.length)list.textContent='No image records match this filter.';
+ const jobs=store.jobs;$('imaging7f-jobs').textContent=jobs.length?jobs.map(j=>j.assetId+' '+j.mode.toUpperCase()+' · command queued').join('\n'):'No pending image commands.';
+ const src=selected();$('imaging7f-link').textContent=src?(linkFor(src).connected?'RADIO LINK: READY · '+'Battery '+safe(availableEnergy(src)/3600)+' Wh':'RADIO BLACKOUT · '+(linkFor(src).reason||'awaiting pass')):'Select a deployed science rover or observatory satellite.';
+ $('imaging7f-budget').textContent='Storage: '+(store.usedBytes()/1048576).toFixed(2)+' / '+(M.MAX_BYTES/1048576)+' MiB · '+store.photos.length+' / '+M.MAX_TOTAL+' photos';
+}
+async function showPhoto(id){
+ const p=store.get(id);if(!p)return;
+ current=id;$('imaging7f-detail').hidden=false;
+ $('imaging7f-metadata').textContent=[p.id,'SOURCE '+p.sourceType.toUpperCase()+' '+p.sourceAssetId,'BODY '+p.bodyId,
+ 'SYSTEM '+p.systemId,'CAPTURE T+'+safe(p.timeS)+' s','VIEW '+p.mode.toUpperCase(),'RESOLUTION '+p.width+'×'+p.height,
+ 'ALTITUDE '+safe(p.altitudeM)+' m','SIZE '+Math.round(p.bytes/1024)+' KiB','LINK '+p.status.toUpperCase(),
+ 'TRANSMITTED '+Math.round(p.progressBytes/p.bytes*100)+'%',
+ 'JOURNAL OBSERVATIONS '+(p.observationRefs||[]).join(', '),
+ 'RESEARCH RUNS '+(root.StarfallResearchUI7E?.store?.runs||[]).filter(r=>(r.photoRefs||[]).includes(p.id)).map(r=>r.id).slice(-6).join(', ')].join('\n');
+ $('imaging7f-note').value=p.note||'';
+ const im=$('imaging7f-photo');
+ im.removeAttribute('src');im.alt='';im.hidden=true;
+ if(p.status==='downlinked'){
+  const data=await imageGet(id);
+  if(!data)throw Error('Image bytes missing from this device; restore the original browser archive.');
+  im.src=data;im.alt='Actual Starfall in-game '+p.sourceType+' photo of '+p.bodyId+' ('+p.mode+')';im.hidden=false;
+  $('imaging7f-download').disabled=false;
+ }else $('imaging7f-download').disabled=true;
+ $('imaging7f-pending').textContent=p.status==='downlinked'?'Photo received and ready to inspect / export.':'Onboard image · not visible until the actual downlink finishes.';
+}
+async function deletePhoto(){const id=current;if(!id)return;await imageRemove(id);thumbs.delete(id);store.remove(id);current=null;persist();$('imaging7f-detail').hidden=true;refresh();message('Photo bytes and metadata deleted from this device.');}
+function open(){selectSources();$('imaging7f').hidden=false;refresh();$('imaging7f-source').focus();}
+function close(){$('imaging7f').hidden=true;}
+$('imaging7f-open').onclick=open;
+document.querySelectorAll('[data-imaging7f-open]').forEach(btn=>{btn.addEventListener('click',()=>{open();if(btn.dataset.imaging7fType){const found=sources().find(x=>x.type===btn.dataset.imaging7fType);if(found){$('imaging7f-source').value=found.key;selectModes();refresh();}}});});
+$('imaging7f-close').onclick=close;$('imaging7f').addEventListener('click',e=>{if(e.target===$('imaging7f'))close();});
+$('imaging7f-source').onchange=()=>{selectModes();refresh();};
+$('imaging7f-filter').onchange=refresh;
+$('imaging7f-request').onclick=()=>{try{const s=selected();if(!s)throw Error('No imaging-capable asset available');const job=store.request(s.type,s.assetId,$('imaging7f-mode').value,Number($('imaging7f-resolution').value),RT.time);
+  persist();refresh();message('Imaging command '+job.id+' queued until a radio link exists; no instant remote control.',true);}catch(e){err(e);}};
+$('imaging7f-downlink').onclick=()=>{try{if(!current)throw Error('Select photo first');store.queueDownlink(current);persist();refresh();message('Downlink queued until a valid radio pass.');}catch(e){err(e);}};
+$('imaging7f-download').onclick=async()=>{try{const p=store.get(current);if(!p||p.status!=='downlinked')throw Error('Photo not yet downlinked');
+ const data=await imageGet(p.id);if(!data)throw Error('Original image missing');const a=document.createElement('a');a.href=data;a.download='starfall-'+p.id+'.'+(p.mime==='image/webp'?'webp':'jpg');a.click();
+ }catch(e){err(e);}};
+$('imaging7f-save-note').onclick=()=>{try{if(!current)throw Error('Select a photo');store.annotate(current,$('imaging7f-note').value);persist();message('Mission photo note saved.',true);}catch(e){err(e);}};
+$('imaging7f-delete').onclick=()=>deletePhoto().catch(err);
+$('imaging7f-photo').onclick=()=>{const img=$('imaging7f-photo');if(img.src)root.open(img.src,'_blank','noopener,noreferrer');};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('imaging7f').hidden){close();e.stopImmediatePropagation();}},true);
+let lastTime=RT.time,lastCheck=performance.now();
+function tick(_dt){
+ const t=RT.time,step=Math.max(0,Math.min(15,t-lastTime));lastTime=t;
+ if(!busy&&store.jobs.length){
+  const job=store.jobs[0],s=sources().find(x=>x.assetId===job.assetId&&x.type===job.sourceType);
+  if(s){
+   const link=linkFor(s);if(link.connected){
+    if(job.deliveredS===null){store.markDelivered(job.id,t+Math.max(.05,Number(link.delayS)||.05));dirty=true;}
+    else if(t>=job.deliveredS)perform(job,s).catch(e=>{store.finishJob(job.id);dirty=true;persist();err(e);});
+   }else if(job.deliveredS!==null){/* delayed onboard command continues even if link has since blacked out */if(t>=job.deliveredS)perform(job,s).catch(e=>{store.finishJob(job.id);dirty=true;persist();err(e);});}
+  }
+ }
+ const changes=store.tick(t,step,p=>{const s=sourceForPhoto(p);return s?linkFor(s):{connected:false};},(p,seconds,bandwidth)=>{
+  const s=sourceForPhoto(p);if(!s)return-1;
+  const budget=Math.min(bandwidth*seconds,p.bytes-p.progressBytes),rate=s.type==='satellite'?125:45,joules=rate*seconds;
+  if(availableEnergy(s)<joules+250)return -1;
+  consumeEnergy(s,joules,false);return budget;
+ });
+ if(changes.length)dirty=true;
+ const now=performance.now();
+ if((dirty||energyDirty)&&now-lastPersist>2500){if(energyDirty){root.StarfallLaunchUI?.persist?.();RT.persistVehicles?.();energyDirty=false;}if(dirty)persist();else lastPersist=now;}
+ if(!$('imaging7f').hidden&&now-lastUI>900){lastUI=now;refresh();if(current&&store.get(current)?.status==='downlinked'&&$('imaging7f-photo').hidden)showPhoto(current).catch(err);}
+}
+addEventListener('pagehide',()=>{if(energyDirty){root.StarfallLaunchUI?.persist?.();RT.persistVehicles?.();}if(dirty)persist();});
+root.StarfallImagingUI7F={open,store,tick,refresh,get localAssetCount(){return sources().length;}};
 })(window);
 </script>
 </body>
