@@ -8,6 +8,7 @@ function status(msg,success=false){lastError=msg;$('wb-error').style.color=succe
 function refreshSystems(){const selected=$('systems-vehicle').value,v=Store.get(selected),report=RT.engineeringSystemReport()[selected],st=v.state,stats=v.stats,box=$('systems-readout');box.replaceChildren();
  row(box,'Total mass',format(stats.massKg)+' kg');row(box,'Fuel',format(st.fuelKg)+' / '+format(stats.fuelCapacityKg)+' kg');row(box,'Battery',format(st.energyJ/3.6e6,2)+' / '+format(stats.batteryCapacityJ/3.6e6,2)+' kWh');row(box,'Temperature',format(st.temperatureK)+' K');row(box,'Power source',report?format(report.generated.solarW+report.generated.generatorW)+' W':'Compatibility / not simulated');row(box,'Power demand',report?format(report.totalLoadW)+' W':'—');row(box,'Load shedding',report?.shed.length?report.shed.join(', '):'None');row(box,'Generator model',v.stats.generatorW>0?'FICTIONAL compact source / finite '+format(v.stats.generatorW)+' W + modeled heat (no fuel budget)':'None installed');
  $('systems-power').checked=st.powerEnabled;
+ refreshShipT13();
  const parent=$('systems-loads');parent.replaceChildren();for(const name of ['avionics','radiator','drive','lights','instruments']){const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.checked=st.loads[name]!==false;c.onchange=()=>{Store.setLoad(selected,name,c.checked);RT.persistVehicles();refreshSystems();};l.append(c,document.createTextNode(' '+name.toUpperCase()));parent.append(l);}
 }
 function edit(kindName='ship'){kind=kindName;draft=Store.get(kind).definition;history=[];$('wb-vehicle').value=kind;showDraft();}
@@ -28,6 +29,70 @@ function showDraft(){const list=$('wb-slots'),box=$('wb-preview');list.replaceCh
 }
 function download(name,data){const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),800);}
 function apply(){try{const result=RT.configureVehicle(kind,draft);status('APPLIED · Dry mass '+format(result.next.dryMassKg)+' kg; saved.',true);edit(kind);refreshSystems();}catch(e){status(e.message);}}
+let shipT13Message='';
+function shipMessage(text,failed=false){
+ shipT13Message=(failed?'SERVICE DENIED: ':'SERVICE: ')+String(text);
+ refreshShipT13();
+}
+function shipObservationsT13(targetId){
+ const target=RT.shipServiceTargetsT13().find(x=>x.id===targetId);
+ if(!target||target.kind==='grid-battery')return[];
+ if(target.kind==='local-rover')return (root.StarfallScienceUI?.journal||[]).filter(x=>x.sourceAssetId===targetId||x.probeId===targetId);
+ const r=root.StarfallLaunchUI?.store?.rovers.find(x=>x.id===targetId);
+ return r?.records||[];
+}
+function refreshShipT13(){
+ const panel=$('ship-t13-panel');if(!panel)return;
+ panel.hidden=$('systems-vehicle').value!=='ship';
+ if(panel.hidden)return;
+ const target=$('ship-t13-target'),old=target.value;
+ const list=RT.shipServiceTargetsT13();
+ target.replaceChildren();
+ for(const item of list){
+  const o=document.createElement('option');o.value=item.id;
+  o.textContent=item.kind.toUpperCase()+' · '+item.id.slice(-25)+' / '+format(item.distanceScene,1)+' scene units';
+  target.append(o);
+ }
+ const dock=RT.shipServiceSnapshotT13();
+ if(list.some(x=>x.id===old))target.value=old;
+ else if(dock.connectedTarget&&list.some(x=>x.id===dock.connectedTarget))target.value=dock.connectedTarget;
+ if(!list.length){const o=document.createElement('option');o.value='';o.textContent='Land and approach a rover or battery';target.append(o);}
+ const picker=$('ship-t13-observation'),prior=picker.value;picker.replaceChildren();
+ for(const obs of shipObservationsT13(dock.connectedTarget==='none'?target.value:dock.connectedTarget).slice(-75)){
+  const o=document.createElement('option');o.value=obs.id;o.textContent=(obs.instrument||obs.parameter||'reading')+' · '+obs.id.slice(-20);
+  picker.append(o);
+ }
+ if([...picker.options].some(x=>x.value===prior))picker.value=prior;
+ if(!picker.options.length){const o=document.createElement('option');o.value='';o.textContent='No source-identified rover readings';picker.append(o);}
+ $('ship-t13-dock').disabled=dock.state!=='UNDOCKED'||!list.some(x=>x.id===target.value);
+ $('ship-t13-undock').disabled=dock.state==='UNDOCKED';
+ $('ship-t13-charge').disabled=dock.state==='UNDOCKED';
+ $('ship-t13-receive').disabled=dock.state==='UNDOCKED'||!picker.value;
+ const p=dock.radio;
+ $('ship-t13-readout').textContent=[
+  'SHIP '+(dock.landed?'LANDED':'FLIGHT / NO PORT')+' · DOCK '+dock.state+' '+dock.connectedTarget,
+  'BUS '+(p.ready?p.mode:p.reason)+' · POWER '+format(dock.generationW)+' W',
+  'CHARGE '+format(dock.energyJ/3.6e6,2)+' / '+format(dock.batteryCapacityJ/3.6e6,2)+' kWh · fuel '+format(dock.fuelKg)+' kg',
+  'TEMP '+format(dock.temperatureK)+' K · RADIATED '+format(dock.thermalRadiatedW)+' W · HEALTH '+format(100*dock.health)+'%',
+  'INSTALLED '+Object.entries(dock.installed).map(([k,v])=>k+':'+v).join(' | '),
+  'LOAD SHEDDING '+(dock.shed.length?dock.shed.join(', '):'none')+' · CONNECTOR '+format(dock.connectorTemperatureK)+' K',
+  'NEXT DC SESSION '+format(Math.max(0,dock.nextChargeAtS-RT.time),0)+' s · RECORD RECEIPTS '+dock.receiptCount+
+  ' · SCIENCE JOURNAL '+dock.scienceJournalRecords,
+  'HISTORY '+(dock.history.length?dock.history.map(x=>x.kind+' '+x.assetId).join(' / '):'none'),
+  shipT13Message].join('\n');
+}
+$('ship-t13-target').onchange=refreshShipT13;
+$('ship-t13-dock').onclick=()=>{try{const x=RT.shipDockConnectT13($('ship-t13-target').value);shipMessage('Docked '+x.connectedTarget+'; ship and rover locations unchanged');}catch(e){shipMessage(e.message,true);}};
+$('ship-t13-undock').onclick=()=>{try{RT.shipDockUndockT13();shipMessage('Connector unlatched; departure re-enabled');}catch(e){shipMessage(e.message,true);}};
+$('ship-t13-charge').onclick=()=>{try{const r=RT.shipDockChargeT13();shipMessage('Real DC transfer '+format(r.drawnJ,0)+' J drawn / '+format(r.deliveredJ,0)+' J credited / '+format(r.lossJ,0)+' J loss');}catch(e){shipMessage(e.message,true);}};
+$('ship-t13-receive').onclick=()=>{try{
+ const r=RT.shipDockReceiveT13($('ship-t13-observation').value);
+ shipMessage(r.duplicate?'Already received: no double-charge or duplicate':r.receipt.id+' stored as reference to original Science Journal reading');
+ }catch(e){shipMessage(e.message,true);}};
+$('ship-t13-observe').onclick=()=>{try{
+ const x=RT.shipThermalObserveT13();
+ shipMessage('Ship onboard thermal sensor '+format(x.value,2)+' K ±'+format(x.uncertainty,1)+' K · '+x.id);
+ }catch(e){shipMessage(e.message,true);}};
 $('systems-toggle').onclick=()=>{$('systems-inner').hidden=!$('systems-inner').hidden;$('systems-toggle').setAttribute('aria-expanded',String(!$('systems-inner').hidden));if(!$('systems-inner').hidden)refreshSystems();};
 $('systems-vehicle').onchange=refreshSystems;
 $('systems-power').onchange=e=>{Store.setPower($('systems-vehicle').value,e.target.checked);RT.persistVehicles();refreshSystems();};

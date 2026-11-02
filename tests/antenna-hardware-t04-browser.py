@@ -26,7 +26,9 @@ with sync_playwright() as p:
           return SF.load();
         }""")
         snapshot=json.dumps(json.dumps(saved))
-        context.add_init_script("(()=>{if(sessionStorage.getItem('t04-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t04-fixture-installed','1');})()")
+        # file:// sessionStorage may be reset on an opaque-origin browser reload.
+        # Never reinject the first empty fixture over real outpost/radio saves.
+        context.add_init_script("(()=>{const existing=JSON.parse(localStorage.getItem('starfall_save')||'null');if(sessionStorage.getItem('t04-fixture-installed')||existing?.outpost5?.items?.length||existing?.commsT03?.packets?.length)return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t04-fixture-installed','1');})()")
         # The first tab's pagehide autosave must happen BEFORE the new tab's
         # initial-save injection. Never overwrite a newer outpost/packet store.
         initial.close()

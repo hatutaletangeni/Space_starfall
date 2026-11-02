@@ -1,3 +1,12 @@
+# STARFALL T13 — Spacecraft Systems, Docking and Data Custody (2026-11-02)
+
+- Added original-vehicle-state **ship operations** panel with actual fuel, thermal, source→sink electrical load, compatible docking, radio node readiness and software-model provenance.
+- Added explicit landed **LATCH / METERED DC TRANSFER / UNDOCK** between ship and real local/deployed rover or wired 48V Outpost battery; relative-speed, same-world, position and installed-part checks, real charge debit, efficiency and heat/cooldown accounting, no teleport.
+- Added source-ID hull thermistor Journal reading and exactly-once physical rover-data reference handoff; old observations, images and mission ACKs remain owned by the original stores.
+- Preserved the emergency real-battery-paid legacy ship radio while enforcing physical avionics health, installed part, ship battery and the T02 served bus when realistic electrical mode is enabled.
+- Blocked ship takeoff and Workbench ship reconfiguration during an attached umbilical, leaving the ship ramp, flight handling and truck X untouched.
+- Added independent model and file:// software-WebGL tests, standalone bundle regeneration and explicit release caveats. See `docs/SHIP-OPERATIONS-T13.md`.
+
 # STARFALL T12 — Expedition Truck / Rover Field Operations (2026-11-02)
 
 - Kept physical truck boarding via **X**, anti-reboard cooldown, autonomous-only science rover and on-foot spacecraft ramp unmodified.
