@@ -201,6 +201,58 @@ $('imaging7f-download').onclick=async()=>{try{const p=store.get(current);if(!p||
  const data=await imageGet(p.id);if(!data)throw Error('Original image missing');const a=document.createElement('a');a.href=data;a.download='starfall-'+p.id+'.'+(p.mime==='image/webp'?'webp':'jpg');a.click();
  }catch(e){err(e);}};
 $('imaging7f-save-note').onclick=()=>{try{if(!current)throw Error('Select a photo');store.annotate(current,$('imaging7f-note').value);persist();message('Mission photo note saved.',true);}catch(e){err(e);}};
+async function exportPortableArchive(){
+ const records=[];
+ for(const p of store.photos){
+  const image=await imageGet(p.id),thumbnail=await imageGet(p.id,true);
+  if(!image||!thumbnail)throw Error('Cannot export camera '+p.id+': source image/thumbnail missing');
+  records.push({metadata:p,image,thumbnail});
+ }
+ if(!records.length)throw Error('Nothing in this camera archive to export');
+ const archive={format:'STARFALL_CAMERA_ARCHIVE',schema:1,galaxySeed:RT.galaxy.seed,
+  origin:'Real WebGL2 camera bytes + original 7F metadata',photos:records};
+ const blob=new Blob([JSON.stringify(archive)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;
+ a.download='starfall-7f-camera-archive.json';document.body.append(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),2500);
+ message('Exported '+records.length+' real image(s) as portable camera archive ('+Math.ceil(blob.size/1024)+' KiB).');
+}
+async function importPortableArchive(file){
+ if(!file||file.size>40*1048576||file.size<30)throw Error('Camera archive must be between 30 bytes and 40 MiB');
+ const archive=JSON.parse(await file.text());
+ if(archive?.format!=='STARFALL_CAMERA_ARCHIVE'||archive.schema!==1||
+  archive.galaxySeed!==RT.galaxy.seed||!Array.isArray(archive.photos)||archive.photos.length>120)
+  throw Error('Invalid camera archive version, galaxy seed or record count');
+ const added=[];
+ try{
+  for(const entry of archive.photos){
+   const p=entry?.metadata;
+   M.validateCapture(p);
+   if(!p.id||!/^photo-[0-9a-z]+$/.test(p.id)||p.mime!=='image/webp'&&p.mime!=='image/jpeg')
+    throw Error('Camera archive contains an invalid image record');
+   if(store.get(p.id))continue; // never overwrite live evidence
+   for(const x of ['image','thumbnail'])if(!new RegExp('^data:image/(webp|jpeg);base64,').test(entry[x]||'')||entry[x].length>4*1048576)
+    throw Error('Camera archive contains malformed or oversized encoded media');
+   if(Math.abs(Math.floor(entry.image.split(',')[1].length*3/4)-p.bytes)>6)
+    throw Error('Camera archive byte provenance does not match');
+   const img=new Image();img.src=entry.image;await img.decode();
+   if(img.width!==p.width||img.height!==p.height)throw Error('Camera archive dimensions do not match actual bytes');
+   await imagePut(p.id,entry.image,entry.thumbnail);
+   try{store.importPhoto(p);added.push(p.id);}catch(e){await imageRemove(p.id);throw e;}
+  }
+  if(root.SF.save({imaging7f:store.serialize()})===false)throw Error('Browser metadata storage full');
+  dirty=false;refresh();message('Restored '+added.length+' original real image(s). Archive metadata and image bytes retained.');
+ }catch(e){
+  for(const id of added){store.remove(id);await imageRemove(id);}
+  root.SF.save({imaging7f:store.serialize()});throw e;
+ }
+}
+$('imaging7f-export-archive').onclick=()=>exportPortableArchive().catch(err);
+$('imaging7f-import-archive').onclick=()=>$('imaging7f-archive-file').click();
+$('imaging7f-archive-file').onchange=e=>{
+ const file=e.target.files?.[0];e.target.value='';
+ if(file)importPortableArchive(file).catch(err);
+};
 $('imaging7f-delete').onclick=()=>deletePhoto().catch(err);
 $('imaging7f-photo').onclick=()=>{const img=$('imaging7f-photo');if(img.src)root.open(img.src,'_blank','noopener,noreferrer');};
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('imaging7f').hidden){close();e.stopImmediatePropagation();}},true);
