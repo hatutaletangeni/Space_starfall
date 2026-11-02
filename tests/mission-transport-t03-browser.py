@@ -33,9 +33,9 @@ with sync_playwright() as p:
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallCommsT03)",timeout=30000)
         setup=page.evaluate("""()=>{
           const rt=StarfallRuntime,UI=StarfallLaunchUI,O=StarfallOutposts,T=StarfallCommsT03,
-            body=rt.nearest,ship=rt.engineeringAssetPoses().shipPose,
-            local=O.offset(ship.local,[1,0,0],6,0,body.radius);
-          if(!rt.landed||!ship)throw Error('Genuine ship ground transceiver not present');
+            body=rt.nearest,ship=rt.engineeringAssetPoses().shipPose;
+          if(!rt.landed||!ship)throw Error('Genuine ship ground transceiver not present: '+JSON.stringify({landed:rt.landed,pose:rt.engineeringAssetPoses(),ctx:rt.outpostContext(),save:SF.load().flightGalaxy?.landed,bodyId:body.id}));
+          const local=O.offset(ship.local,[1,0,0],6,0,body.radius);
           const rover={id:'t03-live-probe',bodyId:body.id,systemId:body.systemId,
             local,batteryJ:5000000,status:'parked',heading:0,lastS:rt.time,
             commands:[],index:0,records:[]};
