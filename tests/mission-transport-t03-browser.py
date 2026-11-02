@@ -30,7 +30,7 @@ with sync_playwright() as p:
         # The live first tab can autosave its orbital position while a second WebGL
         # tab boots; initialize the landed record before that tab's JS starts.
         snapshot=json.dumps(json.dumps(landed_save))
-        context.add_init_script("(()=>{if(sessionStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t03-fixture-installed','1');})()")
+        context.add_init_script("(()=>{if(localStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");localStorage.setItem('t03-fixture-installed','1');})()")
         # A fresh tab reads the saved *landed* fixture; old tab stays open so
         # its pagehide handler cannot overwrite the fixture with orbit flight.
         page=context.new_page()
