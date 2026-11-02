@@ -2386,7 +2386,7 @@ function service(r,source,body,outposts,simS,unit=UNIT()){
  {id:r.id,energyJ:r.batteryJ,capacityJ:22e6},180000,{efficiency:.9,maxPowerW:6000,seconds:40,maxSourceJ:220000});
  if(!(j.deliveredJ>0))throw Error('ROVER SERVICE: source empty or rover fully charged');
  source.energyJ=j.fromEnergyJ;r.batteryJ=j.toEnergyJ;hw.chargeReadyAtS=simS+40;
- if(hw.state==='SAFE_STOP'&&r.batteryJ>600000){hw.state='READY';hw.fault='';r.status='parked';}
+ if(hw.state==='SAFE_STOP'&&r.batteryJ>(r.ground7d?.safeReserveJ??400000)+100000){hw.state='READY';hw.fault='';r.status='parked';}
  return{...j,distanceScene:dist,roverBatteryJ:r.batteryJ};
 }
 const API={SCHEMA:1,states,parse,hardware,fault,fromLatLon,latLon,footprint,chooseSite,landingDecision,route,dockingTarget,service};
