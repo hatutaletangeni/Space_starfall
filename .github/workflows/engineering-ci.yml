@@ -67,6 +67,7 @@ jobs:
           python tests/antenna-hardware-t04-browser.py
           python tests/remote-imaging-t05-browser.py
           python tests/rover-lifecycle-t06-browser.py
+          python tests/field-service-t12-browser.py
           python tests/orbital-bus-t07-browser.py
           python tests/interplanetary-t08-browser.py
           python tests/science-chain-t10-browser.py
