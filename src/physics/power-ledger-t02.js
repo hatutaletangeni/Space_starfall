@@ -58,7 +58,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
     fault:available?'':'Equipment disabled or failed',power:false,servedW:0,sourceWatts:{}};
   }
   for(const x of priority){
-   const need=Math.max(0,root.StarfallAntennaT04?.loadW(x.item,x.spec.watts)||x.spec.watts||0),r=report.byId[x.item.id];r.generatedW=x.generatedW;
+   const baseNeed=root.StarfallAntennaT04?root.StarfallAntennaT04.loadW(x.item,x.spec.watts):x.spec.watts;const need=Math.max(0,baseNeed||0),r=report.byId[x.item.id];r.generatedW=x.generatedW;
    if((servedW+need)*factor>availableW+1e-7){
     r.shedW=need;r.fault=availableW<1?'NO_SUPPLY: no illuminated source or charged battery':'BROWNOUT: available power / 48V 500A bus limit';
     report.shed.push(x.item.id);bus.shedIds.push(x.item.id);
