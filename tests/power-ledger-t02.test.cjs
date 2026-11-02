@@ -7,7 +7,7 @@ require('../src/physics/outposts.js');
 const O=globalThis.StarfallOutposts;
 const L=require('../src/physics/power-ledger-t02.js');
 const V=require('../src/physics/power.js');
-const body={id:'star-0-p0',systemId:'star-0',kind:'planet',type:'Temperate',atmosphere:'Thin, O₂, N₂',
+const body={id:'star-0-p0',systemId:'star-0',kind:'planet',type:'Temperate',landable:true,atmosphere:'Thin, O₂, N₂',
  radius:2150,position:[0,0,0],spinAxis:[0,1,0],spinAngle:0,spinPeriod:300};
 const sun=[0,10000000,0],night=[0,-10000000,0],power=4*Math.PI*(10000000)**2*1200;
 const radial=a=>[Math.sin(a),Math.cos(a),0];
