@@ -77,7 +77,25 @@ function refresh(){padOptions();preflight();const padT11=padReadinessT11();if(!p
  const launches=store.launches.slice(-12).reverse(),sats=store.satellites.slice(-12).reverse();refreshFlightPanel();
  $('launch-log').textContent='LAUNCH HISTORY\n'+(launches.length?launches.map(m=>m.id+' · '+m.payload.toUpperCase()+' · '+m.phase.toUpperCase()+' · '+format(m.trajectoryAltitudeM/1000,1)+' km / '+format(m.velocityMS/1000,2)+' km/s').join('\n'):'No launches yet')+'\n\nORBITAL SATELLITES\n'+(sats.length?sats.map(x=>x.id+' / '+(RT.galaxy.byId.get(x.bodyId)?.name||x.bodyId)+' · '+format(x.altitudeM/1000,0)+' km altitude').join('\n'):'No orbital payloads deployed');
  const old=$('launch-probe').value,probe=$('launch-probe');probe.replaceChildren();for(const r of store.rovers){const o=document.createElement('option');o.value=r.id;o.textContent=r.id+' / '+(RT.galaxy.byId.get(r.bodyId)?.name||r.bodyId);probe.append(o);}if(store.rovers.some(x=>x.id===old))probe.value=old;
- refreshProbe();refreshRoverService();const t=RT.truckSystems();$('launch-truck-status').textContent=t.available?('BATTERY '+format(t.batteryJ/3.6e6,2)+' kWh · CARGO '+format(t.cargoKg,0)+' kg · FLOODLIGHTS '+(t.lights?'ON':'OFF')+'\nFORWARD SLOPE '+format(t.forwardSlopeDeg,1)+'° · BIOME '+t.terrain+'\nSCIENCE ROVER DISTANCE '+format(t.scienceRoverDistance,1)+' units'+(t.winch?'\nWINCH '+t.winch.status+' · '+format(t.winch.lastDistance,1)+' units remaining · '+format(t.winch.remainingWorkJ/1000,1)+' kJ reserved':'\nWINCH IDLE · Max 55 scene units')):'Truck unavailable until surface touchdown.';}
+ refreshProbe();refreshRoverService();refreshT12();const t=RT.truckSystems();$('launch-truck-status').textContent=t.available?('BATTERY '+format(t.batteryJ/3.6e6,2)+' kWh · CARGO '+format(t.cargoKg,0)+' kg · FLOODLIGHTS '+(t.lights?'ON':'OFF')+'\nFORWARD SLOPE '+format(t.forwardSlopeDeg,1)+'° · BIOME '+t.terrain+'\nSCIENCE ROVER DISTANCE '+format(t.scienceRoverDistance,1)+' units'+(t.winch?'\nWINCH '+t.winch.status+' · '+format(t.winch.lastDistance,1)+' units remaining · '+format(t.winch.remainingWorkJ/1000,1)+' kJ remaining · '+format(t.winch.consumedWorkJ/1000,1)+' kJ actually spent · cable '+format(t.winch.cableLengthScene,1)+' units'+(t.winch.reason?' · '+t.winch.reason:''):'\nWINCH IDLE · Max 55 scene units')):'Truck unavailable until surface touchdown.';}
+function chosenFieldRover(){
+ if($('launch-t12-target').value!=='deployed')return null;
+ const r=store.rovers.find(x=>x.id===$('launch-probe').value);
+ if(!r)throw Error('T12 select a real deployed rover first');
+ return r;
+}
+function refreshT12(){
+ const el=$('launch-t12-status');if(!el)return;
+ try{
+  const r=chosenFieldRover(),d=RT.fieldServiceStatus(r),parts=d.parts.parts;
+  el.textContent=['TARGET '+(r?.id||'starfall-rover')+' / '+(r?'deployed':'local science rover'),
+   'ACCESS '+(d.nearby?'PHYSICAL ACCESS CONFIRMED':'OUT OF RANGE: exit parked truck with X and approach within 18 scene units'),
+   'TRUCK ENERGY '+format(d.batteryJ/3.6e6,2)+' kWh · CONNECTOR '+format(d.parts.temperatureK,1)+' K',
+   'FAULT '+d.parts.fault,'NEXT SERVICE '+format(Math.max(0,d.parts.readyAtS-RT.time),0)+' simulation seconds',
+   ...Object.entries(parts).map(([k,v])=>k.toUpperCase()+' CONDITION '+format(v*100,0)+'%'),
+   'LAST REPLACEMENTS '+(d.records.length?d.records.slice(-3).map(x=>x.slot+' / '+x.installedId+' / '+format(x.energyJ/1000,0)+' kJ').join(' · '):'None')].join('\n');
+ }catch(e){el.textContent='T12 DIAGNOSTIC '+e.message;}
+}
 function showAsset(){const item=registry?.assets.get($('launch-7a-asset').value),sum=registry?.summary();$('launch-7a-detail').textContent=item?('Registry: '+sum.total+' tracked assets · selected '+item.type.toUpperCase()+' · '+item.id+'\nEnergy '+(item.capacityJ>0?(item.energyJ/3.6e6).toFixed(2)+' / '+(item.capacityJ/3.6e6).toFixed(2)+' kWh':'not modeled')+' · condition '+Math.round(item.health*100)+'%\nOpen ASSET MANAGER for component cards, connections, operating limits, and source labels.'):'Registry: No registered engineered objects.';}
 /* 7D: a local surface terminal or powered relay, never a fabricated interstellar instant connection. */
 function remoteLink(r,time=RT.time){if(!r)return{connected:false,reason:'No selected rover',delayS:0};
@@ -224,9 +242,26 @@ $('launch-rover-service').onclick=()=>{try{
   battery=site?.store.items.find(x=>x.id===$('launch-rover-service-source').value),
   body=RT.nearest;
  if(!r||!RT.landed||!body||r.bodyId!==body.id)throw Error('Travel/land on the rover world to perform physical service.');
+  if(!RT.fieldServiceStatus(r).nearby)throw Error('T12: park the support truck, exit with X and stand within 18 scene units of deployed rover.');
  const receipt=root.StarfallRoverT06.service(r,battery,body,site,RT.time,P.SCENE_METERS_PER_UNIT);
  persist();site.persist();status('Service completed: '+format(receipt.deliveredJ/3600,1)+' Wh credited · '+format(receipt.lossJ/3600,1)+' Wh loss');refresh();
  }catch(e){status(e.message,true);}};
+$('launch-t12-target').onchange=refreshT12;
+$('launch-t12-slot').onchange=refreshT12;
+$('launch-t12-inspect').onclick=refreshT12;
+$('launch-t12-repair').onclick=()=>{try{
+ const r=chosenFieldRover(),result=RT.fieldRepair($('launch-t12-slot').value,r);
+ if(r)persist();
+ status('T12 '+result.record.assetId+' / '+result.record.slot+' repaired with installed '+result.record.installedId+
+  ' · '+format(result.record.energyJ/1000,0)+' kJ tools · '+result.record.durationS+' s service lockout');
+ refresh();
+ }catch(e){status(e.message,true);refreshT12();}};
+$('launch-t12-charge-local').onclick=()=>{try{
+ const x=RT.roverRechargeLocal($('launch-charge-source').value);
+ status('T12 local six-wheel rover charged '+format(x.deliveredJ/3600,1)+' Wh from '+x.sourceId+
+  ' · cable '+format(x.cableLengthScene,1)+' units · '+format(x.lossJ/1000,1)+' kJ loss');
+ refresh();
+ }catch(e){status(e.message,true);refreshT12();}};
 $('launch-winch').onclick=()=>{try{const r=RT.truckWinch();status('Recovery started · '+format(r.distanceAfter,1)+' scene units to target · budget '+format(r.workJ/1000,1)+' kJ; use CANCEL to stop safely');refresh();}catch(e){status(e.message,true);}};
 $('launch-7d-winch-cancel').onclick=()=>{try{status(RT.truckWinchCancel()?'Recovery cancelled. Energy already used is not restored.':'No active recovery');refresh();}catch(e){status(e.message,true);}};
 $('launch-recharge').onclick=()=>{try{const j=RT.truckRecharge($('launch-charge-source').value);status('Wired charge '+format(j.deliveredJ/3.6e6,3)+' kWh · source draw '+format(j.drawnJ/3.6e6,3)+' kWh · truck '+format(j.batteryJ/3.6e6,2)+' kWh');refresh();}catch(e){status(e.message,true);}};
