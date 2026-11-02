@@ -74,7 +74,11 @@ function link(a,b,body,radioLink,rotate,metresPerSceneUnit=1000){
    bandwidthBps:1000000,distanceM:V.length(V.sub(a.position,b.position))*metresPerSceneUnit,
    txPowerW:a.txPowerW??5,rxPowerW:b.rxPowerW??5};
  }
- const los=radioLink(a.position,b.position,[{position:body.position,radius:body.radius}],min(a.rangeScene,b.rangeScene),metresPerSceneUnit);
+ // Simplified reciprocal link budget: baseline omni link has range R;
+ // an active high-gain station extends link distance by the geometric mean of
+ // endpoint range ratings. Both radios still require their own DC power.
+ const effectiveRange=Math.sqrt(Math.max(0,a.rangeScene)*Math.max(0,b.rangeScene));
+ const los=radioLink(a.position,b.position,[{position:body.position,radius:body.radius}],effectiveRange,metresPerSceneUnit);
  if(!los.connected)return{...los,connected:false,reason:los.reason||'Planetary occultation / beyond antenna horizon'};
  const aGain=gain(a,b,rotate),bGain=gain(b,a,rotate),health=min(a.condition??1,b.condition??1);
  const quality=clamp((los.quality??1)*aGain*bGain*health,0,1);
