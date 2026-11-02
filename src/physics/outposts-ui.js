@@ -96,6 +96,6 @@ function tick(dt,timeScale){if(document.hidden)return;const time=RT.time;
  if(completedTransmission||dirty&&performance.now()-lastFlush>6000)persist();if(!$('outpost').hidden&&performance.now()-lastPanel>900){lastPanel=performance.now();refresh();}
 }
 addEventListener('pagehide',()=>{if(dirty)persist();});
-function advancePowerTo(atTime,resolve){if(!Number.isFinite(atTime)||atTime<0)return false;powerTick(0,atTime,resolve);lastPowerTick=atTime;dirty=true;return true;}
+function advancePowerTo(atTime,resolve){if(!Number.isFinite(atTime)||atTime<0)return false;const before=store.serialize(),previousTimes={...lastPoweredAt},oldReports=new Map(powerReports),oldTick=lastPowerTick;try{powerTick(0,atTime,resolve);lastPowerTick=atTime;dirty=true;return true;}catch(error){store.restore(before);for(const k of Object.keys(lastPoweredAt))delete lastPoweredAt[k];Object.assign(lastPoweredAt,previousTimes);powerReports=oldReports;lastPowerTick=oldTick;throw error;}}
 root.StarfallOutpostUI={store,tick,advancePowerTo,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
 })(globalThis);
