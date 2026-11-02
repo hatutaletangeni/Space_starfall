@@ -1,0 +1,21 @@
+/* 7F additive camera telemetry UI. Strictly scoped; game canvas unaffected. */
+#imaging7f{z-index:80}
+.im7f-window{width:min(1000px,97vw);max-height:91vh;overflow:auto}
+.im7f-fieldset{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin:12px 0}
+.im7f-fieldset label{display:flex;flex-direction:column;gap:5px;font:11px Consolas,monospace;color:#b8c6cb}
+.im7f-fieldset select{background:#0a1724;color:#eee7dc;border:1px solid #425d70;padding:10px;width:100%}
+.im7f-tools{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.im7f-tools button{flex:0 1 auto}
+.im7f-status{font:11px/1.7 Consolas,monospace;white-space:pre-wrap;color:#f7b9a8;min-height:30px}
+.im7f-status[data-success=true]{color:#a4d2bb}
+.im7f-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.im7f-card{background:#0e1c29;color:#e0e8e8;border:1px solid #365066;padding:13px;min-height:80px;display:flex;flex-direction:column;text-align:left;gap:9px;font:11px/1.5 Consolas,monospace}
+.im7f-card:hover,.im7f-card:focus-visible{border-color:#edc18d}
+.im7f-card small{color:#a0afb9}
+.im7f-badge{align-self:flex-start;border:1px solid #677580;border-radius:4px;padding:1px 6px;color:#e5bd85;text-transform:uppercase;font:9px Consolas,monospace}
+.im7f-detail{border:1px solid #394857;padding:14px;background:#070e18;margin:18px 0}
+.im7f-photo{display:block;margin:12px auto;max-width:100%;width:auto;height:auto;max-height:55vh;object-fit:contain;border:1px solid #3c5266;cursor:zoom-in}
+.im7f-meta{white-space:pre-wrap;color:#bec8cb;font:11px/1.75 Consolas,monospace}
+.im7f-note{color:#b2bcc5;font:11px/1.6 Consolas,monospace}
+#imaging7f-photo[hidden],#imaging7f-detail[hidden],#imaging7f[hidden]{display:none!important}
+@media(max-width:600px){.im7f-window{padding:14px}.im7f-fieldset{grid-template-columns:1fr}.im7f-tools button{flex:1 1 auto}}
