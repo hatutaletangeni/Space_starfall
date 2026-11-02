@@ -25,11 +25,11 @@ with sync_playwright() as p:
       up:[0,1,0],landed:true}});
     return SF.load();
   }""")
-  ctx.add_init_script("(()=>{if(localStorage.getItem('t07-ship-fixture'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");localStorage.setItem('t07-ship-fixture','1');})()")
+  ctx.add_init_script("(()=>{if(sessionStorage.getItem('t07-ship-fixture'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t07-ship-fixture','1');})()")
+  boot.close()
   page=ctx.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!(window.StarfallSatelliteOpsUI && window.StarfallCommsT03 && window.StarfallMissionOperationsUI)',timeout=30000)
-  boot.close()
   setup=page.evaluate("""()=>{
     const rt=StarfallRuntime,b=rt.nearest,op=StarfallMissionOperationsUI,
       ctx=rt.outpostContext(),S=StarfallSatelliteOps7C,B=StarfallOrbitalBusT07,

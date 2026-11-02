@@ -29,12 +29,12 @@ with sync_playwright() as p:
       groundDirection:local,forward:[0,0,1],up:dir,landed:true}});
     return{state:SF.load(),targetId:B.id};
   }""")
-  context.add_init_script("(()=>{if(localStorage.getItem('t08-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved['state']))+");localStorage.setItem('t08-initialized','1');})()")
+  context.add_init_script("(()=>{if(sessionStorage.getItem('t08-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved['state']))+");sessionStorage.setItem('t08-initialized','1');})()")
+  boot.close()
   page=context.new_page();errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(file.as_uri(),wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!(window.StarfallMissionOperationsUI && window.StarfallCommsT03 && window.StarfallOutpostUI && window.StarfallImagingUI7F)',timeout=45000)
-  boot.close()
   fixture=page.evaluate("""targetId=>{
     const rt=StarfallRuntime,O=StarfallOutposts,T=StarfallDeepSpaceT08,
       site=StarfallOutpostUI,launch=StarfallLaunchUI,
@@ -157,6 +157,14 @@ with sync_playwright() as p:
     SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,
       time:StarfallMissionOperationsUI.clock.lastSimulatedS}});
   }""")
+  stored=page.evaluate("""()=>{
+   const raw=localStorage.getItem('starfall_save')||'{}',v=JSON.parse(raw);
+   return{length:raw.length,launcher:!!v.launch7,rovers:v.launch7?.rovers?.length||0,
+     antennas:v.outpost5?.items?.filter(x=>x.kind==='antenna').length||0,
+     photo:v.imaging7f?.photos?.length||0,packet:v.commsT03?.packets?.length||0,
+     fromSF:SF.load().launch7?.rovers?.length||0,lock:!!window.__STARFALL_IMPORT_PENDING};
+  }""")
+  assert stored['launcher'] and stored['rovers']>=1 and stored['antennas']>=2 and stored['photo']>0 and stored['packet']>0,stored
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!window.StarfallDeepSpaceT08 && !!window.StarfallCommsT03",timeout=45000)
   resumed=page.evaluate("""data=>{

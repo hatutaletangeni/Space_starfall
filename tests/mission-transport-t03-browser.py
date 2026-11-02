@@ -30,18 +30,15 @@ with sync_playwright() as p:
         # The live first tab can autosave its orbital position while a second WebGL
         # tab boots; initialize the landed record before that tab's JS starts.
         snapshot=json.dumps(json.dumps(landed_save))
-        context.add_init_script("(()=>{if(localStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");localStorage.setItem('t03-fixture-installed','1');})()")
-        boot_tab=page
-        # A fresh tab reads the saved *landed* fixture; old tab stays open so
-        # its pagehide handler cannot overwrite the fixture with orbit flight.
+        context.add_init_script("(()=>{if(sessionStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t03-fixture-installed','1');})()")
+        # Close the old simulation BEFORE the new one boots. Otherwise its
+        # pagehide save can overwrite source-owned launched rover packet state.
+        # The init-script now restores the precise landed fixture on the new tab.
+        page.close()
         page=context.new_page()
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallCommsT03)",timeout=30000)
-        # Close the old *unlanded* simulation before adding remote assets.
-        # Otherwise its own T01 autosaves race and overwrite the new tab's
-        # authoritative launch7 inventory during the long Chromium test.
-        boot_tab.close()
         setup=page.evaluate("""()=>{
           const rt=StarfallRuntime,UI=StarfallLaunchUI,O=StarfallOutposts,T=StarfallCommsT03,
             body=rt.nearest,ship=rt.engineeringAssetPoses().shipPose;
@@ -84,7 +81,7 @@ with sync_playwright() as p:
         assert blocked['packet']['sendBytes']==0,blocked
         assert not blocked['route']['connected'],blocked
         # Put battery back and persist a currently queued packet.
-        page.evaluate("""()=>{
+        persisted=page.evaluate("""()=>{
           const rt=StarfallRuntime,v=rt.vehicleStore.get('ship');
           rt.vehicleStore.update('ship',{...v.state,energyJ:2000000});
           const at=StarfallMissionOperationsUI.clock.lastSimulatedS;
@@ -93,7 +90,12 @@ with sync_playwright() as p:
           StarfallMissionOperationsUI.persist();
           const old=SF.load().flightGalaxy||{};
           SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
+          const value=SF.load(),raw=JSON.parse(localStorage.getItem('starfall_save')||'{}');
+          return{packets:value.commsT03?.packets?.length||0,rovers:value.launch7?.rovers?.length||0,
+            diskPackets:raw.commsT03?.packets?.length||0,diskRovers:raw.launch7?.rovers?.length||0,
+            guard:sessionStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
         }""")
+        assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallLaunchUI)",timeout=30000)
         restored=page.evaluate("""()=>{

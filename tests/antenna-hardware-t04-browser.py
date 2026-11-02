@@ -26,12 +26,14 @@ with sync_playwright() as p:
           return SF.load();
         }""")
         snapshot=json.dumps(json.dumps(saved))
-        context.add_init_script("(()=>{if(localStorage.getItem('t04-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");localStorage.setItem('t04-fixture-installed','1');})()")
+        context.add_init_script("(()=>{if(sessionStorage.getItem('t04-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t04-fixture-installed','1');})()")
+        # The first tab's pagehide autosave must happen BEFORE the new tab's
+        # initial-save injection. Never overwrite a newer outpost/packet store.
+        initial.close()
         page=context.new_page()
         page.on('pageerror',lambda e:failures.append(str(e)))
         page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('!!(window.StarfallRuntime && window.StarfallCommsT03 && window.StarfallAntennaT04)',timeout=30000)
-        initial.close()
         setup=page.evaluate("""()=>{
           const rt=StarfallRuntime,site=StarfallOutpostUI,O=StarfallOutposts,T=StarfallCommsT03;
           const body=rt.nearest,ship=rt.engineeringAssetPoses().shipPose,db=site.store;
