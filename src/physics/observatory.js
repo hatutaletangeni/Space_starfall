@@ -17,7 +17,7 @@ function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galax
 }
 function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChildren();$('obs-name').textContent=selected?.name||'—';$('obs-quality').textContent=p?.classification||'Unknown';
  const journal=root.StarfallScienceUI?.journal||[],observed=journal.filter(x=>x.bodyId===selected?.id&&
- (x.receivedAtS!==null||x.kind==='measurement')&&Number.isFinite(x.timeS)&&Number.isFinite(x.value));
+ (Number.isFinite(x.receivedAtS)||x.kind==='measurement')&&Number.isFinite(x.timeS)&&Number.isFinite(x.value));
  const latest=observed.sort((a,b)=>b.timeS-a.timeS).slice(0,6);
  for(const r of [{label:'Instrument evidence state',value:latest.length?'OBSERVED (seeded measurements)':'INFERRED / UNSCANNED',quality:latest.length?'Real source journal receipts, NOT calibrated astronomical truth':'Procedural catalogue only'},
  ...latest.map(x=>({label:'Observed '+x.instrument,value:String(x.value)+' '+(x.unit||'')+' at T+'+x.timeS.toFixed(1)+' s',quality:'Source '+(x.satelliteId||x.probeId||x.sourceAssetId||'field journal')+' · observation '+x.id})),
