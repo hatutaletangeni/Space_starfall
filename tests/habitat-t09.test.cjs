@@ -85,6 +85,20 @@ long.habT09.enabled=true;
 H.step(long,body,90000,true);
 assert(H.inspect(long,body,true).alarms.includes('AWAITING_REVIEW'));
 assert.equal(H.inspect(long,body,true).oxygenTankMol,1050,'no overlong time skip energy or air production');
+// Mid-cycle blackout must pause the actual powered door motor; a leak must
+// abort an unsafe outward transition, without a fake open door.
+const lock={id:'airlock-test',kind:'hab',bodyId:body.id,enabled:true,condition:1};
+H.ensure(lock,0);H.command(lock,'ENABLE',{near:true,now:0,body});
+H.step(lock,body,1,true);
+H.command(lock,'CYCLE_OUT',{near:true,powered:true,now:1,body});
+H.step(lock,body,20,false);
+assert.equal(H.inspect(lock,body,false).airlock,'CYCLING_OUT','DC blackout pauses powered actuator');
+H.step(lock,body,30,true);
+assert.equal(H.inspect(lock,body,true).airlock,'CYCLING_OUT','remaining motor time not silently completed');
+lock.habT09.seal=.1;
+H.step(lock,body,35,true);
+assert.equal(H.inspect(lock,body,true).airlock,'CLOSED','dangerous leak aborts outward transition');
+assert(H.inspect(lock,body,true).alarms.includes('LEAK'));
 const serviceHab={id:'hab-service',kind:'hab',bodyId:body.id,enabled:true,condition:1,local:[1,0,0]};
 H.ensure(serviceHab,0);H.command(serviceHab,'ENABLE',{near:true,now:0,body});
 H.step(serviceHab,body,30,true);
