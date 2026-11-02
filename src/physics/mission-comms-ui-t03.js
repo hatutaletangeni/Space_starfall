@@ -31,8 +31,8 @@ function shipNode(body,t){
  if(v.state.energyJ<500000||v.state.health<=.05||v.state.loads?.avionics===false)return null;
  const rad=O.rotate(pose.local,body.spinAxis||[0,1,0],body.spinAngle||0);
  const position=O.V.add(body.position,O.V.mul(rad,body.radius+12));
- return{id:'starfall-ship',kind:'ship-radio',bodyId:body.id,position,rangeScene:45,
-  bandwidthBps:128000,energyJ:v.state.energyJ,txPowerW:60};
+ return{id:'starfall-ship',kind:'ship-radio',bodyId:body.id,position,rangeScene:link?.rangeScene||45,
+  bandwidthBps:link?.bandwidthBps||128000,energyJ:v.state.energyJ,txPowerW:link?.txPowerW||60};
 }
 function towerNodes(body){
  const hw=root.StarfallAntennaT04,ui=root.StarfallOutpostUI;

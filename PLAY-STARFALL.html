@@ -261,7 +261,11 @@
    <div class="obs-window" style="width:min(810px,98vw)"><div class="obs-head"><div><span class="obs-badge">STARFALL / ENGINEERING SYSTEMS</span><h2 id="wb-title">Vehicle Workbench</h2></div><button id="wb-close" class="science-action" type="button">✕ Close</button></div>
     <p>Preview engineering changes. Applying is allowed only on a landed, safe vehicle. No changes to the ship or rover geometry, hatch or boarding controls.</p>
     <div class="obs-tools"><button id="research7e-open" type="button" class="science-action">RESEARCH BENCH</button><label for="wb-vehicle">Vehicle</label><select id="wb-vehicle"><option value="ship">Spacecraft</option><option value="rover">Rover</option></select><button type="button" id="wb-reset" class="science-action">Reset to stock</button><button type="button" id="wb-undo" class="science-action">Undo</button></div>
-    <div id="wb-slots" class="wb-slots"></div><div id="wb-preview" aria-live="polite"></div><p id="wb-error" role="status" aria-live="polite"></p>
+    <div id="wb-slots" class="wb-slots"></div><div id="wb-preview" aria-live="polite"></div>
+    <section aria-label="Installed hardware and service record" style="margin:12px 0"><h3>INSTALLED / REAL MACHINE · T15</h3>
+    <pre id="wb-live-t15" class="field-note" aria-live="polite">Select a vehicle to inspect its actual components.</pre>
+    <div class="obs-tools"><button id="wb-restore-t15" type="button" class="science-action">RESTORE PREVIOUS INSTALLED PARTS</button>
+    <button id="wb-refresh-t15" type="button" class="science-action">RECHECK REAL HARDWARE</button></div></section><p id="wb-error" role="status" aria-live="polite"></p>
     <div class="obs-tools"><button type="button" id="wb-apply" class="science-action">Apply design</button><button type="button" id="wb-save" class="science-action">Save design</button><button type="button" id="wb-load" class="science-action">Load design</button><button type="button" id="wb-export" class="science-action">Export JSON</button></div>
    </div>
   </section>
@@ -1732,9 +1736,12 @@ const component=(id,type,massKg,extra={})=>Object.freeze({id,type,massKg,...extr
  component('wheels-grippy','wheels',315,{count:6,radiusM:.74,traction:.91}),
  component('suspension-bogie','suspension',180,{travelM:.35,maxLoadKg:2600}),
  component('avionics-ship','avionics',170,{powerW:900}),
+  component('avionics-ship-long','avionics',225,{powerW:1450,radioRangeScene:85,radioBandwidthBps:192000,radioTxPowerW:95}),
  component('avionics-rover','avionics',39,{powerW:190}),
  component('science-suite-ship','instrument',90,{powerW:600}),
  component('science-suite-rover','instrument',45,{powerW:280}),
+  component('science-suite-rover-geo','instrument',62,{powerW:360,mode:'geology',instrumentKeys:['spectrometer','thermometer','barometer','magnetometer','radar','seismometer','sampler']}),
+  component('science-suite-rover-bio','instrument',71,{powerW:420,mode:'biosurvey',instrumentKeys:['spectrometer','thermometer','barometer','bioassay','sampler']}),
  component('docking-ship','docking',90,{powerW:30}),
  component('docking-rover','docking',22,{powerW:10})
 ].forEach(item=>C[item.id]=item);
@@ -1778,6 +1785,13 @@ function evaluate(def,fuelKg){const errors=validate(def);if(errors.length)throw 
  const chassisMass=hull.massKg||0;
  const inertiaKgM2=[0,1,2].map(i=>chassisMass*(dimensionsM[(i+1)%3]**2+dimensionsM[(i+2)%3]**2)/12+bodies.reduce((a,b)=>a+(b.mass*((b.at[(i+1)%3]-centerOfMassM[(i+1)%3])**2+(b.at[(i+2)%3]-centerOfMassM[(i+2)%3])**2)),0));
  return{kind:def.kind,id:def.id,dryMassKg:structure,fuelKg:fuel,massKg,fuelCapacityKg,inertiaKgM2,centerOfMassM,thrustN:engine.thrustN||0,ispS:engine.ispS||0,enginePowerW:engine.powerW||0,engineHeatW:engine.heatW||0,engineHeatLimitK:engine.heatLimitK||1650,batteryCapacityJ:battery.capacityJ||0,maxChargeW:battery.maxChargeW||0,maxDischargeW:battery.maxDischargeW||0,chargeEfficiency:battery.chargeEfficiency||1,dischargeEfficiency:battery.dischargeEfficiency||1,solarAreaM2:solar.areaM2||0,solarEfficiency:solar.efficiency||0,maxSolarW:solar.maxPowerW||0,generatorW:generator.maxPowerW||0,radiatorAreaM2:radiator.areaM2||0,emissivity:radiator.emissivity||.78,pumpW:radiator.pumpW||0,avionicsW:get('avionics').powerW||0,instrumentsW:get('instruments').powerW||0,dockingW:get('docking').powerW||0,drivePowerW:motor.powerW||0,driveTorqueNm:motor.torqueNm||0,wheelRadiusM:wheels.radiusM||0,traction:wheels.traction||0,suspensionTravelM:get('suspension').travelM||0,deltaVMS:fuel>0&&engine.ispS?engine.ispS*G0*Math.log(massKg/structure):0,burnSeconds:fuel>0&&engine.thrustN?fuel*engine.ispS*G0/engine.thrustN:0};}
+function allowsInstrument(def,instrument){
+ if(!def||typeof instrument!=='string')return false;
+ const part=C[def.slots?.instruments];if(!part||part.type!=='instrument')return false;
+ // Legacy science suite intentionally retains its prior full tool set.
+ const all=['spectrometer','thermometer','barometer','magnetometer','radar','seismometer','sampler','bioassay'];
+ return (Array.isArray(part.instrumentKeys)?part.instrumentKeys:all).includes(instrument);
+}
 function initialState(kind,def=presets[kind]){const e=evaluate(def);return{schema:SCHEMA,fuelKg:e.fuelKg,energyJ:e.batteryCapacityJ*.85,temperatureK:290,health:1,loads:{avionics:true,instruments:true,lights:true,radiator:true,drive:true},powerEnabled:false};}
 function repairState(def,input){const base=initialState(def.kind,def),e=evaluate(def);const s=input&&typeof input==='object'?input:{};const safe=(key,min,max,fallback)=>Number.isFinite(s[key])?Math.min(max,Math.max(min,s[key])):fallback;return{...base,fuelKg:safe('fuelKg',0,e.fuelCapacityKg,base.fuelKg),energyJ:safe('energyJ',0,e.batteryCapacityJ,base.energyJ),temperatureK:safe('temperatureK',2,3000,290),health:safe('health',0,1,1),powerEnabled:!!s.powerEnabled,loads:Object.fromEntries(Object.keys(base.loads).map(k=>[k,s.loads?.[k]!==false]))};}
 function sanitize(saved){const output={schema:SCHEMA,definitions:{},states:{}};for(const kind of ['ship','rover']){const def=saved?.schema===SCHEMA&&saved.definitions?.[kind];output.definitions[kind]=def&&validate(def).length===0?copy(def):copy(presets[kind]);output.states[kind]=repairState(output.definitions[kind],saved?.states?.[kind]);}return output;}
@@ -1785,7 +1799,7 @@ function createStore(saved){let data=sanitize(saved);return{get(kind){return{def
  // Preserve current fuel and charge when possible; new capacity never gives free energy.
  converted.energyJ=Math.min(old.energyJ,stats.batteryCapacityJ);converted.fuelKg=Math.min(old.fuelKg,stats.fuelCapacityKg);
  const result={definition:revised,state:converted};data.definitions[kind]=result.definition;data.states[kind]=result.state;return{old:previous,next:evaluate(revised,converted.fuelKg)};}};}
-root.StarfallVehicles={SCHEMA,G0,components:C,presets:copy(presets),slots,validate,evaluate,initialState,repairState,sanitize,createStore,clone:copy};
+root.StarfallVehicles={SCHEMA,G0,components:C,presets:copy(presets),slots,validate,evaluate,initialState,repairState,sanitize,createStore,allowsInstrument,clone:copy};
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallVehicles;
 })(globalThis);
 
@@ -1974,6 +1988,102 @@ function filterMarkers(markers,filter='all'){const accepted=['all','measurement'
 const API={sensorSpecs,SENSORS,quality,annotateObservation,validateEvidence,latLon,evidenceLayers,filterMarkers,unit};
 root.StarfallScienceT14=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
+/* STARFALL T15: Asset engineering identity, fault contracts, measured before/after.
+ * Read-only inspection of original vehicle state and original 7E experiment.
+ * T15 ledger contains only service provenance, NOT a new vehicle/battery store.
+ */
+(function(root){'use strict';
+const M=root.StarfallVehicles,clone=x=>JSON.parse(JSON.stringify(x)),finite=Number.isFinite;
+function restore(raw){
+ const src=raw&&typeof raw==='object'?raw:{},items=Array.isArray(src.events)?src.events.filter(e=>e&&typeof e.id==='string'&&
+ typeof e.assetId==='string'&&finite(e.timeS)&&e.timeS>=0&&['CONFIG_APPLIED','CONFIG_RESTORED','FIELD_REPAIR'].includes(e.action)):[];
+ const backup=src.backup&&typeof src.backup==='object'?src.backup:{};
+ const state={schema:15,serial:finite(src.serial)?Math.max(0,Math.floor(src.serial)):0,events:items,
+  backup:{ship:null,rover:null}};
+ for(const kind of ['ship','rover'])if(backup[kind]?.definition?.kind===kind&&M.validate(backup[kind].definition).length===0)
+  state.backup[kind]={definition:clone(backup[kind].definition),eventId:String(backup[kind].eventId||'').slice(0,130)};
+ return state;
+}
+function fingerprint(def){return JSON.stringify({id:def?.id,kind:def?.kind,slots:def?.slots,mountPointsM:def?.mountPointsM});}
+function validateChange(kind,current,definition,ready,meta=null){
+ if(!['ship','rover'].includes(kind)||current?.definition?.kind!==kind||definition?.kind!==kind)
+  throw Error('T15 source asset and proposed assembly must be the same vehicle family');
+ if(!ready)throw Error('T15 service interlock: land and park the correct vehicle; stop rover automation and disconnect service cable');
+ const errors=M.validate(definition);if(errors.length)throw Error('T15 invalid real installed assembly: '+errors.join('; '));
+ if(definition.id!==current.definition.id)throw Error('T15 cannot replace another asset identity by applying a blueprint');
+ if(fingerprint(current.definition)===fingerprint(definition))throw Error('T15 no installed part has changed; not recording a false successful replacement');
+ if(meta){
+  if(meta.kind!=='7E' ||meta.imported||meta.benchOnly||!meta.runId||!meta.blueprintId||
+     meta.sourceAssetId!==current.definition.id||meta.sourceDefinitionFingerprint!==fingerprint(definition)||
+     !Array.isArray(meta.observationRefs)||!Array.isArray(meta.photoRefs))
+    throw Error('T15 blueprint lacks locally validated run, unchanged source identity or installed definition provenance');
+ }
+ return{before:M.evaluate(current.definition,current.state.fuelKg),
+  after:M.evaluate(definition,current.state.fuelKg),
+  beforePartIds:clone(current.definition.slots),
+  afterPartIds:clone(definition.slots)};
+}
+function append(state,action,{assetId,kind,timeS,before,after,source=null,partBefore=null,partAfter=null}){
+ const s=restore(state);
+ if(!finite(timeS)||timeS<0||typeof assetId!=='string'||!assetId)throw Error('T15 invalid service event clock/asset');
+ if(s.events.length>=500)throw Error('T15 service event archive is full (500); export records before further modifications');
+ const id='service-t15-'+(++s.serial);
+ const event={schema:15,id,action,timeS,assetId,kind,
+   before:before?{massKg:before.massKg,batteryCapacityJ:before.batteryCapacityJ,solarW:before.maxSolarW,
+    torqueNm:before.driveTorqueNm,traction:before.traction,engineThrustN:before.thrustN,energyJ:before.energyJ}:null,
+   after:after?{massKg:after.massKg,batteryCapacityJ:after.batteryCapacityJ,solarW:after.maxSolarW,
+    torqueNm:after.driveTorqueNm,traction:after.traction,engineThrustN:after.thrustN,energyJ:after.energyJ}:null,
+   partBefore:partBefore?clone(partBefore):null,partAfter:partAfter?clone(partAfter):null,
+   source:source?clone(source):{type:'WORKBENCH',model:'Original installed parts'}};
+ s.events.push(event);return{state:s,event};
+}
+function changedLive(before,after){
+ if(!before||!after)return false;
+ return fingerprint(before.definition)!==fingerprint(after.definition)&&
+  (Object.keys(before.definition.slots).some(k=>before.definition.slots[k]!==after.definition.slots[k])||
+  JSON.stringify(before.definition.mountPointsM)!==JSON.stringify(after.definition.mountPointsM));
+}
+function faults(vehicle,report){
+ const v=vehicle||{},st=v.state||{},stats=v.stats||{},ret=[];
+ const add=(id,severity,cause,remedy)=>ret.push({id,severity,rootCause:cause,service:remedy,source:'ACTUAL VEHICLE STATE'});
+ if(finite(st.health)&&st.health<=.25)add('hull','CRITICAL','Actual persisted health '+st.health,'Use existing T12 field repair for rover; ship requires compatible service hardware and parked Workbench, no free auto-heal');
+ if(finite(st.temperatureK)&&st.temperatureK>=390)add('thermal','WARNING','Actual modeled system temperature '+st.temperatureK+' K','Stop motors; check power, radiator load and cooling');
+ if(finite(st.energyJ)&&finite(stats.batteryCapacityJ)&&st.energyJ<=stats.batteryCapacityJ*.05)
+  add('battery','WARNING','Original battery remaining '+st.energyJ+' J','Use original solar/bus generation or physically connected T13/12 charging');
+ if(st.powerEnabled&&report?.shed?.length)add('power-bus','WARNING','Real power solver shed '+report.shed.join(', '),'Reduce enabled loads; inspect solar, generator and battery');
+ return ret;
+}
+function statusFor(vehicle,slot,report){
+ const comp=M.components[vehicle?.definition?.slots?.[slot]],st=vehicle?.state||{};
+ if(!comp)return{state:'OUT OF SERVICE',reason:'No valid installed component'};
+ if(st.health<=.05)return{state:'OUT OF SERVICE',reason:'Owner vehicle hull health below 5%'};
+ const l={avionics:'avionics',instruments:'instruments',radiator:'radiator',motor:'drive'};
+ const key=l[slot];
+ if(key&&st.loads?.[key]===false)return{state:'OUT OF SERVICE',reason:'Real electrical load switch OFF'};
+ if(st.powerEnabled&&key&&report?.shed?.includes(key))return{state:'OUT OF SERVICE',reason:'Actual power bus load shed'};
+ if(st.powerEnabled&&key&&(!report||report.draws?.[key]===0))
+  return{state:'MODELLED',reason:'Bus service has not been sampled or source insufficient'};
+ if(!st.powerEnabled&&['avionics','instruments','motor'].includes(slot))return{state:'MODELLED',reason:'Legacy simplified vehicle power; not a measured live voltage'};
+ return{state:'OPERATIONAL',reason:'Installed and not disabled by known live system interlocks'};
+}
+function inspect(vehicle,report,state,kind){
+ if(!vehicle?.definition||!['ship','rover'].includes(kind))return[];
+ const s=restore(state),id=vehicle.definition.id;
+ return Object.entries(vehicle.definition.slots).map(([slot,partId])=>{
+  const part=M.components[partId],status=statusFor(vehicle,slot,report);
+  return{ownerId:id,ownerKind:kind,slot,partId,partType:part?.type||'missing',
+   rated:part?clone(part):null,status:status.state,reason:status.reason,
+   massKg:part?.massKg||0,powerW:part?.powerW??part?.maxPowerW??null,
+   bus:slot==='motor'?'drive':slot==='instruments'?'instruments':slot==='avionics'?'avionics':slot==='radiator'?'radiator':'installed passive/system',
+   faults:faults(vehicle,report).filter(f=>f.id===slot||f.id==='hull'||f.id==='battery'&&slot==='battery'),
+   provenance:s.events.filter(e=>e.assetId===id&&(e.partBefore?.[slot]!==e.partAfter?.[slot])).slice(-3).map(e=>({id:e.id,action:e.action,timeS:e.timeS,source:e.source}))};
+ });
+}
+const API={restore,fingerprint,validateChange,append,changedLive,inspect,statusFor,faults};
+root.StarfallEquipmentT15=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
 
 </script><script>
 /* STARFALL 4B — bounded 6 wheel traction/slope model; not full rigidbody suspension. */
@@ -2853,8 +2963,13 @@ function radio({ship,report}={}){
  if(st.powerEnabled&&(!report||report.shed?.includes('avionics')||
     (report.draws?.avionics||0)<(stats?.avionicsW||Infinity)-1e-8))
   return{ready:false,reason:'SHIP_RADIO: realistic electrical bus avionics shed / not yet updated'};
+ const avionics=root.StarfallVehicles?.components?.[v.definition.slots.avionics]||{};
+ const rangeScene=Number.isFinite(avionics.radioRangeScene)?avionics.radioRangeScene:45;
+ const bandwidthBps=Number.isFinite(avionics.radioBandwidthBps)?avionics.radioBandwidthBps:128000;
+ const txPowerW=Number.isFinite(avionics.radioTxPowerW)?avionics.radioTxPowerW:60;
  return{ready:true,mode:st.powerEnabled?'T02 SERVED AVIONICS':'LEGACY EMERGENCY DC (BATTERY-DEBITED)',
-  rangeScene:45,bandwidthBps:128000,reason:'Physical 45-scene-unit radio with finite power and LOS'};
+  rangeScene,bandwidthBps,txPowerW,
+  reason:'Original installed '+v.definition.slots.avionics+' physical '+rangeScene+'-scene-unit radio with real bus draw and LOS'};
 }
 function diagnostic({ship,report,state,landed,bodyId,scienceCount=0}){
  const s=repair(state),st=ship?.state||{},t=ship?.stats||{},r=radio({ship,report});
@@ -3316,7 +3431,19 @@ function quantity(n,kind){if(!finite(n))return 'Unavailable';
 function kindFor(type){if(['battery','solar','generator','drive','engine','tank','antenna','sensor','radiator','chassis','payload'].includes(type))return type; if(/motor|drive/.test(type))return'drive';if(/instrument|science|avionics/.test(type))return'sensor';if(/wheel|suspension|structure|frame|foundation/.test(type))return'chassis';return'payload';}
 function details(id,type,raw){const r=raw&&typeof raw==='object'?raw:{};const properties={};for(const [k,v] of Object.entries(r)){if(finite(v)&&/(Kg|J|W|N|Nm|S|V|K|M2|Meters|Efficiency|torque|radius)/i.test(k))properties[k]=v;}return{id:String(id),type:kindFor(type),label:pretty(id),properties};}
 function componentsFor(asset,sources={}){if(!asset)return[];const a=asset,results=[];
- if(a.type==='ship'||a.type==='rover'){const slotNames=sources.vehicles?.get?.(a.type)?.definition?.slots||{};const catalog=sources.vehicleCatalog||{};for(const [slot,id] of Object.entries(slotNames)){if(!id)continue;const spec=catalog[id]||{};results.push({...details(id,spec.type||slot,spec),slot,source:'Installed vehicle component',status:'Modeled'});}}
+ if(a.type==='ship'||a.type==='rover'){
+ const original=sources.vehicles?.get?.(a.type),slotNames=original?.definition?.slots||{},catalog=sources.vehicleCatalog||{};
+ const live=root.StarfallRuntime?.equipmentSnapshotT15?.(a.type)?.components||[];
+ for(const [slot,id] of Object.entries(slotNames)){
+  if(!id)continue;const spec=catalog[id]||{},active=live.find(x=>x.slot===slot&&x.partId===id);
+  const base=details(id,spec.type||slot,spec),extra={};
+  if(active){extra.ownerAssetId=active.ownerId;extra.installedMassKg=active.massKg;
+    extra.powerW=active.powerW;extra.liveBus=active.bus;extra.provenanceCount=active.provenance?.length||0;
+    if(spec.instrumentKeys)extra.availableInstrumentTypes=spec.instrumentKeys.join(', ');}
+  results.push({...base,properties:{...base.properties,...extra},slot,source:active?.ownerId||'Installed vehicle component',
+   status:active?.status||'MODELLED',reason:active?.reason||'Live power sampler unavailable'});
+ }
+}
  else if(a.type==='rocket-stage'){const stageNo=+(a.id.match(/-stage-(\d+)$/)||[])[1],mission=sources.launch?.launches?.find(m=>m.id===a.parentId),part=mission?.profile?.stageParts?.[stageNo];if(part)for(const [name,value,unit] of [['Dry structure',part.dryKg,'mass'],['Propellant',part.propKg,'mass'],['Rated thrust',part.thrustN,'force']])results.push({id:a.id+':'+name,type:unit==='force'?'engine':unit==='mass'?'tank':'payload',label:name,source:'Stage simulation',properties:{[unit]:value},status:'Model-derived'});}
  else if(a.type==='rocket'){results.push({id:a.id+':payload',type:'payload',label:'Payload / mission',properties:{},source:'Launch system',status:'Modeled'});}
  else if(['truck','remote-rover','satellite'].includes(a.type)){if(a.capacityJ>0)results.push({id:a.id+':battery',type:'battery',label:'Battery pack',source:'Legacy vehicle or satellite store',status:'Model-derived',properties:{capacityJ:a.capacityJ,energyJ:a.energyJ}});
@@ -4654,6 +4781,7 @@ window.StarfallInput=controls;
 const science4Settings={roverPhysics:!!session.science4Settings?.roverPhysics};
 let roverPhysicsReport=null;
 const Vehicles=StarfallVehicles, Power=StarfallPower,vehicleStore=Vehicles.createStore(session.engineeringVehicles);
+let equipmentT15=StarfallEquipmentT15.restore(session.equipmentT15);
 let engineeringSystemReport={ship:null,rover:null},engineeringSystemSeconds=0;
 function persistVehicles(){SF.save({engineeringVehicles:vehicleStore.serialize()});}
 function shipConfiguredState(){const x=vehicleStore.get('ship'),s=x.stats;return FP.shipState({dryMassKg:s.dryMassKg,fuelKg:x.state.fuelKg,thrustN:s.thrustN,ispS:s.ispS,radiatorAreaM2:s.radiatorAreaM2,emissivity:s.emissivity,temperatureK:x.state.temperatureK});}
@@ -4680,8 +4808,80 @@ function updateVehicleSystems(dt){
  localServiceT12.portTemperatureK=Math.max(290,localServiceT12.portTemperatureK-elapsed*.025);
  localRoverPortTemperatureK=Math.max(290,localRoverPortTemperatureK-elapsed*.025);
 }
-function safeToReconfigure(kind){return landed&&(kind!=='ship'||shipDockT13.state==='UNDOCKED');}
-function configureVehicle(kind,definition){if(!safeToReconfigure(kind))throw Error('Park or land the vehicle before applying changes.');const result=vehicleStore.apply(kind,definition);if(kind==='ship'&&engState){const updated=shipConfiguredState();engState.craft={...engState.craft,...updated};}persistVehicles();window.StarfallEngineering7AUI?.registry?.event('DESIGN_APPLIED',vehicleStore.get(kind).definition.id,simTime,{kind});window.StarfallEngineering7AUI?.refreshRegistry(true);return result;}
+function safeToReconfigure(kind){
+ if(!landed||!nearest?.landable||!['ship','rover'].includes(kind))return false;
+ if(kind==='ship')return shipDockT13.state==='UNDOCKED';
+ return roverBody===nearest&&!!roverLocal&&!window.StarfallScienceUI?.autoDriving&&
+  !truckOccupied&&(!winch7d||winch7d.state!=='CONNECTED');
+}
+function equipmentSnapshotT15(kind){
+ const v=vehicleStore.get(kind),report=engineeringSystemReport[kind];
+ return{assetId:v.definition.id,kind,components:StarfallEquipmentT15.inspect(v,report,equipmentT15,kind),
+  faults:StarfallEquipmentT15.faults(v,report),serviceEvents:equipmentT15.events.filter(e=>e.assetId===v.definition.id).slice(-12),
+  backup:equipmentT15.backup[kind]?.definition||null,stats:v.stats,state:v.state};
+}
+function validateBlueprintT15(provenance,kind,definition){
+ if(!provenance)return;
+ const store=window.StarfallResearchUI7E?.store,run=store?.runs.find(x=>x.id===provenance.runId),
+  bp=store?.blueprints.find(x=>x.id===provenance.blueprintId);
+ if(!run?.success||!bp||bp.sourceRunId!==run.id||bp.imported||bp.benchOnly||
+  bp.sourceAssetId!==vehicleStore.get(kind).definition.id||run.sourceAssetId!==bp.sourceAssetId||
+  JSON.stringify(bp.definition)!==JSON.stringify(definition)||JSON.stringify(run.sourceDefinition)!==JSON.stringify(definition)||
+  JSON.stringify(run.observationRefs)!==JSON.stringify(bp.observationRefs)||
+  JSON.stringify(run.photoRefs)!==JSON.stringify(bp.photoRefs))
+  throw Error('T15 original 7E experiment/run/blueprint/source asset or photo/measurement references do not match');
+}
+function configureVehicle(kind,definition,provenance=null){
+ const original=vehicleStore.get(kind);
+ validateBlueprintT15(provenance,kind,definition);
+ StarfallEquipmentT15.validateChange(kind,original,definition,safeToReconfigure(kind),provenance);
+ const prior=vehicleStore.serialize(),trial=Vehicles.createStore(prior);
+ trial.apply(kind,definition);const predicted=trial.get(kind);
+ if(!StarfallEquipmentT15.changedLive(original,predicted))throw Error('T15 proposed design would not change live machinery');
+ const staged=StarfallEquipmentT15.append(equipmentT15,'CONFIG_APPLIED',{
+  assetId:original.definition.id,kind,timeS:simTime,
+  before:{...original.stats,energyJ:original.state.energyJ},after:{...predicted.stats,energyJ:predicted.state.energyJ},
+  partBefore:original.definition.slots,partAfter:predicted.definition.slots,
+  source:provenance?{type:'7E',...provenance}:{type:'WORKBENCH',model:'Original installed component changes'}});
+ try{
+  const applied=vehicleStore.apply(kind,definition),real=vehicleStore.get(kind);
+  if(!StarfallEquipmentT15.changedLive(original,real)||
+    JSON.stringify(real.definition)!==JSON.stringify(predicted.definition)||
+    Math.abs(real.state.energyJ-predicted.state.energyJ)>1e-6)
+    throw Error('T15 installed state mismatched verified assembly; rolled back');
+  equipmentT15=staged.state;
+  equipmentT15.backup[kind]={definition:original.definition,eventId:staged.event.id};
+  if(kind==='ship'&&engState){const next=shipConfiguredState();engState.craft={...engState.craft,...next};}
+  SF.save({engineeringVehicles:vehicleStore.serialize(),equipmentT15});
+  window.StarfallEngineering7AUI?.registry?.event('DESIGN_APPLIED',real.definition.id,simTime,
+   {kind,t15EventId:staged.event.id,sourceRunId:provenance?.runId||null});
+  window.StarfallEngineering7AUI?.refreshRegistry(true);
+  return{...applied,serviceId:staged.event.id};
+ }catch(e){vehicleStore.replaceAll(prior);throw e;}
+}
+function restoreVehicleT15(kind){
+ const b=equipmentT15.backup[kind],original=vehicleStore.get(kind);
+ if(!b?.definition)throw Error('T15 no prior installed assembly to restore');
+ StarfallEquipmentT15.validateChange(kind,original,b.definition,safeToReconfigure(kind));
+ const beforeStore=vehicleStore.serialize(),trial=Vehicles.createStore(beforeStore);
+ trial.apply(kind,b.definition);const predicted=trial.get(kind);
+ const staged=StarfallEquipmentT15.append(equipmentT15,'CONFIG_RESTORED',{
+  assetId:original.definition.id,kind,timeS:simTime,
+  before:{...original.stats,energyJ:original.state.energyJ},after:{...predicted.stats,energyJ:predicted.state.energyJ},
+  partBefore:original.definition.slots,partAfter:predicted.definition.slots,
+  source:{type:'ROLLBACK',originalEventId:b.eventId}});
+ try{
+  vehicleStore.apply(kind,b.definition);const actual=vehicleStore.get(kind);
+  if(!StarfallEquipmentT15.changedLive(original,actual)||actual.state.energyJ>original.state.energyJ+1e-6)
+    throw Error('T15 rollback did not change parts or incorrectly increased battery energy');
+  equipmentT15=staged.state;equipmentT15.backup[kind]=null;
+  if(kind==='ship'&&engState){const next=shipConfiguredState();engState.craft={...engState.craft,...next};}
+  SF.save({engineeringVehicles:vehicleStore.serialize(),equipmentT15});
+  window.StarfallEngineering7AUI?.registry?.event('DESIGN_RESTORED',actual.definition.id,simTime,{kind,t15EventId:staged.event.id});
+  window.StarfallEngineering7AUI?.refreshRegistry(true);
+  return{before:original.stats,after:actual.stats,serviceId:staged.event.id};
+ }catch(e){vehicleStore.replaceAll(beforeStore);throw e;}
+}
 
 engEnabled=session.scienceSettings?.flightMode==='Engineering';
 engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(session.scienceSettings?.sas)?session.scienceSettings.sas:'Manual';
@@ -5262,7 +5462,7 @@ function acquireFieldReading(instrument,nonce=0,fromRover=false){const data=scie
  if(!data.body?.landable||!data.landed)throw Error('Land on a solid body before sampling');
  if(!fromRover&&!(eva||truckOccupied))throw Error('Leave the ship to use the instrument');
  if(fromRover&&!data.roverExists)throw Error('Rover must be on this body');
- if(fromRover&&vehicleStore.get('rover').definition.slots.instruments!=='science-suite-rover')throw Error('No compatible rover science instrument');
+ if(fromRover&&!Vehicles.allowsInstrument(vehicleStore.get('rover').definition,instrument))throw Error('T15 installed rover sensor suite does not carry '+instrument+'; fit a compatible suite at the parked Workbench');
  const st=vehicleStore.get('rover').state;if(fromRover&&st.powerEnabled&&st.loads.instruments===false)throw Error('Rover science power load disabled');
  const point=fromRover?roverLocal:data.local,alt=fromRover?.6:data.altitudeM;
  const result=StarfallFieldScience.sample({body:data.body,seed:GALAXY_SEED,local:point,altitudeM:alt,instrument,simTime,nonce,energyAvailableJ:fromRover&&st.powerEnabled?st.energyJ:Infinity});
@@ -5522,7 +5722,7 @@ window.StarfallRuntime={galaxy,vehicleStore,captureScienceImage({body,eye,forwar
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
  roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,systemId:roverBody.systemId,local:roverLocal}:null,
  truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,batteryJ:truckBatteryJ}:null
-};},enterInterior,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,persistVehicles,get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckWinchCancel,truckRecharge,roverRechargeLocal,fieldServiceStatus,fieldRepair,shipServiceSnapshotT13,shipServiceTargetsT13,shipDockConnectT13,shipDockUndockT13,shipDockChargeT13,shipDockReceiveT13,shipThermalObserveT13,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
+};},enterInterior,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckWinchCancel,truckRecharge,roverRechargeLocal,fieldServiceStatus,fieldRepair,shipServiceSnapshotT13,shipServiceTargetsT13,shipDockConnectT13,shipDockUndockT13,shipDockChargeT13,shipDockReceiveT13,shipThermalObserveT13,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
 Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{interior:interiorState?{siteId:interiorState.site.id,at:{...interiorState.at}}:null,position:[...pos],altitude,landed,eva,truckOccupied,roverOccupied:false,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],cameraLookElevationDeg:lastPickingCamera&&nearest?Math.asin(V.clamp(V.dot(lastPickingCamera.forward,V.norm(V.sub(pos,nearest.position))),-1,1))*180/Math.PI:null,timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics()};},placeEvaNearTruck(){if(!landed||!eva||!truckBody||!truckLocal||truckBody!==nearest)throw Error('Require EVA and a surface truck');
  const local=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,-11),radial=V.rot(local,truckBody.spinAxis||[0,1,0],truckBody.spinAngle||0);
  evaLocal=local;pos=V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(local,truckBody)+EVA_HEIGHT));up=radial;evaForward=[...truckForwardVec];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setInteriorPosition(x,z){if(!interiorState||!StarfallInteriors.canStand(interiorState.layout,x,z))throw Error('Not a valid interior floor coordinate');interiorState.at={x,z};const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;camEye=null;},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){if(!Number.isFinite(t)||t<0||t>=1e13)throw Error('Invalid simulation time');simTime=physicsClock.set(t);galaxy.update(simTime);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
@@ -5643,9 +5843,24 @@ function refreshSystems(){const selected=$('systems-vehicle').value,v=Store.get(
  refreshShipT13();
  const parent=$('systems-loads');parent.replaceChildren();for(const name of ['avionics','radiator','drive','lights','instruments']){const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.checked=st.loads[name]!==false;c.onchange=()=>{Store.setLoad(selected,name,c.checked);RT.persistVehicles();refreshSystems();};l.append(c,document.createTextNode(' '+name.toUpperCase()));parent.append(l);}
 }
+function liveT15(){
+ const x=RT.equipmentSnapshotT15(kind),lines=[
+ 'OWNER '+x.assetId+' · '+kind.toUpperCase()+' · installed '+x.components.length+' physical module slots',
+ 'BATTERY '+format(x.state.energyJ,0)+' / '+format(x.stats.batteryCapacityJ,0)+' J · dry '+format(x.stats.dryMassKg,0)+' kg',
+ 'GENERATION '+format(x.stats.maxSolarW+x.stats.generatorW,0)+' W (rated, generator fictional)',
+ 'DRIVE '+format(x.stats.driveTorqueNm,0)+' N·m · traction '+format(x.stats.traction,3)+' · SHIP THRUST '+format(x.stats.thrustN,0)+' N',
+ ...x.components.map(p=>p.slot.toUpperCase()+' / '+p.partId+' / '+p.status+' / '+p.reason+' / '+format(p.massKg,0)+' kg'+(p.powerW===null?'':' / '+format(p.powerW,0)+' W')),
+ 'LIVE FAULTS: '+(x.faults.map(f=>f.id+' '+f.severity+' / '+f.rootCause+' / '+f.service).join(' · ')||'none reported by modeled hull/power/thermal state'),
+ 'LATEST CHANGE: '+(x.serviceEvents.at(-1)?.id||'legacy / no T15 part changes'),
+ 'ROLLBACK: '+(x.backup?'Previous valid assembly available; does not refund burned electricity':'No prior applied assembly stored')
+ ];
+ $('wb-live-t15').textContent=lines.join('\n');
+ $('wb-restore-t15').disabled=!x.backup||!RT.safeToReconfigure(kind);
+}
 function edit(kindName='ship'){kind=kindName;draft=Store.get(kind).definition;history=[];$('wb-vehicle').value=kind;showDraft();}
 function saveHistory(){if(draft){history.push(M.clone(draft));if(history.length>20)history.shift();}}
 function showDraft(){const list=$('wb-slots'),box=$('wb-preview');list.replaceChildren();box.replaceChildren();status('');
+ liveT15();
  const spec=M.slots[kind];for(const [slot,type] of spec){const wrap=document.createElement('div');wrap.className='wb-slot';const label=document.createElement('label'),sel=document.createElement('select');const id='wb-slot-'+slot;label.htmlFor=id;label.textContent=slot.toUpperCase();sel.id=id;
   const options=Object.values(M.components).filter(c=>c.type===type&&((kind==='ship'&&!c.id.startsWith('rover-')&&!c.id.includes('-rover'))||(kind==='rover'&&(c.id.startsWith('rover-')||c.id.includes('-rover')||['wheels','suspension'].includes(c.type)))));
   // Type compatibility is mandatory; chassis/vehicle restrictions are checked by validator.
@@ -5660,7 +5875,9 @@ function showDraft(){const list=$('wb-slots'),box=$('wb-preview');list.replaceCh
  status(RT.safeToReconfigure(kind)?'Preview valid. Applying will update vehicle state atomically.':'Preview only. Land and park before applying.',true);
 }
 function download(name,data){const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),800);}
-function apply(){try{const result=RT.configureVehicle(kind,draft);status('APPLIED · Dry mass '+format(result.next.dryMassKg)+' kg; saved.',true);edit(kind);refreshSystems();}catch(e){status(e.message);}}
+function apply(){try{const result=RT.configureVehicle(kind,draft);
+ edit(kind);refreshSystems();status('T15 VERIFIED INSTALLED CHANGE '+result.serviceId+' · dry mass '+format(result.next.dryMassKg)+' kg; real capacity/torque/power updated.',true);
+ }catch(e){status(e.message);liveT15();}}
 let shipT13Message='';
 function shipMessage(text,failed=false){
  shipT13Message=(failed?'SERVICE DENIED: ':'SERVICE: ')+String(text);
@@ -5735,6 +5952,11 @@ $('wb-vehicle').onchange=e=>edit(e.target.value);
 $('wb-reset').onclick=()=>{saveHistory();draft=M.clone(M.presets[kind]);showDraft();};
 $('wb-undo').onclick=()=>{if(history.length){draft=history.pop();showDraft();}else status('Nothing to undo.');};
 $('wb-apply').onclick=apply;
+$('wb-refresh-t15').onclick=()=>liveT15();
+$('wb-restore-t15').onclick=()=>{try{const r=RT.restoreVehicleT15(kind);edit(kind);refreshSystems();
+ status('T15 PREVIOUS INSTALLED PARTS RESTORED '+r.serviceId+' · existing battery joules not replenished.',true);
+ }catch(e){status(e.message);liveT15();}};
+
 $('wb-save').onclick=()=>{if(M.validate(draft).length){status('Cannot save an invalid design.');return;}const saved=SF.load().engineeringDesigns||{};saved[kind]=M.clone(draft);SF.save({engineeringDesigns:saved});status('Design saved locally for '+kind+'.',true);};
 $('wb-load').onclick=()=>{const saved=SF.load().engineeringDesigns?.[kind];if(!saved){status('No saved design for '+kind+'.');return;}if(M.validate(saved).length){status('Saved design is invalid; no changes made.');return;}saveHistory();draft=M.clone(saved);showDraft();};
 $('wb-export').onclick=()=>{if(M.validate(draft).length){status('Cannot export an invalid assembly.');return;}download('starfall-'+kind+'-engineering-design.json',JSON.stringify({schema:'starfall-engineering-1',definition:draft,stats:M.evaluate(draft)},null,2));status('Design exported.',true);};
@@ -7211,6 +7433,17 @@ function renderScope(n,el){const children=n.children.filter(c=>c.kind!=='compone
 function renderAsset(n,el){const a=n.ref||assetById(n.assetId),model=F.build(a,sources());if(!model)return;const top=dom('div','asset-detail-top'),t=dom('div');t.append(dom('div','asset-eyebrow','ENGINEERED ASSET / '+F.pretty(a.type)));t.append(dom('h3','',title(a)));t.append(dom('div','asset-id',a.id));top.append(t);top.append(dom('span','asset-tag'+(model.warnings.length?' warn':''),model.warnings.length?'ATTENTION':String(a.status||'Modeled').toUpperCase()));el.append(top);
  el.append(dom('p','asset-dim',model.state+' · '+(a.location?.frame||'unknown')+' · '+(a.bodyId||'location unavailable')));
  if(a.type==='satellite')el.append(button('OPEN SATELLITE OPERATIONS ↗',()=>{const op=root.StarfallSatelliteOpsUI;if(op){$('asset-manager').hidden=true;op.open(a.id);}},'asset-button'));
+ if(['rover','remote-rover'].includes(a.type))el.append(button('OPEN ACTUAL T12 FIELD REPAIRS ↗',()=>{
+  if(!root.StarfallLaunchUI?.open)return;
+  $('asset-manager').hidden=true;root.StarfallLaunchUI.open();
+  // Existing Rocket Lab T12 controls own physical tool energy, component
+  // availability, EVA reach, repair cooldown and persistent service receipts.
+ },'asset-button'));
+ if(['ship','rover'].includes(a.type))el.append(button('OPEN INSTALLED WORKBENCH ↗',()=>{
+  $('asset-manager').hidden=true;
+  const sys=$('systems-vehicle');if(sys)sys.value=a.type;
+  root.StarfallEngineeringUI?.open?.();
+ },'asset-button'));
  const metrics=section(el,'01 / Operating overview'),grid=dom('div','asset-metrics');for(const m of model.metrics.slice(0,compact?4:12))addMetric(grid,m);metrics.append(grid);
  const details=section(el,'02 / Identity & placement');row(details,'Type',F.pretty(a.type));row(details,'Live store',model.state);row(details,'World ID',a.bodyId||'Unresolved');row(details,'Position reference',F.pretty(a.location?.frame||'unknown'));if(a.parentId){const p=button('↖ '+title(assetById(a.parentId)),()=>selectNode('asset:'+a.parentId),'asset-link');details.append(p);}if(Number.isFinite(a.updatedS))row(details,'Latest state sample','T + '+F.quantity(a.updatedS,'time'));
  const comp=section(el,'03 / Installed components · '+model.components.length),gridC=dom('div','asset-component-list');for(const c of model.components){const b=button('',()=>selectNode('component:'+a.id+':'+c.id),'asset-component');b.append(dom('span','asset-symbol',icons[c.type]||'◇'));const t=dom('span');t.append(dom('strong','',c.label));t.append(dom('small','',F.pretty(c.type)+' · '+c.status));b.append(t);b.setAttribute('aria-label','Inspect '+c.label+' inside '+title(a));gridC.append(b);}comp.append(model.components.length?gridC:dom('p','asset-dim','No installed components exposed for this asset in the current model.'));
@@ -7561,8 +7794,16 @@ $('research7e-apply-bp').onclick=()=>{try{const b=store.blueprints.find(x=>x.id=
  if(b.imported)throw Error('Imported blueprints require local revalidation before applying to a live vehicle');
  if(b.benchOnly)throw Error('This trial uses bench-only tuning. The stock vehicle controller has no compatible live gear/rocket parameter interface.');
  if(!b.definition)throw Error('This is a rocket test plan, not a live ship/rover assembly');
- const result=RT.configureVehicle(b.definition.kind,b.definition);
- RT.persistVehicles();status('Applied validated '+b.definition.kind+' design safely: '+fmt(result.next?.massKg)+' kg.',true);
+ if(b.sourceAssetId!==RT.vehicleStore.get(b.definition.kind).definition.id)
+  throw Error('T15 blueprint targets a different registered vehicle; do not overwrite unrelated assets');
+ const provenance={kind:'7E',imported:b.imported===true,benchOnly:b.benchOnly===true,
+  blueprintId:b.id,runId:b.sourceRunId,sourceAssetId:b.sourceAssetId,
+  sourceDefinitionFingerprint:root.StarfallEquipmentT15.fingerprint(b.definition),
+  observationRefs:b.observationRefs||[],photoRefs:b.photoRefs||[]};
+ const result=RT.configureVehicle(b.definition.kind,b.definition,provenance);
+ status('T15 verified LIVE machine change '+result.serviceId+' · original 7E run '+b.sourceRunId+
+  ' · readings '+(b.observationRefs||[]).length+' · photos '+(b.photoRefs||[]).length+
+  ' · mass '+fmt(result.next?.massKg)+' kg. No additional test claims.',true);
  }catch(e){status(e.message);}};
 renderInputs();render();
 root.StarfallResearchUI7E={open:()=>$('research7e-open').click(),store};
@@ -8508,8 +8749,8 @@ function shipNode(body,t){
  if(v.state.energyJ<500000||v.state.health<=.05||v.state.loads?.avionics===false)return null;
  const rad=O.rotate(pose.local,body.spinAxis||[0,1,0],body.spinAngle||0);
  const position=O.V.add(body.position,O.V.mul(rad,body.radius+12));
- return{id:'starfall-ship',kind:'ship-radio',bodyId:body.id,position,rangeScene:45,
-  bandwidthBps:128000,energyJ:v.state.energyJ,txPowerW:60};
+ return{id:'starfall-ship',kind:'ship-radio',bodyId:body.id,position,rangeScene:link?.rangeScene||45,
+  bandwidthBps:link?.bandwidthBps||128000,energyJ:v.state.energyJ,txPowerW:link?.txPowerW||60};
 }
 function towerNodes(body){
  const hw=root.StarfallAntennaT04,ui=root.StarfallOutpostUI;

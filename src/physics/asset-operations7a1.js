@@ -10,7 +10,19 @@ function quantity(n,kind){if(!finite(n))return 'Unavailable';
 function kindFor(type){if(['battery','solar','generator','drive','engine','tank','antenna','sensor','radiator','chassis','payload'].includes(type))return type; if(/motor|drive/.test(type))return'drive';if(/instrument|science|avionics/.test(type))return'sensor';if(/wheel|suspension|structure|frame|foundation/.test(type))return'chassis';return'payload';}
 function details(id,type,raw){const r=raw&&typeof raw==='object'?raw:{};const properties={};for(const [k,v] of Object.entries(r)){if(finite(v)&&/(Kg|J|W|N|Nm|S|V|K|M2|Meters|Efficiency|torque|radius)/i.test(k))properties[k]=v;}return{id:String(id),type:kindFor(type),label:pretty(id),properties};}
 function componentsFor(asset,sources={}){if(!asset)return[];const a=asset,results=[];
- if(a.type==='ship'||a.type==='rover'){const slotNames=sources.vehicles?.get?.(a.type)?.definition?.slots||{};const catalog=sources.vehicleCatalog||{};for(const [slot,id] of Object.entries(slotNames)){if(!id)continue;const spec=catalog[id]||{};results.push({...details(id,spec.type||slot,spec),slot,source:'Installed vehicle component',status:'Modeled'});}}
+ if(a.type==='ship'||a.type==='rover'){
+ const original=sources.vehicles?.get?.(a.type),slotNames=original?.definition?.slots||{},catalog=sources.vehicleCatalog||{};
+ const live=root.StarfallRuntime?.equipmentSnapshotT15?.(a.type)?.components||[];
+ for(const [slot,id] of Object.entries(slotNames)){
+  if(!id)continue;const spec=catalog[id]||{},active=live.find(x=>x.slot===slot&&x.partId===id);
+  const base=details(id,spec.type||slot,spec),extra={};
+  if(active){extra.ownerAssetId=active.ownerId;extra.installedMassKg=active.massKg;
+    extra.powerW=active.powerW;extra.liveBus=active.bus;extra.provenanceCount=active.provenance?.length||0;
+    if(spec.instrumentKeys)extra.availableInstrumentTypes=spec.instrumentKeys.join(', ');}
+  results.push({...base,properties:{...base.properties,...extra},slot,source:active?.ownerId||'Installed vehicle component',
+   status:active?.status||'MODELLED',reason:active?.reason||'Live power sampler unavailable'});
+ }
+}
  else if(a.type==='rocket-stage'){const stageNo=+(a.id.match(/-stage-(\d+)$/)||[])[1],mission=sources.launch?.launches?.find(m=>m.id===a.parentId),part=mission?.profile?.stageParts?.[stageNo];if(part)for(const [name,value,unit] of [['Dry structure',part.dryKg,'mass'],['Propellant',part.propKg,'mass'],['Rated thrust',part.thrustN,'force']])results.push({id:a.id+':'+name,type:unit==='force'?'engine':unit==='mass'?'tank':'payload',label:name,source:'Stage simulation',properties:{[unit]:value},status:'Model-derived'});}
  else if(a.type==='rocket'){results.push({id:a.id+':payload',type:'payload',label:'Payload / mission',properties:{},source:'Launch system',status:'Modeled'});}
  else if(['truck','remote-rover','satellite'].includes(a.type)){if(a.capacityJ>0)results.push({id:a.id+':battery',type:'battery',label:'Battery pack',source:'Legacy vehicle or satellite store',status:'Model-derived',properties:{capacityJ:a.capacityJ,energyJ:a.energyJ}});
