@@ -3,6 +3,7 @@
    launch-state visualization, while deployed satellites use two-body circular orbits.
    Interstellar transit is FICTIONAL warp-carrier transport, never rocket thrust. */
 (function(root){'use strict';
+const MAX_INVENTORY=Object.freeze({launches:240,satellites:160,rovers:100});
 const G0=9.80665,TAU=Math.PI*2,clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const ENGINES=Object.freeze({
  'aether':{label:'Aether vacuum bell',thrustN:980000,ispS:356,dryKg:880},
@@ -74,11 +75,14 @@ function moveOnSphere(local,metres,heading,radiusScene){const u=norm(local),axis
 function validateScript(text){const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#'));if(lines.length>24)throw Error('Maximum 24 script commands');const commands=[];for(const line of lines){const m=/^(DRIVE|TURN|WAIT|SAMPLE|STOP)(?:\s+([\w.\-]+))?$/i.exec(line);if(!m)throw Error('Unknown command: '+line);const op=m[1].toUpperCase(),value=m[2]||'';if(op==='DRIVE'||op==='TURN'||op==='WAIT'){const n=Number(value);if(!Number.isFinite(n)||n< (op==='TURN'?-180:0)||n>(op==='DRIVE'?300:op==='WAIT'?120:180))throw Error('Unsafe '+op+' parameter');commands.push({op,value:n});}else if(op==='SAMPLE'){if(!['spectrometer','thermometer','barometer','magnetometer','radar','seismometer','sampler','bioassay'].includes(value))throw Error('Unsupported remote instrument');commands.push({op,value});}else commands.push({op});}return commands;}
 class Store{
  constructor(seed,saved){this.seed=seed;this.launches=[];this.satellites=[];this.rovers=[];this.serial=0;this.restore(saved);}
- restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;this.serial=clamp(Number(saved.serial)||0,0,1e8);this.launches=(Array.isArray(saved.launches)?saved.launches:[]).slice(-45).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.startS));this.satellites=(Array.isArray(saved.satellites)?saved.satellites:[]).slice(-70).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.altitudeM)&&x.altitudeM>0&&Number.isFinite(x.mu)&&x.mu>0&&Array.isArray(x.axis));this.rovers=(Array.isArray(saved.rovers)?saved.rovers:[]).slice(-36).filter(x=>x?.id&&x.bodyId&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)).map(x=>({...x,local:norm(x.local),commands:Array.isArray(x.commands)?x.commands.slice(0,24):[],heading:Number.isFinite(x.heading)?x.heading:0}));}
+ restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;this.serial=clamp(Number(saved.serial)||0,0,1e8);this.launches=(Array.isArray(saved.launches)?saved.launches:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.startS));this.satellites=(Array.isArray(saved.satellites)?saved.satellites:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.altitudeM)&&x.altitudeM>0&&Number.isFinite(x.mu)&&x.mu>0&&Array.isArray(x.axis));this.rovers=(Array.isArray(saved.rovers)?saved.rovers:[]).filter(x=>x?.id&&x.bodyId&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)).map(x=>({...x,local:norm(x.local),commands:Array.isArray(x.commands)?x.commands.slice(0,24):[],heading:Number.isFinite(x.heading)?x.heading:0}));}
  serialize(){return safe({schema:1,seed:this.seed,serial:this.serial,launches:this.launches,satellites:this.satellites,rovers:this.rovers});}
  launch({body,foundation,design,time,destinationBody=null,destinationSystem=null,unit=1000}){
   if(!body?.id||!body.landable||foundation?.kind!=='foundation'||foundation.bodyId!==body.id)throw Error('Select an actual surface foundation as launch pad');
   if(!Number.isFinite(time)||time<0)throw Error('Invalid mission time');
+  if(this.launches.length>=MAX_INVENTORY.launches)throw Error('Launch archive full: export/backup your save before removing completed missions; no records were deleted');
+  const wantsRover=design?.payload==='rover';
+  if(this[wantsRover?'rovers':'satellites'].length+this.launches.filter(m=>m.phase!=='failed'&&m.phase!=='deployed'&&(m.payload==='rover')===wantsRover).length>=(wantsRover?MAX_INVENTORY.rovers:MAX_INVENTORY.satellites))throw Error('Destination payload inventory full; no asset was discarded');
   const g=body.gravity*G0,radiusM=body.radius*unit,mu=g*radiusM**2;
   const profile=build(design,{surfaceGravityMS2:g,radiusM,mu});
   if(profile.payload==='rover'&&(!destinationBody?.landable||!destinationSystem?.id))throw Error('Rover requires a solid target body and destination system');
@@ -90,7 +94,7 @@ class Store{
   const id='launch-'+this.seed+'-'+(++this.serial);
   const mission={id,padId:foundation.id,bodyId:body.id,systemId:body.systemId,destinationSnapshot:destinationBody?{id:destinationBody.id,systemId:destinationBody.systemId,landable:destinationBody.landable,type:destinationBody.type,kind:destinationBody.kind,seed:destinationBody.seed,radius:destinationBody.radius,gravity:destinationBody.gravity,life:destinationBody.life,spinPeriod:destinationBody.spinPeriod,atmosphere:destinationBody.atmosphere}:null,
    local:norm(foundation.local),launchUp:rotate(norm(foundation.local),body.spinAxis||[0,1,0],body.spinAngle||0),startS:time,phase:'ascent',elapsedS:0,ascentS:profile.burnTimeS+45,altitudeM:flight.targetAltitudeM,profile,flight,velocityMS:0,trajectoryAltitudeM:0,stage:0,payload:profile.payload,destinationBodyId:destinationBody?.id||body.id,destinationSystemId:destinationSystem?.id||body.systemId,transferS:0,lastUpdateS:time,completedAtS:null};
-  this.launches.push(mission);if(this.launches.length>45)this.launches.shift();return safe(mission);
+  this.launches.push(mission);return safe(mission);
  }
  control(id,op,value){const m=this.launches.find(v=>v.id===id);if(!m?.flight||!['ascent','coast'].includes(m.phase))throw Error('No active rocket to command');const F=root.StarfallRocketFlight7B;
   if(op==='stage'){if(!F.stage(m.flight,m.profile))throw Error('Stage is not ready');}
@@ -113,14 +117,17 @@ class Store{
      const orbital=F.elements(m.flight,m.profile.mu,m.profile.radiusM);m.altitudeM=Math.max(25000,orbital?.semiMajorM-m.profile.radiusM||180000);
      m.phase='orbit';m.orbitalElements=orbital;
      if(m.payload==='rover'&&m.destinationSystemId!==m.systemId){m.phase='transfer';const from=byId(m.systemId),to=byId(m.destinationSystemId),sep=from&&to?Math.hypot(...from.position.map((v,i)=>v-to.position[i])):1e7;m.transferS=Math.max(180,sep/5000000);m.transferStartS=m.lastUpdateS;events.push({id:m.id,kind:'transfer',message:'Physical orbit achieved; fictional warp carrier in transit'});continue;}
-     this.deploy(m,m.lastUpdateS,byId);events.push({id:m.id,kind:'deployed',message:'Payload deployed from achieved bound orbit'});
+     if(this.deploy(m,m.lastUpdateS,byId))events.push({id:m.id,kind:'deployed',message:'Payload deployed from achieved bound orbit'});
+     else events.push({id:m.id,kind:'failed',message:'Payload deployment failed: '+m.failure});
     }else m.phase=m.flight.phase==='coast'||m.flight.phase==='awaiting-stage'?'coast':'ascent';
-   }else if(m.phase==='transfer'&&time-m.transferStartS>=m.transferS){this.deploy(m,time,byId);events.push({id:m.id,kind:'deployed',message:'Fictional interstellar carrier delivered rover capsule'});}
+   }else if(m.phase==='transfer'&&time-m.transferStartS>=m.transferS){if(this.deploy(m,time,byId))events.push({id:m.id,kind:'deployed',message:'Fictional interstellar carrier delivered rover capsule'});else events.push({id:m.id,kind:'failed',message:'Payload delivery failed: '+m.failure});}
   }return events;}
- deploy(m,time,byId){const body=byId(m.destinationBodyId)||m.destinationSnapshot;if(!body){m.phase='failed';return;}
+ deploy(m,time,byId){const body=byId(m.destinationBodyId)||m.destinationSnapshot;if(!body){m.phase='failed';m.failure='Destination body and saved snapshot unavailable';return false;}
+  const kind=m.payload==='rover'?'rovers':'satellites';if(this[kind].length>=MAX_INVENTORY[kind]){m.phase='failed';m.failure='Payload inventory cap reached during deployment; existing assets preserved';return false;}
+  if(this[kind].some(x=>x.launchId===m.id)){m.phase='failed';m.failure='Duplicate payload from this launch prevented';return false;}
   if(m.payload==='rover')this.rovers.push({id:'probe-'+m.id,launchId:m.id,bodyId:body.id,systemId:body.systemId,local:norm(m.local),bodySnapshot:m.destinationSnapshot,heading:0,batteryJ:2.2e7,commands:[],index:0,remaining:0,records:[],status:'parked',lastS:time});
   else{const mu=Math.max(1,(body.gravity*G0)*Math.pow(body.radius*1000,2));this.satellites.push({id:'sat-'+m.id,launchId:m.id,bodyId:body.id,systemId:body.systemId,kind:m.payload,altitudeM:m.altitudeM,epochS:time,phase:0,axis:norm(m.launchUp||m.local),mu,inertial2d:m.flight?{x:m.flight.x,y:m.flight.y,vx:m.flight.vx,vy:m.flight.vy,mu:m.profile.mu,epochS:time,launchUp:m.launchUp||norm(m.local)}:undefined,powerJ:5e6,radioRangeScene:180000});}
-  m.phase='deployed';m.completedAtS=time;}
+  m.phase='deployed';m.completedAtS=time;return true;}
  command(id,text){const r=this.rovers.find(x=>x.id===id);if(!r)throw Error('Rover not found');const cmd=validateScript(text);r.commands=cmd;r.index=0;r.remaining=0;r.status=cmd.length?'running':'parked';return r;}
  queueProgram(id,text,time,link){const r=this.rovers.find(x=>x.id===id);if(!r)throw Error('Rover not found');if(!root.StarfallGroundOps7D)throw Error('7D ground operations unavailable');const program=validateScript(text);return root.StarfallGroundOps7D.uplink(r,program,time,link);}
  queueStop(id,time,link){const r=this.rovers.find(x=>x.id===id);if(!r)throw Error('Rover not found');return root.StarfallGroundOps7D.stop(r,time,link);}
@@ -135,5 +142,5 @@ class Store{
    remain-=step;r.remaining-=step;if(r.remaining<1e-7){r.remaining=0;r.index++;}if(r.batteryJ<=0){r.batteryJ=0;r.status='battery depleted';break;}
   }if(r.index>=r.commands.length&&r.status==='running')r.status='complete';}}
 }
-root.StarfallLaunch={G0,ENGINES,PAYLOADS,build,orbit,validateScript,moveOnSphere,Store};
+root.StarfallLaunch={G0,ENGINES,PAYLOADS,MAX_INVENTORY,build,orbit,validateScript,moveOnSphere,Store};
 })(typeof window!=='undefined'?window:globalThis);

@@ -1,3 +1,15 @@
+## Combined 7F — Expedition QA & Release Hardening (release candidate)
+
+Camera 7F is **still fully present**: real rover and satellite scene imaging, onboard photos, radio queuing, downlink, received-only gallery, IndexedDB archives and research evidence.
+
+This optional hardening pass fixes silent historical launch/satellite/rover truncation, makes deployment failures honest and strengthens save import validation. It adds a **Build → Operate → Monitor → Research** workflow hint without new compulsory modes, and repeatable 26-launch physics and actual offline browser regression tests.
+
+**Status:** tests for source, standalone, physics models, camera capture, offline browser dialogs and save reload pass. **Full scenarios A/B/C and physical-GPU performance are NOT VERIFIED**; see [release gate matrix](RELEASE-VERIFICATION-7F.md), [measured software-WebGL results](reports/PERFORMANCE-7F.md), [migration checklist](docs/MIGRATION-CHECKLIST-7F.md) and [physics audit](docs/PHYSICS-AUDIT-7F.md).
+
+**Camera 7F rollback:** `feature/update-7f-imaging` / its GitHub ZIP. This hardening candidate is `feature/update-7f-expedition-hardening`.
+
+---
+
 # STARFALL — Update 7F: Real Rover & Satellite Camera Telemetry
 
 **Release candidate branch:** `feature/update-7f-imaging` · **Parent:** `feature/update-7e` · **Rollback:** 7E or preserved 7D main.

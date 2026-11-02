@@ -1,3 +1,16 @@
+# Combined STARFALL Update 7F — End-to-End Engineering QA & Hardening (2026-11-02)
+
+- **Preserved** all Camera 7F rover/satellite photographic features; no revert or replacement.
+- Prevented silent loss of launch history when restoring older saves; introduced explicit non-destructive creation caps.
+- Fixed false payload `deployed` events when destination inventory/body is unavailable, plus duplicate payload guard.
+- Strengthened cross-system save import checks for launch seed/schema/asset IDs and malformed camera/research records.
+- Added repeatable 26-force-integrated-launch stress/model tests, 7 real browser panel checks, actual `file://` save validation/reload and no-network gate.
+- Added measured software-WebGL diagnostic screenshot and percentile JSON artifacts in GitHub Actions (NOT hardware GPU numbers).
+- Added optional **BUILD → OPERATE → MONITOR → RESEARCH** route hint, release verification gate matrix, migration, physics disclosures and severity-ranked issues.
+- **Release candidate only**: full manual scenario A/B/C and named real-GPU/old 6J save tests remain NOT VERIFIED.
+
+---
+
 # STARFALL — Update 7F Camera Telemetry (2026-11-02)
 
 - Added actual WebGL2 offscreen world-image capture from physical rover mast and satellite orbital cameras (including three-shot surface panorama), without HUD screenshot or network assets.

@@ -60,3 +60,12 @@ jobs:
         run: |
           python tests/research7e-browser.py
           python tests/imaging7f-browser.py
+          python tests/expedition-hardening-browser.py
+      - name: Upload actual software-WebGL screenshot and performance data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-7f-software-webgl-qa
+          path: artifacts/7f-expedition-ci/
+          if-no-files-found: ignore
+          retention-days: 14
