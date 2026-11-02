@@ -57,7 +57,7 @@ function validateEvidence(ob){
  return true;
 }
 function latLon(local){const p=unit(local);return{lat:Math.asin(clamp(p[1],-1,1))*180/Math.PI,
- lon:Math.atan2(p[2],p[0])*180/Math.PI};}
+ lon:Math.atan2(p[0],p[2])*180/Math.PI};}
 function marker(o,type,label,extra={}){return{id:o.id,bodyId:o.bodyId,local:unit(o.location||o.local),type,label,...extra};}
 function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satellites=[],outposts=[],pending=[]}={}){
  if(!safeId(bodyId))return[];
