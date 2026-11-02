@@ -1,3 +1,12 @@
+# STARFALL T19A — Optional RF Link Budget, Telemetry Trace and Diagnostic Recovery (2026-11-02)
+
+- **Experimental P3 preview only**, based on fully verified T18 but NOT a full T19 technology suite and NOT a substitute for missing T18 complete two-planet mission. No merge to `main`.
+- Added a compact RF telemetry recorder inside existing Outposts → 03 / RADIO. Uses only installed source-owned T04 antenna IDs, actual T02 powered bus `servedW`/volts and original T03 `routeFor` evaluated at current simulation clock. No fake test packet, receiver ACK, free energy, new vehicle, progression gate or mission record.
+- Displays physical route IDs, real T03 normalized quality, bit rate, propagation seconds, source DC operating watts, original ACK ID/timestamp **only if already ACKED**, failure reason and recovery steps. Shows a log-quality margin dB **proxy** and illustrative thermal-noise floor explicitly distinct from unavailable measured RF SNR.
+- 48-sample explicit bounded per-antenna source-owned trace `radioT04.budgetT19`; original T04 `repair/configure` preserves it, including tracking-mode changes. At full capacity refuses new data, export/download history in JSON and confirmation-protected clear; no silent truncation or extra persistent global store.
+- T19A Node + actual Chromium test proves original UI-built powered station and original physical route, breaker-off blackout and recovery, tracking edit, no invented T03 packets, export and genuine browser reload.
+- Added deterministic standalone build workflow, inherited regression browser coverage and independent T19 targeted Chromium. T18 release blockers and verified rollback retained. See `docs/OPTIONAL-RF-ANALYZER-T19.md` and `reports/T19-TEST-RESULTS.md`.
+
 # STARFALL T18 — Full Engineering Release Gate, Real UI Journey, Stress and Measured Browser Performance (2026-11-02)
 
 - Created separate T18 release-verification branch based on verified T17; no changes to core 3D ship/rover rendering, physical walk-in/out ramp, truck X controls, original force-integrated rocket/antenna/Outpost radio simulation or game save schema.
