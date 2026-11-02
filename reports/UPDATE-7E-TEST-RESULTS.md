@@ -1,6 +1,6 @@
 # STARFALL Update 7E — Verification Report
 
-**Status:** RELEASE CANDIDATE (automated source/model checks PASS; actual GPU gameplay and cold-restart persistence NOT VERIFIED)  
+**Status:** RELEASE CANDIDATE (Node/model, offline build and headless Chromium UI smoke PASS; real-device GPU gameplay and cold-restart persistence NOT VERIFIED)  
 **Date:** 2026-11-02  
 **Target:** `feature/update-7e` on GitHub  
 **Rollback:** `release/update-7d`
@@ -25,11 +25,19 @@ CI confirms **48 JavaScript modules** and **13 external stylesheets** embed exac
 
 Separate V8 in-memory checks of 7E's actual model source also passed: deterministic rover observations, changing gear effects, steep-slope rejection, battery bounds, finite rocket solver output, zero fake orbit success, blueprint provenance/import validation, persistence, comparison and malformed-design rejection. These are **not** substitutes for UI or GPU tests.
 
+## Offline headless Chromium UI smoke
+
+GitHub Actions: https://github.com/hatutaletangeni/Space_starfall/actions/runs/41442026871 (both jobs **PASS**)  
+Command: `python tests/research7e-browser.py` after installing test-only Playwright 1.56.0 + Chromium 141 on a GitHub-hosted Ubuntu runner.
+
+The test loaded offline `PLAY-STARFALL.html` under `file://` using software WebGL and verified: the original 64 + 2,304 navigable system count, Workbench opening, new Research modal, deterministic rover experiment, blueprint creation, second gearing experiment, numeric comparison, adjustable rocket-world gravity and rocket trial, and safe close. Browser log reported **PASS**. This is a **software-rendered headless** interaction path, not real hardware GPU frame-rate or visual-quality certification.
+
 ## Not verified / remaining gates
 
 | Gate | Status | Reason |
 |---|---|---|
-| Actual 7E button/dialog interactions in Chrome/Edge with real gameplay | **NOT VERIFIED** | No complete browser interaction run recorded for this branch |
+| 7E Research Bench interactions in headless Chromium | **PASS** | GitHub Actions 41442026871; actual file:// UI interaction with software WebGL |
+| Full end-to-end real-device exploration/gameplay (ship, rover, truck, orbital science) | **NOT VERIFIED** | Browser smoke exercises research UI, not a complete human-controlled expedition |
 | Real hardware GPU rendering and sustained frame-time benchmark | **NOT VERIFIED** | Node tests do not run a GPU game session |
 | Play full star chart → flight → landing → EVA → truck → science rover → research UI | **NOT VERIFIED** | Must be exercised as a full real-device path |
 | Full browser close/reopen with previously saved 7D data and new 7E trials | **NOT VERIFIED** | Models and serialization tested, but not browser restart |
