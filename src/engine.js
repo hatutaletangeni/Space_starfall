@@ -9,6 +9,8 @@ const V={
  norm:a=>{const m=Math.hypot(...a)||1;return [a[0]/m,a[1]/m,a[2]/m];},mix:(a,b,t)=>a.map((x,i)=>x+(b[i]-x)*t),clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),
  rot:(v,axis,angle)=>{const a=V.norm(axis),c=Math.cos(angle),s=Math.sin(angle),d=V.dot(a,v);return V.add(V.add(V.mul(v,c),V.mul(V.cross(a,v),s)),V.mul(a,d*(1-c)));}
 };
+const ST=root.StarfallStableTerrain; if(!ST)throw Error('Stable terrain layer not loaded');
+const BIOMES=root.StarfallBiomes; if(!BIOMES)throw Error('Biome layer not loaded');
 const M={
  perspective(fov,aspect,near,far){const f=1/Math.tan(fov/2),nf=1/(near-far);return new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,(far+near)*nf,-1,0,0,2*far*near*nf,0]);},
  look(eye,target,up){const z=V.norm(V.sub(eye,target)),x=V.norm(V.cross(up,z)),y=V.cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-V.dot(x,eye),-V.dot(y,eye),-V.dot(z,eye),1]);},
@@ -25,7 +27,7 @@ function noise(x,y,z,seed){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor
 return mix(mix(mix(hash3(ix,iy,iz,seed),hash3(ix+1,iy,iz,seed),a),mix(hash3(ix,iy+1,iz,seed),hash3(ix+1,iy+1,iz,seed),a),b),mix(mix(hash3(ix,iy,iz+1,seed),hash3(ix+1,iy,iz+1,seed),a),mix(hash3(ix,iy+1,iz+1,seed),hash3(ix+1,iy+1,iz+1,seed),a),b),c);}
 function field(n,seed){let v=0,a=.55,k=2.9;for(let i=0;i<5;i++){v+=noise(n[0]*k+13,n[1]*k+27,n[2]*k+5,seed)*a;k*=2.03;a*=.49;}return v/1.06;}
 function groundHeight(n,planet,value){if(planet.type==='Gas Giant')return 0;const e=value??field(n,planet.seed),sea=planet.type==='Ocean'?.56:planet.type==='Temperate'?.47:planet.type==='Lush'?.48:.19;if(['Temperate','Lush','Ocean'].includes(planet.type)&&e<sea)return 0;const base=Math.max(0,e-sea);const detail=noise(n[0]*88,n[1]*88,n[2]*88,planet.seed+9);return Math.min(110,3+Math.pow(base,1.3)*158+Math.max(0,detail-.5)*11);}
-function shade(n,h,planet,value){const t=planet.type;const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
+function shade(n,h,planet,value,biome){if(planet.landable)return BIOMES.color(planet,n,h,value??field(n,planet.seed),biome);const t=planet.type;const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
 let c;
 if(t==='Gas Giant'){const bands=Math.sin(n[1]*57+field(n,planet.seed)*17),storm=Math.sin(n[0]*22+n[2]*29+field(n,planet.seed)*25);return V.mix([.37,.23,.18],[.84,.71,.49],V.clamp(.49+.28*bands+.09*storm,0,1));}
 if(['Temperate','Lush','Ocean'].includes(t)&&h<1){const shallow=V.clamp((e-sea+.12)*3,0,1);c=V.mix([.038,.097,.161],[.11,.20,.27],shallow);}
@@ -166,6 +168,40 @@ function smoothNormals(positions,indices){
  const normals=[];for(let i=0;i<acc.length;i+=3){const out=V.norm([acc[i],acc[i+1],acc[i+2]]);normals.push(...out);}
  return normals;
 }
+// Tier-specific interior rooms use shared mesh buffers and planet-fixed transforms.
+// Local X is right, Y up, Z into the ruined structure; floors and walls are solid
+// at the gameplay collision layer (StarfallInteriors.canStand). No per-frame meshes.
+function makeInteriorMesh(gl,tier){
+ const I=root.StarfallInteriors;if(!I)return null;
+ const layout=I.layout({id:'ruin-layout',bodyId:'layout',tier});
+ const p=[],n=[],c=[],idx=[];
+ function tri(a,b,d,color){const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const v of [a,b,d]){p.push(...v);n.push(...normal);c.push(...color);}idx.push(base,base+1,base+2);}
+ function quad(a,b,c0,d,color){tri(a,b,c0,color);tri(a,c0,d,color);}
+ function box(x0,y0,z0,x1,y1,z1,color){const a=[x0,y0,z0],b=[x1,y0,z0],c0=[x1,y1,z0],d=[x0,y1,z0],e=[x0,y0,z1],f=[x1,y0,z1],g=[x1,y1,z1],h=[x0,y1,z1];quad(a,b,c0,d,color);quad(f,e,h,g,color);quad(e,a,d,h,color);quad(b,f,g,c0,color);quad(d,c0,g,h,color);quad(e,f,b,a,color);}
+ const stone=tier<2?[.39,.35,.28]:tier<4?[.34,.40,.43]:[.29,.37,.46],floor=tier<2?[.47,.39,.30]:[.35,.38,.40],accent=tier<2?[.65,.53,.33]:tier<4?[.36,.66,.65]:[.41,.77,.9],y=layout.floorY,roof=layout.roofY,w=.7;
+ for(const room of layout.rooms){
+  box(room.x0,y-.45,room.z0,room.x1,y-.04,room.z1,floor);
+  box(room.x0,y,room.z0,room.x0+w,roof,room.z1,stone);
+  box(room.x1-w,y,room.z0,room.x1,roof,room.z1,stone);
+  // Front entrance and inner passages have carved openings.
+  box(room.x0,y,room.z0, -2.5,roof,room.z0+w,stone);
+  box(2.5,y,room.z0,room.x1,roof,room.z0+w,stone);
+  box(-2.5,roof-2,room.z0,2.5,roof,room.z0+w,stone);
+  if(room.id==='archive')box(room.x0,y,room.z1-w,room.x1,roof,room.z1,stone);
+  else if(!layout.passages.length)box(room.x0,y,room.z1-w,room.x1,roof,room.z1,stone);
+  else{box(room.x0,y,room.z1-w,-2.5,roof,room.z1,stone);box(2.5,y,room.z1-w,room.x1,roof,room.z1,stone);box(-2.5,roof-2,room.z1-w,2.5,roof,room.z1,stone);}
+  box(room.x0,roof,room.z0,room.x1,roof+.5,room.z1,[.22,.25,.29]);
+  for(const x of [room.x0+1.4,room.x1-1.4])for(const z of [room.z0+2,room.z1-2])box(x-.35,y,z-.35,x+.35,roof-.5,z+.35,stone);
+ }
+ for(const hall of layout.passages){box(hall.x0,y-.43,hall.z0,hall.x1,y-.03,hall.z1,floor);box(hall.x0,y,hall.z0,hall.x0+w,roof,hall.z1,stone);box(hall.x1-w,y,hall.z0,hall.x1,roof,hall.z1,stone);box(hall.x0,roof,hall.z0,hall.x1,roof+.5,hall.z1,[.22,.25,.29]);}
+ // Artifact plinths and luminous seams: inspection uses real character proximity.
+ for(const [i,a] of layout.artifacts.entries()){
+  box(a.x-1.0,y,a.z-1.0,a.x+1.0,y+1.1,a.z+1.0,stone);
+  box(a.x-.55,y+1.1,a.z-.55,a.x+.55,y+2.05+(tier>3?.4:0),a.z+.55,accent);
+  box(a.x-.75,y+1.1,a.z-.75,a.x+.75,y+1.19,a.z+.75,accent);
+ }
+ return makeMesh(gl,p,n,c,idx);
+}
 function makeShip(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.45,.49,.50],panel=[.28,.33,.36],edge=[.72,.73,.69],accent=[.84,.56,.28],glass=[.18,.45,.58],dark=[.10,.14,.17],engine=[.55,.22,.18];
 // Larger modular expedition ship inspired by cargo and lander references. Forward is local -Z.
 box(-3.0,-1.3,-14.5,3.0,1.6,13.5,hull); // central spine
@@ -196,11 +232,69 @@ box(-3.0,1.0,-3.8,3.2,2.6,3.6,hull);box(-1.6,2.35,-2.0,1.4,3.2,1.0,[.58,.58,.54]
 for(const x of [-2.75,0,2.75]){for(const z of [-2.6,2.5]){quad([x,1.1,z],[x+(x<0?-0.9:x>0?0.9:0.0),.3,z],[x+(x<0?-1.15:x>0?1.15:0.0),-.65,z+(.15*(z>0?1:-1))],[x,0.45,z+(.25*(z>0?1:-1))],dark);const wx=x+(x<0?-1.65:x>0?1.65:0.0);box(wx-.75,-1.95,z-.9,wx+.75,-.45,z+.9,[.06,.06,.07]);box(wx-.42,-1.45,z-.45,wx+.42,-.55,z+.45,[.24,.24,.24]);}}
 box(-2.0,1.35,1.2,-.1,2.0,2.9,accent);box(.3,1.35,1.2,2.1,2.0,2.9,accent);
 return makeMesh(gl,p,n,c,idx);}
+// A separate four-wheel expedition truck, not a scaled science rover.
+function makeTruck(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),k=p.length/3;for(const v of [a,b,d]){p.push(...v);n.push(...normal);c.push(...col);}idx.push(k,k+1,k+2);}function quad(a,b,d,e,col){tri(a,b,d,col);tri(a,d,e,col);}function box(x,y,z,w,h,l,col){const a=[x,y,z],b=[x+w,y,z],c0=[x+w,y+h,z],d=[x,y+h,z],e=[x,y,z+l],f=[x+w,y,z+l],g=[x+w,y+h,z+l],h0=[x,y+h,z+l];quad(a,b,c0,d,col);quad(f,e,h0,g,col);quad(e,a,d,h0,col);quad(b,f,g,c0,col);quad(d,c0,g,h0,col);quad(e,f,b,a,col);}const white=[.67,.72,.73],alloy=[.24,.28,.31],dark=[.09,.11,.13],glass=[.13,.37,.42],orange=[.95,.52,.20],light=[.89,.85,.62];
+ box(-4.7,.6,-5.2,9.4,2.3,14.2,alloy);box(-4.3,2.4,-5.0,8.6,4.8,7.8,white);box(-4.0,4.0,-5.12,8,2.65,.25,glass);box(-4.55,3.8,-5.15,.4,3.3,7.8,white);box(4.14,3.8,-5.15,.4,3.3,7.8,white);box(-4.55,5.9,2.35,9.1,.35,1.2,alloy);box(-4.55,2.95,3.0,9.1,1.0,6.0,white);box(-4.2,3.9,3.5,8.4,.32,4.8,alloy);box(-5.2,1.5,-5.4,10.4,.65,1.2,dark);box(-5.25,2.5,-5.5,1.5,.55,.15,light);box(3.75,2.5,-5.5,1.5,.55,.15,light);
+ for(const z of [-3.4,5.9])for(const x of [-5.5,4.5]){box(x,0,z,1.3,3.8,3.2,dark);box(x+0.15,.45,z+.25,1.05,2.9,2.7,[.20,.23,.25]);box(x-.1,1.6,z+.85,1.5,.38,1.4,alloy);}box(-.25,7.2,-1.5,.5,1.2,.5,alloy);box(-1.2,8.25,-1.9,2.4,.5,1.35,orange);box(-3.5,7.2,4.2,7,.32,3.3,[.12,.21,.29]);box(-2.8,3.9,8.7,5.6,.6,.5,orange);box(-1,5.4,6.4,2,1.0,1.5,alloy);return makeMesh(gl,p,n,c,idx);}
+function makeSmallSatellite(gl){const p=[],n=[],c=[],ix=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),k=p.length/3;for(const q of [a,b,d]){p.push(...q);n.push(...v);c.push(...col);}ix.push(k,k+1,k+2);}function quad(a,b,d,e,col){tri(a,b,d,col);tri(a,d,e,col);}function box(x,y,z,w,h,l,col){const a=[x,y,z],b=[x+w,y,z],d=[x+w,y+h,z],e=[x,y+h,z],f=[x,y,z+l],g=[x+w,y,z+l],h0=[x+w,y+h,z+l],q=[x,y+h,z+l];quad(a,b,d,e,col);quad(g,f,q,h0,col);quad(f,a,e,q,col);quad(b,g,h0,d,col);quad(e,d,h0,q,col);quad(f,g,b,a,col);}box(-1.2,-1.2,-1.2,2.4,2.4,2.4,[.75,.72,.62]);box(-7.5,-.15,-.14,6,.25,2.4,[.09,.31,.53]);box(1.5,-.15,-.14,6,.25,2.4,[.09,.31,.53]);box(-.13,1,0,.27,3,.27,[.56,.58,.61]);return makeMesh(gl,p,n,c,ix);}
+function makeRocketMesh(gl){const p=[],n=[],c=[],ix=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),k=p.length/3;for(const q of [a,b,d]){p.push(...q);n.push(...v);c.push(...col);}ix.push(k,k+1,k+2);}const rad=2.6,h=33;for(let i=0;i<12;i++){let u=i*Math.PI/6,v=(i+1)*Math.PI/6,a=[rad*Math.cos(u),0,rad*Math.sin(u)],b=[rad*Math.cos(v),0,rad*Math.sin(v)],c0=[a[0],h,a[2]],d=[b[0],h,b[2]];tri(a,b,c0,[.81,.80,.77]);tri(b,d,c0,[.74,.76,.79]);tri(c0,d,[0,h+7,0],[.90,.43,.18]);}return makeMesh(gl,p,n,c,ix);}
+// Shared low-poly archaeological silhouettes: one GPU mesh per tier, not one per ruin.
+// The same star/moon lighting, depth testing and planet-fixed transform are used.
+function makeRuinMesh(gl,tier){const pp=[],nn=[],cc=[],ix=[];
+ const stone=[.47,.42,.35],ash=[.22,.24,.26],bronze=[.54,.39,.26],steel=[.37,.48,.52],cyan=[.23,.68,.72],gold=[.74,.62,.39];
+ function tri(a,b,c,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(c,a))),j=pp.length/3;for(const w of [a,b,c]){pp.push(...w);nn.push(...v);cc.push(...col);}ix.push(j,j+1,j+2);}
+ function quad(a,b,c,d,color){tri(a,b,c,color);tri(a,c,d,color);}
+ function box(x,y,z,X,Y,Z,col){const a=[x,y,z],b=[X,y,z],c=[X,Y,z],d=[x,Y,z],e=[x,y,Z],f=[X,y,Z],g=[X,Y,Z],h=[x,Y,Z];quad(a,b,c,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c,col);quad(d,c,g,h,col);quad(e,f,b,a,col);}
+ function column(x,z,r,h,color){box(x-r,0,z-r,x+r,h,z+r,color);}
+ // Floor remains fixed to the same planet-fixed center; footprint is decorative.
+ if(tier===0){for(let k=0;k<10;k++){const a=k*2*Math.PI/10;column(Math.cos(a)*5.1,Math.sin(a)*5.1,.65,.6,stone);}box(-1.8,0,-.65,2.3,.42,.65,bronze);box(3.1,0,2,4.1,1.3,4,ash);}
+ if(tier===1){box(-9,0,-7,9,.65,7,stone);for(const [x,z,h] of [[-6,-3,8],[-6,3,5],[0,-4,10],[5,-3,7],[5,3,8]]){column(x,z,1.2,h,stone);box(x-1.6,h,z-1.4,x+1.6,h+.7,z+1.4,bronze);}}
+ if(tier===2){box(-11,0,-9,11,.6,9,ash);for(const x of [-9,-4,4,9]){column(x,-7,1.1,8,stone);column(x,7,1.1,6,stone);}box(-2,0,-7,2,13,-5,bronze);box(-7,4,-7,7,5.2,-5,stone);box(4,5,5,7,6.2,8,bronze);}
+ if(tier===3){box(-15,0,-11,15,.7,11,steel);for(const x of [-12,-3,7]){column(x,-5,1.8,14,steel);box(x-2,14,-7,x+2,15.4,-3,bronze);}box(-7,0,3,1,8,10,ash);box(7,0,2,13,11,10,ash);box(-15,8,-2,15,9,0,bronze);}
+ if(tier===4){box(-20,0,-17,20,.65,17,ash);for(const x of [-15,0,15]){column(x,-7,3,x===0?33:21,steel);box(x-3.5,x===0?32:20,-11,x+3.5,x===0?34:22,-3,cyan);}for(const x of [-18,18]){column(x,8,2.2,17,bronze);}box(-18,16,7,18,18,10,gold);}
+ if(tier===5){box(-22,0,-17,22,.7,17,ash);for(const sign of [-1,1])for(let k=0;k<8;k++){const a=(k/8)*Math.PI*.9;const x=Math.cos(a)*24*sign,y=6+Math.sin(a)*42;box(x-2,y-2,-3,x+2,y+2,3,k%3===0?cyan:steel);}box(-7,0,-4,7,4,4,gold);for(const x of [-13,13])column(x,0,2.4,18,bronze);}
+ return makeMesh(gl,pp,nn,cc,ix);
+}
+// STARFALL 6H: eight reusable low-poly ecological silhouettes. Geometry is
+// generated once; planet-fixed origins and sampled terrain remain authoritative.
+function makeEcologyMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
+ const soil=[.39,.31,.25],bone=[.64,.62,.47],shell=[.23,.43,.41],skin=[.30,.56,.42],wing=[.37,.70,.70],spore=[.71,.54,.76];
+ function tri(a,b,c,color){const normal=V.norm(V.cross(V.sub(b,a),V.sub(c,a))),index=pp.length/3;for(const p of [a,b,c]){pp.push(...p);nn.push(...normal);cc.push(...color);}ix.push(index,index+1,index+2);}
+ function quad(a,b,c,d,color){tri(a,b,c,color);tri(a,c,d,color);}
+ function box(x,y,z,X,Y,Z,col){const a=[x,y,z],b=[X,y,z],c=[X,Y,z],d=[x,Y,z],e=[x,y,Z],f=[X,y,Z],g=[X,Y,Z],h=[x,Y,Z];quad(a,b,c,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c,col);quad(d,c,g,h,col);quad(e,f,b,a,col);}
+ function stem(x,z,h,col){box(x-.10,0,z-.10,x+.10,h,z+.10,col);}
+ if(kind==='microbial'){for(let i=0;i<9;i++){const a=i*2.4,x=Math.cos(a)*1.8,z=Math.sin(a)*1.8;box(x-.5,0,z-.5,x+.5,.18+.16*(i%3),z+.5,i%3?skin:shell);}}
+ else if(kind==='spores'){for(let i=0;i<7;i++){const a=i*2.3,x=Math.sin(a)*1.4,z=Math.cos(a)*1.5;stem(x,z,1.3+.7*(i%3),skin);box(x-.45,1.1+.7*(i%3),z-.45,x+.45,1.35+.7*(i%3),z+.45,spore);}}
+ else if(kind==='grazer'){box(-1.4,1.0,-2.2,1.4,2.25,2.2,skin);box(-.9,1.65,-3.0,.9,2.45,-1.7,shell);for(const x of [-1,1])for(const z of [-1.45,1.45])box(x-.3,0,z-.3,x+.3,1.35,z+.3,shell);stem(-.45,-2.75,3.25,bone);stem(.45,-2.75,3.25,bone);}
+ else if(kind==='crawler'){box(-.95,.45,-1.5,.95,1.4,1.5,shell);for(const x of [-1,1])for(const z of [-1.2,-.4,.4,1.2]){const side=x*1.8;tri([x*.75,1.1,z],[side,.18,z+.35],[side,.18,z-.3],skin);}box(-.7,1.3,-1.0,.7,1.62,-.1,spore);}
+ else if(kind==='flier'){box(-.5,-.3,-1.7,.5,.3,1.5,shell);tri([-.15,.0,-.5],[-5.0,.02,1.8],[-.25,.02,1.2],wing);tri([.15,.0,-.5],[.25,.02,1.2],[5.0,.02,1.8],wing);tri([-.2,.05,.6],[-3.1,.03,2.0],[-.1,.0,1.1],spore);tri([.2,.05,.6],[.1,.0,1.1],[3.1,.03,2.0],spore);}
+ else if(kind==='tracks'){for(let i=0;i<6;i++){const z=i*1.2-3;box(-1.4+(i%2)*1.5,0,z-.4,-.65+(i%2)*1.5,.06,z+.4,soil);}}
+ else if(kind==='nest'){for(let i=0;i<12;i++){const a=i*Math.PI/6,x=Math.cos(a)*2.15,z=Math.sin(a)*2.15;box(x-.52,0,z-.35,x+.52,.55,z+.35,soil);}box(-.6,0,-.6,.6,.24,.6,spore);}
+ else if(kind==='fossil'){for(let j=0;j<5;j++){const z=j*1.2-2.5;box(-2.1,.07,z-.13,2.1,.24,z+.13,bone);}box(-.23,.12,-3.4,.23,.35,3.5,bone);}
+ return makeMesh(gl,pp,nn,cc,ix);
+}
 /* Explorer avatar: original, lightweight 3D mesh assembled once per session.
  * Lit by the same star/moon/headlamp shader as the ships and terrain.
  * Local model axes: +Y up, -Z forward. Feet y=0; eyes at y=5.25.
  * Character styling based on the user's coat / goggles / luminous magitech reference.
  */
+// Update 5A: seven GPU-resident low-poly outpost meshes; only close surface objects are drawn.
+function makeInfrastructureMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
+ function triangle(a,b,c,color){const norm=V.norm(V.cross(V.sub(b,a),V.sub(c,a))),j=pp.length/3;for(const v of [a,b,c]){pp.push(...v);nn.push(...norm);cc.push(...color);}ix.push(j,j+1,j+2);}
+ function quad(a,b,c,d,col){triangle(a,b,c,col);triangle(a,c,d,col);}
+ function box(x,y,z,X,Y,Z,col){const a=[x,y,z],b=[X,y,z],c=[X,Y,z],d=[x,Y,z],e=[x,y,Z],f=[X,y,Z],g=[X,Y,Z],h=[x,Y,Z];quad(a,b,c,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c,col);quad(d,c,g,h,col);quad(e,f,b,a,col);}
+ const dark=[.12,.17,.21],metal=[.42,.48,.50],white=[.66,.68,.67],gold=[.84,.57,.26],solar=[.09,.25,.46],cyan=[.14,.62,.69];
+ const base=kind==='hab'?5:kind==='lab'?4.3:kind==='solar'?3.8:kind==='storage'?3.5:kind==='foundation'?4:kind==='antenna'?2.5:kind==='battery'?3:1.6;
+ box(-base,.0,-base,base,.45,base,dark);box(-base+.15,.42,-base+.15,base-.15,.65,base-.15,metal);
+ if(kind==='foundation'){for(const x of [-3,3])for(const z of [-3,3])box(x-.4,-1,z-.4,x+.4,.2,z+.4,metal);}
+ if(kind==='hab'||kind==='lab'){box(-base*.83,.64,-base*.78,base*.83,kind==='hab'?4.8:4.2,base*.78,white);box(-1,.65,-base*.81,1,2.8,-base*.78,dark);for(const x of [-base*.5,base*.5])box(x-.35,2.8,-base*.85,x+.35,3.4,-base*.76,cyan);box(-base*.7,kind==='hab'?4.8:4.2,-base*.68,base*.7,kind==='hab'?5.2:4.6,base*.68,dark);}
+ if(kind==='storage'){for(const x of [-2.1,1])box(x,.65,-2.3,x+1.3,3.1,2.3,metal);}
+ if(kind==='battery'){box(-2,.65,-2,2,3.35,2,white);for(let x=-1.7;x<2;x+=1.1)box(x,1.1,-2.05,x+.50,3.08,-1.98,cyan);}
+ if(kind==='solar'){box(-.27,.6,-.25,.27,2.3,.25,metal);for(const side of [-1,1]){const x=side*3;box(x-2.9,2.3,-2.2,x+2.9,2.53,2.2,solar);for(let k=-2;k<=2;k++)box(x+k*.83-.02,2.51,-2.19,x+k*.83+.02,2.6,2.19,metal);} }
+ if(kind==='antenna'){box(-.4,.6,-.4,.4,9,.4,metal);for(const y of [3.5,6.5]){box(-2,y,-.15,2,y+.15,.15,metal);box(-.15,y,-2,.15,y+.15,2,metal);}box(-.75,9,-.75,.75,10.1,.75,cyan);}
+ if(kind==='connector'){box(-.9,.65,-.9,.9,1.5,.9,metal);box(-.6,1.5,-.6,.6,1.8,.6,gold);}
+ return makeMesh(gl,pp,nn,cc,ix);
+}
 function createExplorerMesh(gl){
  const C={suit:[.62,.69,.71],light:[.79,.84,.84],dark:[.09,.15,.20],undersuit:[.12,.20,.25],rubber:[.06,.10,.14],visor:[.12,.52,.68],trim:[.92,.46,.18],steel:[.38,.47,.52],glow:[.03,.82,1.0],glow2:[.23,.91,1.0]};
  function sculpt(){const p=[],n=[],c=[],ix=[];
@@ -238,9 +332,14 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.rover=makeRover(gl);this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
+  // Planet-fixed tile meshes are immutable. Rendering resolution never changes
+  // collision height, which is always sampled from the seeded continuous field.
+  this.terrainTiles=new Map();this.activeTerrain=[];this.terrainKeyBody=null;
+  this.terrainCacheHits=0;this.terrainCacheMisses=0;this.terrainCacheEvictions=0;this.terrainPropCount=0;
+  this.terrainGridSegments=24;this.terrainCacheBudget=110;this.terrainDebugEnabled=false;
   this.pixelRatio=Math.min(devicePixelRatio||1,1.4);this.dprTarget=this.pixelRatio;this.starPoints=0;this.renderedBodies=0;this.culledBodies=0;this.visibleSystems=0;
   // No decorative stars: every point in the night sky is an actual navigable system.
   const deep=new Float32Array(0);
@@ -258,7 +357,7 @@ class Renderer{
  setMat(p,k,m){this.gl.uniformMatrix4fv(this.loc(p,k),false,m)}
  setVec(p,k,v){this.gl.uniform3fv(this.loc(p,k),v)}
  setFloat(p,k,f){this.gl.uniform1f(this.loc(p,k),f)}
- renderMesh(p,mesh,model){this.setMat(p,'uModel',model);this.gl.bindVertexArray(mesh.vao);this.gl.drawElements(this.gl.TRIANGLES,mesh.count,mesh.indexType,0);}
+ renderMesh(p,mesh,model){this.setMat(p,'uModel',model);this.gl.bindVertexArray(mesh.vao);this.gl.drawElements(this.gl.TRIANGLES,mesh.count,mesh.indexType,0);this.frameDrawCalls++;}
  freeMesh(mesh){if(!mesh)return;const gl=this.gl;gl.deleteVertexArray(mesh.vao);gl.deleteBuffer(mesh.vb);gl.deleteBuffer(mesh.ib);}
  // Use one star-relative illumination solution for geometry, atmosphere, and sky.
  spinModel(body,rel,phase=0){return M.spin(rel,body.spinAxis||[0,1,0],(body.spinAngle||0)+phase);}
@@ -312,12 +411,76 @@ class Renderer{
   const gl=this.gl;gl.bindBuffer(gl.ARRAY_BUFFER,this.celestial.vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(list),gl.DYNAMIC_DRAW);
   this.celestial.count=list.length/5;this.starPoints=this.celestial.count;this.skyPicks=picks;
  }
- updatePatch(planet,position,alt){if(!planet||!planet.landable||alt>Math.min(1000,planet.radius*.65)){this.patchPlanet=null;return;}const dir=V.norm(V.sub(position,planet.position)),spacing=alt<110?22:alt<380?65:130;
-  const local=this.localDir(planet,dir);if(this.patchPlanet===planet&&(V.len(V.sub(local,this.patchCenter))*planet.radius<spacing||performance.now()-this.lastPatchAt<125))return;this.lastPatchAt=performance.now();
-  this.patchPlanet=planet;this.patchCenter=[...local];this.freeMesh(this.patch);const gl=this.gl;const east=V.norm(V.cross(Math.abs(local[1])>.94?[0,0,1]:[0,1,0],local)),north=V.norm(V.cross(local,east));
-  const dirLocal=local;const grids=planet.kind==='moon'?64:96,half=Math.max(950,Math.min(2800,planet.radius*1.6)),p=[],n=[],c=[],ix=[];
-  for(let iz=0;iz<=grids;iz++){const tz=iz/grids*2-1,z=Math.sign(tz)*Math.pow(Math.abs(tz),1.83)*half;for(let j=0;j<=grids;j++){const tx=j/grids*2-1,x=Math.sign(tx)*Math.pow(Math.abs(tx),1.83)*half;const d=V.norm(V.add(V.mul(local,planet.radius),V.add(V.mul(east,x),V.mul(north,z)))),e=field(d,planet.seed),h=groundHeight(d,planet,e),v=V.mul(d,planet.radius+h);p.push(...v);n.push(...d);c.push(...shade(d,h,planet,e));}}
-  for(let i=0;i<grids;i++)for(let j=0;j<grids;j++){const a=i*(grids+1)+j,b=a+grids+1;ix.push(a,a+1,b,a+1,b+1,b);}this.patch=makeMesh(gl,p,smoothNormals(p,ix),c,ix);this.patchDraws++;
+ // Vertex normals are derived from the immutable analytic surface, so shared
+ // edges agree even if adjacent tiles were created in different frames.
+ terrainNormal(body,d){const tangent=V.norm(V.cross(Math.abs(d[1])>.95?[0,0,1]:[0,1,0],d)),bitangent=V.norm(V.cross(d,tangent)),eps=.7/Math.max(body.radius,50);
+  const a=V.norm(V.add(d,V.mul(tangent,eps))),b=V.norm(V.sub(d,V.mul(tangent,eps))),c=V.norm(V.add(d,V.mul(bitangent,eps))),e=V.norm(V.sub(d,V.mul(bitangent,eps)));
+  const ground=x=>V.mul(x,body.radius+groundHeight(x,body));
+  let n=V.norm(V.cross(V.sub(ground(a),ground(b)),V.sub(ground(c),ground(e))));return V.dot(n,d)<0?V.mul(n,-1):n;
+ }
+ buildTerrainTile(body,tile){const positions=[],normals=[],colors=[],indices=[],N=this.terrainGridSegments;
+  for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){
+   const d=ST.vertexDirection(tile,i,j,N),a=ST.sample(body,d,groundHeight,field,shade);
+   positions.push(...V.mul(d,body.radius+a.height));normals.push(...this.terrainNormal(body,d));colors.push(...a.color);
+  }
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+   const a=j*(N+1)+i,b=a+N+1;indices.push(a,a+1,b,a+1,b+1,b);
+  }
+  const ground=makeMesh(this.gl,positions,normals,colors,indices);
+  // Permanent tile-anchored geological decorations; no player-coordinate RNG.
+  // Decorative geometry has NO collision mesh, preserving 6A ground contacts.
+  const p=[],n=[],c=[],idx=[];const random=rand((Math.imul(body.seed,2654435761)^Math.imul(tile.ix,19349663)^Math.imul(tile.iy,83492791)^Math.imul(tile.face+1,73856093))>>>0);
+  const triangle=(a,b,d,color)=>{const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),q=p.length/3;for(const point of [a,b,d]){p.push(...point);n.push(...normal);c.push(...color);}idx.push(q,q+1,q+2);};
+  const twist=(point,right,front,x,z)=>V.add(point,V.add(V.mul(right,x),V.mul(front,z)));
+  const makeSpire=(base,radial,right,front,height,width,color,faces=5)=>{const tip=V.add(base,V.mul(radial,height));for(let j=0;j<faces;j++){const aa=j*Math.PI*2/faces,bb=(j+1)*Math.PI*2/faces;
+   const from=twist(base,right,front,Math.cos(aa)*width,Math.sin(aa)*width),to=twist(base,right,front,Math.cos(bb)*width,Math.sin(bb)*width);triangle(from,to,tip,V.mix(color,[.14,.18,.19],(j%3)*.10));}};
+  const stone=(base,radial,right,front,size,color)=>{const top=V.add(base,V.mul(radial,size*.9));makeSpire(base,radial,right,front,size*.9,size*1.35,color,5);};
+  let propCount=0;const count=body.type==='Lush'?19:body.type==='Temperate'?15:body.type==='Ocean'?10:body.type==='Rocky'?12:13;
+  for(let k=0;k<count;k++){
+   const d=ST.faceDirection(tile.face,tile.u0+tile.step*(.06+random()*.88),tile.v0+tile.step*(.06+random()*.88));
+   const sample=ST.sample(body,d,groundHeight,field,shade);if(sample.material==='water')continue;
+   const biome=BIOMES.classify(body,d,sample.height,sample.field),style=BIOMES.decoration(biome,random);if(style==='none')continue;
+   const radial=d,base=V.mul(d,body.radius+sample.height+.12),right=V.norm(V.cross(Math.abs(d[1])>.95?[0,0,1]:[0,1,0],d)),front=V.norm(V.cross(d,right)),size=.65+random()*1.45,colors=BIOMES.color(body,d,sample.height,sample.field,biome);
+   // Retain open walkable terrain: props are small and purely visual.
+   if(style==='flora'){
+    const stem=V.add(base,V.mul(d,size*2.4));makeSpire(base,d,right,front,size*2.4,size*.25,[.29,.24,.18],4);
+    makeSpire(stem,d,right,front,size*(3.4+random()*1.4),size*2.35,V.mix(colors,[.17,.38,.22],.46),5);
+    if(random()>.55)makeSpire(stem,d,right,front,size*2.2,size*2.6,V.mix(colors,[.29,.49,.27],.42),5);
+   }else if(style==='scrub'){
+    for(let j=0;j<3;j++){const b=twist(base,right,front,(random()-.5)*size*2,(random()-.5)*size*2);makeSpire(b,d,right,front,size*(1.2+random()),size*.75,V.mix(colors,[.20,.37,.24],.5),4);}
+   }else if(style==='fungal'){
+    const stem=V.add(base,V.mul(d,size*2.1));makeSpire(base,d,right,front,size*2.1,size*.35,[.45,.43,.36],5);makeSpire(stem,d,right,front,size*1.6,size*2.1,[.38,.31,.54],6);
+   }else if(style==='ice'||style==='crystal'){
+    for(let j=0;j<3;j++){const b=twist(base,right,front,(random()-.5)*size*2,(random()-.5)*size*2);makeSpire(b,d,right,front,size*(1.2+random()*3),size*(.4+random()*.55),style==='ice'?[.60,.79,.87]:[.28,.66,.73],5);}
+   }else if(style==='column'){
+    makeSpire(base,d,right,front,size*(2.5+random()*3),size*(.68+random()*.4),V.mix(colors,[.3,.32,.33],.38),6);
+   }else if(style==='vent'){
+    makeSpire(base,d,right,front,size*2.2,size*1.2,[.21,.19,.18],6);
+    makeSpire(V.add(base,V.mul(d,size*2.0)),d,right,front,size*1.1,size*.42,[.78,.38,.12],4);
+   }else if(style==='dune'||style==='sediment'){
+    const side=twist(base,right,front,size*2.9,0),other=twist(base,right,front,-size*2.9,0),frontEdge=twist(base,right,front,0,size*1.7),crest=V.add(base,V.mul(d,size*.65));triangle(side,other,crest,colors);triangle(other,frontEdge,crest,V.mix(colors,[.65,.46,.25],.3));
+   }else stone(base,d,right,front,size,colors);
+   propCount++;
+  }
+  return{ground,props:idx.length?makeMesh(this.gl,p,n,c,idx):null,propCount,key:tile.key,descriptor:tile};
+ }
+ updatePatch(planet,position,alt){
+  // Old per-frame recentering caused resampling triangles and visible 'breathing'.
+  // These face-local tiles have stable boundaries, samples, and material colors.
+  this.activeTerrain=[];
+  if(!planet||!planet.landable||alt>Math.min(1000,planet.radius*.65)){this.patchPlanet=null;return;}
+  const local=this.localDir(planet,V.norm(V.sub(position,planet.position)));
+  if(this.terrainKeyBody!==planet.id){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;}
+  this.patchPlanet=planet;this.patchCenter=local;
+  const requested=ST.visibleTiles(planet,local,3),needed=new Set(requested.map(t=>t.key));
+  let built=0;for(const desc of requested){let tile=this.terrainTiles.get(desc.key);
+   if(tile){this.terrainCacheHits++;this.terrainTiles.delete(desc.key);this.terrainTiles.set(desc.key,tile);}else if(built<4){tile=this.buildTerrainTile(planet,desc);this.terrainTiles.set(desc.key,tile);this.patchDraws++;this.terrainCacheMisses++;built++;}
+   if(tile)this.activeTerrain.push(tile);
+  }
+  while(this.terrainTiles.size>this.terrainCacheBudget){const first=[...this.terrainTiles.keys()].find(k=>!needed.has(k));if(!first)break;const old=this.terrainTiles.get(first);this.freeMesh(old.ground);this.freeMesh(old.props);this.terrainTiles.delete(first);this.terrainCacheEvictions++;}
+ }
+ terrainDiagnostics(){const d=this.patchCenter&&this.patchPlanet?ST.descriptorForDirection(this.patchPlanet,this.patchCenter):null;
+  return{body:this.patchPlanet?.id||null,face:d?.face??null,tile:d?.key||null,resolution:this.terrainGridSegments,cached:this.terrainTiles.size,active:this.activeTerrain.length,hits:this.terrainCacheHits,misses:this.terrainCacheMisses,evictions:this.terrainCacheEvictions,built:this.patchDraws,props:this.activeTerrain.reduce((sum,t)=>sum+(t.propCount||0),0),biome:this.patchCenter&&this.patchPlanet?BIOMES.classify(this.patchPlanet,this.patchCenter,groundHeight(this.patchCenter,this.patchPlanet),field(this.patchCenter,this.patchPlanet.seed)).name:null,collision:'continuous deterministic planet-fixed sample',render:'fixed cubemap tiles / no moving tessellation',sampleHeight:this.patchCenter&&this.patchPlanet?groundHeight(this.patchCenter,this.patchPlanet):null,seamError:(()=>{if(!d)return null;const neighbor=d.ix+1<d.n?ST.tileDescriptor(this.patchPlanet,d.face,d.ix+1,d.iy):null;if(!neighbor)return null;let max=0;for(let j=0;j<=this.terrainGridSegments;j+=6){const a=ST.vertexDirection(d,this.terrainGridSegments,j,this.terrainGridSegments),b=ST.vertexDirection(neighbor,0,j,this.terrainGridSegments);max=Math.max(max,Math.abs(groundHeight(a,this.patchPlanet)-groundHeight(b,this.patchPlanet)));}return max;})()};
  }
  updateProps(planet,position,alt){if(!planet||!planet.landable||alt>Math.min(310,planet.radius*.45)){this.propsPlanet=null;return;}const dir=this.localDir(planet,V.norm(V.sub(position,planet.position)));if(this.propsPlanet===planet&&(V.len(V.sub(dir,this.propsCenter))*planet.radius<90||performance.now()-this.lastPropsAt<300))return;this.lastPropsAt=performance.now();
   this.propsPlanet=planet;this.propsCenter=[...dir];this.freeMesh(this.props);const east=V.norm(V.cross(Math.abs(dir[1])>.92?[0,0,1]:[0,1,0],dir)),north=V.norm(V.cross(dir,east));const p=[],n=[],c=[],indices=[];
@@ -331,8 +494,8 @@ class Renderer{
    else{const rocky=planet.type==='Volcanic'?[.34,.21,.17]:planet.type==='Ice'?[.61,.72,.75]:planet.type==='Desert'?[.58,.43,.29]:[.39,.43,.40];triangle(ax,cx,tip,rocky);triangle(cx,bx,tip,V.mix(rocky,[.16,.18,.20],.24));triangle(bx,dx,tip,rocky);triangle(dx,ax,tip,V.mix(rocky,[.14,.19,.16],.14));}
   }this.props=makeMesh(this.gl,p,n,c,indices);
  }
- render(state){const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
-  this.updatePatch(near,viewer,alt);this.updateProps(near,viewer,alt);this.updateCelestial(cam);
+ render(state){this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
+  this.updatePatch(near,viewer,alt);this.propsPlanet=null;this.updateCelestial(cam);
   const nearSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
   const radial=near?V.norm(V.sub(cam.eye,near.position)):[0,1,0];
   const lightingSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
@@ -340,8 +503,12 @@ class Renderer{
   const dayDot=V.dot(radial,lighting.sunDir);this.daylightLabel=near?(dayDot>.15?'DAYLIGHT':dayDot>-.16?'TWILIGHT':lighting.moonPower>.018?'MOONLIT NIGHT':'NIGHT'):'VACUUM';
   const atmo=near&&near.kind!=='moon'&&near.landable?V.clamp((680-alt)/510,0,1):0;
   const sky=near?.sky||[.13,.27,.38];const daytime=V.clamp((dayDot+.16)/.35,0,1);
-  const fogColor=V.mix([.002,.004,.01],sky,atmo*daytime);
-  const fogDensity=atmo*.00054;
+  const biomeSample=near?.landable&&this.patchCenter&&this.patchPlanet===near?BIOMES.classify(near,this.patchCenter,groundHeight(this.patchCenter,near),field(this.patchCenter,near.seed)):null;
+  const biomePalette=biomeSample?BIOMES.PAL[biomeSample.name][0]:sky;
+  const fogColor=V.mix(V.mix([.002,.004,.01],sky,atmo*daytime),biomePalette,atmo*daytime*.12);
+  const weather=state.weather,weatherOpacity=weather&&atmo>0?Math.min(.75,1-weather.visibility):0;
+  const fogDensity=atmo*.00054*(1+weatherOpacity*5);
+  const eventFogColor=weatherOpacity?V.mix(fogColor,weather.tint,weatherOpacity*.55):fogColor;
   const view=M.look([0,0,0],V.sub(cam.target,origin),cam.up),proj=M.perspective(this.fov,this.aspect,.35,2e8),vp=M.mul(proj,view),sunVP=M.mul(M.perspective(this.fov,this.aspect,100,3e9),view);
   const light=lighting.sunDir;
   const applyLight=(prog,body=near)=>{let l=lighting;
@@ -354,11 +521,11 @@ class Renderer{
    const occ=l.occluder;this.gl.uniform4fv(this.loc(prog,'uOccluder'),occ?[...V.sub(occ.center,origin),occ.radius]:[0,0,0,0]);
   };
   gl.viewport(0,0,this.canvas.width,this.canvas.height);gl.clearColor(.006,.012,.023,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
-  let p=this.p.bg;gl.useProgram(p);gl.bindVertexArray(this.skyVao);this.setVec(p,'uForward',cam.forward);this.setVec(p,'uRight',cam.right);this.setVec(p,'uUp',cam.up);this.setVec(p,'uRadial',radial);this.setVec(p,'uSkyColor',sky);this.setVec(p,'uLight',light);this.setVec(p,'uStarColor',lighting.starColor);this.setFloat(p,'uStarPower',lighting.starPower);this.setFloat(p,'uDaylight',dayDot);this.setFloat(p,'uMoonGlow',lighting.moonPower);this.setFloat(p,'uSunAngular',0.04);this.setFloat(p,'uAspect',this.aspect);this.setFloat(p,'uTan',Math.tan(this.fov/2));this.setFloat(p,'uAltitude',alt);gl.drawArrays(gl.TRIANGLES,0,3);
-  p=this.p.star;gl.useProgram(p);this.setMat(p,'uVP',M.mul(M.perspective(this.fov,this.aspect,1,100000),view));this.setFloat(p,'uDpr',this.pixelRatio);this.setFloat(p,'uAlpha',1-atmo*daytime*.97);this.setFloat(p,'uTime',performance.now()*.001);this.setVec(p,'uOffset',[0,0,0]);gl.bindVertexArray(this.deep.vao);gl.drawArrays(gl.POINTS,0,this.deep.count);gl.bindVertexArray(this.celestial.vao);gl.drawArrays(gl.POINTS,0,this.celestial.count);
+  let p=this.p.bg;gl.useProgram(p);gl.bindVertexArray(this.skyVao);this.setVec(p,'uForward',cam.forward);this.setVec(p,'uRight',cam.right);this.setVec(p,'uUp',cam.up);this.setVec(p,'uRadial',radial);this.setVec(p,'uSkyColor',sky);this.setVec(p,'uLight',light);this.setVec(p,'uStarColor',lighting.starColor);this.setFloat(p,'uStarPower',lighting.starPower);this.setFloat(p,'uDaylight',dayDot);this.setFloat(p,'uMoonGlow',lighting.moonPower);this.setFloat(p,'uSunAngular',0.04);this.setFloat(p,'uAspect',this.aspect);this.setFloat(p,'uTan',Math.tan(this.fov/2));this.setFloat(p,'uAltitude',alt);gl.drawArrays(gl.TRIANGLES,0,3);this.frameDrawCalls++;
+  p=this.p.star;gl.useProgram(p);this.setMat(p,'uVP',M.mul(M.perspective(this.fov,this.aspect,1,100000),view));this.setFloat(p,'uDpr',this.pixelRatio);this.setFloat(p,'uAlpha',1-atmo*daytime*.97);this.setFloat(p,'uTime',performance.now()*.001);this.setVec(p,'uOffset',[0,0,0]);gl.bindVertexArray(this.deep.vao);gl.drawArrays(gl.POINTS,0,this.deep.count);this.frameDrawCalls++;gl.bindVertexArray(this.celestial.vao);gl.drawArrays(gl.POINTS,0,this.celestial.count);this.frameDrawCalls++;
   this.spaceAlpha=1-atmo*daytime*.97;this.updateEffects(cam,nearSystem);
   p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setFloat(p,'uFocal',this.canvas.height*.7);
-  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);gl.drawArrays(gl.POINTS,0,this.effectCount);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);gl.drawArrays(gl.POINTS,0,this.effectCount);this.frameDrawCalls++;gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   // Massive suns use a separate far-space projection. Their coordinates are relative
   // to the camera so Float32 matrices retain local precision in billion-unit sectors.
   this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*this.canvas.height;if(pixels<1.5)continue;
@@ -366,7 +533,7 @@ class Renderer{
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
   }
   gl.enable(gl.DEPTH_TEST);gl.depthMask(true);
-  p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',fogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',0);
+  p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',0);
   const rendered=[],rings=[];this.renderedBodies=0;this.culledBodies=0;
   // Star-system broad-phase culling, then view-frustum + projected-size LOD.
   for(const sys of this.galaxy.nearbySystems(origin,1600000)){const starDist=V.len(V.sub(sys.position,origin));if(starDist>sys.maxOrbit+1600000)continue;
@@ -376,22 +543,27 @@ class Renderer{
     const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340; if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
    }
   }
-  if(this.patchPlanet&&this.patch&&alt<340){applyLight(p,this.patchPlanet);this.renderMesh(p,this.patch,this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin)));}
-  if(this.propsPlanet&&this.props){applyLight(p,this.propsPlanet);this.renderMesh(p,this.props,this.spinModel(this.propsPlanet,V.sub(this.propsPlanet.position,origin)));}
+  if(this.patchPlanet&&alt<340){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
+    for(const tile of this.activeTerrain){this.renderMesh(p,tile.ground,model);if(tile.props)this.renderMesh(p,tile.props,model);}
+  }
   // Rings are actual tilted annular triangle meshes, not decorative orbit lines.
-  gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',fogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
+  gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
   for(const obj of rendered){if(!obj.geometry.atmo||obj.dist<obj.body.radius+150||obj.dist>obj.body.radius+11000)continue;
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',.9);this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',1);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
-  gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',fogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
+  if(state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
+  for(const probe of (state.extraRovers||[]).slice(0,15)){if(V.len(V.sub(probe.position,viewer))>2600)continue;const right=V.norm(V.cross(probe.forward,probe.up));this.renderMesh(p,this.rover,M.basis(right,probe.up,probe.forward,V.sub(probe.position,origin)));}
+  for(const sat of (state.satellites||[]).slice(0,48)){if(V.len(V.sub(sat.position,viewer))>85000)continue;const up=V.norm(sat.up||[0,1,0]),front=V.norm(V.sub([0,0,1],V.mul(up,V.dot([0,0,1],up))));const right=V.norm(V.cross(front,up));this.renderMesh(p,this.satellite,M.basis(right,up,front,V.sub(sat.position,origin)));}
+  for(const rocket of (state.rockets||[]).slice(0,3)){if(V.len(V.sub(rocket.position,viewer))>7000)continue;const up=V.norm(rocket.up),right=V.norm(V.cross([1,0,0],up)),front=V.norm(V.cross(right,up));this.renderMesh(p,this.rocket,M.basis(right,up,front,V.sub(rocket.position,origin)));}
   // Real 3D EVA character. These meshes are small, instanced only for the
   // player, and share existing star/moon lighting and depth occlusion.
   if(state.avatarBase&&state.avatarUp&&state.avatarForward){
    p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);
-   this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',fogColor);
+   this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);
    this.setFloat(p,'uFogDensity',fogDensity);
    const worldUp=V.norm(state.avatarUp),front=V.norm(V.sub(state.avatarForward,V.mul(worldUp,V.dot(state.avatarForward,worldUp))));
    const worldForward=V.len(front)>.1?front:cam.forward;
@@ -416,9 +588,43 @@ class Renderer{
    this.renderMesh(p,parts.staffGlow,M.mul(basis,M.spin([0,0,0],[1,0,0],-.018*Math.sin(phase))));
    this.avatarDrawCalls=9;
   }else this.avatarDrawCalls=0;
-  gl.bindVertexArray(null);
+  // Infrastructure uses fixed meshes, scene-relative transforms and normal depth testing.
+  // No geometry allocation or global structure traversal occurs in render().
+  if(Array.isArray(state.infrastructure)){
+   p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+   for(const item of state.infrastructure){const mesh=this.infrastructure.get(item.kind);if(!mesh||!item.position||V.len(V.sub(item.position,origin))>370)continue;
+    const worldUp=V.norm(item.up),front=V.norm(V.sub(item.forward,V.mul(worldUp,V.dot(item.forward,worldUp)))),right=V.norm(V.cross(front,worldUp));
+    this.setFloat(p,'uShip',item.preview?2:1);this.renderMesh(p,mesh,M.basis(right,worldUp,front,V.sub(item.position,origin)));
+   }
+  }
+  // Ancient ruins: geometry is shared per technology tier. No procedural mesh
+  // generation or planet-wide archaeological discovery occurs in the draw loop.
+  if(Array.isArray(state.ruins)&&state.ruins.length){
+   p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+   for(const item of state.ruins){const mesh=this.ruins.get(item.tier);if(!mesh||!item.position||V.len(V.sub(item.position,origin))>375)continue;
+    const worldUp=V.norm(item.up),front=V.norm(V.sub(item.forward,V.mul(worldUp,V.dot(item.forward,worldUp))));
+    if(V.len(front)<.01)continue;const right=V.norm(V.cross(front,worldUp));this.renderMesh(p,mesh,M.basis(right,worldUp,front,V.sub(item.position,origin)));
+   }
+  }
+  // Ecology near-field: strict draw cap, shared meshes and normal depth testing.
+  // Animated poses are recomputed in BODY-FIXED coordinates, never camera grids.
+  if(Array.isArray(state.ecology)&&state.ecology.length){
+   p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+   let count=0;for(const item of state.ecology){if(count++>=18)break;const mesh=this.ecologyMeshes.get(item.kind);if(!mesh||!item.position||V.len(V.sub(item.position,origin))>240)continue;
+    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;const r=V.norm(V.cross(f,u));this.renderMesh(p,mesh,M.basis(r,u,f,V.sub(item.position,origin)));
+   }
+  }
+  // Draw the active ruin interior in the same 3D scene. The camera, avatar and
+  // corridor layout are all site-local; no extra rendering surface or scene load.
+  if(state.interior){
+   const item=state.interior,mesh=this.interiorMeshes.get(item.tier);
+   if(mesh&&item.position){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',1.6);
+    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u)))),r=V.norm(V.cross(f,u));this.renderMesh(p,mesh,M.basis(r,u,f,V.sub(item.position,origin)));
+   }
+  }
+  gl.bindVertexArray(null);this.lastDrawCalls=this.frameDrawCalls;
  }
- dispose(){for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
+ dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
 }
-root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting};
+root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:(planet,localDirection)=>ST.sample(planet,localDirection,groundHeight,field,shade,(body,d)=>Renderer.prototype.terrainNormal.call(null,body,d))};
 })(globalThis);

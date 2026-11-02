@@ -4,6 +4,7 @@
 (function(){'use strict';
 const $=id=>document.getElementById(id),{Renderer,V,groundHeight}=Starfall3D;
 const P=StarfallPhysics, FP=StarfallFlightPhysics;
+const BIOMES=StarfallBiomes;
 const SEED_QUERY=new URLSearchParams(location.search).get('seed'),GALAXY_SEED=SEED_QUERY!==null?(Number(SEED_QUERY)>>>0):742,galaxy=StarfallGalaxy.generateGalaxy(GALAXY_SEED,64);
 const first=galaxy.systems[0].planets[0];
 let target=first,nearest=first,renderer;
@@ -11,21 +12,56 @@ try{renderer=new Renderer($('universe'),galaxy);}catch(error){console.error('STA
 let simTime=0,pos=V.add(first.position,[0,300,-(first.radius+3550)]),vel=[0,0,0],forward=V.norm(V.sub(first.position,pos)),up=[0,1,0];
 let landed=false,warp=false,camMode=0,camEye=null,camDistance=70,orbitYaw=0,orbitPitch=0,heat=0,solarWarning=false,timeScale=1,altitude=3500,vertical=0,fps=60,lastPlanetId='',nearPhase='DEEP SPACE',hudClock=0,frames=0,frameClock=0,lastTime=performance.now(),lastSave=0,toastTimer=0,landingTimer=0;
 let siteWaypoint=null,scan=null,landingCapture=null,groundLocal=null,headlights=true;
+let interiorState=null;
 let eva=false,evaLocal=null,evaForward=[...forward],shipLocal=null,shipForwardVec=[...forward],shipUpVec=[...up],shipBody=null;
-let roverLocal=null,roverForwardVec=[...forward],roverBody=null,roverOccupied=false;
+let roverLocal=null,roverForwardVec=[...forward],roverBody=null,truckOccupied=false;
+let truckLocal=null,truckForwardVec=[...forward],truckBody=null,truckBatteryJ=44e6,truckLights=true,truckCargo=0;
 let hatchCooldown=0,walkedSinceExit=0,shipExitProgress=0,roverEntryCooldown=0,roverExitMove=null,shipIdleElapsed=0,rampTransition=null,rampLift=0;
 let engEnabled=false,engState=null,engBody=null,engAttitude='Manual',engLast={dragN:0,heatingW:0,temperatureK:290},engSteps=0;
 const physicsClock=new P.SimulationClock(0);
 galaxy.physicsOrbits=StarfallOrbitBridge.attach(galaxy);
-const SHIP_CLEARANCE=7.5,EVA_HEIGHT=2.6,EVA_BOARD_DISTANCE=32,ROVER_CLEARANCE=2.1,ROVER_BOARD_DISTANCE=13;
+const SHIP_CLEARANCE=7.5,EVA_HEIGHT=2.6,EVA_BOARD_DISTANCE=32,ROVER_CLEARANCE=2.1,TRUCK_CLEARANCE=4.2,TRUCK_BOARD_DISTANCE=19;
 const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
 const session=SF.load(),saved=session.flightGalaxy;
+const controls=StarfallControls.create(session.controlSettings,keys);
+controls.onChange=settings=>SF.save({controlSettings:settings});
+window.StarfallInput=controls;
+const science4Settings={roverPhysics:!!session.science4Settings?.roverPhysics};
+let roverPhysicsReport=null;
+const Vehicles=StarfallVehicles, Power=StarfallPower,vehicleStore=Vehicles.createStore(session.engineeringVehicles);
+let engineeringSystemReport={ship:null,rover:null},engineeringSystemSeconds=0;
+function persistVehicles(){SF.save({engineeringVehicles:vehicleStore.serialize()});}
+function shipConfiguredState(){const x=vehicleStore.get('ship'),s=x.stats;return FP.shipState({dryMassKg:s.dryMassKg,fuelKg:x.state.fuelKg,thrustN:s.thrustN,ispS:s.ispS,radiatorAreaM2:s.radiatorAreaM2,emissivity:s.emissivity,temperatureK:x.state.temperatureK});}
+function updateVehicleSystems(dt){
+ const elapsed=dt*timeScale;
+ if(!(elapsed>0))return;
+ const sys=galaxy.byId.get((nearest||target).systemId),star=sys?.star;
+ for(const kind of ['ship','rover']){
+  const v=vehicleStore.get(kind),st=v.state,stats=v.stats;
+  if(!st.powerEnabled){engineeringSystemReport[kind]=null;continue;}
+  const craftPos=kind==='ship'?shipWorldState().position:(roverWorldState()?.position||pos);
+  const direction=star?P.vec.sub(sys.position,craftPos):[0,1,0],distanceScene=P.vec.len(direction);
+  const sunDir=V.norm(direction),normal=kind==='ship'?(landed?shipWorldState().up:up):(roverWorldState()?.up||up);
+  const atmo=nearest?FP.atmosphere(nearest,Math.max(0,altitude)*P.SCENE_METERS_PER_UNIT):{densityKgM3:0};
+  const light={luminosityW:star?P.starProfile(star).luminosityW:0,distanceM:Math.max(1,distanceScene*P.SCENE_METERS_PER_UNIT),incidence:Math.max(0,V.dot(normal,sunDir)),transmission:Math.exp(-Math.min(9,atmo.densityKgM3*.1))*(landed&&nearest=== (kind==='ship'?shipBody:roverBody)?StarfallEvents.skyTransmission(nearest,V.rot(V.norm(V.sub(craftPos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):1),occluded:!!(nearest&&star&&!Power.visibleSun(P.vec.mul(craftPos,P.SCENE_METERS_PER_UNIT),P.vec.mul(sys.position,P.SCENE_METERS_PER_UNIT),{positionM:P.vec.mul(nearest.position,P.SCENE_METERS_PER_UNIT),radiusM:nearest.radius*P.SCENE_METERS_PER_UNIT})),ambientK:190};
+  const shipThrust=kind==='ship'&&engEnabled&&!eva&&!landed&&(keys.has('KeyW')||keys.has('KeyS'));
+  const driven=kind==='rover'&&!!window.StarfallScienceUI?.autoDriving;
+  const result=Power.step(stats,st,elapsed,light,{engineActive:shipThrust,driveW:driven?stats.drivePowerW:0,lightsW:headlights?(kind==='ship'?1200:180):0,heatW:shipThrust?stats.engineHeatW:driven?stats.drivePowerW*.13:0});
+  vehicleStore.update(kind,result.state);engineeringSystemReport[kind]=result;
+ }
+ engineeringSystemSeconds+=elapsed;
+}
+function safeToReconfigure(kind){return landed;}
+function configureVehicle(kind,definition){if(!safeToReconfigure(kind))throw Error('Park or land the vehicle before applying changes.');const result=vehicleStore.apply(kind,definition);if(kind==='ship'&&engState){const updated=shipConfiguredState();engState.craft={...engState.craft,...updated};}persistVehicles();return result;}
+
 engEnabled=session.scienceSettings?.flightMode==='Engineering';
 engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(session.scienceSettings?.sas)?session.scienceSettings.sas:'Manual';
 if(saved&&saved.seed===GALAXY_SEED&&Array.isArray(saved.position)&&saved.position.length===3&&saved.position.every(Number.isFinite)){
- try{simTime=Number(saved.time)||0;galaxy.update(simTime);if(saved.target?.startsWith('catalog-')){const sid=saved.target.replace(/-p\d+(?:-m\d+)?$|\-sun$/,'');const ss=galaxy.byId.get(sid);if(ss)galaxy.activate(ss);}target=galaxy.byId.get(saved.target)||first;galaxy.pinnedSystemId=target.systemId;nearest=galaxy.byId.get(saved.attached)||first;
+ try{simTime=Number.isFinite(saved.time)&&saved.time>=0&&saved.time<1e13?saved.time:0;galaxy.update(simTime);if(saved.target?.startsWith('catalog-')){const sid=saved.target.replace(/-p\d+(?:-m\d+)?$|\-sun$/,'');const ss=galaxy.byId.get(sid);if(ss)galaxy.activate(ss);}target=galaxy.byId.get(saved.target)||first;galaxy.pinnedSystemId=target.systemId;nearest=galaxy.byId.get(saved.attached)||first;
   pos=saved.position.slice();forward=V.norm(saved.forward||forward);up=V.norm(saved.up||up);landed=!!saved.landed&&nearest.landable;
-  if(engEnabled&&saved.engineering?.bodyId===nearest.id&&saved.engineering.rM?.length===3&&saved.engineering.vMS?.length===3){engState={rM:[...saved.engineering.rM],vMS:[...saved.engineering.vMS],craft:FP.shipState(saved.engineering.craft||{})};engBody=nearest.id;}
+  if(engEnabled&&saved.engineering?.bodyId===nearest.id&&saved.engineering.rM?.length===3&&saved.engineering.vMS?.length===3){const current=shipConfiguredState(),legacyCraft=saved.engineering.craft||{};
+   engState={rM:[...saved.engineering.rM],vMS:[...saved.engineering.vMS],craft:FP.shipState({...current,fuelKg:Number.isFinite(legacyCraft.fuelKg)?Math.min(Math.max(0,legacyCraft.fuelKg),vehicleStore.get('ship').stats.fuelCapacityKg):current.fuelKg,temperatureK:Number.isFinite(legacyCraft.temperatureK)?legacyCraft.temperatureK:current.temperatureK})};engBody=nearest.id;
+   vehicleStore.update('ship',{...vehicleStore.get('ship').state,fuelKg:engState.craft.fuelKg,temperatureK:engState.craft.temperatureK});}
   if(landed&&Array.isArray(saved.groundDirection)){const dir=V.norm(saved.groundDirection);
    groundLocal=V.rot(dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
    pos=V.add(nearest.position,V.mul(dir,nearest.radius+groundHeight(groundLocal,nearest)+SHIP_CLEARANCE));up=dir;
@@ -33,6 +69,33 @@ if(saved&&saved.seed===GALAXY_SEED&&Array.isArray(saved.position)&&saved.positio
  }catch(e){console.warn('Saved flight could not be restored:',e);}}
 physicsClock.set(simTime);
 
+// In-world archaeological interiors: no rewriting of flight or surface terrain.
+// Body-fixed site coordinates preserve placement through orbit and axial spin.
+function interiorWorld(at){const state=interiorState;if(!state)return null;
+ const body=galaxy.byId.get(state.site.bodyId),local=StarfallInteriors.direction(state.site.local,state.basis,at.x,at.z,body.radius),axis=body.spinAxis||[0,1,0],upWorld=V.norm(V.rot(local,axis,body.spinAngle||0));
+ return{body,local,up:upWorld,position:V.add(body.position,V.mul(upWorld,body.radius+state.site.height+state.layout.floorY+EVA_HEIGHT))};
+}
+function enterInterior(site){
+ if(interiorState)throw Error('Already inside a ruin.');
+ if(!landed||!eva||truckOccupied||rampTransition||roverExitMove||!nearest||site?.bodyId!==nearest.id)throw Error('Exit the ship or rover and stand beside the ruin.');
+ const local=evaLocal||V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+ const dist=StarfallArchaeology.arc(local,site.local,nearest.radius);
+ if(dist>30)throw Error('Approach within 30 units of the ruin.');
+ if(!StarfallRuinsUI.records.some(r=>r.id===site.id&&r.bodyId===site.bodyId&&r.level>=2))throw Error('First perform a field examination using ANCIENT RUINS.');
+ if((site.slopeDeg||0)>20)throw Error('Unsafe entrance: steep terrain or collapsed foundation; survey another ruin.');
+ const layout=StarfallInteriors.layout(site),basis=StarfallInteriors.basis(site.local);
+ interiorState={site,layout,basis,at:{...layout.entry}};
+ const initial=interiorWorld(interiorState.at);evaLocal=initial.local;pos=initial.position;up=initial.up;
+ evaForward=V.rot(basis.forward,nearest.spinAxis||[0,1,0],nearest.spinAngle||0);camEye=null;orbitYaw=0;orbitPitch=0;vel=[0,0,0];
+ showToast('ANCIENT INTERIOR · X inspect relics · ESC exit');return interiorState;
+}
+function leaveInterior(){if(!interiorState)return false;const site=interiorState.site,body=nearest,b=interiorState.basis;
+ // Safe exit onto deterministic original terrain, not through generated walls.
+ const dir=StarfallInteriors.direction(site.local,b,0,-interiorState.layout.length-4,body.radius),axis=body.spinAxis||[0,1,0];
+ evaLocal=dir;const radial=V.rot(dir,axis,body.spinAngle||0);pos=V.add(body.position,V.mul(radial,body.radius+groundHeight(dir,body)+EVA_HEIGHT));up=radial;
+ evaForward=V.rot(V.mul(b.forward,-1),axis,body.spinAngle||0);interiorState=null;camEye=null;orbitYaw=0;orbitPitch=0;vel=[0,0,0];hatchCooldown=1;roverEntryCooldown=1;
+ showToast('Returned to planetary surface');return true;
+}
 function shipWorldState(){
  if(eva&&shipBody&&shipLocal){
   const axis=shipBody.spinAxis||[0,1,0],radial=V.norm(V.rot(shipLocal,axis,shipBody.spinAngle||0));
@@ -46,6 +109,11 @@ function roverWorldState(){
  const axis=roverBody.spinAxis||[0,1,0],radial=V.norm(V.rot(roverLocal,axis,roverBody.spinAngle||0));
  const height=groundHeight(roverLocal,roverBody);
  return{body:roverBody,position:V.add(roverBody.position,V.mul(radial,roverBody.radius+height+ROVER_CLEARANCE)),forward:roverForwardVec||evaForward,up:radial};
+}
+function truckWorldState(){
+ if(!(truckBody&&truckLocal))return null;
+ const axis=truckBody.spinAxis||[0,1,0],radial=V.norm(V.rot(truckLocal,axis,truckBody.spinAngle||0));
+ return{body:truckBody,position:V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(truckLocal,truckBody)+TRUCK_CLEARANCE)),forward:truckForwardVec,up:radial};
 }
 function tangentOffsetLocal(body,localRadial,worldForward,forwardMeters,rightMeters){
  const axis=body.spinAxis||[0,1,0],worldRadial=V.norm(V.rot(localRadial,axis,body.spinAngle||0));
@@ -63,6 +131,7 @@ function placeRoverNearShip(){
  roverBody=shipBody;
  roverForwardVec=V.norm(shipForwardVec||forward);
  roverLocal=tangentOffsetLocal(shipBody,shipLocal,roverForwardVec,-9.5,10.5);
+ if(!truckLocal||truckBody!==shipBody){truckBody=shipBody;truckForwardVec=[...shipForwardVec];truckLocal=tangentOffsetLocal(shipBody,shipLocal,truckForwardVec,-14,-18);}
 }
 function exitShip(){
  if(!landed||eva||!nearest?.landable)return;
@@ -77,33 +146,31 @@ function exitShip(){
  evaForward=V.norm(V.sub(forward,V.mul(evacDir,V.dot(forward,evacDir))));
  if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(evacDir[1])>.92?[0,0,1]:[0,1,0],evacDir));
  pos=V.add(nearest.position,V.mul(evacDir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT+rampLift));
- up=evacDir;vel=[0,0,0];eva=true;roverOccupied=false;camMode=0;camDistance=Math.min(camDistance,18);camEye=null;
+ up=evacDir;vel=[0,0,0];eva=true;truckOccupied=false;camMode=0;camDistance=Math.min(camDistance,18);camEye=null;
  hatchCooldown=2;walkedSinceExit=0;roverEntryCooldown=2;shipIdleElapsed=0;
- showToast('EVA active · walk forward onto the rear cargo ramp to board · approach rover to drive');
+ showToast('EVA · science rover is AUTONOMOUS ONLY · approach truck and press X to drive');
 }
 function boardShip(){
  if(!eva||!shipBody||!shipLocal)return;
  const ship=shipWorldState();
  if(V.len(V.sub(pos,ship.position))>EVA_BOARD_DISTANCE){showToast('Move closer to the ship to board.');return;}
- eva=false;roverOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
+ eva=false;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
  hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;showToast('Inside the ship · SPACE launch · hold S to walk back down the ramp');
 }
-function enterRover(){
- if(!eva||roverOccupied||!(roverBody&&roverLocal))return;
- const rover=roverWorldState();
- if(!rover||V.len(V.sub(pos,rover.position))>ROVER_BOARD_DISTANCE){showToast('Move closer to the rover.');return;}
- roverOccupied=true;pos=[...rover.position];evaForward=[...rover.forward];up=[...rover.up];camEye=null;camDistance=Math.max(camDistance,21);
- roverEntryCooldown=1.0;showToast('Rover engaged · WASD drive · click the ground beside it to walk away');
+function enterTruck(){
+ if(!eva||truckOccupied||!truckBody||truckBody!==nearest||!truckLocal||interiorState||rampTransition)return false;
+ const truck=truckWorldState();
+ if(!truck||V.len(V.sub(pos,truck.position))>TRUCK_BOARD_DISTANCE)return false;
+ truckOccupied=true;pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];camEye=null;camDistance=Math.max(camDistance,26);
+ roverEntryCooldown=1.2;showToast('EXPEDITION TRUCK · WASD drive · X or ground click to exit · L lights');return true;
 }
-function exitRover(){
- if(!roverOccupied||!(roverBody&&roverLocal))return;
- const rover=roverWorldState(),axis=roverBody.spinAxis||[0,1,0];
- roverOccupied=false;
- const dismount=tangentOffsetLocal(roverBody,roverLocal,roverForwardVec,0,-5.0),dir=V.norm(V.rot(dismount,axis,roverBody.spinAngle||0));
- evaLocal=dismount;evaForward=[...(roverForwardVec||evaForward)];pos=V.add(roverBody.position,V.mul(dir,roverBody.radius+groundHeight(evaLocal,roverBody)+EVA_HEIGHT));up=dir;camEye=null;
- roverEntryCooldown=2.0;roverExitMove={from:roverLocal.slice(),to:evaLocal.slice(),progress:0};
- // First frame starts at the rover; the next frames visibly walk away to the ground.
- evaLocal=[...roverLocal];pos=[...rover.position];showToast('Walking away from rover');
+function exitTruck(){
+ if(!truckOccupied||!truckBody||!truckLocal)return false;
+ truckOccupied=false;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
+ evaLocal=dis;const axis=truckBody.spinAxis||[0,1,0],dir=V.norm(V.rot(dis,axis,truckBody.spinAngle||0));
+ evaForward=[...truckForwardVec];pos=V.add(truckBody.position,V.mul(dir,truckBody.radius+groundHeight(dis,truckBody)+EVA_HEIGHT));up=dir;camEye=null;
+ roverEntryCooldown=2.4;roverExitMove={from:prev,to:dis,progress:0};evaLocal=prev;
+ const truck=truckWorldState();pos=[...truck.position];showToast('Stepping away from expedition truck · move freely, X to re-enter');return true;
 }
 function projectToScreen(point,camera){
  const rel=V.sub(point,camera.eye),view=M.look([0,0,0],V.sub(camera.target,camera.eye),camera.up),proj=M.perspective(renderer.fov,renderer.aspect,.35,2e8),vp=M.mul(proj,view),x=rel[0],y=rel[1],z=rel[2];
@@ -114,7 +181,7 @@ function projectToScreen(point,camera){
 function updateAstronautSprite(camera){/* Removed: real 3D avatar renders directly with other WebGL geometry. */}
 
 function setFlightPhysicsMode(mode){
- engEnabled=mode==='Engineering';engState=null;engBody=null;
+ engEnabled=mode==='Engineering';if(engState){vehicleStore.update('ship',{...vehicleStore.get('ship').state,fuelKg:engState.craft.fuelKg,temperatureK:engState.craft.temperatureK});}engState=null;engBody=null;
  SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});
  showToast((engEnabled?'ENGINEERING':'ASSISTED')+' FLIGHT · '+(engEnabled?'real gravity and fuel active':'legacy controls restored'));
 }
@@ -126,17 +193,17 @@ function engineeringInfo(){
  const v=engState&&engBody===b.id?engState.vMS:P.vec.mul(vel,P.SCENE_METERS_PER_UNIT);
  let elements=null;
  try{if(P.vec.len(r)>physical.radiusM*.9)elements=P.orbitalObservables(r,v,physical.mu);}catch(_){/* Undefined orbit: degenerate state, not a crash. */}
- const craft=engState?.craft||FP.shipState(),m=craft.dryMassKg+craft.fuelKg;
+ const craft=engState?.craft||shipConfiguredState(),m=craft.dryMassKg+craft.fuelKg;
  const dv=craft.fuelKg>0?craft.ispS*P.G0*Math.log(m/craft.dryMassKg):0;
  const omega=2*Math.PI/Math.max(1,b.spinPeriod),groundWind=P.vec.cross(P.vec.mul(b.spinAxis||[0,1,0],omega),r);
- return{body:b,physical,elements,craft,deltaVMS:dv,inertialVelocityMS:P.vec.len(v),groundVelocityMS:P.vec.len(P.vec.sub(v,groundWind)),rM:r,vMS:v,dragN:engLast.dragN||0,heatingW:engLast.heatingW||0,temperatureK:craft.temperatureK,steps:engSteps};
+ return{body:b,physical,elements,craft,vehicle:vehicleStore.get('ship').stats,power:engineeringSystemReport.ship,deltaVMS:dv,inertialVelocityMS:P.vec.len(v),groundVelocityMS:P.vec.len(P.vec.sub(v,groundWind)),rM:r,vMS:v,dragN:engLast.dragN||0,heatingW:engLast.heatingW||0,temperatureK:craft.temperatureK,steps:engSteps};
 }
 function engineeringTouchdown(ns){
  groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
  pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));
- landed=true;vel=[0,0,0];warp=false;engState=null;engBody=null;up=ns.dir;
+ landed=true;vel=[0,0,0];warp=false;if(engState)vehicleStore.update('ship',{...vehicleStore.get('ship').state,fuelKg:engState.craft.fuelKg,temperatureK:engState.craft.temperatureK});engState=null;engBody=null;up=ns.dir;
  let tangent=V.sub(forward,V.mul(up,V.dot(forward,up)));if(V.len(tangent)<.05)tangent=V.cross([0,1,0],up);forward=V.norm(tangent);
- shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;roverOccupied=false;placeRoverNearShip();
+ shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;placeRoverNearShip();
  SF.recordDiscovery({id:'seamless-land:'+nearest.id,type:'landing',name:'Landed on '+nearest.name,detail:'Engineering physics touchdown',planet:nearest.name,system:nearest.system});
  showToast('ENGINEERING TOUCHDOWN · EVA descent underway');saveFlight();exitShip();
 }
@@ -147,9 +214,10 @@ function engineeringFlight(dt){
  const physical=P.bodyProfile(body,parent?P.bodyProfile(parent,P.starProfile(sys.star)):P.starProfile(sys.star));
  if(!engState||engBody!==body.id){
   engBody=body.id;
-  engState={rM:P.vec.mul(P.vec.sub(pos,body.position),P.SCENE_METERS_PER_UNIT),vMS:P.vec.mul(vel,P.SCENE_METERS_PER_UNIT),craft:FP.shipState()};
+  engState={rM:P.vec.mul(P.vec.sub(pos,body.position),P.SCENE_METERS_PER_UNIT),vMS:P.vec.mul(vel,P.SCENE_METERS_PER_UNIT),craft:shipConfiguredState()};
  }
  const thr=keys.has('KeyW')?1:keys.has('KeyS')?.42:0,back=keys.has('KeyS')&&!keys.has('KeyW');
+ const enginePowered=vehicleStore.get('ship').state.health>.05&&(!vehicleStore.get('ship').state.powerEnabled||engineeringSystemReport.ship?.enginePowered!==false);
  if(engAttitude==='Prograde'||engAttitude==='Retrograde'){
   const speed=P.vec.len(engState.vMS);
   if(speed>1){const wanted=V.mul(V.norm(engState.vMS),engAttitude==='Prograde'?1:-1);forward=V.norm(V.mix(forward,wanted,Math.min(1,dt*1.2)));}
@@ -163,13 +231,14 @@ function engineeringFlight(dt){
  let steps=0;
  if(activeDt){const n=Math.min(36,Math.max(1,Math.ceil(activeDt/(1/90)))),step=activeDt/n;
   for(let i=0;i<n;i++){
-   const d=FP.integrateFixed(engState,{...physical,kind:body.kind,landable:body.landable,type:body.type,axis:body.spinAxis},step,{throttle:thr,forward:controlDirection,rotationRateRadS:rotationRate,groundHeightM:body.landable?Math.max(0,groundHeight(V.rot(V.norm(engState.rM),body.spinAxis||[0,1,0],-(body.spinAngle||0)),body)*P.SCENE_METERS_PER_UNIT):0});
+   const d=FP.integrateFixed(engState,{...physical,kind:body.kind,landable:body.landable,type:body.type,axis:body.spinAxis},step,{throttle:enginePowered?thr:0,engineHeatW:vehicleStore.get('ship').stats.engineHeatW,powerAvailable:enginePowered,forward:controlDirection,rotationRateRadS:rotationRate,groundHeightM:body.landable?Math.max(0,groundHeight(V.rot(V.norm(engState.rM),body.spinAxis||[0,1,0],-(body.spinAngle||0)),body)*P.SCENE_METERS_PER_UNIT):0});
    engState={rM:d.rM,vMS:d.vMS,craft:d.craft};engLast=d;steps++;
    if(d.impact&&body.landable){pos=V.add(body.position,P.vec.mul(d.rM,1/P.SCENE_METERS_PER_UNIT));const ns=surfaceData(body,pos);engineeringTouchdown(ns);return;}
   }
  }
  if(total>activeDt&&deepVacuum&&!thr){try{const d=FP.coast(engState.rM,engState.vMS,physical.mu,total-activeDt);engState.rM=d.rM;engState.vMS=d.vMS;}catch(e){/* If coast is ill-conditioned, bounded integration is safer than corrupting the ship. */}}
  engSteps=steps;
+ if(engState)vehicleStore.update('ship',{...vehicleStore.get('ship').state,fuelKg:engState.craft.fuelKg,temperatureK:engState.craft.temperatureK});
  const next=P.vec.add(body.position,P.vec.mul(engState.rM,1/P.SCENE_METERS_PER_UNIT));
  if(!next.every(Number.isFinite))throw Error('Engineering position lost precision');
  const sunHit=checkStarCollision(pos,next);if(sunHit){engState=null;engBody=null;pos=V.add(sunHit.sys.position,V.mul(V.norm(V.sub(pos,sunHit.sys.position)),sunHit.sys.star.radius*1.008));vel=[0,0,0];return;}
@@ -213,8 +282,8 @@ let expandedSystemId=null;function drawChart(){const area=$('destinations'),term
  }
  $('systems-shown').textContent=(term?matched+' MATCHES · ':'')+shown+' SHOWN / '+galaxy.systems.length+' REAL SYSTEMS';
 }
-function openChart(){drawChart();$('chart').hidden=false;keys.clear();$('chart-search')?.focus();}
-function closeChart(){$('chart').hidden=true;}
+function openChart(){drawChart();$('chart').hidden=false;controls.clear();$('chart-search')?.focus();}
+function closeChart(){if($('chart').contains(document.activeElement))document.activeElement.blur();$('chart').hidden=true;}
 $('new-galaxy').onclick=()=>{const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;};
 $('chart-open').onclick=openChart;$('chart-close').onclick=closeChart;$('chart-search').oninput=drawChart;$('chart').addEventListener('click',e=>{if(e.target===$('chart'))closeChart();});
 $('panel-toggle').onclick=()=>{const c=$('panel').classList.toggle('collapsed');$('panel-toggle').textContent=c?'+':'−';$('panel-toggle').setAttribute('aria-expanded',String(!c));};
@@ -222,13 +291,30 @@ document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.d
 function rotate(yaw,pitch,roll){const right=V.norm(V.cross(forward,up));if(yaw)forward=V.rot(forward,up,yaw);if(pitch){forward=V.rot(forward,right,pitch);up=V.rot(up,right,pitch);}if(roll)up=V.rot(up,forward,roll);forward=V.norm(forward);up=V.norm(V.sub(up,V.mul(forward,V.dot(forward,up))));}
 function pointTowardWaypoint(){const b=siteWaypoint?.planet||target,way=siteWaypoint?V.add(b.position,V.mul(V.rot(siteWaypoint.dir,b.spinAxis||[0,1,0],b.spinAngle||0),b.radius+180)):b.position,delta=V.sub(way,pos);if(V.len(delta)<30)return;
  let d=V.norm(delta);if(landed){const radial=V.norm(V.sub(pos,nearest.position));d=V.norm(V.sub(d,V.mul(radial,V.dot(d,radial))));if(V.len(d)<.1)return;up=radial;}else{let right=V.norm(V.cross(forward,up));if(V.len(V.cross(right,d))<.01)right=[1,0,0];up=V.norm(V.cross(right,d));}forward=d;showToast('Heading aligned · thrust with W.');}
-const busy=()=>!$('chart').hidden;
-addEventListener('keydown',ev=>{if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(ev.code))ev.preventDefault();if(busy()){if(ev.code==='Escape')closeChart();return;}
- keys.add(ev.code);if(ev.repeat)return;if(['Digit1','Digit2','Digit3'].includes(ev.code))startScan(Number(ev.code.slice(-1))-1);
- if(ev.code==='KeyV'&&!eva){camMode=(camMode+1)%2;camEye=null;showToast(camMode?'Cockpit camera':'Chase camera');}if(ev.code==='KeyF'){orbitYaw=0;orbitPitch=0;showToast(roverOccupied?'Camera centred behind rover.':eva?'Camera centred behind astronaut.':'Camera centred behind spacecraft.');}if(ev.code==='KeyG'&&!eva)pointTowardWaypoint();if(ev.code==='KeyM')openChart();if(ev.code==='KeyT'){timeScale=timeScale===1?10:timeScale===10?100:1;showToast('Orbital simulation speed '+timeScale+'×');}
- if(ev.code==='KeyL'){headlights=!headlights;showToast((eva?'Suit / ship lights ':'Landing floodlights ')+(headlights?'ON':'OFF'));}if(ev.code==='KeyR'&&ev.shiftKey&&!eva){pos=V.add(target.position,[0,320,-(target.radius+3550)]);forward=V.norm(V.sub(target.position,pos));up=[0,1,0];vel=[0,0,0];landed=false;groundLocal=null;warp=false;camEye=null;showToast('Reset to target orbital approach.');}
+const busy=()=>['chart','workbench','field-lab','outpost','observatory','integration-modal','controls-modal','ruin-panel','discovery-panel','survey-panel','interior-panel','ecology-panel','events-panel','sandbox-panel'].some(id=>{const e=$(id);return e&&!e.hidden;});
+function isTyping(target){return !!(target?.closest?.('input,textarea,select,[contenteditable=true]'));}
+addEventListener('keydown',ev=>{
+ const code=controls.resolve(ev.code)||ev.code;
+ if(busy()||!$('launch-dialog').hidden||isTyping(ev.target)){controls.clear();if(code==='Escape'&&!$('chart').hidden)closeChart();return;}
+ if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','KeyC','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(code))ev.preventDefault();
+ if(ev.code==='Escape'&&interiorState){leaveInterior();return;}
+ const mapped=controls.press(ev.code);if(!mapped)return;
+ if(ev.repeat)return;
+ if(code==='KeyX'&&truckOccupied){exitTruck();return;}
+ if(code==='KeyX'&&eva){const ctx=outpostContext(),A=window.StarfallArchaeology,R=window.StarfallRuinsUI;
+   const entrance=ctx.body&&ctx.local&&A&&R?.visibleSites?.find(site=>site.bodyId===ctx.bodyId&&A.arc(site.local,ctx.local,ctx.body.radius)<30&&R.records.some(r=>r.id===site.id&&r.level>=2));
+   if(entrance){window.StarfallInteriorsUI?.interact();return;}
+   if(enterTruck())return;window.StarfallInteriorsUI?.interact();return;}
+ if(['Digit1','Digit2','Digit3'].includes(code))startScan(Number(code.slice(-1))-1);
+ if(code==='KeyV'&&!eva){camMode=(camMode+1)%2;camEye=null;showToast(camMode?'Cockpit camera':'Chase camera');}
+ if(code==='KeyF'){orbitYaw=0;orbitPitch=0;showToast(truckOccupied?'Camera centred behind truck.':eva?'Camera centred behind astronaut.':'Camera centred behind spacecraft.');}
+ if(code==='KeyG'&&!eva)pointTowardWaypoint();if(code==='KeyM')openChart();
+ if(code==='KeyT'){timeScale=timeScale===1?10:timeScale===10?100:1;showToast('Orbital simulation speed '+timeScale+'×');}
+ if(code==='KeyH'){renderer.terrainDebugEnabled=!renderer.terrainDebugEnabled;showToast('Terrain diagnostics '+(renderer.terrainDebugEnabled?'ON':'OFF'));}
+ if(code==='KeyL'){headlights=!headlights;if(truckOccupied)truckLights=headlights;showToast((truckOccupied?'Truck floodlights ':eva?'Suit / ship lights ':'Landing floodlights ')+(headlights?'ON':'OFF'));}
+ if(code==='KeyR'&&ev.shiftKey&&!eva){pos=V.add(target.position,[0,320,-(target.radius+3550)]);forward=V.norm(V.sub(target.position,pos));up=[0,1,0];vel=[0,0,0];landed=false;groundLocal=null;warp=false;camEye=null;showToast('Reset to target orbital approach.');}
 });
-addEventListener('keyup',ev=>keys.delete(ev.code));addEventListener('blur',()=>keys.clear());
+addEventListener('keyup',ev=>controls.release(ev.code));addEventListener('blur',()=>controls.clear());
 let dragging=false,dragButton=0,lastX=0,lastY=0,dragTravel=0,lastPickingCamera=null;const canvas=$('universe');
 canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
 
@@ -245,16 +331,18 @@ function pickActualStar(clientX,clientY){
  target=best.star;galaxy.pinnedSystemId=best.id;siteWaypoint=null;showToast('STAR ACQUIRED · '+best.name+' · G align · SHIFT+W warp');return true;
 }
 canvas.addEventListener('pointerdown',ev=>{if(busy())return;dragging=true;dragButton=ev.button;lastX=ev.clientX;lastY=ev.clientY;dragTravel=0;canvas.setPointerCapture(ev.pointerId);});
-canvas.addEventListener('pointermove',ev=>{if(!dragging||busy())return;const dx=V.clamp(ev.clientX-lastX,-100,100),dy=V.clamp(ev.clientY-lastY,-100,100);dragTravel+=Math.abs(dx)+Math.abs(dy);lastX=ev.clientX;lastY=ev.clientY;
- if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.003,-1.15,1.15);return;}
- if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.003,-.7,.7);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,-dy*.0021,0);
+canvas.addEventListener('pointermove',ev=>{if(!dragging||busy())return;const rawDx=V.clamp(ev.clientX-lastX,-100,100),rawDy=V.clamp(ev.clientY-lastY,-100,100),{dx,dy}=controls.signedDrag(rawDx,rawDy);dragTravel+=Math.abs(dx)+Math.abs(dy);lastX=ev.clientX;lastY=ev.clientY;
+ // EVA uses an independent full-range view pitch. Dragging upward looks at the sky;
+ // the rover/ship camera keeps its original behavior and control sensitivity.
+ if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*(eva?.0042:.003),eva?-1.3:-1.15,eva?1.72:1.15);return;}
+ if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.0042,-1.3,1.72);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,controls.flightPitch(-dy*.0021),0);
 });
-canvas.addEventListener('pointerup',ev=>{if(roverOccupied&&dragButton===0&&dragTravel<12&&roverEntryCooldown<=0)exitRover();else if(!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('pointerup',ev=>{if(truckOccupied&&dragButton===0&&dragTravel<12&&roverEntryCooldown<=0)exitTruck();else if(!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
-document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{ev.preventDefault();keys.add(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>keys.delete(code));});
+document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy())return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
-function stage(alt,body){if(roverOccupied)return 'SURFACE ROVER';if(eva)return 'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
-function saveFlight(){const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null}});}
+function stage(alt,body){if(interiorState)return 'RUIN INTERIOR';if(truckOccupied)return 'SURFACE TRUCK';if(eva)return 'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
+function saveFlight(){const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -271,11 +359,12 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    if(eva){
     if(shipForwardVec)shipForwardVec=V.rot(shipForwardVec,axis,turn);if(shipUpVec)shipUpVec=V.rot(shipUpVec,axis,turn);
     if(roverForwardVec)roverForwardVec=V.rot(roverForwardVec,axis,turn);
-    if(roverOccupied){
-     if(!roverLocal)roverLocal=V.rot(V.norm(V.sub(pos,previousCenter)),axis,-oldSpin);
+    if(truckForwardVec)truckForwardVec=V.rot(truckForwardVec,axis,turn);
+  if(truckOccupied){
+     if(!truckLocal)truckLocal=V.rot(V.norm(V.sub(pos,previousCenter)),axis,-oldSpin);
      up=V.rot(up,axis,turn);
-     const radial=V.norm(V.rot(roverLocal,axis,attached.spinAngle||0));
-     pos=V.add(attached.position,V.mul(radial,attached.radius+groundHeight(roverLocal,attached)+ROVER_CLEARANCE));
+     const radial=V.norm(V.rot(truckLocal,axis,attached.spinAngle||0));
+     pos=V.add(attached.position,V.mul(radial,attached.radius+groundHeight(truckLocal,attached)+TRUCK_CLEARANCE));
     }else{
      if(!evaLocal)evaLocal=V.rot(V.norm(V.sub(pos,previousCenter)),axis,-oldSpin);
      evaForward=V.rot(evaForward,axis,turn);up=V.rot(up,axis,turn);
@@ -291,8 +380,9 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   }else pos=V.add(attached.position,V.sub(pos,previousCenter));
  }
  const current=galaxy.nearestBody(pos);nearest=current.planet||first;const sample=surfaceData(nearest,pos);altitude=sample.distance-nearest.radius-sample.height;const radial=sample.dir;vertical=V.dot(vel,radial);
- const yaw=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0);
- const pitch=(keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0),roll=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
+ let yaw=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0);
+ if(truckOccupied)yaw=controls.roverYaw(yaw);
+ const pitch=controls.flightPitch((keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0)),roll=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
  if(landed){if(eva){
   warp=false;up=radial;
   if(rampTransition){
@@ -312,15 +402,28 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    pos=V.add(nearest.position,V.mul(worldDir,nearest.radius+groundHeight(dir,nearest)+EVA_HEIGHT));
    if(t>=1)roverExitMove=null;vertical=0;vel=[0,0,0];return;
   }
-  if(roverOccupied){
-   if(yaw)roverForwardVec=V.norm(V.rot(roverForwardVec,radial,yaw*dt*1.55));
-   roverForwardVec=V.norm(V.sub(roverForwardVec,V.mul(radial,V.dot(radial,roverForwardVec))));if(V.len(roverForwardVec)<.05)roverForwardVec=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
-   const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
-   if(drive){const right=V.norm(V.cross(roverForwardVec,radial)),step=drive*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?17.5:9.5),angle=step/Math.max(nearest.radius+groundHeight(roverLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+ROVER_CLEARANCE,1);
-    const nextDir=V.norm(V.rot(radial,right,-angle));roverForwardVec=V.norm(V.rot(roverForwardVec,right,-angle));roverLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
-    pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(roverLocal,nearest)+ROVER_CLEARANCE));up=nextDir;
+    if(interiorState){
+   // Finite floor-space collision on stationary rectangular rooms and corridors.
+   if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
+   const walk=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+   if(walk){const basis=interiorState.basis,axis=nearest.spinAxis||[0,1,0],f=V.rot(evaForward,axis,-(nearest.spinAngle||0)),horizontal=V.norm(V.sub(f,V.mul(interiorState.site.local,V.dot(f,interiorState.site.local)))),rate=dt*(keys.has('ShiftLeft')?6.2:3.5)*walk;
+    interiorState.at=StarfallInteriors.move(interiorState.layout,interiorState.at,{x:V.dot(horizontal,basis.right)*rate,z:V.dot(horizontal,basis.forward)*rate});
    }
-   evaForward=[...roverForwardVec];vertical=0;vel=[0,0,0];return;
+   const place=interiorWorld(interiorState.at);evaLocal=place.local;pos=place.position;up=place.up;vertical=0;vel=[0,0,0];return;
+  }
+  if(truckOccupied){
+   if(yaw)truckForwardVec=V.norm(V.rot(truckForwardVec,radial,yaw*dt*1.13));
+   truckForwardVec=V.norm(V.sub(truckForwardVec,V.mul(radial,V.dot(radial,truckForwardVec))));if(V.len(truckForwardVec)<.05)truckForwardVec=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
+   const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+   if(drive&&truckBatteryJ>0){
+    const right=V.norm(V.cross(truckForwardVec,radial)),speed=(keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5;
+    const step=drive*dt*speed,angle=step/Math.max(1,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE);
+    const nextDir=V.norm(V.rot(radial,right,-angle));truckForwardVec=V.norm(V.rot(truckForwardVec,right,-angle));
+    const nextLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+    const dh=Math.abs(groundHeight(nextLocal,nearest)-groundHeight(truckLocal,nearest));
+    if(dh<Math.max(.45,Math.abs(step)*.55)){truckLocal=nextLocal;pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE));up=nextDir;truckBatteryJ=Math.max(0,truckBatteryJ-dt*(speed>12?4500:1800));}
+   }
+   evaForward=[...truckForwardVec];vertical=0;vel=[0,0,0];return;
   }
   if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
   evaForward=V.norm(V.sub(evaForward,V.mul(radial,V.dot(radial,evaForward))));if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
@@ -340,16 +443,11 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
     showToast('Walking up the cargo ramp · boarding ship');vertical=0;vel=[0,0,0];return;
    }
   }
-  if(roverEntryCooldown<=0&&roverBody===nearest&&walk!==0){
-   const rover=roverWorldState();if(rover){
-    const delta=V.sub(pos,rover.position),rSide=V.norm(V.cross(rover.forward,rover.up));
-    if(Math.abs(V.dot(delta,rSide))<7.0 && V.len(delta)<9.5){enterRover();vertical=0;vel=[0,0,0];return;}
-   }
-  }
+  // Science rover is never rideable; truck only boards through a deliberate X press.
   vertical=0;vel=[0,0,0];return;}
   shipIdleElapsed=keys.has('KeyS')?shipIdleElapsed+dt:0;
   if(shipIdleElapsed>.52&&hatchCooldown<=0){exitShip();vertical=0;vel=[0,0,0];return;}
-  if(keys.has('Space')){landingCapture=null;landed=false;groundLocal=null;eva=false;evaLocal=null;shipBody=null;roverOccupied=false;roverLocal=null;roverBody=null;vel=V.add(V.mul(radial,38),V.mul(forward,14));pos=V.add(pos,V.mul(radial,5));showToast('Liftoff · atmospheric ascent');}else{
+  if(keys.has('Space')){landingCapture=null;landed=false;groundLocal=null;eva=false;evaLocal=null;shipBody=null;truckOccupied=false;vel=V.add(V.mul(radial,38),V.mul(forward,14));pos=V.add(pos,V.mul(radial,5));showToast('Liftoff · atmospheric ascent');}else{
   if(yaw)forward=V.norm(V.rot(forward,radial,yaw*dt*1.65));forward=V.norm(V.sub(forward,V.mul(radial,V.dot(radial,forward))));up=radial;const desired=(keys.has('KeyW')?34:0)-(keys.has('KeyS')?15:0),speed=V.dot(vel,forward);
   vel=V.mul(forward,speed+(desired-speed)*Math.min(1,dt*2));const nextPos=V.add(pos,V.mul(vel,dt)),ns=surfaceData(nearest,nextPos);groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
    pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));vertical=0;warp=false;return;}}
@@ -394,14 +492,14 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  if(nearest.landable&&altitude<=7.5){
   groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
   pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));landed=true;landingCapture=null;vel=[0,0,0];up=ns.dir;let tangent=V.sub(forward,V.mul(up,V.dot(forward,up)));if(V.len(tangent)<.05)tangent=V.cross([0,1,0],up);forward=V.norm(tangent);
-  shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;roverOccupied=false;placeRoverNearShip();
+  shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;placeRoverNearShip();
  $('landed-label').textContent='Welcome to '+nearest.name;$('landing-banner').classList.add('show');clearTimeout(landingTimer);landingTimer=setTimeout(()=>$('landing-banner').classList.remove('show'),6500);
  SF.recordDiscovery({id:'seamless-land:'+nearest.id,type:'landing',name:'Landed on '+nearest.name,detail:'Continuous physical landing',planet:nearest.name,system:nearest.system});showToast('TOUCHDOWN CONFIRMED · disembarking onto surface');saveFlight();exitShip();}
 }
 function cameraState(dt){
  const radial=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0],groundMix=V.clamp((300-altitude)/260,0,1);
- if(roverOccupied){
-  const tangent=V.norm(V.sub(roverForwardVec,V.mul(radial,V.dot(roverForwardVec,radial))));
+ if(truckOccupied){
+  const tangent=V.norm(V.sub(truckForwardVec,V.mul(radial,V.dot(truckForwardVec,radial))));
   const rightR=V.norm(V.cross(tangent,radial));
   const orbitDirection=V.rot(V.rot(tangent,radial,orbitYaw),rightR,orbitPitch*.28);
   let desired=V.add(pos,V.add(V.mul(orbitDirection,-18),V.mul(radial,6.2)));
@@ -412,16 +510,28 @@ function cameraState(dt){
   const viewForward=V.norm(V.sub(aim,camEye)),right=V.norm(V.cross(viewForward,radial)),viewUp=V.norm(V.cross(right,viewForward));
   return{eye:camEye,target:aim,forward:viewForward,right,up:viewUp};
  }
+ if(eva&&interiorState){
+  // First-person camera keeps the roof and walls in view; third-person chase
+  // would clip through the structure and expose terrain outside.
+  const horizontal=V.norm(V.sub(evaForward,V.mul(radial,V.dot(evaForward,radial)))),lookPlanar=V.norm(V.rot(horizontal,radial,orbitYaw)),pitch=V.clamp(orbitPitch-.10,-1.35,1.35);
+  camEye=V.add(pos,V.mul(radial,1.25));const viewForward=V.norm(V.add(V.mul(lookPlanar,Math.cos(pitch)),V.mul(radial,Math.sin(pitch))));
+  const right=V.norm(V.cross(viewForward,radial)),viewUp=V.norm(V.cross(right,viewForward));
+  return{eye:camEye,target:V.add(camEye,V.mul(viewForward,40)),forward:viewForward,right,up:viewUp};
+ }
  if(eva){
   const tangent=V.norm(V.sub(evaForward,V.mul(radial,V.dot(evaForward,radial))));
-  const rightEva=V.norm(V.cross(tangent,radial));
-  const orbitDirection=V.rot(V.rot(tangent,radial,orbitYaw),rightEva,orbitPitch*.45);
-  let desired=V.add(pos,V.add(V.mul(orbitDirection,-12),V.mul(radial,4.5)));
+  const lookPlanar=V.norm(V.rot(tangent,radial,orbitYaw));
+  // The previous camera only nudged its position while always aiming at a fixed
+  // ground-level point. This capped effective elevation near the horizon. Keep
+  // the camera physically above terrain, and pitch the optical axis instead.
+  const lookPitch=V.clamp(orbitPitch-.20,-1.50,1.50);
+  let desired=V.add(pos,V.add(V.mul(lookPlanar,-12),V.mul(radial,4.5)));
   if(nearest?.landable){const sample=surfaceData(nearest,desired),safeRadius=nearest.radius+sample.height+2.8;if(sample.distance<safeRadius)desired=V.add(nearest.position,V.mul(sample.dir,safeRadius));}
-  const aim=V.add(pos,V.add(V.mul(tangent,5),V.mul(radial,1.6)));
   if(!camEye||V.len(V.sub(camEye,desired))>1200)camEye=[...desired];else camEye=V.mix(camEye,desired,1-Math.exp(-dt*13));
   if(nearest?.landable){const ground=surfaceData(nearest,camEye),clearance=nearest.radius+ground.height+2.8;if(ground.distance<clearance)camEye=V.add(nearest.position,V.mul(ground.dir,clearance));}
-  const viewForward=V.norm(V.sub(aim,camEye)),right=V.norm(V.cross(viewForward,radial)),viewUp=V.norm(V.cross(right,viewForward));
+  const viewForward=V.norm(V.add(V.mul(lookPlanar,Math.cos(lookPitch)),V.mul(radial,Math.sin(lookPitch))));
+  const right=V.norm(V.cross(viewForward,radial)),viewUp=V.norm(V.cross(right,viewForward));
+  const aim=V.add(camEye,V.mul(viewForward,60));
   return{eye:camEye,target:aim,forward:viewForward,right,up:viewUp};
  }
  let camUp=V.norm(V.mix(up,radial,groundMix*.85)),cf=V.norm(forward);
@@ -446,31 +556,90 @@ function cameraState(dt){
  const viewForward=V.norm(V.sub(aim,camEye)),right=V.norm(V.cross(viewForward,camUp)),viewUp=V.norm(V.cross(right,viewForward));
  return{eye:camEye,target:aim,forward:viewForward,right,up:viewUp};
 }
-function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;const body=nearest||target,phase=solarWarning?'STELLAR CORONA':stage(altitude,body);$('phase-top').textContent='EXPEDITION / '+phase;$('flight-state').textContent=phase;$('mode-text').textContent=roverOccupied?'ROVER':eva?'EVA':solarWarning?'CORONA':warp?'WARP':landed?'SURFACE':altitude<650?'ATMOSPHERE':altitude<2500?'ORBIT':'FREE FLIGHT';
+function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;
+ const hint=$('control-live-hint');if(hint){const codes=controls.settings.bindings;const short=k=>String(k||'—').replace(/^Key/,'').replace(/^Digit/,'').replace(/^Arrow/,'ARROW ').replace('ShiftLeft','SHIFT').replace('Space','SPACE');
+  const mode=interiorState?'RUIN INTERIOR':truckOccupied?'TRUCK':eva?'EVA':landed?'LANDED SHIP':'SHIP';const word=mode==='SHIP'?'thrust / brake':mode==='LANDED SHIP'?'drive / reverse':'forward / reverse';
+  const text=mode+' · '+short(codes.thrust)+' / '+short(codes.brake)+' '+word+' · '+short(codes.turnLeft)+' / '+short(codes.turnRight)+' turn'+(truckOccupied&&controls.settings.roverSteerInvert?' (INVERTED)':'')+' · MOUSE Y '+(controls.settings.lookInvertY?'INVERTED':'NORMAL')+(controls.settings.flightPitchInvert&&mode==='SHIP'?' · FLIGHT PITCH INVERTED':'')+' · CONTROLS ⚙ TO CUSTOMIZE';if(hint.textContent!==text)hint.textContent=text;
+ }
+const body=nearest||target,phase=solarWarning?'STELLAR CORONA':stage(altitude,body);$('phase-top').textContent='EXPEDITION / '+phase;$('flight-state').textContent=phase;$('mode-text').textContent=truckOccupied?'TRUCK':eva?'EVA':solarWarning?'CORONA':warp?'WARP':landed?'SURFACE':altitude<650?'ATMOSPHERE':altitude<2500?'ORBIT':'FREE FLIGHT';
  $('speed-text').textContent=warp?'FTL CRUISE':V.len(vel).toFixed(0)+' u/s';$('alt-text').textContent=formatDistance(Math.max(0,altitude));$('vertical-text').textContent=vertical.toFixed(0)+' u/s';$('star-count').textContent=renderer.starPoints.toLocaleString();$('body-count').textContent=renderer.renderedBodies+' / '+galaxy.allWorlds.length;$('system-count').textContent=String(galaxy.systems.length);$('coordinates').textContent=pos.map(n=>Math.round(n/1e6)).join(' / ')+' Mu';$('fps-text').textContent=Math.round(fps);$('effects-count').textContent=(renderer.effectsRendered||0).toLocaleString();$('time-scale').textContent=timeScale+'×';$('lighting-state').textContent=renderer.daylightLabel||'—';$('floodlights-state').textContent=headlights?'ON':'OFF';
+ const biomeLabel=$('biome-label'),biomeDesc=$('biome-description');if(biomeLabel){const nearby=body?.landable&&altitude<1100;if(nearby){const d=V.rot(V.norm(V.sub(pos,body.position)),body.spinAxis||[0,1,0],-(body.spinAngle||0)),h=groundHeight(d,body),f=Starfall3D.field(d,body.seed),a=BIOMES.classify(body,d,h,f);biomeLabel.textContent=a.name.toUpperCase();biomeDesc.textContent=a.lifePotential?'Potential biology · unconfirmed':'Geological environment · unconfirmed biology';}else{biomeLabel.textContent='—';biomeDesc.textContent='Approach a solid world to survey the surface';}}
  const nearSys=galaxy.nearestSystem(pos);const types=[];if(nearSys?.belts.length)types.push(nearSys.belts.length+' ASTEROID BELT'+(nearSys.belts.length>1?'S':''));if(nearSys?.nebulae.length)types.push('NEBULA');if(nearSys?.comets.length)types.push('COMET');if(nearSys?.phenomenon)types.push(nearSys.phenomenon.toUpperCase());const eventVisible=nearSys&&V.len(V.sub(pos,nearSys.position))<nearSys.maxOrbit*2.5;$('space-event').hidden=!eventVisible;$('space-event').textContent=eventVisible?'SECTOR PHENOMENA / '+(types.join('  ·  ')||'QUIET SYSTEM'):'';
  $('solar-alert').hidden=!solarWarning;$('heat-fill').style.width=heat.toFixed(1)+'%';$('heat-number').textContent=Math.round(heat)+'%';$('corona-star').textContent=galaxy.nearestStar(pos).system?.name||'—';
- $('walk-context').textContent=roverOccupied?'CLICK THE GROUND TO STEP OFF THE ROVER':eva?rampTransition?(rampTransition.kind==='out'?'WALKING DOWN REAR RAMP':'WALKING UP REAR RAMP'):roverExitMove?'WALKING AWAY FROM ROVER':(roverBody===nearest&&roverWorldState()&&V.len(V.sub(pos,roverWorldState().position))<24?'WALK CLOSER TO THE ROVER TO DRIVE':'EXPLORE ON FOOT · WALK TO SHIP REAR RAMP TO BOARD'):landed?'HOLD S TO WALK DOWN THE RAMP · SPACE TO LAUNCH':'';
- $('status-text').textContent=solarWarning?'CORONAL WARNING · THERMAL LOAD '+Math.round(heat)+'% · PHOTOSPHERE IS SOLID':roverOccupied?'ROVER ACTIVE · W/S DRIVE · A/D STEER · CLICK GROUND TO WALK AWAY':eva?'EVA ACTIVE · WALK INTO REAR CARGO RAMP / ROVER SEAT TO BOARD':landed?'SHIP LANDED · SPACE TO TAKE OFF · HOLD S TO WALK DOWN RAMP':warp?'WARP CRUISE · RELEASE SHIFT TO EXIT · G ALIGNS':'LEFT DRAG STEER · RIGHT DRAG LOOK · SCROLL ZOOM · F CENTRE CAMERA';
+ $('walk-context').textContent=truckOccupied?'X / CLICK TO EXIT THE TRUCK':eva?rampTransition?(rampTransition.kind==='out'?'WALKING DOWN REAR RAMP':'WALKING UP REAR RAMP'):roverExitMove?'STEPPING AWAY FROM TRUCK':(roverBody===nearest&&roverWorldState()&&V.len(V.sub(pos,roverWorldState().position))<24?'SCIENCE ROVER: PROGRAM ONLY · TRUCK: APPROACH AND PRESS X':'EVA · X NEAR TRUCK TO DRIVE · SCIENCE ROVER IS UNCREWED'):landed?'HOLD S TO WALK DOWN THE RAMP · SPACE TO LAUNCH':'';
+ $('status-text').textContent=solarWarning?'CORONAL WARNING · THERMAL LOAD '+Math.round(heat)+'% · PHOTOSPHERE IS SOLID':truckOccupied?'TRUCK · W/S DRIVE · A/D STEER · X OR CLICK TO EXIT · BATTERY '+Math.round(truckBatteryJ/44e6*100)+'%':eva?'EVA · SKY LOOK · X NEAR TRUCK · SCIENCE ROVER IS UNCREWED':landed?'SHIP LANDED · SPACE TO TAKE OFF · HOLD S TO WALK DOWN RAMP':warp?'WARP CRUISE · RELEASE SHIFT TO EXIT · G ALIGNS':'LEFT DRAG STEER · RIGHT DRAG LOOK · SCROLL ZOOM · F CENTRE CAMERA';
  if(phase!==nearPhase){nearPhase=phase;if(phase==='ATMOSPHERIC ENTRY')showToast('Atmospheric entry · deceleration engaged');if(phase==='LOW ATMOSPHERE')showToast('Surface acquired · descend to land');if(phase==='STELLAR CORONA')showToast('CORONAL WARNING · stellar radiation increasing');}
  const goal=siteWaypoint?V.add(siteWaypoint.planet.position,V.mul(V.rot(siteWaypoint.dir,siteWaypoint.planet.spinAxis||[0,1,0],siteWaypoint.planet.spinAngle||0),siteWaypoint.planet.radius+8)):target.position,delta=V.sub(goal,pos),dist=V.len(delta),bearing=V.dot(V.norm(delta),forward);
- $('waypoint-label').textContent=roverOccupied?'ROVER / '+body.name+' · CLICK GROUND TO WALK AWAY':eva?'EVA / '+body.name+' · WALK INTO REAR RAMP TO BOARD':landed?'SURFACE / '+body.name:siteWaypoint?'◆ '+siteWaypoint.name.toUpperCase()+' · '+formatDistance(dist):'✦ '+target.name.toUpperCase()+' · '+formatDistance(dist)+(bearing<.75?' · G TO ALIGN':'');
+ $('waypoint-label').textContent=truckOccupied?'TRUCK / '+body.name+' · PRESS X TO EXIT':eva?'EVA / '+body.name+' · WALK INTO REAR RAMP TO BOARD':landed?'SURFACE / '+body.name:siteWaypoint?'◆ '+siteWaypoint.name.toUpperCase()+' · '+formatDistance(dist):'✦ '+target.name.toUpperCase()+' · '+formatDistance(dist)+(bearing<.75?' · G TO ALIGN':'');
  $('entry-flash').style.opacity=String(altitude<650&&altitude>65?V.clamp((V.len(vel)-135)/600,0,.44)*Math.sin(performance.now()*.005)**2:0);
  if(lastPlanetId!==body.id){lastPlanetId=body.id;updateBodyUI();}
 }
-function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04);lastTime=now;
- try{if(!busy()){updatePhysics(dt);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
+function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
+ try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
+  const afterUpdate=started?performance.now():0;
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
-  const portraitBase=eva&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(roverOccupied?3.4:0.25)+rampLift+(eva&&!roverOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
-  renderer.render({camera,position:pos,viewerPosition:pos,shipPosition:ship.position,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover&&(!roverOccupied||eva)?rover.position:null,roverForward:rover&&(!roverOccupied||eva)?rover.forward:null,roverUp:rover&&(!roverOccupied||eva)?rover.up:null,avatarBase:eva&&!roverOccupied?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights});frames++;frameClock+=dt;
+  const portraitBase=eva&&!interiorState&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(truckOccupied?3.4:0.25)+rampLift+(eva&&!truckOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
+  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{tier:site.tier,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
+ if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
   refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
  }catch(e){console.error('Starfall frame failed:',e);$('status-text').textContent='GRAPHICS / FLIGHT ERROR: '+String(e.message).slice(0,85);}requestAnimationFrame(loop);}
 addEventListener('resize',()=>renderer.resize());addEventListener('pagehide',saveFlight);
 nearest=galaxy.nearestBody(pos).planet||first;let initial=surfaceData(nearest,pos);altitude=initial.distance-nearest.radius-initial.height;
-if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}placeRoverNearShip();exitShip();}
+if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}placeRoverNearShip();
+ const tp=saved?.truckPose;if(tp?.bodyId===nearest.id&&Array.isArray(tp.local)&&tp.local.length===3&&tp.local.every(Number.isFinite)){truckLocal=V.norm(tp.local);if(Array.isArray(tp.forward)&&tp.forward.length===3&&tp.forward.every(Number.isFinite))truckForwardVec=V.norm(tp.forward);truckBatteryJ=V.clamp(Number(tp.batteryJ)||0,0,44e6);truckLights=tp.lights!==false;truckCargo=V.clamp(Number(tp.cargo)||0,0,800);}
+ const pose=saved?.roverPose;if(pose?.bodyId===nearest.id&&Array.isArray(pose.local)&&pose.local.length===3&&pose.local.every(Number.isFinite)){
+  roverLocal=V.norm(pose.local);const f=pose.forward;if(Array.isArray(f)&&f.length===3&&f.every(Number.isFinite)&&V.len(f)>.001)roverForwardVec=V.norm(f);
+ }
+ exitShip();}
 updateBodyUI();setTimeout(()=>$('boot').classList.add('ready'),170);requestAnimationFrame(loop);
-window.StarfallRuntime={galaxy,get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;}};
-Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{position:[...pos],altitude,landed,eva,roverOccupied,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws};},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){simTime=t;galaxy.update(t);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
+// Update 4 surface adapter. Never replaces flight, camera, rendering or boarding controls.
+function scienceContext(){const body=nearest,foot=eva&&!truckOccupied;
+ const local=foot&&evaLocal?evaLocal:truckOccupied&&truckBody===body&&truckLocal?truckLocal:roverBody===body&&roverLocal?roverLocal:groundLocal;
+ return{seed:GALAXY_SEED,body,bodyId:body?.id,simTime,local,mode:foot?'EVA':truckOccupied?'TRUCK':landed?'LANDED':'FLIGHT',altitudeM:foot?.6:truckOccupied?1.0:landed?SHIP_CLEARANCE:Math.max(0,altitude)*P.SCENE_METERS_PER_UNIT,roverLocal:roverBody===body?roverLocal:null,roverOccupied:false,roverExists:roverBody===body&&!!roverLocal,truckOccupied,landed,energy:vehicleStore.get('rover').state.energyJ,roverStats:vehicleStore.get('rover').stats,roverState:vehicleStore.get('rover').state,roverPowerEnabled:vehicleStore.get('rover').state.powerEnabled};}
+function acquireFieldReading(instrument,nonce=0,fromRover=false){const data=scienceContext(),info=StarfallFieldScience.INSTRUMENTS[instrument];
+ if(!data.body?.landable||!data.landed)throw Error('Land on a solid body before sampling');
+ if(!fromRover&&!(eva||truckOccupied))throw Error('Leave the ship to use the instrument');
+ if(fromRover&&!data.roverExists)throw Error('Rover must be on this body');
+ if(fromRover&&vehicleStore.get('rover').definition.slots.instruments!=='science-suite-rover')throw Error('No compatible rover science instrument');
+ const st=vehicleStore.get('rover').state;if(fromRover&&st.powerEnabled&&st.loads.instruments===false)throw Error('Rover science power load disabled');
+ const point=fromRover?roverLocal:data.local,alt=fromRover?.6:data.altitudeM;
+ const result=StarfallFieldScience.sample({body:data.body,seed:GALAXY_SEED,local:point,altitudeM:alt,instrument,simTime,nonce,energyAvailableJ:fromRover&&st.powerEnabled?st.energyJ:Infinity});
+ const surfacePoint=point||[0,1,0],biome=BIOMES.classify(data.body,surfacePoint,groundHeight(surfacePoint,data.body),Starfall3D.field(surfacePoint,data.body.seed));
+ const observation=Object.freeze({...result,biome:biome.name,biomeModel:'seeded environmental classification; not measured'});
+ if(fromRover&&st.powerEnabled){vehicleStore.update('rover',{...st,energyJ:st.energyJ-result.powerJ});persistVehicles();}
+ return observation;
+}
+function roverAutonomyPosition(){if(!roverLocal||roverBody!==nearest)return null;return{bodyId:roverBody.id,local:[...roverLocal],forward:V.rot(roverForwardVec,roverBody.spinAxis||[0,1,0],-(roverBody.spinAngle||0)),radius:roverBody.radius};}
+function roverDestination(forwardDistance,rightDistance){if(!roverLocal||!roverBody)throw Error('No surface rover');return tangentOffsetLocal(roverBody,roverLocal,roverForwardVec,forwardDistance,rightDistance);}
+function driveRoverToward(dest,dt){if(!roverLocal||!roverBody||roverBody!==nearest)return Infinity;
+ const start=V.norm(roverLocal),next=V.norm(dest),cos=V.clamp(V.dot(start,next),-1,1),distance=Math.acos(cos)*roverBody.radius;
+ if(distance<.0001)return 0;
+ const worldRad=V.norm(V.rot(start,roverBody.spinAxis||[0,1,0],roverBody.spinAngle||0)),worldGoal=V.norm(V.rot(next,roverBody.spinAxis||[0,1,0],roverBody.spinAngle||0));
+ const tangent=V.norm(V.sub(worldGoal,V.mul(worldRad,V.dot(worldGoal,worldRad))));
+ const config=vehicleStore.get('rover'),power=config.state.powerEnabled?(engineeringSystemReport.rover?.draws.drive>0):true;
+ if(!power)return distance;
+ const trial=StarfallRoverDynamics.sixWheels({body:roverBody,local:start,forward:V.rot(tangent,roverBody.spinAxis||[0,1,0],-(roverBody.spinAngle||0)),surfaceHeight:d=>groundHeight(d,roverBody),sceneRadius:roverBody.radius,vehicle:config.stats,gravityMS2:Math.max(.05,roverBody.gravity*9.80665),command:1,dt,enabled:true});
+ roverPhysicsReport=trial;if(!trial.safe||trial.speedSceneS<=.001)return distance;
+ const traveled=Math.min(distance,trial.speedSceneS*Math.max(0,Math.min(dt,.05)));
+ roverLocal=V.norm(V.mix(start,next,traveled/Math.max(distance,1e-6)));
+ roverForwardVec=tangent;return Math.max(0,distance-traveled);
+}
+function science4SetPhysics(on){science4Settings.roverPhysics=!!on;SF.save({science4Settings:{...science4Settings}});}
+function outpostContext(){const body=nearest;const local=eva&&evaLocal?evaLocal:roverBody===body&&roverLocal?roverLocal:groundLocal;
+ return{body,bodyId:body?.id,landed,eva:eva&&!truckOccupied,truckOccupied,local,shipLocal:shipBody===body?shipLocal:null,roverLocal:roverBody===body?roverLocal:null,position:[...pos],up:[...up],forward:[...(eva?evaForward:forward)],time:simTime};}
+function truckSystems(){const truck=truckWorldState(),robot=roverWorldState(),body=nearest;
+ if(!truck||!body)return{available:false};const dist=robot&&roverBody===body?V.len(V.sub(truck.position,robot.position)):Infinity;
+ const at=truckLocal,frontLocal=tangentOffsetLocal(body,at,truck.forward,25,0),elevation=groundHeight(frontLocal,body)-groundHeight(at,body);
+ return{available:true,bodyId:body.id,batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,scienceRoverDistance:dist,forwardSlopeDeg:Math.atan2(elevation,25)*180/Math.PI,terrain:StarfallBiomes.classify(body,at,groundHeight(at,body),Starfall3D.field(at,body.seed)).name};}
+function truckWinch(){if(!landed||!eva||truckOccupied)throw Error('Exit truck to operate winch');const t=truckWorldState(),r=roverWorldState();if(!t||!r||truckBody!==roverBody||truckBatteryJ<50000)throw Error('Truck or science rover unavailable, or insufficient battery');const dist=V.len(V.sub(t.position,r.position));if(dist>55)throw Error('Bring the truck within 55 units of the science rover ('+dist.toFixed(1)+' away)');
+ roverLocal=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,13);roverForwardVec=[...truckForwardVec];truckBatteryJ-=50000;saveFlight();return{distanceBefore:dist,distanceAfter:V.len(V.sub(truckWorldState().position,roverWorldState().position))};}
+function truckRecharge(joules=360000){if(!landed||!truckBody||truckBody!==nearest)throw Error('Truck must be parked on a world');const solar=window.StarfallOutpostUI?.store?.items.some(x=>x.bodyId===truckBody.id&&x.kind==='solar'&&StarfallOutposts.arc(x.local,truckLocal,truckBody.radius)<50);
+ if(!solar)throw Error('Park within 50 units of a constructed solar array for recharging');truckBatteryJ=Math.min(44e6,truckBatteryJ+Math.min(360000,Math.max(0,Number(joules)||0)));saveFlight();return truckBatteryJ;}
+function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
+window.StarfallRuntime={galaxy,vehicleStore,enterInterior,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,persistVehicles,get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckRecharge,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
+Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{interior:interiorState?{siteId:interiorState.site.id,at:{...interiorState.at}}:null,position:[...pos],altitude,landed,eva,truckOccupied,roverOccupied:false,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],cameraLookElevationDeg:lastPickingCamera&&nearest?Math.asin(V.clamp(V.dot(lastPickingCamera.forward,V.norm(V.sub(pos,nearest.position))),-1,1))*180/Math.PI:null,timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics()};},placeEvaNearTruck(){if(!landed||!eva||!truckBody||!truckLocal||truckBody!==nearest)throw Error('Require EVA and a surface truck');
+ const local=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,-11),radial=V.rot(local,truckBody.spinAxis||[0,1,0],truckBody.spinAngle||0);
+ evaLocal=local;pos=V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(local,truckBody)+EVA_HEIGHT));up=radial;evaForward=[...truckForwardVec];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setInteriorPosition(x,z){if(!interiorState||!StarfallInteriors.canStand(interiorState.layout,x,z))throw Error('Not a valid interior floor coordinate');interiorState.at={x,z};const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;camEye=null;},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){if(!Number.isFinite(t)||t<0||t>=1e13)throw Error('Invalid simulation time');simTime=physicsClock.set(t);galaxy.update(simTime);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
 })();

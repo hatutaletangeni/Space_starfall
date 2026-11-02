@@ -25,7 +25,7 @@ function thermalStep(craft,heatW,ambientK,dt){const hot=craft.temperatureK||290,
  const next=Math.max(2,Math.min(5000,hot+(heatW*(1-shield)-cool)*dt/capacity));
  return{temperatureK:next,radiatorW:cool,thermalWarning:next>(craft.warningK||900),thermalLimitExceeded:next>(craft.maxTempK||1650)};}
 function acceleration(r,v,body,craft,throttle,forward,atmo,rotationRateRadS){const R=vec.len(r),safe=Math.max(R,body.radiusM||1);const mu=body.mu;
- const gravity=vec.mul(r,-mu/(safe**3)),mass=Math.max(1,craft.dryMassKg+craft.fuelKg),thrust=Math.max(0,Math.min(1,throttle))*craft.thrustN*(craft.fuelKg>0?1:0);
+ const gravity=vec.mul(r,-mu/(safe**3)),mass=Math.max(1,craft.dryMassKg+craft.fuelKg),thrust=Math.max(0,Math.min(1,throttle))*(craft.thrustN||0)*(craft.fuelKg>0?1:0);
  // Planet spins around its own axis; wind follows the local rotating atmosphere.
  const wind=vec.cross(vec.mul(body.axis||[0,1,0],rotationRateRadS||0),r),relative=vec.sub(v,wind),relativeSpeed=vec.len(relative);
  // More drag while broadside; frontal area is smaller along the vehicle's nose.
@@ -47,7 +47,7 @@ function integrateFixed(state,body,dt,controls={},atmoProvider=atmosphere){if(!(
  const burn=thr>0&&craft.fuelKg>0?Math.min(craft.fuelKg,a0.thrustN/(Math.max(1,craft.ispS)*G0)*dt):0;
  const midV=vec.add(v,vec.mul(a0.a,dt*.5)),nextR=vec.add(r,vec.mul(midV,dt));craft.fuelKg=Math.max(0,craft.fuelKg-burn);
  const nextAtmo=atmoProvider(body,vec.len(nextR)-body.radiusM),a1=acceleration(nextR,midV,body,craft,thr,forward,nextAtmo,omega);
- const nextV=vec.add(midV,vec.mul(a1.a,dt*.5)),thermal=thermalStep(craft,a1.heatingW,nextAtmo.temperatureK||3,dt);
+ const nextV=vec.add(midV,vec.mul(a1.a,dt*.5)),thermal=thermalStep(craft,a1.heatingW+(thr>0&&a0.thrustN>0?(controls.engineHeatW||0)*thr:0),nextAtmo.temperatureK||3,dt);
  craft.temperatureK=thermal.temperatureK;
  // Surface collision is stable but LANDING/contact must be handled by game's existing anchored surface system.
  const minR=body.radiusM+Math.max(0,controls.groundHeightM||0);let impact=false;

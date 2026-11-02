@@ -1,0 +1,23 @@
+/* 6J optional expedition suggestions: consistent with existing STARFALL modals */
+.sandbox-window{width:min(920px,96vw);max-height:91dvh;overflow:auto}
+.sandbox-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:14px 0}
+.sandbox-top label{font:11px var(--mono);color:var(--muted)}
+.sandbox-top input{accent-color:var(--gold)}
+.sandbox-status{font:11px/1.65 var(--mono);color:var(--muted);min-height:1.4em}
+.sandbox-focus{border-left:2px solid var(--gold);background:#e6a95b0d;padding:12px;margin:12px 0;color:var(--gold);font:11px var(--mono)}
+.sandbox-columns{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(235px,1fr);gap:16px}
+.sandbox-card{margin:0 0 10px;padding:13px;background:#131c26d9;border:1px solid #ffffff27;border-radius:4px}
+.sandbox-card.sandbox-focused{border-color:#eac08b99;background:#292113b8}
+.sandbox-head{display:flex;justify-content:space-between;align-items:start;gap:9px}
+.sandbox-head strong{font-size:13px;font-weight:600;color:var(--ink)}
+.sandbox-head small{font:9px var(--mono);color:#e5c38a;flex-shrink:0}
+.sandbox-card p{font-size:11px;line-height:1.55;color:#bcc8cf;margin:9px 0}
+.sandbox-card .sandbox-reason{color:#8fa3af;font:9px/1.5 var(--mono)}
+.sandbox-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.sandbox-button{padding:7px 9px;font:10px var(--mono);background:#ffffff12;border:1px solid #ffffff39;color:#dfe7e6;border-radius:2px}
+.sandbox-button:hover{border-color:var(--gold);color:var(--gold)}
+.sandbox-button.sandbox-go{color:#ffe1b2;border-color:#cfa57566}
+.sandbox-journal{background:#070e16a8;border:1px solid #ffffff22;padding:12px;max-height:52vh;overflow:auto}
+.sandbox-journal h3,.sandbox-column h3{font:11px var(--mono);color:var(--gold);letter-spacing:1px;margin:0 0 12px}
+.sandbox-milestone{padding:8px 0;border-bottom:1px solid #ffffff15;color:#bec9d0;font:10px/1.55 var(--mono)}
+@media(max-width:720px){.sandbox-window{width:98vw;max-height:95dvh;padding:16px}.sandbox-columns{grid-template-columns:minmax(0,1fr)}.sandbox-journal{max-height:26vh}.sandbox-head{flex-wrap:wrap}}

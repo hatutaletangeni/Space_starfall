@@ -35,7 +35,7 @@
       data.orbital = object(data.orbital) ? data.orbital : {};
       return data;
     },
-    save(data) { return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
+    save(data) { if(root.__STARFALL_IMPORT_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
     getCredits() { return this.load().credits; },
     addCredits(amount) {
       const data = this.load();

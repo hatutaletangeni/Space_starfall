@@ -1,0 +1,5 @@
+/* STARFALL 6F interactive archaeology */
+.interior-window{max-width:780px;max-height:min(88vh,850px);overflow:auto}
+#interior-hint{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:19;pointer-events:none;background:rgba(7,18,24,.91);color:#f1d99d;border:1px solid #776544;border-radius:6px;padding:10px 16px;font:600 12px/1.5 monospace;max-width:min(92vw,810px);text-align:center}
+#interior-records{white-space:pre-wrap;max-height:210px;overflow:auto}
+@media(max-width:680px){#interior-hint{bottom:136px;font-size:10px;max-width:84vw;padding:7px} .interior-window{padding:16px}}
