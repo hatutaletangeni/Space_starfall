@@ -17,10 +17,10 @@ function snapshotShallow(body){const x={};for(const k of names)if(body[k]!==unde
 function cache(body){if(!body?.id)return;const saved=snapshot(body);snapshots.set(body.id,saved);}
 function orbitOffset(radius,angle,tilt){return [Math.cos(angle)*radius,Math.sin(angle)*radius*Math.sin(tilt),Math.sin(angle)*radius*Math.cos(tilt)];}
 function resolveBody(asset,time){
- const id=typeof asset==='string'?asset:asset?.bodyId;
+ const id=typeof asset==='string'?asset:(asset?.bodyId||asset?.id);
  if(!id)return null;
  const live=RT.galaxy.byId.get(id);if(live&&live.kind!=='star'){cache(live);}
- const raw=live||asset?.bodySnapshot||snapshots.get(id);
+ const raw=live||asset?.bodySnapshot||(asset?.orbitRadius?asset:null)||snapshots.get(id);
  if(!raw)return null;
  const body=copy(raw),sys=RT.galaxy.byId.get(body.systemId);
  if(!sys?.position||!finite(body.orbitRadius)||!finite(body.orbitPeriod)||body.orbitPeriod<=0||!finite(body.phase))return null;
