@@ -126,7 +126,8 @@ with sync_playwright() as p:
       r=StarfallLaunchUI.store.rovers.find(x=>x.id==='__ID__');
     const local=d=>O.offset(r.local,[1,0,0],d,0,body.radius);
     const solar=site.store.add('solar',body,local(12),[1,0,0],()=>0).item;
-    const battery=site.store.add('battery',body,local(24),[1,0,0],()=>0).item;
+    const batteryCopy=site.store.add('battery',body,local(24),[1,0,0],()=>0).item;
+    const battery=site.store.items.find(x=>x.id===batteryCopy.id);
     site.store.link(solar.id,battery.id,body);
     battery.energyJ=5000000;site.advancePowerTo(rt.time,()=>body);
     const before=battery.energyJ,owned=r.batteryJ,at=StarfallMissionOperationsUI.clock.lastSimulatedS;
