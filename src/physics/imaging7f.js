@@ -78,6 +78,16 @@ class Store{
   }
   return changes;
  }
+ applyTransportProgress(id,sentBytes,totalBytes,receivedAtS=null){
+  const p=this.state.photos.find(x=>x.id===id);if(!p)throw Error('Photo owner has no matching image');
+  if(!['queued','transmitting','in-transit','downlinked'].includes(p.status))throw Error('Photo not queued for radio downlink');
+  const n=Math.max(0,Math.min(p.bytes,Math.floor(Number(sentBytes)||0)));
+  p.progressBytes=Math.max(p.progressBytes,n);
+  // Receipt requires durable ACK in T03. In-flight packets are never gallery-visible.
+  if(receivedAtS!==null&&Number.isFinite(receivedAtS)){p.status='downlinked';p.progressBytes=p.bytes;p.receivedAtS=receivedAtS;}
+  else p.status=p.progressBytes>=p.bytes?'in-transit':p.progressBytes>0?'transmitting':'queued';
+  return copy(p);
+ }
  annotate(id,note){const p=this.state.photos.find(x=>x.id===id);if(!p)throw Error('Photo not found');p.note=String(note||'').slice(0,400);return copy(p);}
  remove(id){const idx=this.state.photos.findIndex(x=>x.id===id);if(idx<0)throw Error('Photo not found');const [p]=this.state.photos.splice(idx,1);return copy(p);}
  serialize(){return copy(this.state);}
