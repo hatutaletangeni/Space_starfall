@@ -116,8 +116,7 @@ function emitImage(s,j,o,at){
   if(existing)return;
   const job=archive.request('satellite',s.id,'nadir',256,at);
   archive.markDelivered(job.id,at);
-  const mutable=archive.jobs.find(x=>x.id===job.id);
-  if(mutable)mutable.t07JobId=j.id;
+  archive.linkOrbitalJob(job.id,j.id);
   j.photoJobId=job.id;
   root.StarfallImagingUI7F.persist();
  }catch(e){j.photoReason=String(e.message||e).slice(0,150);}
