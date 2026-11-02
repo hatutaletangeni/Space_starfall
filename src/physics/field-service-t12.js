@@ -103,14 +103,29 @@ function maintain({service,slot,atS,truckEnergyJ,installedId,rover=null,health=1
  if(rover?.roverT06?.landing?.safe===false)throw Error('T12 cannot recommission a rover destroyed in failed landing');
  const d=diagnosis({service:state,rover,health}),before=d.parts[slot];
  const nextHealth=Math.min(1,before+.35);
- if(before>=.999&&!rover?.roverT06?.fault)throw Error('T12 '+slot+' is healthy; no replacement necessary');
+ if(before>=.999)throw Error('T12 '+slot+' has no detected defect; do not consume energy on unrelated parts');
  const record={id:'t12-'+(rover?.id||'starfall-rover')+'-'+slot+'-'+atS,
   assetId:rover?.id||'starfall-rover',slot,installedId,removedId:installedId,
   atS,durationS:repairDurationS,energyJ:repairCostJ,conditionBefore:before,conditionAfter:nextHealth,
   procedure:'reseat existing compatible Workbench part; field repair',status:'COMMISSIONED'};
  if(state.records.some(x=>x.id===record.id))throw Error('T12 repeated maintenance transaction');
  state.conditions={...d.parts,[slot]:nextHealth};state.readyAtS=atS+repairDurationS;state.portTemperatureK=clamp(state.portTemperatureK+7,150,500);state.records.push(record);
- if(rover){const hw=root.StarfallRoverT06?.hardware?.(rover);if(hw&&nextHealth>.6){hw.fault='';if(['SAFE_STOP','FAULT','RECOVERY'].includes(hw.state)){hw.state='READY';rover.status='parked';}hw.health=Math.max(hw.health||0,nextHealth);}rover.fieldT12=state;}
+ if(rover){
+  const hw=root.StarfallRoverT06?.hardware?.(rover),fault=String(hw?.fault||'').toLowerCase(),
+   accepts={wheels:/wheel|traction|suspension/,motor:/motor|drive/,instruments:/camera|capture|image/,
+    avionics:/radio|antenna|packet|receiver/,battery:/battery|power|charge|reserve/},
+   relevant=accepts[slot].test(fault),
+   safeCharge=rover.batteryJ>(rover.ground7d?.safeReserveJ??400000)+100000,
+   safeHeat=!finite(rover.ground7d?.temperatureK)||rover.ground7d.temperatureK<340;
+  if(hw){
+   hw.health=Math.max(hw.health||0,nextHealth);
+   if(relevant&&nextHealth>.6&&safeCharge&&safeHeat){
+    hw.fault='';
+    if(['SAFE_STOP','FAULT','RECOVERY'].includes(hw.state)){hw.state='READY';rover.status='parked';}
+   }
+  }
+  rover.fieldT12=state;
+ }
  return{service:state,record,batteryJ:truckEnergyJ-repairCostJ};
 }
 function transfer({source,sourceBodyId,targetId,targetBodyId,sourceLocal,targetLocal,radiusScene,sourcePowered,grid,installed,
