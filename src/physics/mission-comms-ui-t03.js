@@ -54,6 +54,7 @@ function labNode(item,body,towers){
 }
 
 function roverNode(r,body){
+ if(['ENTRY','DESCENT','IN_PAYLOAD','ORBIT','TRANSFER','FAULT'].includes(r?.roverT06?.state))return null;
  if(!(r.batteryJ>300)||!Array.isArray(r.local))return null;
  const rad=O.rotate(r.local,body.spinAxis||[0,1,0],body.spinAngle||0);
  return{id:r.id,kind:'rover-radio',bodyId:body.id,position:O.V.add(body.position,O.V.mul(rad,body.radius+3)),
