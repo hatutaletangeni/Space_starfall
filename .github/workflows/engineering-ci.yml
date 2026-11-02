@@ -65,6 +65,7 @@ jobs:
           python tests/power-ledger-t02-browser.py
           python tests/mission-transport-t03-browser.py
           python tests/antenna-hardware-t04-browser.py
+          python tests/remote-imaging-t05-browser.py
       - name: Upload actual software-WebGL screenshot and performance data
         if: always()
         uses: actions/upload-artifact@v4
