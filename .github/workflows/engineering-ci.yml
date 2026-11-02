@@ -1,0 +1,45 @@
+name: Starfall Engineering Regression
+
+on:
+  push:
+    branches: [main, "release/**", "feature/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  offline-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: JavaScript syntax of every editable source
+        shell: bash
+        run: |
+          set -eu
+          find src -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
+      - name: All Node model and regression suites
+        shell: bash
+        run: |
+          set -eu
+          for test in tests/*.test.cjs; do
+            echo "RUN $test"
+            node "$test"
+          done
+      - name: Strict offline standalone parity
+        run: python tests/standalone-parity.py
+      - name: Rebuild standalone and recheck reproducibility
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+          git diff --exit-code -- PLAY-STARFALL.html
