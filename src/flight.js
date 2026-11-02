@@ -808,12 +808,20 @@ function shipServiceSnapshotT13(){
 function shipDockConnectT13(targetId){
  if(!landed||!shipBody||!shipLocal)throw Error('T13 land before connecting a service umbilical');
  const ship=vehicleStore.get('ship'),target=shipServiceTargetT13(targetId);
- if(!StarfallShipT13.radio({ship,report:engineeringSystemReport.ship}).ready)
-  throw Error('T13 ship avionics bus not powered; enable realistic electrical mode and wait for voltage');
- if(ship.state.energyJ<StarfallShipT13.SHIP_RESERVE_J+1200)throw Error('T13 ship docking actuator battery reserve unavailable');
+ const manualShore=target.kind==='grid-battery'&&eva&&!!evaLocal&&
+  StarfallShipT13.bodyDistance(evaLocal,shipLocal,shipBody.radius)<=18&&
+  StarfallShipT13.bodyDistance(evaLocal,target.local,shipBody.radius)<=18&&
+  target.battery?.energyJ>=2000;
+ if(!manualShore&&!StarfallShipT13.radio({ship,report:engineeringSystemReport.ship}).ready)
+  throw Error('T13 ship avionics bus not powered; manually attach a live shore cable on EVA or enable internal bus');
+ if(!manualShore&&ship.state.energyJ<StarfallShipT13.SHIP_RESERVE_J+1200)
+  throw Error('T13 ship docking actuator battery reserve unavailable');
  shipDockT13=StarfallShipT13.latch({state:shipDockT13,ship,landed,shipLocal,
   body:shipBody,relativeSpeedMS:0,target,timeS:simTime});
- vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-1200});
+ if(manualShore){
+  target.battery.energyJ-=1200;
+  window.StarfallOutpostUI.persist();
+ }else vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-1200});
  saveFlight();return shipServiceSnapshotT13();
 }
 function shipDockUndockT13(){
