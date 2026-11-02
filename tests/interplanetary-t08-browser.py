@@ -157,6 +157,14 @@ with sync_playwright() as p:
     SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,
       time:StarfallMissionOperationsUI.clock.lastSimulatedS}});
   }""")
+  stored=page.evaluate("""()=>{
+   const raw=localStorage.getItem('starfall_save')||'{}',v=JSON.parse(raw);
+   return{length:raw.length,launcher:!!v.launch7,rovers:v.launch7?.rovers?.length||0,
+     antennas:v.outpost5?.items?.filter(x=>x.kind==='antenna').length||0,
+     photo:v.imaging7f?.photos?.length||0,packet:v.commsT03?.packets?.length||0,
+     fromSF:SF.load().launch7?.rovers?.length||0,lock:!!window.__STARFALL_IMPORT_PENDING};
+  }""")
+  assert stored['launcher'] and stored['rovers']>=1 and stored['antennas']>=2 and stored['photo']>0 and stored['packet']>0,stored
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!window.StarfallDeepSpaceT08 && !!window.StarfallCommsT03",timeout=45000)
   resumed=page.evaluate("""data=>{
