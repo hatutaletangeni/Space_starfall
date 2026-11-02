@@ -78,6 +78,7 @@ class Store{
   }
   return changes;
  }
+ annotate(id,note){const p=this.state.photos.find(x=>x.id===id);if(!p)throw Error('Photo not found');p.note=String(note||'').slice(0,400);return copy(p);}
  remove(id){const idx=this.state.photos.findIndex(x=>x.id===id);if(idx<0)throw Error('Photo not found');const [p]=this.state.photos.splice(idx,1);return copy(p);}
  serialize(){return copy(this.state);}
 }
