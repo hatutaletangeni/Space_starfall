@@ -38,7 +38,7 @@ with sync_playwright() as p:
           const direct=T.routeFor({bodyId:body.id,systemId:body.systemId,
             sourceId:'starfall-ship',destId:rover.id},rt.time);
           if(!direct.connected)throw Error('Actual same-body radio geometry failed: '+direct.reason);
-          const q=T.command(rover,'WAIT 5\\nSTOP',rt.time);
+          const q=T.command(rover,['WAIT 5','STOP'].join(String.fromCharCode(10)),rt.time);
           T.persist();
           return{landed:rt.landed,bodyId:body.id,route:direct.hops,
             packet:q.id,shipEnergy:rt.vehicleStore.get('ship').state.energyJ};
