@@ -43,7 +43,7 @@ function assets(world,eye){
   if(objects.infrastructure.length>=48)break;
  }
  // Original immutable 6C ruin generation, NOT a copy of active planet scene.
- const localEye=V.rot(V.unit(V.sub(eye,body.position)),axis,-at);
+ const localEye=V.rot(V.norm(V.sub(eye,body.position)),axis,-at);
  const sample=(planet,local)=>G.sampleTerrain(planet,local);
  const ruinEngine=root.StarfallArchaeology;
  const seededRuins=ruinEngine&&G.sampleTerrain?ruinEngine.nearby(body,localEye,sample,4):[];
