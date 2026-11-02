@@ -42,14 +42,35 @@ function assets(world,eye){
   if(V.len(V.sub(pos,eye))<370)objects.infrastructure.push({kind:o.kind,position:pos,up,forward});
   if(objects.infrastructure.length>=48)break;
  }
- // Only surveyed physical ruin records, never the player's active ruins scene.
- const known=root.SF.load()?.archaeology6c?.records||[];
- for(const r of known){
-  const item=r?.siteSnapshot;if(r.bodyId!==body.id||!item?.local||!finite(item.tier))continue;
-  const up=rotate(item.local,axis,at),pos=p(item.local,(G.groundHeight(item.local,body)||0)+Math.max(0,item.height||0));
-  const forward=V.norm(V.cross(up,Math.abs(up[1])>.9?[1,0,0]:[0,1,0]));
+ // Original immutable 6C ruin generation, NOT a copy of active planet scene.
+ const localEye=V.rot(V.unit(V.sub(eye,body.position)),axis,-at);
+ const sample=(planet,local)=>G.sampleTerrain(planet,local);
+ const ruinEngine=root.StarfallArchaeology;
+ const seededRuins=ruinEngine&&G.sampleTerrain?ruinEngine.nearby(body,localEye,sample,4):[];
+ const known=(root.SF.load()?.archaeology6c?.records||[])
+  .filter(x=>x.bodyId===body.id&&x.siteSnapshot?.local).map(x=>x.siteSnapshot);
+ const visited=new Set();
+ for(const item of [...seededRuins,...known]){
+  if(!item?.local||!finite(item.tier)||visited.has(item.id))continue;
+  visited.add(item.id);
+  const up=rotate(item.local,axis,at),height=G.groundHeight(item.local,body)||0;
+  const pos=p(item.local,height+.22),forward=rotate(ruinEngine?.norm?.([item.local[2],.13,-item.local[0]])||[0,0,1],axis,at);
   if(V.len(V.sub(pos,eye))<375)objects.ruins.push({tier:item.tier,position:pos,up,forward,id:item.id});
   if(objects.ruins.length>=20)break;
+ }
+ // The same deterministic 6H ecology model and body-fixed animation, not
+ // camera-local decorative life and not the currently active world's ecology.
+ const eco=root.StarfallEcology;
+ if(eco&&G.sampleTerrain){
+  for(const site of eco.nearby(body,localEye,sample,5,root.StarfallRuntime.galaxy.seed,24)){
+   if(site.distance>230)continue;
+   const motion=eco.pose(site,body,world.galaxy.time,localEye,sample),
+    up=rotate(motion.local,axis,at),frame=eco.basis(motion.local),
+    position=p(motion.local,motion.height+motion.altitude+.1),
+    forward=rotate(frame.north,axis,at);
+   objects.ecology.push({id:site.id,kind:site.kind,position,up,forward,behavior:motion.behavior});
+   if(objects.ecology.length>=18)break;
+  }
  }
  for(const r of root.StarfallLaunchUI?.store?.rovers||[]){
   if(r.bodyId!==body.id||!r.local)continue;
