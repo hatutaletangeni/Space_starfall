@@ -68,6 +68,7 @@ jobs:
           python tests/remote-imaging-t05-browser.py
           python tests/rover-lifecycle-t06-browser.py
           python tests/orbital-bus-t07-browser.py
+          python tests/interplanetary-t08-browser.py
       - name: Upload actual software-WebGL screenshot and performance data
         if: always()
         uses: actions/upload-artifact@v4
