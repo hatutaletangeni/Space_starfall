@@ -67,7 +67,20 @@ function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT
  const options=(el,list,placeholder)=>{const old=el.value;el.replaceChildren();if(placeholder){const p=document.createElement('option');p.value='';p.textContent=placeholder;el.append(p);}for(const item of list){const p=document.createElement('option');p.value=item.id;p.textContent=item.kind.toUpperCase()+' / '+item.id.slice(-8);el.append(p);}if([...el.options].some(x=>x.value===old))el.value=old;};
  options($('outpost-node-a'),all,'A: select module');options($('outpost-node-b'),all,'B: select module');options($('outpost-lab'),all.filter(x=>x.kind==='lab'),'Select laboratory');
  const rep=powerReports.get(bodyId);$('outpost-power-result').textContent='Power groups '+(rep?.groups??'—')+' · generation '+fmt(rep?.generationW??0)+' W · delivered '+fmt(rep?.servedW??0)+' W · loads shed '+(rep?.shed?.length||0)+' · '+fmt(rep?.busVoltageV||48,0)+' V / '+fmt(rep?.currentA||0,1)+' A · wire heat '+fmt(rep?.wireLossW||0,1)+' W · charge '+fmt((rep?.chargedJ||0)/3600000,3)+' kWh · battery draw '+fmt((rep?.dischargedJ||0)/3600000,3)+' kWh';
- const links=$('outpost-structure-list');links.replaceChildren();for(const item of all.slice(0,80)){const node=document.createElement('div');node.className='field-entry';node.textContent=item.kind.toUpperCase()+' · '+item.id.slice(-8)+' · '+(rep?.byId[item.id]?.power?'POWERED':'UNPOWERED')+(item.kind==='battery'?' · '+fmt(item.energyJ/3.6e6)+' kWh':'')+(item.kind==='lab'?' · '+item.samples.length+' records':'');links.append(node);}
+ const links=$('outpost-structure-list');links.replaceChildren();for(const item of all.slice(0,80)){const node=document.createElement('div');node.className='field-entry';const line=rep?.byId[item.id];node.textContent=item.kind.toUpperCase()+' · '+item.id.slice(-8)+' · '+(line?.power?'POWERED':line?.fault||'UNPOWERED')+' · '+fmt(line?.generatedW||0,0)+' W generated / '+fmt(line?.loadW||0,0)+' W served'+(item.kind==='battery'?' · '+fmt(item.energyJ/3.6e6,3)+' kWh':'')+(item.kind==='lab'?' · '+item.samples.length+' records':'');links.append(node);}
+ const selected=all.find(x=>x.id===$('outpost-node-a').value),powerLine=selected?rep?.byId[selected.id]:null;
+ $('outpost-t02-inspector').textContent=selected?[
+ 'T02 ENGINEERING POWER INSPECTOR — '+selected.kind.toUpperCase()+' / '+selected.id,
+ 'Status: '+(powerLine?.power?'POWERED':powerLine?.fault||'AWAITING GRID EVALUATION')+' · switch '+(selected.enabled?'ON':'OFF'),
+ 'Bus: '+(powerLine?.busId||'unknown')+' · '+fmt(powerLine?.voltageV||0,0)+' V · '+fmt(powerLine?.currentA||0,2)+' A',
+ 'Nameplate: '+fmt(powerLine?.loadNameplateW||0,0)+' W load · '+fmt(powerLine?.nameplateW||0,0)+' W source rating',
+ 'Actual: '+fmt(powerLine?.generatedW||0,1)+' W generated · '+fmt(powerLine?.servedW||0,1)+' W served · '+fmt(powerLine?.shedW||0,1)+' W shed',
+ 'Real sources: '+(powerLine?.sourceIds?.join(', ')||'NONE — no connected producing source'),
+ 'Storage: '+fmt((powerLine?.batteryJ||0)/3.6e6,3)+' kWh / '+fmt((powerLine?.capacityJ||0)/3.6e6,3)+' kWh',
+ 'Battery limits: '+fmt(powerLine?.chargeLimitW||0,0)+' W charge / '+fmt(powerLine?.dischargeLimitW||0,0)+' W discharge',
+ 'Temperature '+fmt(powerLine?.temperatureK||0,1)+' K · condition '+fmt((powerLine?.condition||0)*100,1)+'%',
+ 'Last simulated '+fmt(rep?.simulatedAtS||0,2)+' s · '+(rep?.model||'bounded DC group model')
+ ].join('\\n'):'Select Module A to inspect its authoritative battery/bus/source record.';
  $('outpost-structure-count').textContent=all.length+' placed on '+(ctx.body?.name||'—')+' · '+store.wires.length+' cables · '+store.relays.length+' relays';
  $('outpost-wire-list').textContent=store.wires.filter(w=>all.some(x=>x.id===w.a)).map(w=>w.a.slice(-6)+' ↔ '+w.b.slice(-6)).join(' · ')||'No electrical wires yet. Adjacent structures are not connected automatically.';
  const labs=all.filter(x=>x.kind==='lab');const lab=labs.find(x=>x.id===$('outpost-lab').value),readings=lab?store.receipts.filter(r=>r.labId===lab.id):[];
@@ -83,6 +96,7 @@ for(const x of ['outpost-type','outpost-forward','outpost-right']){ $(x).addEven
 $('outpost-place').onclick=wrapped(()=>{const p=lastPlacement;if(!p||p.key!==placementKey())throw Error('No valid placement — change offset or select a safer surface');const result=store.add(p.kind,p.ctx.body,p.local,p.facing,d=>Starfall3D.groundHeight(d,p.ctx.body),p.area);if(!Number.isFinite(lastPoweredAt[p.ctx.body.id]))lastPoweredAt[p.ctx.body.id]=RT.time;lastPlacement=null;dirty=true;persist();show('Constructed '+p.kind+' · '+fmt(result.slope,1)+'° slope. Connect electrical cables to power it.');});
 $('outpost-remove').onclick=wrapped(()=>{const id=$('outpost-node-a').value;if(!id)throw Error('Select module A to dismantle');if(!store.remove(id))throw Error('Module unavailable');dirty=true;persist();show('Module dismantled · its cables were disconnected');});
 $('outpost-connect').onclick=wrapped(()=>{const ctx=RT.outpostContext();if(!ctx.landed)throw Error('Land before wiring');const added=store.link($('outpost-node-a').value,$('outpost-node-b').value,ctx.body);if(added){dirty=true;persist();}show(added?'Cable connected. Power network recomputes on next simulation tick.':'Those modules are already wired.');});
+$('outpost-toggle-power').onclick=wrapped(()=>{const id=$('outpost-node-a').value;const selected=store.items.find(x=>x.id===id);if(!selected)throw Error('Select module A to switch its real bus load');store.setEnabled(id,!selected.enabled);dirty=true;persist();show((selected.enabled?'Enabled ':'Isolated ')+selected.kind+' / '+selected.id);});
 $('outpost-disconnect').onclick=wrapped(()=>{if(!store.unlink($('outpost-node-a').value,$('outpost-node-b').value))throw Error('Cable not found');dirty=true;persist();show('Cable disconnected.');});
 $('outpost-launch-relay').onclick=wrapped(()=>{const ctx=RT.outpostContext();if(!ctx.landed||!ctx.eva)throw Error('Deploy a relay while exploring the surface');const relay=store.addRelay(ctx.body);dirty=true;persist();show('Simulated relay deployed: '+relay.id+' · analytic orbit (no cinematic rocket launch)');});
 $('outpost-send').onclick=wrapped(sendData);
@@ -97,5 +111,6 @@ function tick(dt,timeScale){if(document.hidden)return;const time=RT.time;
 }
 addEventListener('pagehide',()=>{if(dirty)persist();});
 function advancePowerTo(atTime,resolve){if(!Number.isFinite(atTime)||atTime<0)return false;const before=store.serialize(),previousTimes={...lastPoweredAt},oldReports=new Map(powerReports),oldTick=lastPowerTick;try{powerTick(0,atTime,resolve);lastPowerTick=atTime;dirty=true;return true;}catch(error){store.restore(before);for(const k of Object.keys(lastPoweredAt))delete lastPoweredAt[k];Object.assign(lastPoweredAt,previousTimes);powerReports=oldReports;lastPowerTick=oldTick;throw error;}}
+root.StarfallPowerInspectorT02={getAssetStatus(id){return root.StarfallPowerLedgerT02?.inspect({id,rt:RT,ui:root.StarfallOutpostUI,launch:root.StarfallLaunchUI})||null;},getBusStatus(bodyId){const r=powerReports.get(bodyId);return r?O.copy(r):null;}};
 root.StarfallOutpostUI={store,tick,advancePowerTo,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
 })(globalThis);
