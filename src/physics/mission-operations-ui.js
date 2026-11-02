@@ -88,7 +88,7 @@ function stepSource(start,end,seconds){
    s.t01Fault=String(error.message||error).slice(0,130);failure(s.id,s.t01Fault,end);
   }
  }
- if(ops?.advancePowerTo)ops.advancePowerTo(end,(asset,t)=>resolveBody(asset,t));
+ if(ops?.advancePowerTo){try{ops.advancePowerTo(end,(asset,t)=>resolveBody(asset,t));}catch(e){failure('outpost-grid',String(e.message||e),end);}}
 }
 // Register owner function only: the scheduler never invents received images, radio
 // routes or physical science results. T03/T05 will add truthful job handlers.
@@ -106,6 +106,8 @@ function getAssetStatus(id){
  const asset=launch.rovers.find(r=>r.id===id)||launch.satellites.find(s=>s.id===id)||root.StarfallOutpostUI?.store?.items.find(x=>x.id===id);
  return clock.getAssetStatus(id,()=>asset?{kind:asset.kind||'remote-rover',bodyId:asset.bodyId,status:asset.status|| (asset.ops7c?.enabled===false?'offline':'available'),energyJ:asset.batteryJ??asset.ops7c?.energyJ??asset.energyJ??null,lastSimulatedS:asset.ground7d?.lastTickS??asset.ops7c?.lastS??clock.lastSimulatedS}:null);
 }
+root.StarfallMissionOperations.advanceTo=advanceTo;
+root.StarfallMissionOperations.getAssetStatus=getAssetStatus;
 root.StarfallMissionOperationsUI={clock,advanceTo,getAssetStatus,resolveBody,persist};
 addEventListener('pagehide',persist);
 })(window);
