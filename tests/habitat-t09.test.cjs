@@ -70,6 +70,16 @@ assert.equal(H.inspect(clone,body,true).oxygenTankMol,beforeRepeat,'repeat same 
 const initialNew={kind:'hab',id:'old-hab',bodyId:body.id};
 assert.equal(H.ensure(initialNew,500).enabled,false);
 assert.equal(H.ensure(initialNew,700).lastS,500,'legacy migration only once');
+const actualStore=new O.Store(742);
+actualStore.items.push(JSON.parse(JSON.stringify(clone)));
+const restoredStore=new O.Store(742,actualStore.serialize());
+const restoredHab=restoredStore.items.find(x=>x.id===clone.id);
+assert(restoredHab,'original outpost5 Store must keep habitat with its nested T09 record');
+assert.equal(restoredHab.habT09.schema,1);
+assert(Math.abs(restoredHab.habT09.oxygenTankMol-clone.habT09.oxygenTankMol)<1e-6);
+const oldStore=new O.Store(742,{schema:1,seed:742,serial:1,items:[{id:'old-hab',kind:'hab',bodyId:body.id,
+  local:[1,0,0],facing:[0,1,0],condition:1,enabled:true}],wires:[]});
+assert(oldStore.items.length===1&&oldStore.items[0].habT09.enabled===false);
 const long={kind:'hab',id:'long',bodyId:body.id};H.ensure(long,0);
 long.habT09.enabled=true;
 H.step(long,body,90000,true);
