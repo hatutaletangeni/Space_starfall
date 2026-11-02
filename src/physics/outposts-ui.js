@@ -34,16 +34,15 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
     report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
-  }
     if(root.StarfallHabitatT09){
-      const from=start+i*total/steps,to=start+(i+1)*total/steps;
+      const to=start+(i+1)*total/steps;
       for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
-        const line=report?.byId?.[item.id],supplied=line?.power===true;
-        // The existing 680W T02 served load owns all active HVAC power.
-        // Passive gas/thermal dynamics continue with the real clock on outage.
+        const supplied=report?.byId?.[item.id]?.power===true;
         root.StarfallHabitatT09.step(item,virtualBody,to,supplied);
+        if(atTime-start>86400+1e-8)item.habT09.awaitingReview=true;
       }
     }
+  }
   lastPoweredAt[bodyId]=atTime;powerReports.set(bodyId,report);
 }}
 function linkFor(lab){const body=RT.galaxy.byId.get(lab.bodyId),ctx=RT.outpostContext();if(!body||ctx.body?.id!==lab.bodyId||!ctx.landed)return{connected:false,reason:'Not on laboratory body'};
