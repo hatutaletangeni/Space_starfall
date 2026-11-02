@@ -279,7 +279,7 @@ function receive(p,at){
   if(o?.received.some(x=>x.id===p.ref.observationId))return true;
   if(!obs||!root.StarfallScienceUI?.ingestOrbital)return false;
   if(!receiveEnergy(p))return false;
-  root.StarfallScienceUI.ingestOrbital({...obs,receivedAtS:at});root.StarfallSurveyUI?.recordOrbitalFootprint?.(obs);
+  const acknowledged={...obs,receivedAtS:at};root.StarfallScienceUI.ingestOrbital(acknowledged);root.StarfallSurveyUI?.recordOrbitalFootprint?.(acknowledged);
   o.storage=o.storage.filter(x=>x.id!==obs.id);o.inTransit=o.inTransit.filter(x=>x.id!==obs.id);if(!o.received.some(x=>x.id===obs.id))o.received.push({...obs,receivedAtS:at});
   return true;
  }
