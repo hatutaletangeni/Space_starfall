@@ -681,8 +681,9 @@ function updateWinch7D(elapsed){if(!winch7d||!truckBody||truckBody.id!==winch7d.
 
 function truckRecharge(sourceId,deliveredJ=360000){
  if(!landed||!truckBody||truckBody!==nearest||truckOccupied)throw Error('Park and exit the truck before connecting its charging port');
- const ui=window.StarfallOutpostUI,store=ui?.store,E=window.StarfallEngineering7A;
- if(window.StarfallEngineering7AUI?.registry?.enabled===false){const solar=store?.items.some(x=>x.bodyId===truckBody.id&&x.kind==='solar'&&StarfallOutposts.arc(x.local,truckLocal,truckBody.radius)<50);if(!solar)throw Error('Park within 50 units of a constructed solar array for recharging');truckBatteryJ=Math.min(44e6,truckBatteryJ+Math.min(360000,Math.max(0,Number(deliveredJ)||0)));saveFlight();return{batteryJ:truckBatteryJ,deliveredJ:0,drawnJ:0,legacy:true};}
+ const ui=window.StarfallOutpostUI,store=ui?.store,E=window.StarfallPowerLedgerT02||window.StarfallEngineering7A;
+ // Even in legacy shared-registry mode, physically debiting a real battery is mandatory.
+ // The previous free solar-proximity credit is retired to prevent energy creation.
  if(!E||!ui||!sourceId)throw Error('Select a wired outpost battery to connect the truck charging port');
  const source=store.items.find(x=>x.id===sourceId&&x.kind==='battery'&&x.bodyId===truckBody.id);
  if(!source||!source.enabled||source.condition<=.02)throw Error('Selected outpost battery is offline or unavailable');
@@ -693,7 +694,7 @@ function truckRecharge(sourceId,deliveredJ=360000){
  if(!solar)throw Error('Charging requires an electrically wired, enabled solar array and battery');
  if(source.energyJ<100)throw Error('Outpost battery is depleted; allow the wired solar array to recharge it');
  const report=E.transfer({id:source.id,energyJ:source.energyJ,capacityJ:StarfallOutposts.SPECS.battery.capacityJ},
-  {id:'starfall-truck',energyJ:truckBatteryJ,capacityJ:44e6},deliveredJ,{efficiency:.90,maxSourceJ:450000});
+  {id:'starfall-truck',energyJ:truckBatteryJ,capacityJ:44e6},deliveredJ,{efficiency:.90,maxSourceJ:450000,maxPowerW:7500,seconds:60});
  if(report.deliveredJ<1)throw Error('Truck battery already full or source depleted');
  // One synchronous transaction updates both legacy authoritative state holders.
  source.energyJ=report.fromEnergyJ;truckBatteryJ=report.toEnergyJ;
