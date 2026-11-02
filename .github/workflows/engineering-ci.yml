@@ -73,6 +73,7 @@ jobs:
           python tests/equipment-t15-browser.py
           python tests/operations-t16-browser.py
           python tests/expedition-archive-t17-browser.py
+          python tests/release-gate-t18-browser.py
           python tests/orbital-bus-t07-browser.py
           python tests/interplanetary-t08-browser.py
           python tests/science-chain-t10-browser.py
