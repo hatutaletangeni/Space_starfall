@@ -1,0 +1,29 @@
+name: T04 temporary offline standalone rebuild
+on:
+  push:
+    branches: [feature/t04-antenna-relay-engineering]
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Generate offline game and verify parity
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Commit generated single-file build
+        run: |
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PLAY-STARFALL.html
+            git commit -m "build(t04): synchronize playable offline file with antenna engineering"
+            git push origin HEAD:feature/t04-antenna-relay-engineering
+          fi
