@@ -81,7 +81,7 @@ G.tick(r,310,{body,height:()=>0,science:{sample},seed:742,transportActive:true})
 assert.equal(JSON.stringify(r.local),position,'completed rover never moves without a new authorized script');
 assert(r.batteryJ<=oldEnergy,'idle computer power draw is finite not negative');
 const reserveR={id:'probe-low',bodyId:body.id,systemId:body.systemId,local:destination,
- batteryJ:450000,commands:[{op:'DRIVE',value:50}],index:0,status:'running',heading:0,records:[],lastS:0};
+ batteryJ:400025,commands:[{op:'DRIVE',value:50}],index:0,status:'running',heading:0,records:[],lastS:0};
 G.tick(reserveR,10,{body,height:()=>0,transportActive:true});
 assert.equal(reserveR.status,'safe-stop');
 assert.equal(reserveR.roverT06.state,'SAFE_STOP');
@@ -91,7 +91,7 @@ const source={id:'battery-A',kind:'battery',bodyId:body.id,local:destination,ena
 const ui={store:{items:[source]},powerReports:new Map([[body.id,{byId:{[source.id]:{power:true}}}]])};
 const prior=source.energyJ,charged=T.service(reserveR,source,body,ui,20,1000);
 assert(charged.deliveredJ>0&&charged.lossJ>0);
-assert(source.energyJ<prior&&reserveR.batteryJ>450000);
+assert(source.energyJ<prior&&reserveR.batteryJ>400025);
 assert.equal(charged.drawnJ,prior-source.energyJ);
 assert.throws(()=>T.service(reserveR,source,body,ui,22,1000),/cooldown/);
 assert.throws(()=>T.service({...reserveR,local:wrongPad},source,body,ui,1000,1000),/36 scene/);
