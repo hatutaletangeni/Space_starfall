@@ -33,13 +33,26 @@ function shipNode(body,t){
   bandwidthBps:128000,energyJ:v.state.energyJ,txPowerW:60};
 }
 function towerNodes(body){
- return (root.StarfallOutpostUI?.store?.items||[]).filter(x=>x.kind==='antenna'&&x.bodyId===body.id&&x.enabled!==false&&x.condition>.02
-  &&root.StarfallOutpostUI.powerReports.get(body.id)?.byId?.[x.id]?.power===true).map(x=>{
-   const rad=O.rotate(x.local,body.spinAxis||[0,1,0],body.spinAngle||0);
-   return{id:x.id,kind:'wired-radio',bodyId:body.id,position:O.V.add(body.position,O.V.mul(rad,body.radius+Math.max(8,x.height||0))),
-    rangeScene:O.SPECS.antenna.rangeScene,bandwidthBps:O.SPECS.antenna.bandwidthBps,txPowerW:24};
-  });
+ const hw=root.StarfallAntennaT04,ui=root.StarfallOutpostUI;
+ if(hw&&ui)return ui.store.items.filter(x=>x.kind==='antenna'&&x.bodyId===body.id)
+   .map(x=>hw.station(x,body,ui.powerReports.get(body.id),O.rotate))
+   .filter(x=>x?.powered);
+ return (ui?.store?.items||[]).filter(x=>x.kind==='antenna'&&x.bodyId===body.id&&x.enabled!==false&&x.condition>.02&&ui.powerReports.get(body.id)?.byId?.[x.id]?.power===true).map(x=>{
+ const rad=O.rotate(x.local,body.spinAxis||[0,1,0],body.spinAngle||0);
+ return{id:x.id,kind:'wired-radio',bodyId:body.id,position:O.V.add(body.position,O.V.mul(rad,body.radius+Math.max(8,x.height||0))),rangeScene:O.SPECS.antenna.rangeScene,bandwidthBps:O.SPECS.antenna.bandwidthBps,txPowerW:24};
+ });
 }
+function labNode(item,body,towers){
+ if(item?.kind!=='lab'||item.bodyId!==body.id)return null;
+ const ui=root.StarfallOutpostUI,rep=ui?.powerReports?.get(body.id),line=rep?.byId?.[item.id];
+ if(!line?.power||item.enabled===false)return null;
+ const group=ui.store.connectedGroups(body.id).find(g=>g.some(x=>x.id===item.id))||[];
+ if(!towers.some(t=>group.some(x=>x.id===t.id)))return null;
+ const rad=O.rotate(item.local,body.spinAxis||[0,1,0],body.spinAngle||0);
+ return{id:item.id,kind:'wired-lab-port',bodyId:body.id,position:O.V.add(body.position,O.V.mul(rad,body.radius+Math.max(3,item.height||0))),
+  powered:true,busId:line.busId,rangeScene:0,bandwidthBps:1000000,txPowerW:5,rxPowerW:5};
+}
+
 function roverNode(r,body){
  if(!(r.batteryJ>300)||!Array.isArray(r.local))return null;
  const rad=O.rotate(r.local,body.spinAxis||[0,1,0],body.spinAngle||0);
@@ -63,6 +76,7 @@ function satelliteNode(s,body,t){
  }catch(_){return null;}
 }
 function hop(a,b,body){
+ if(root.StarfallAntennaT04)return root.StarfallAntennaT04.link(a,b,body,O.radioLink,O.rotate,P.SCENE_METERS_PER_UNIT);
  if(!a||!b||a.bodyId!==b.bodyId)return null;
  const range=Math.min(a.rangeScene,b.rangeScene),h=O.radioLink(a.position,b.position,[{position:body.position,radius:body.radius}],range,P.SCENE_METERS_PER_UNIT);
  if(!h.connected)return null;
@@ -71,35 +85,46 @@ function hop(a,b,body){
 function routeFor(packet,at,phase='send'){
  const body=calcBody(packet.bodyId,at);
  if(!body?.position||!finite(body.radius))return{connected:false,reason:'Destination ephemeris is not loaded/cached; no invented radio route'};
- const current=shipNode(body,at),towers=towerNodes(body);
- // A tower can buffer local traffic, but *global* player journal access has
- // no distant interplanetary trunk yet; receiving here requires same-world ship.
- if(!current)return{connected:false,reason:'No present, battery-powered ship ground transceiver on destination body (T08 cross-planet link absent)'};
- const sources=[],targets=[];
+ const current=shipNode(body,at),towers=towerNodes(body),hw=root.StarfallAntennaT04;
+ if(!current&&(packet.sourceId==='starfall-ship'||packet.destId==='starfall-ship'))
+  return{connected:false,reason:'No present, battery-powered ship ground transceiver on destination body (T08 cross-planet link absent)'};
  const node=id=>{
   if(id==='starfall-ship')return current;
   if(id===localRoverId())return localRoverNode(body);
   if(rover(id))return roverNode(rover(id),body);
   if(sat(id))return satelliteNode(sat(id),body,at);
-  return towers.find(x=>x.id===id)||null;
+  const tower=towers.find(x=>x.id===id);
+  if(tower)return tower;
+  return labNode(root.StarfallOutpostUI?.store?.items.find(x=>x.id===id),body,towers);
  };
  const source=node(packet.sourceId),dest=node(packet.destId);
- if(!source||!dest)return{connected:false,reason:'Radio endpoint has no energy, is disabled or is outside this real system'};
+ if(!source||!dest)return{connected:false,reason:'RADIO_OFFLINE: actual endpoint lacks DC power, correct antenna orientation or commissioned receiver'};
  if(source.bodyId!==body.id||dest.bodyId!==body.id)return{connected:false,reason:'Cross-body/intersystem radio requires commissioned T08 hardware'};
+ if(hw){
+  const relays=UI.store.satellites.filter(x=>x.bodyId===body.id&&!([source.id,dest.id].includes(x.id)))
+    .map(x=>satelliteNode(x,body,at)).filter(Boolean);
+  const all=[...towers,...relays];
+  const allowed=node=>{
+   if(node.kind==='wired-radio'||node.kind==='orbital-radio'){
+    const budget=node.kind==='wired-radio'?hw.TOWER_BUFFER_BYTES:hw.RELAY_BUFFER_BYTES;
+    const used=hw.bufferLoad(transport.packets,node.id);
+    return used+(packet.encodedBytes||0)<=budget || packet.route?.includes(node.id);
+   }return false;
+  };
+  const routes=hw.candidates(source,dest,all,body,O.radioLink,O.rotate,P.SCENE_METERS_PER_UNIT,allowed);
+  const path=routes[0];
+  if(!path)return{connected:false,reason:'NO_PHYSICAL_ROUTE: blocked planetary horizon, dish pointing, power, receiver or full relay buffer'};
+  return path;
+ }
  const candidates=[];
  function offer(hops){
-  const links=[];
-  for(let i=0;i<hops.length-1;i++){const q=hop(hops[i],hops[i+1],body);if(!q)return;links.push(q);}
+  const links=[];for(let i=0;i<hops.length-1;i++){const q=hop(hops[i],hops[i+1],body);if(!q?.connected)return;links.push(q);}
   candidates.push({connected:true,hops:hops.map(x=>x.id),bandwidthBps:Math.min(...links.map(x=>x.bandwidthBps)),
    delayS:links.reduce((n,x)=>n+x.delayS,0),txPowerW:source.txPowerW,reason:hops.map(x=>x.kind).join(' → ')});
  }
- offer([source,dest]);
- for(const tower of towers)if(![source.id,dest.id].includes(tower.id))offer([source,tower,dest]);
- // Relay requires a real, active 7C spacecraft and actual two-hop visibility.
- for(const satellite of UI.store.satellites){
-  if(satellite.bodyId!==body.id||[source.id,dest.id].includes(satellite.id))continue;
-  const relay=satelliteNode(satellite,body,at);if(relay)offer([source,relay,dest]);
- }
+ offer([source,dest]);for(const tower of towers)if(![source.id,dest.id].includes(tower.id))offer([source,tower,dest]);
+ for(const satellite of UI.store.satellites){if(satellite.bodyId!==body.id||[source.id,dest.id].includes(satellite.id))continue;
+  const relay=satelliteNode(satellite,body,at);if(relay)offer([source,relay,dest]);}
  candidates.sort((a,b)=>a.delayS-b.delayS||b.bandwidthBps-a.bandwidthBps||a.hops.join('').localeCompare(b.hops.join('')));
  return candidates[0]||{connected:false,reason:'No real line of sight across current planetary horizon or relay pass'};
 }
