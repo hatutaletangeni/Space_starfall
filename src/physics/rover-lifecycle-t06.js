@@ -87,7 +87,7 @@ function chooseSite(body,height,missionId,preferred=null,unit=UNIT()){
  }
  return best;
 }
-function landingDecision(body,site,descent,{entryVelocityMS=2200,propellantJ=110e6,capsuleMassKg=1680}={}){
+function landingDecision(body,site,{entryVelocityMS=2200,propellantJ=110e6,capsuleMassKg=1680}={}){
  const g=Math.max(.02,(body.gravity||1)*G0),energy=capsuleMassKg*g*1800+0.5*capsuleMassKg*(entryVelocityMS*.065)**2;
  const aerodynamic=String(body.atmosphere||'').toLowerCase().includes('vacuum')?0.0:.65;
  const demand=energy*(1-.35*aerodynamic),burn=Math.max(0,propellantJ-demand);
