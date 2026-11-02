@@ -1952,7 +1952,7 @@ function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satelli
   // Camera position is WORLD position, so without source's body-fixed direction use photo.local only.
   const dir=p.local||p.bodyFixedLocal||p.captureLocal;
   if(dir)push(marker({id:p.id,bodyId,location:dir},'photo','Received image '+p.id.slice(-13),{
-    photoId:p.id,sourceId:p.sourceAssetId,timeS:p.timeS,quality:'ACTUAL WEBGL IMAGE DOWNLINKED'}));
+    photoId:p.id,sourceId:p.sourceAssetId,targetRuinId:p.targetRuinId||null,timeS:p.timeS,quality:'ACTUAL WEBGL IMAGE DOWNLINKED'}));
  }
  for(const r of ruins)if(r?.bodyId===bodyId&&r.level>=1&&r.siteSnapshot?.local)
   push(marker({id:r.id,bodyId,local:r.siteSnapshot.local},'ruin',r.level>=2?'Examined ruin':'Surveyed ruin',{evidenceId:r.id,quality:'PROCEDURAL ARCHAEOLOGY'}));
@@ -5584,7 +5584,12 @@ function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galax
  selected=items.find(b=>b.id===focus.id)||items[0];sel.value=selected.id;
 }
 function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChildren();$('obs-name').textContent=selected?.name||'—';$('obs-quality').textContent=p?.classification||'Unknown';
- for(const r of rows(p)){const tr=document.createElement('div');tr.className='science-row';const name=document.createElement('span');name.textContent=r.label;const val=document.createElement('strong');val.textContent=r.value;const quality=document.createElement('small');quality.textContent=r.quality;tr.append(name,val,quality);list.append(tr);}
+ const journal=root.StarfallScienceUI?.journal||[],observed=journal.filter(x=>x.bodyId===selected?.id&&
+ (x.receivedAtS!==null||x.kind==='measurement')&&Number.isFinite(x.timeS)&&Number.isFinite(x.value));
+ const latest=observed.sort((a,b)=>b.timeS-a.timeS).slice(0,6);
+ for(const r of [{label:'Instrument evidence state',value:latest.length?'OBSERVED (seeded measurements)':'INFERRED / UNSCANNED',quality:latest.length?'Real source journal receipts, NOT calibrated astronomical truth':'Procedural catalogue only'},
+ ...latest.map(x=>({label:'Observed '+x.instrument,value:String(x.value)+' '+(x.unit||'')+' at T+'+x.timeS.toFixed(1)+' s',quality:'Source '+(x.satelliteId||x.probeId||x.sourceAssetId||'field journal')+' · observation '+x.id})),
+ ...rows(p)]){const tr=document.createElement('div');tr.className='science-row';const name=document.createElement('span');name.textContent=r.label;const val=document.createElement('strong');val.textContent=r.value;const quality=document.createElement('small');quality.textContent=r.quality;tr.append(name,val,quality);list.append(tr);}
  $('obs-caution').textContent=p?.notes||'Data is a deterministic procedural physical model. It is not an astronomical observation.';
 }
 function dataSnapshot(){const p=getProfile();return{schema:'starfall-science-v1',exportedSimulationSeconds:RT.time,galaxySeed:RT.galaxy.seed,bodyId:selected?.id,profile:p,assumptions:{sceneUnitMetres:P.SCENE_METERS_PER_UNIT,temperatureModel:'airless equilibrium, uniform redistribution',measurements:'Procedurally estimated; not direct instrument readings'}};}
@@ -6571,7 +6576,7 @@ function legendList(p){const box=$('survey-markers');box.replaceChildren();const
 }
 function inspect(p){if(!selected){$('survey-inspect').textContent='Select a map marker or click the surface for distance and bearing.';return;}
  const local=selected.local,here=M.arc(p.local,local,p.body.radius),hdg=M.bearing(p.local,local),scene=GL.sampleTerrain(p.body,local),label=selected.label||'Selected coordinate';
- $('survey-inspect').textContent=[label,'Range: '+fmt(here)+' scene units','Bearing: '+fmt(hdg,0)+'° (0° true north)','Terrain: '+(scene.biome||scene.material),'Elevation: '+fmt(scene.height)+' scene units','Position: '+local.map(x=>fmt(x,5)).join(' / '),selected.evidenceId?'Evidence '+selected.evidenceId+(selected.sourceId?' / source '+selected.sourceId:'')+(selected.quality?' / '+selected.quality:''):'',selected.photoId?'Actual downlinked photo '+selected.photoId:'',root.StarfallScienceT14?'Latitude '+fmt(root.StarfallScienceT14.latLon(local).lat,5)+'° · longitude '+fmt(root.StarfallScienceT14.latLon(local).lon,5)+'°':'',selected.type==='waypoint'?'Saved personal waypoint':'Select MARK to save this coordinate'].join('\n');
+ $('survey-inspect').textContent=[label,'Range: '+fmt(here)+' scene units','Bearing: '+fmt(hdg,0)+'° (0° true north)','Terrain: '+(scene.biome||scene.material),'Elevation: '+fmt(scene.height)+' scene units','Position: '+local.map(x=>fmt(x,5)).join(' / '),$('survey-t14-show-details').checked&&selected.evidenceId?'Evidence '+selected.evidenceId+(selected.sourceId?' / source '+selected.sourceId:'')+(selected.quality?' / '+selected.quality:''):'',selected.photoId?'Actual downlinked photo '+selected.photoId+(selected.targetRuinId?' · target ruin '+selected.targetRuinId:''):'',root.StarfallScienceT14?'Latitude '+fmt(root.StarfallScienceT14.latLon(local).lat,5)+'° · longitude '+fmt(root.StarfallScienceT14.latLon(local).lon,5)+'°':'',selected.type==='waypoint'?'Saved personal waypoint':'Select MARK to save this coordinate'].join('\n');
 }
 function draw(){if(!isOpen())return;const p=current();if(!p){$('survey-world').textContent='Land on a solid planet or moon before opening a surface map.';ctx.fillStyle='#09141c';ctx.fillRect(0,0,canvas.width,canvas.height);$('survey-markers').textContent='Map unavailable in space.';return;}
  resetCenter(p);const w=canvas.width,h=canvas.height,cache=bgCacheKey(p,w,h);if(rasterKey!==cache||!raster){raster=rasterize(p,w,h);rasterKey=cache;}
