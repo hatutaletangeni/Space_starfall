@@ -2849,5 +2849,94 @@
     "realBrowserRunHere": false,
     "realGPUHere": false,
     "saveReloadHere": false
+  },
+  "expectedExports": {
+    "StarfallOutposts": {
+      "source": "src/physics/outposts.js",
+      "names": [
+        "SPECS",
+        "Store",
+        "placement",
+        "radioLink",
+        "relayPosition",
+        "arc"
+      ],
+      "schema": 1
+    },
+    "StarfallVehicles": {
+      "source": "src/physics/vehicles.js",
+      "names": [
+        "SCHEMA",
+        "components",
+        "presets",
+        "validate",
+        "evaluate",
+        "createStore"
+      ],
+      "schema": 1
+    },
+    "StarfallFieldScience": {
+      "source": "src/physics/science-field.js",
+      "names": [
+        "INSTRUMENTS",
+        "sample",
+        "profile",
+        "localTruth",
+        "journal",
+        "csv"
+      ],
+      "schema": 1
+    },
+    "StarfallLaunch": {
+      "source": "src/physics/launch-systems.js",
+      "names": [
+        "ENGINES",
+        "PAYLOADS",
+        "Store",
+        "build",
+        "orbit",
+        "validateScript"
+      ],
+      "schema": 1
+    },
+    "StarfallSatelliteOps7C": {
+      "source": "src/physics/satellites7c.js",
+      "names": [
+        "PAYLOADS",
+        "ensure",
+        "geometry",
+        "step",
+        "capture",
+        "radio",
+        "downlink",
+        "receive"
+      ],
+      "schema": 1
+    },
+    "StarfallEngineering7A": {
+      "source": "src/physics/assets7a.js",
+      "names": [
+        "SCHEMA",
+        "COMP",
+        "Registry",
+        "asset",
+        "location",
+        "transfer",
+        "satellitePosition"
+      ],
+      "schema": 1
+    }
+  },
+  "saveSchemas": {
+    "SF": 2,
+    "outpost5": 1,
+    "engineeringVehicles": 1,
+    "launch7": 1,
+    "ops7c": 1,
+    "ground7d": 1,
+    "imaging7f": 1,
+    "robotics4": 1,
+    "research7e": 1,
+    "registry7a": 1
   }
 }
