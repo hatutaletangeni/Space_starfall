@@ -34,7 +34,7 @@ function start({body,truckLocal,roverLocal,destination,radiusScene,height,energy
  if(end.lengthScene<4||end.lengthScene>20)throw Error('T12 recovery anchor must be 4–20 scene units from truck');
  const totalM=path.lengthScene*unit;
  const gravity=clamp((body.gravity||1)*9.80665,.1,30);
- const resistanceN=loadKg*gravity*(.11+Math.sin(path.slopeDeg*Math.PI/180));
+ const resistanceN=loadKg*gravity*(.013+.20*Math.sin(path.slopeDeg*Math.PI/180));
  const workJ=Math.max(50000,totalM*resistanceN/efficiency);
  if(!finite(workJ)||energyJ<workJ+reserveJ)throw Error('T12 insufficient truck battery for predicted '+Math.ceil(workJ/1000)+' kJ pull plus reserve');
  return{schema:12,bodyId:body.id,status:'RECOVERING',destination:norm(destination),anchor:norm(truckLocal),
