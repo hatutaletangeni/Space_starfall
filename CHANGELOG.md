@@ -1,3 +1,12 @@
+# STARFALL T11 — Commissioned Launch Pads & Payload Custody (2026-11-02)
+
+- Added an optional **commissioned Foundation launch pad**, requiring a wired electrical source and 90 W of actual T02 bus load; older Foundations remain playable in Legacy Pad Mode.
+- Added terrain and nearby-structure pad clearance checks, active-pad locks and visible Rocket Lab preflight diagnostics.
+- Added saved payload manifests tracking mass, mission/asset IDs, route class, destination body/site and separation history, with a stable-orbit guard before release.
+- Retained the 7B force-integrated multistage flight, T06 conservative rover descent, satellite ephemeris, ship boarding, truck controls and old launch saves.
+- Explicitly reject newly requested same-star-system cross-planet delivery until an actual transfer solver exists; interstellar rover carriage stays labeled fictional.
+- Added T11 unit/integration regressions and a deterministic standalone build workflow. See `docs/LAUNCH-PAYLOAD-T11.md` for capability boundaries and recovery.
+
 # Combined STARFALL Update 7F — End-to-End Engineering QA & Hardening (2026-11-02)
 
 - **Preserved** all Camera 7F rover/satellite photographic features; no revert or replacement.
