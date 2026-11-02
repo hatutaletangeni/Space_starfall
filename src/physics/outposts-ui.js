@@ -207,7 +207,7 @@ function refreshScienceT10(){
  if([...pick.options].some(x=>x.value===prev))pick.value=prev;
  const observation=$('t10-lab-observation'),old=observation.value;
  observation.replaceChildren();
- const evidence=(root.StarfallScienceUI?.journal||[]).filter(x=>x?.id&&Number.isFinite(x.receivedAtS)&&x.bodyId===lab?.bodyId).slice(-100);
+ const evidence=(root.StarfallScienceUI?.journal||[]).filter(x=>x?.id&&Number.isFinite(x.receivedAtS)).slice(-100);
  for(const row of evidence){const option=document.createElement('option');option.value=row.id;
   option.textContent=row.instrument+' · '+row.id.slice(-35);observation.append(option);}
  if([...observation.options].some(x=>x.value===old))observation.value=old;
