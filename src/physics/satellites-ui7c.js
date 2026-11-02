@@ -33,7 +33,7 @@ function refresh(){const picker=$('sat7c-list'),prev=selected||picker.value,ss=s
   metric(cells,'PAYLOAD QUEUE',bus.jobs.length+' acquisition(s)',bus.completed.length+' recorded numeric exposures');
   $('sat7c-t07-status').textContent=[
    'T07 SOURCE '+s.id+' · '+s.kind.toUpperCase()+' / bus '+bus.state,
-   'PERIAPSIS '+fmt(v.orbit.periapsisM/1000,1)+' km / APOAPSIS '+fmt(v.orbit.apoapsisM/1000,1)+' km / ECCENTRICITY '+fmt(v.orbit.eccentricity,5),
+   'PERIAPSIS '+fmt(v.orbit.periapsisM===null?NaN:v.orbit.periapsisM/1000,1)+' km / APOAPSIS '+fmt(v.orbit.apoapsisM===null?NaN:v.orbit.apoapsisM/1000,1)+' km / ECCENTRICITY '+fmt(v.orbit.eccentricity===null?NaN:v.orbit.eccentricity,5),
    'NADIR FOOTPRINT '+fmt(v.footprintRadiusM/1000,2)+' km · fixed subpoint '+v.subpoint.map(x=>fmt(x,4)).join('/'),
    'BATTERY '+fmt(v.batteryJ/3.6e6,3)+' kWh · SOLAR '+fmt(v.solarActualW,0)+' / '+fmt(v.solarRatedW,0)+' W · LOAD '+fmt(v.loadW,0)+' W',
    'ACQUISITIONS '+bus.jobs.map(j=>j.sensor+': '+j.status+' T+'+fmt(j.eligibleAtS,0)+'s'+(j.lastReason?' / '+j.lastReason:'')).join(' | '),
