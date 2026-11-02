@@ -31,13 +31,13 @@ class Transport{
    // durable packets/receipts and freeze radio time until flight catches up.
    // NEVER discard delivery evidence merely because clocks disagree.
    if(valid(saved.cursorS)&&saved.cursorS<1e13){
-    this.cursorS=saved.cursorS;this.receipts=Array.isArray(saved.receipts)?saved.receipts.filter(id).slice(-4000):[];
+    this.cursorS=saved.cursorS;this.receipts=Array.isArray(saved.receipts)?saved.receipts.filter(id):[];
     const seen=new Set();
     for(const x of Array.isArray(saved.packets)?saved.packets:[]){
      if(!x||!id(x.id)||seen.has(x.id)||!VALID.has(x.type)||!STATES.has(x.state)||!valid(x.bytes)||!valid(x.sendBytes)||!valid(x.recvBytes))continue;
      if(x.sendBytes>x.bytes+96||x.recvBytes>x.bytes+96)continue;
      seen.add(x.id);this.packets.push(copy(x));
-     if(this.packets.length>=MAX_PACKETS)break;
+     // Preserve oversized legacy packet archives; refuse new work at capacity.
     }
     if(saved.metrics&&valid(saved.metrics.txBytes)&&valid(saved.metrics.delivered))this.metrics=copy(saved.metrics);
    }
