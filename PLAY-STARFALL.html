@@ -3353,6 +3353,7 @@ function deepLink(a,b,occluders=[],unit=UNIT()){
  const d=V.len(V.sub(a.position,b.position));
  if(!finite(d)||d<=0)return{connected:false,reason:'No valid orbital source positions'};
  const crossSystem=a.systemId!==b.systemId;
+ if(!crossSystem&&mode==='FICTIONAL')return{connected:false,reason:'FICTIONAL_INTERSTELLAR_ONLY: normal same-system RF must use HIGH_GAIN hardware'};
  if(crossSystem&&mode!=='FICTIONAL'){
   return{connected:false,reason:'REAL_INTERSTELLAR_RF: no viable installed link; shortest conceptual separation ≥1 ly, one-way light time ≥1 year. Commission explicit FICTIONAL endpoints for expedited messages.',
    minimumLightSeconds:LY/C,scientificDistanceNote:'The procedural game galaxy does not encode physical interstellar star separations; ≥1 ly is only a conservative lower bound'};
