@@ -14,6 +14,26 @@ function range(){return Number($('survey-range').value)||350;}
 function isOpen(){return !$('survey-panel').hidden;}
 function visit(){const p=current();if(!p)return;if(!coverage[p.bodyId]&&Object.keys(coverage).length>=40){delete coverage[Object.keys(coverage)[0]];}if(M.addCoverage(coverage,p.bodyId,p.local,p.body.radius,50)){dirty=true;rasterKey='';}}
 function resetCenter(p){if(!p){center=null;lastBodyId=null;return;}if(lastBodyId!==p.bodyId||!center){if(lastBodyId!==p.bodyId)selected=null;lastBodyId=p.bodyId;center=[...p.local];rasterKey='';}else if($('survey-follow').checked&&M.arc(center,p.local,p.body.radius)>8){center=[...p.local];rasterKey='';}}
+function pendingJobsT14(p){
+ // A queued camera request is NOT a captured image nor received evidence.
+ // Plot it only at a real current deployed/local rover position; do not
+ // invent geolocations for off-world satellites or delayed future commands.
+ const jobs=root.StarfallImagingUI7F?.store?.jobs||[],found=[];
+ const ownId=RT.vehicleStore.get('rover').definition.id;
+ for(const job of jobs){
+  let loc=null;if(job.sourceType==='rover'){
+    if(job.assetId===ownId&&RT.roverAutonomyPosition?.()?.bodyId===p.bodyId)
+      loc=RT.roverAutonomyPosition().local;
+    else{
+      const r=root.StarfallLaunchUI?.store?.rovers.find(x=>x.id===job.assetId);
+      if(r?.bodyId===p.bodyId&&['parked','running','complete','safe-stop'].includes(r.status))loc=r.local;
+    }
+  }
+  if(loc)found.push({id:'pending-'+job.id,bodyId:p.bodyId,local:loc,
+    assetId:job.assetId,requestedAtS:job.createdS});
+ }
+ return found.slice(-16);
+}
 function markers(p){if(!p)return[];const found=[],ids=new Set();const push=(m)=>{if(!m?.local||m.bodyId!==p.bodyId||ids.has(m.id))return;try{m.local=M.unit(m.local);}catch(_){return;}ids.add(m.id);found.push(m);};
  push({id:'explorer',bodyId:p.bodyId,local:p.local,label:'Explorer',type:'explorer'});
  if(p.shipLocal)push({id:'ship',bodyId:p.bodyId,local:p.shipLocal,label:'Landed spacecraft',type:'ship'});
@@ -29,7 +49,7 @@ function markers(p){if(!p)return[];const found=[],ids=new Set();const push=(m)=>
   photos:root.StarfallImagingUI7F?.store?.photos||[],
   ruins:root.StarfallRuinsUI?.records||[],
   ecology:root.StarfallEcologyUI?.records||[],
-  outposts:root.StarfallOutpostUI?.store?.items||[]})||[];
+  outposts:root.StarfallOutpostUI?.store?.items||[],pending:pendingJobsT14(p)})||[];
  for(const m of evidence)push(m);
  return root.StarfallScienceT14?.filterMarkers(found,$('survey-t14-filter').value)||found;
 }
