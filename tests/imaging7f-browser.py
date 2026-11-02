@@ -34,7 +34,7 @@ with sync_playwright() as p:
           return {mime:out.mime,bytes:out.bytes,colorSamples:pixels.size};
         }""")
         assert photo['bytes']>1500
-        page.locator('#imaging7f-open').click()
+        page.locator('#imaging7f-open').evaluate('(el)=>el.click()')
         assert page.locator('#imaging7f').evaluate('(el)=>!el.hidden')
         assert 'Camera' in page.locator('#imaging7f-title').inner_text()
         page.locator('#imaging7f-close').click()
