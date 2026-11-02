@@ -23,7 +23,7 @@ function model(saved,startS=0){
  const owner=saved?.owner?structuredClone(saved.owner):start(),clock=new M.Clock(seed,startS,saved?.clock);
  const r=owner.rover, s=owner.sat;
  if(!r.commands.length){
-  r.commands=L.validateScript('DRIVE 8\\nWAIT 10\\nSAMPLE thermometer\\nSTOP');
+  r.commands=L.validateScript('DRIVE 8\nWAIT 10\nSAMPLE thermometer\nSTOP');
   r.status='running';r.index=0;r.remaining=0;
  }
  clock.setHandler((_from,to)=>{
