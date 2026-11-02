@@ -198,6 +198,7 @@ function openOwner(id){
  }else if(obj.kind==='truck'){ok=!!root.StarfallLaunchUI?.open;if(ok)root.StarfallLaunchUI.open();}
  else{ok=!!$('outpost-open');if(ok)$('outpost-open').click();}
  if(say)say.textContent=ok?'Opened the existing '+obj.kind+' operations panel. State is owned by the original module.':'This asset does not expose a command panel; use Asset Manager to inspect it.';
+ if(ok)refreshAll(true); // Initial status must match the selected real asset immediately on panel open.
  return ok;
 }
 function renderAssetOptions(){
@@ -264,6 +265,7 @@ function focusGuard(){
    const el=r.target,open=!el.hidden,was=prev.get(el);prev.set(el,open);
    if(open&&was===false){previous=launcher?.isConnected?launcher:document.activeElement;const c=el.querySelector('input:not([disabled]),select:not([disabled]),button:not([disabled])');
     if(c&&!el.contains(document.activeElement))c.focus({preventScroll:true});
+    refreshAll(true);
    }
    if(!open&&was===true&&!ids.some(id=>$(id)&&!$(id).hidden)){
     if(previous?.isConnected&&typeof previous.focus==='function')previous.focus({preventScroll:true});
