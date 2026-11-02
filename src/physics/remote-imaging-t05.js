@@ -19,7 +19,12 @@ function worldFor(asset,at){
  const body=copy(candidate);
  // Older T01 snapshots omitted sky tint. Only the atmosphere color needs a
  // visual fallback; ground shape and palette still use original seed and type.
- if(!Array.isArray(body.sky)||body.sky.length!==3)body.sky=loaded?.sky?.slice()||[.4,.55,.66];
+ if(!Array.isArray(body.sky)||body.sky.length!==3){
+  const originalSky={Rocky:[.46,.44,.40],Desert:[.75,.49,.31],Ice:[.48,.70,.83],
+   Temperate:[.40,.65,.85],Ocean:[.38,.74,.95],Volcanic:[.83,.38,.24],
+   Lush:[.43,.72,.58],'Gas Giant':[.76,.63,.51],Shattered:[.48,.39,.32]};
+  body.sky=loaded?.sky?.slice()||originalSky[body.type]||[.4,.55,.66];
+ }
  const sys={...source,planets:[body],bodies:[body],belts:[],nebulae:[],comets:[],
   maxOrbit:Math.max(source.maxOrbit,body.orbitRadius||0,body.radius*3)};
  const map=new Map([[body.id,body],[source.id,sys]]);
