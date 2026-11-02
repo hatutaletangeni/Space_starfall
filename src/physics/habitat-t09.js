@@ -199,10 +199,11 @@ function serviceRover(hab,rover,store,body,at,seconds=30,powered=false){
  const group=store.connectedGroups(body.id).find(g=>g.some(x=>x.id===hab.id))||[];
  const battery=group.find(x=>x.kind==='battery'&&x.enabled!==false&&x.condition>.02&&x.energyJ>0);
  if(!battery)throw Error('No connected, charged original T02 battery powers servicing');
- const sink={energyJ:rover.batteryJ,capacityJ:rover.capacityJ??14.4e6};
- const result=t.transfer(battery,sink,Math.max(0,C.roverServiceMaxW*seconds*.9),
+ const source={id:battery.id,energyJ:battery.energyJ,capacityJ:root.StarfallOutposts.SPECS.battery.capacityJ};
+ const sink={id:rover.id,energyJ:rover.batteryJ,capacityJ:rover.capacityJ??14.4e6};
+ const result=t.transfer(source,sink,Math.max(0,C.roverServiceMaxW*seconds*.9),
   {efficiency:.9,maxPowerW:C.roverServiceMaxW,seconds});
- if(result.deliveredJ>0){rover.batteryJ=sink.energyJ;h.chargeReadyAtS=at+seconds;}
+ if(result.deliveredJ>0){battery.energyJ=result.fromEnergyJ;rover.batteryJ=result.toEnergyJ;h.chargeReadyAtS=at+seconds;}
  return{...result,sourceId:battery.id,targetId:rover.id,fromBodyId:body.id};
 }
 const API={CONFIG:C,R,pressure,gasMoles,defaults,ensure,external,step,command,inspect,serviceRover};
