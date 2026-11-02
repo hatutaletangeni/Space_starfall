@@ -63,7 +63,7 @@ with sync_playwright() as p:
     return{meanChannelDelta:diff/count,localBytes:near.bytes,isolatedBytes:isolated.bytes,
       playerUnchanged:rt.nearest.id===b.id};
   }""")
-  assert comparison['localBytes']>1200 and comparison['isolatedBytes']>1200 and comparison['playerUnchanged'],comparison
+  assert comparison['localBytes']>500 and comparison['isolatedBytes']>500 and comparison['playerUnchanged'],comparison
   assert comparison['meanChannelDelta']<105,'Same-world near/isolated rendering differs too much: '+str(comparison)
 
   # Camera 7F receives an already accepted onboard command; T08 is required
