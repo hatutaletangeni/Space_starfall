@@ -1858,7 +1858,7 @@ function sample({body,seed=742,local=[0,1,0],altitudeM=0,instrument,simTime=0,en
 function makeObservation(value,spec,truth,body,local,simTime,calibrated,nonce,seed,quality){const uncertainty=spec.uncertainty*(calibrated?1:2.5),locationKey=local.map(x=>Math.round(x*100000)).join(':'),identity=body.id+':'+spec.quantity+':'+locationKey+':'+nonce;
  const noise=quality==='vacuum'?0:(rand(seed+':noise:'+identity)-.5)*2*uncertainty,observed=quality==='vacuum'?0:Math.round((value+noise)/spec.resolution)*spec.resolution;
  return Object.freeze({id:'obs-'+hash(seed+':'+identity).toString(36),kind:'measurement',bodyId:body.id,instrument:Object.keys(INSTRUMENTS).find(k=>INSTRUMENTS[k]===spec),parameter:spec.quantity,value:Math.max(spec.unit==='fraction'||spec.unit==='index'||spec.unit==='Pa'||spec.unit==='m'||spec.unit==='mm/s'?0:-Infinity,observed),unit:spec.unit,uncertainty,calibrated,quality,location:local.map(x=>Math.round(x*1e7)/1e7),timeS:Number.isFinite(simTime)?simTime:0,model:'procedural estimate',powerJ:spec.powerW*spec.seconds});}
-function journal(saved){const entries=Array.isArray(saved?.entries)?saved.entries.filter(x=>x?.id&&Number.isFinite(x.value)).slice(-500):[];const seen=new Set(entries.map(x=>x.id));return{list:()=>entries.slice(),add(entry){if(!entry||seen.has(entry.id))return false;entries.push(entry);seen.add(entry.id);while(entries.length>500)seen.delete(entries.shift().id);return true;},serialize:()=>({version:1,entries:entries.slice()})};}
+function journal(saved){const entries=Array.isArray(saved?.entries)?saved.entries.filter(x=>x?.id&&Number.isFinite(x.value)).slice(-500):[];const seen=new Set(entries.map(x=>x.id));return{list:()=>entries.slice(),add(entry){if(!entry||seen.has(entry.id))return false;entries.push(entry);seen.add(entry.id);if(entries.length>500){entries.pop();seen.delete(entry.id);throw Error('Science journal full (500); export/archive real evidence before collecting further readings');}return true;},serialize:()=>({version:1,entries:entries.slice()})};}
 function csv(entries){const headers=['id','bodyId','instrument','parameter','value','unit','uncertainty','timeS','model','biome','location'];const encode=v=>'"'+String(v??'').replace(/"/g,'""')+'"';return headers.join(',')+'\n'+entries.map(e=>headers.map(h=>encode(h==='location'?e.location?.join(' / '):e[h])).join(',')).join('\n')+'\n';}
 root.StarfallFieldScience={hash,rand,profile,localTruth,sample,journal,csv,INSTRUMENTS};if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallFieldScience;
 })(globalThis);
@@ -7877,7 +7877,7 @@ function receive(p,at){
   if(r&&G.migrate(r).receivedIds.includes(p.ref.observationId))return true;
   if(!r||!o||!root.StarfallScienceUI?.ingestRover)return false;
   if(!receiveEnergy(p))return false;
-  root.StarfallScienceUI.ingestRover(o);
+  const accepted=root.StarfallScienceUI.ingestRover({...o,receivedAtS:at});if(accepted===false&&!(root.StarfallScienceUI.journal||[]).some(x=>x.id===o.id))return false;
   const g=G.migrate(r);if(!g.receivedIds.includes(o.id))g.receivedIds.push(o.id);
   g.queuedObservations=g.queuedObservations.filter(x=>x.id!==o.id);
   if(p.sourceId!==r.id){const station=root.StarfallOutpostUI?.store?.items.find(i=>i.id===p.sourceId&&i.kind==='antenna');
