@@ -177,9 +177,14 @@
 .op16-log-line[data-severity="warning"]{color:#f4d19b}
 .op16-card button:focus-visible,.op16-card select:focus-visible{outline:2px solid #8ddbf8;outline-offset:2px}
 #panel-body>.op16-card{margin-bottom:14px}
+#panel-body>.op16-card .op16-body{max-height:225px;overflow-y:auto;overscroll-behavior:contain}
+#panel-body>.op16-card .op16-log-rows{max-height:110px}
 #launch-dialog .op16-card,#outpost .op16-card,#imaging7f .op16-card,#asset-manager .op16-card,
 #field-lab .op16-card,#workbench .op16-card,#research7e .op16-card{font-size:12px}
 @media(max-width:640px){.op16-card{padding:8px}.op16-tools{gap:6px}.op16-body{grid-template-columns:1fr}.op16-tools button{width:100%}.op16-log-rows{max-height:125px}}
+
+#launch-emergency{border:1px solid #ed9a80!important;color:#ffdbcd!important;font-weight:800!important;letter-spacing:.05em}
+#launch-emergency:focus-visible{outline:3px solid #ffd5ae;outline-offset:3px}
 
 </style>
 </head>
@@ -9181,7 +9186,8 @@ function packetState(p){
   route:Array.isArray(p.route)&&p.route.length?p.route.join(' → '):null,
   delayS:number(p.lastLink?.delayS),bandwidthBps:number(p.lastLink?.bandwidthBps),
   quality:number(p.lastLink?.quality),sentBytes:number(p.sendBytes),totalBytes:number(p.encodedBytes),
-  createdS:number(p.createdS),receivedS:number(p.ackAtS),id:p.id};
+  createdS:number(p.createdS),receivedS:good?number(p.ackAtS):null,
+  expectedArrivalS:good?null:number(p.arrivalS),retryEligibleS:good?null:number(p.eligibleS),id:p.id};
 }
 function photoState(p,job=null){
  if(!p&&!job)return{stage:'READY',label:'NO IMAGE REQUEST',reason:'No original camera job or photo selected.',recovery:'Select an installed imager and submit the original camera request.'};
@@ -9463,6 +9469,7 @@ function openOwner(id){
  }else if(obj.kind==='truck'){ok=!!root.StarfallLaunchUI?.open;if(ok)root.StarfallLaunchUI.open();}
  else{ok=!!$('outpost-open');if(ok)$('outpost-open').click();}
  if(say)say.textContent=ok?'Opened the existing '+obj.kind+' operations panel. State is owned by the original module.':'This asset does not expose a command panel; use Asset Manager to inspect it.';
+ if(ok)refreshAll(true); // Initial status must match the selected real asset immediately on panel open.
  return ok;
 }
 function renderAssetOptions(){
@@ -9529,6 +9536,7 @@ function focusGuard(){
    const el=r.target,open=!el.hidden,was=prev.get(el);prev.set(el,open);
    if(open&&was===false){previous=launcher?.isConnected?launcher:document.activeElement;const c=el.querySelector('input:not([disabled]),select:not([disabled]),button:not([disabled])');
     if(c&&!el.contains(document.activeElement))c.focus({preventScroll:true});
+    refreshAll(true);
    }
    if(!open&&was===true&&!ids.some(id=>$(id)&&!$(id).hidden)){
     if(previous?.isConnected&&typeof previous.focus==='function')previous.focus({preventScroll:true});
