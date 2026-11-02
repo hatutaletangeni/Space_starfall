@@ -38,10 +38,40 @@ function preflight(){try{const pr=profile();$('launch-calculations').textContent
   (pr.valid?'DESIGN CHECK · '+pr.problem:'WARNING · '+pr.problem)+'\nReal launch may fail. Acceleration, drag, fuel exhaustion, trajectory and stable orbit are force-integrated.';
  $('launch-ignite').disabled=!pr||!$('launch-pad').value;
  }catch(e){$('launch-calculations').textContent='PRE-FLIGHT: '+e.message;$('launch-ignite').disabled=true;}}
+function padReadinessT11(){
+ const T=root.StarfallPadT11,os=root.StarfallOutpostUI?.store,ctx=RT.outpostContext();
+ const pad=os?.items.find(x=>x.id===$('launch-pad').value);
+ const report=T.inspect({pad,body:ctx.body,launchStore:store,outposts:os,
+  powerReport:root.StarfallOutpostUI?.powerReports.get(ctx.bodyId),
+  heightAt:ctx.body?.landable?(v=>Starfall3D.groundHeight(v,ctx.body)):null});
+ $('launch-t11-pad-status').textContent='T11 PAD '+(pad?.id||'NONE')+' · '+report.mode.toUpperCase()+
+  ' · CONTROL LOAD '+report.powerW+' W · '+(report.ready?'READY':report.reasons.join(' / '))+
+  (report.slopeDeg===null?'':' · TERRAIN SLOPE '+format(report.slopeDeg,2)+'°');
+ const choice=chosenDesign(),target=RT.galaxy.byId.get($('launch-destination').value),
+  system=RT.galaxy.byId.get($('launch-system').value);
+ try{
+  const route=T.validateDestination({design:choice,body:ctx.body||RT.nearest,destinationBody:target,destinationSystem:system});
+  const p=profile(),payload=X.PAYLOADS[choice.payload];
+  $('launch-t11-manifest').textContent='PAYLOAD '+payload.label+' · '+payload.massKg+' kg · RETENTION 210 kg'+
+    ' · ROUTE '+route.kind+' · TARGET '+route.destinationBodyId+
+    '\\nRequires actual stable 7B orbit before separation. '+(choice.payload==='rover'?'Destination site from T06 survey; capsule descent has bounded envelope.':'Satellite uses launch-inherited orbital state.');
+ }catch(e){$('launch-t11-manifest').textContent='PAYLOAD PREFLIGHT: '+e.message;}
+ $('launch-t11-commission').disabled=!pad||report.busy||report.mode==='commissioned';
+ $('launch-t11-legacy').disabled=!pad||report.busy||report.mode==='legacy';
+ return report;
+}
+function configurePadT11(mode){
+ try{
+  const os=root.StarfallOutpostUI?.store,pad=os?.items.find(x=>x.id===$('launch-pad').value);
+  root.StarfallPadT11.configure(pad,mode,RT.time,store);
+  root.StarfallOutpostUI.persist();
+  refresh();status('Pad '+pad.id+' now '+mode.toUpperCase()+'. '+(mode==='commissioned'?'Requires wired 90 W control bus and safe terrain clearance.':'Legacy saved-game launch compatibility is restored.'));
+ }catch(e){status(e.message,true);}
+}
 function status(s,bad=false){msg=s;$('launch-status').textContent=s;$('launch-status').style.color=bad?'#ffaaa0':'#f4ce95';}
 function open(){padOptions();systemOptions();refresh();$('launch-dialog').hidden=false;}
 function close(){$('launch-dialog').hidden=true;document.activeElement?.blur?.();}
-function refresh(){padOptions();preflight();refreshRegistry();$('launch-7a-shared').checked=registry?.enabled!==false;const assetPicker=$('launch-7a-asset'),oldAsset=assetPicker.value;assetPicker.replaceChildren();for(const item of [...(registry?.assets?.values()||[])].slice(0,240)){const option=document.createElement('option');option.value=item.id;option.textContent=item.type.toUpperCase()+' · '+item.id;assetPicker.append(option);}if([...assetPicker.options].some(x=>x.value===oldAsset))assetPicker.value=oldAsset;showAsset();const sourcePicker=$('launch-charge-source'),previous=sourcePicker.value,ctx=RT.outpostContext(),list=root.StarfallOutpostUI?.store?.items.filter(x=>x.kind==='battery'&&x.bodyId===ctx.bodyId)||[];
+function refresh(){padOptions();preflight();const padT11=padReadinessT11();if(!padT11.ready)$('launch-ignite').disabled=true;refreshRegistry();$('launch-7a-shared').checked=registry?.enabled!==false;const assetPicker=$('launch-7a-asset'),oldAsset=assetPicker.value;assetPicker.replaceChildren();for(const item of [...(registry?.assets?.values()||[])].slice(0,240)){const option=document.createElement('option');option.value=item.id;option.textContent=item.type.toUpperCase()+' · '+item.id;assetPicker.append(option);}if([...assetPicker.options].some(x=>x.value===oldAsset))assetPicker.value=oldAsset;showAsset();const sourcePicker=$('launch-charge-source'),previous=sourcePicker.value,ctx=RT.outpostContext(),list=root.StarfallOutpostUI?.store?.items.filter(x=>x.kind==='battery'&&x.bodyId===ctx.bodyId)||[];
  sourcePicker.replaceChildren();for(const item of list){const op=document.createElement('option');op.value=item.id;op.textContent=item.id.slice(-16)+' · '+format(item.energyJ/3.6e6,2)+' kWh';sourcePicker.append(op);}if(list.some(x=>x.id===previous))sourcePicker.value=previous;
  if(!list.length){const op=document.createElement('option');op.value='';op.textContent='Build and wire a solar array + battery';sourcePicker.append(op);}
  const launches=store.launches.slice(-12).reverse(),sats=store.satellites.slice(-12).reverse();refreshFlightPanel();
@@ -134,7 +164,9 @@ function launch(){const ctx=RT.outpostContext();if(!ctx.landed||!ctx.body?.landa
  if(chosen.payload==='rover'&&!site)throw Error('Resolve the destination touchdown site before ignition');
  const m=store.launch({body:ctx.body,foundation:pad,design:chosen,time:RT.time,
   destinationBody:chosen.payload==='rover'?dst:null,destinationSystem:chosen.payload==='rover'?sys:null,
-  landingLocal:chosen.payload==='rover'?site.site.local:null,unit:P.SCENE_METERS_PER_UNIT});persist();return m;}
+  landingLocal:chosen.payload==='rover'?site.site.local:null,unit:P.SCENE_METERS_PER_UNIT,
+  padContext:{outposts:root.StarfallOutpostUI?.store,powerReport:root.StarfallOutpostUI?.powerReports.get(ctx.bodyId),
+   heightAt:v=>Starfall3D.groundHeight(v,ctx.body)}});persist();return m;}
 function worldPosition(body,local,extra){const u=V.norm(V.rot(local,body.spinAxis||[0,1,0],body.spinAngle||0));return{up:u,position:V.add(body.position,V.mul(u,body.radius+(Starfall3D.groundHeight(local,body)||0)+extra))};}
 function sceneRockets(){return store.launches.filter(x=>['ascent','coast'].includes(x.phase)&&x.flight).slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];
  const d=worldPosition(body,m.local,0),u=m.launchUp||d.up,pole=Math.abs(u[1])>.95?[1,0,0]:[0,1,0],tang=V.norm(V.cross(u,pole)),f=m.flight,r=Math.hypot(f.x,f.y);
@@ -165,6 +197,8 @@ function tick(dt,scale){const now=RT.time,events=store.update(now,id=>RT.galaxy.
   if(os&&!os.relays.some(x=>x.id===sat.id)){const body=RT.galaxy.byId.get(sat.bodyId);if(body){const period=X.orbit(sat,body,RT.time,P.SCENE_METERS_PER_UNIT).periodS;os.relays.push({id:sat.id,bodyId:sat.bodyId,altitude:sat.altitudeM/P.SCENE_METERS_PER_UNIT,phase:0,periodS:period,axis:sat.axis,rangeScene:180000,bandwidthBps:1000000,enabled:true});root.StarfallOutpostUI.persist();}}
  }status(events.map(e=>e.message).join(' · '));persist();}
  root.StarfallSatelliteOpsUI?.tick(now);if(performance.now()-lastRefresh>1000){lastRefresh=performance.now();if(registry&&performance.now()-lastAssetSave>8000){lastAssetSave=performance.now();refreshRegistry(true);}if(!$('launch-dialog').hidden)refresh();if(store.launches.some(x=>['ascent','coast','transfer'].includes(x.phase))||store.rovers.some(x=>x.status==='running'||x.ground7d?.pending?.length||x.ground7d?.queuedObservations?.length))persist();}}
+$('launch-t11-commission').onclick=()=>configurePadT11('commissioned');
+$('launch-t11-legacy').onclick=()=>configurePadT11('legacy');
 $('launch-open').addEventListener('click',open);$('launch-close').addEventListener('click',close);$('launch-dialog').addEventListener('click',ev=>{if(ev.target===$('launch-dialog'))close();});
 $('launch-system').onchange=()=>{refreshDestinations();preflight();};$('launch-system-search').addEventListener('input',systemOptions);
 for(const id of ['launch-payload','launch-engine','launch-tanks','launch-stages','launch-boosters','launch-pad','launch-7b-tank2','launch-7b-engine2','launch-7b-tank3','launch-7b-engine3','launch-7b-build-mode','launch-7b-target'])$(id).addEventListener('change',preflight);

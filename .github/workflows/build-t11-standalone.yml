@@ -1,0 +1,37 @@
+name: T11 Standalone Bundle Synchronization
+
+on:
+  push:
+    branches:
+      - feature/t11-launch-payload-infrastructure
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Rebuild standalone from source without external dependencies
+        run: python tools/build-standalone.py
+      - name: Verify exact source-to-standalone parity
+        run: python tests/standalone-parity.py
+      - name: Commit reproducible bundled artifact if changed
+        shell: bash
+        run: |
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PLAY-STARFALL.html
+            git commit -m "build(T11): regenerate playable standalone HTML"
+            git push origin HEAD:feature/t11-launch-payload-infrastructure
+          fi
