@@ -1,0 +1,62 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {Transport,C}=require('../src/physics/mission-transport-t03.js');
+const seed=742,source='probe-alpha',dest='starfall-ship',bodyId='star-0-p0',systemId='star-0';
+const meta=(id,type,bytes,createdS=0)=>({id,type,sourceId:source,destId:dest,bodyId,systemId,bytes,createdS,ref:{id}});
+function mk(saved=null,t=0){return new Transport(seed,t,saved);}
+function route(p,t){return {connected:true,hops:[source,dest],bandwidthBps:64000,delayS:.005,txPowerW:20,reason:'valid 8KB/s tested RF link'};}
+function drive(net,to,routeFn=route,recv=()=>true,power=()=>true){
+ let rounds=0;
+ while(net.cursorS+4.999<to){const before=net.cursorS,r=net.advanceTo(to,routeFn,recv,power);assert.notEqual(r.status,'AWAITING_REVIEW');assert(net.cursorS>before,'Radio scheduler stalled');if(++rounds>300)throw Error('Too many frames');}
+}
+const n=mk();
+n.queue(meta('photo-large','IMAGE_REF',1048576));
+n.queue(meta('numeric-small','ROVER_OBSERVATION',1024));
+drive(n,10);
+const small=n.get('numeric-small'),big=n.get('photo-large');
+assert(['RECEIVED','ACKED'].includes(small.state),'1KiB should arrive promptly');
+assert.notEqual(big.state,'ACKED','1MiB cannot be delivered at instant 8KB/s');
+assert(big.sendBytes>0&&big.sendBytes<big.encodedBytes);
+drive(n,150);
+assert.equal(n.get('photo-large').state,'ACKED','1MiB eventually transmitted at 8KB/s');
+assert.equal(n.get('numeric-small').state,'ACKED');
+assert.equal(n.receipts.length,2);
+const stop=mk();
+stop.queue(meta('bulk','IMAGE_REF',1_000_000));
+drive(stop,5);
+const already=stop.get('bulk').sendBytes;assert(already>0);
+stop.queue(meta('stop','EMERGENCY_STOP',64,5));
+drive(stop,10);
+assert(['IN_FLIGHT','RECEIVED','ACKED'].includes(stop.get('stop').state),'STOP preempts image');
+assert(stop.get('bulk').sendBytes>already,'lower priority bulk not starved when emergency packet tiny');
+let receiverOn=true;
+const offline=(p,t)=>receiverOn?route(p,t):{connected:false,reason:'Receiver battery empty'};
+const blackout=mk();
+blackout.queue(meta('delayed','ROVER_OBSERVATION',1_000_000));
+drive(blackout,5);
+const before=blackout.get('delayed').sendBytes;
+receiverOn=false;drive(blackout,20,offline);
+assert.equal(blackout.get('delayed').sendBytes,before,'blackout must retain exact sent bytes');
+assert.equal(blackout.get('delayed').state,'WAITING_FOR_ROUTE');
+const stored=blackout.serialize(),resumed=mk(stored,20);
+receiverOn=true;drive(resumed,150,offline);
+assert.equal(resumed.get('delayed').state,'ACKED','reloaded queued transmission resumes');
+const replay=mk();replay.queue(meta('delayed','ROVER_OBSERVATION',1_000_000));
+receiverOn=true;drive(replay,5);receiverOn=false;drive(replay,20,offline);receiverOn=true;drive(replay,150,offline);
+assert.deepEqual(resumed.get('delayed'),replay.get('delayed'),'reload and uninterrupted playback deterministic');
+let count=0;
+const onlyOnce=mk();onlyOnce.queue(meta('idempotent','LAB_ACK',1024));
+drive(onlyOnce,20,route,()=>{count++;return true;});
+drive(onlyOnce,30,route,()=>{count++;return true;});
+assert.equal(count,1,'one physical arrival callback');
+assert.equal(onlyOnce.get('idempotent').ack,'ACKED');
+assert.equal(onlyOnce.queue(meta('idempotent','LAB_ACK',1024)).id,'idempotent');
+assert.throws(()=>onlyOnce.queue({...meta('idempotent','ROVER_COMMAND',64),sourceId:'different'}),/collision/);
+assert.equal(mk(onlyOnce.serialize(),30).receipts.length,1);
+assert.equal(new Transport(seed+1,30,onlyOnce.serialize()).receipts.length,0,'seed isolates radio data');
+assert.throws(()=>onlyOnce.queue({...meta('bad','IMAGE_REF',100),ref:{payload:'data:image/png;base64,aaaa'}}),/reference/);
+const energy=mk(),charges=[];energy.queue(meta('charged','TELEMETRY',1024));drive(energy,15,route,()=>true,(p,j)=>{charges.push(j);return true;});
+assert(charges.reduce((s,v)=>s+v,0)>0);
+assert(Math.abs(charges.reduce((s,v)=>s+v,0)-energy.get('charged').energyJ)<1e-7);
+assert.equal(energy.advanceTo(86400+1000,route).status,'AWAITING_REVIEW');
+console.log('PASS T03: priority STOP, fair shared byte budget, 1KiB/1MiB delay, blackout pause, resume/reload equivalence, ACK exactly once, seed isolation, no embedded image, energy costs');
