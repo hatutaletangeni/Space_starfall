@@ -99,7 +99,7 @@ class Transport{
    if(!valid(route.bandwidthBps)||route.bandwidthBps<=0||!valid(route.delayS)){
     p.state='OFFLINE';p.reason='No valid bounded bitrate or light-time';continue;
    }
-   p.route=copy(route.hops);p.lastLink={atS:now,bandwidthBps:route.bandwidthBps,delayS:route.delayS,reason:route.reason||'powered LOS'};
+   p.route=copy(route.hops);p.lastLink={atS:now,bandwidthBps:route.bandwidthBps,delayS:route.delayS,quality:route.quality??null,hops:Array.isArray(route.hopReports)?copy(route.hopReports).slice(0,6):[],reason:route.reason||'powered LOS'};
    p.state='QUEUED_AT_NODE';p.reason='Contact available; awaiting finite shared airtime';
    const key=route.hops.join('>');
    if(!candidates.has(key))candidates.set(key,{route,packets:[]});
