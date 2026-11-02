@@ -104,20 +104,30 @@ with sync_playwright() as p:
       originalImageNotInvented:!measurement.image,
       encodedSize:measurement.dataBytes,transfers:packets.map(x=>comms.transport.get(x.id)),
       journal:StarfallScienceUI.journal.filter(x=>x.satelliteId===s.id).map(x=>x.id),
-      onboard:S.ensure(s).storage.map(x=>x.id),sunlit:S.ensure(s).lastEclipse===false};
+      onboard:S.ensure(s).storage.map(x=>x.id),sunlit:S.ensure(s).lastEclipse===false,
+      footprintAccepted:StarfallSurveyUI.coverage[s.bodyId]?.includes(
+        StarfallSurveyMap.faceCell(measurement.location))===true,
+      acceptedOrigin:StarfallSurveyUI.coverage[s.bodyId]?.includes(
+        StarfallSurveyMap.faceCell(S.ensure(s).received[0]?.location||measurement.location))===true};
   }""",setup['id'])
   assert sequence['originalImageNotInvented'],sequence
   assert all(x['state']=='ACKED' for x in sequence['transfers']),sequence
   assert len(sequence['journal'])==2 and len(set(sequence['journal']))==2,sequence
   assert sequence['onboard']==[],sequence
+  assert sequence['footprintAccepted'] and sequence['acceptedOrigin'],'ACKed orbital science must survey actual surface footprint: '+str(sequence)
   page.wait_for_function("window.StarfallImagingUI7F.store.photos.some(p=>p.sourceAssetId==='sat-t07-real-browser')",timeout=75000)
   image=page.evaluate("""id=>{
     const p=StarfallImagingUI7F.store.photos.find(x=>x.sourceAssetId===id);
     return{status:p.status,bytes:p.bytes,mime:p.mime,bodyId:p.bodyId,sensor:p.mode,
+      t07JobId:p.t07JobId,observations:p.observationRefs,
       jobs:StarfallImagingUI7F.store.jobs.length,
       completed:StarfallOrbitalBusT07.bus(StarfallLaunchUI.store.satellites.find(x=>x.id===id)).completed.length};
   }""",setup['id'])
-  assert image['bytes']>300 and image['status']!='downlinked',image
+  assert image['bytes']>300 and image['t07JobId']==sequence['jobId'],image
+  assert sequence['numericId'] in image['observations'],image
+  if image['status']=='downlinked':
+   confirmed=page.evaluate("id=>StarfallCommsT03.transport.get('comms-photo-'+id)?.state",page.evaluate("StarfallImagingUI7F.store.photos.find(p=>p.sourceAssetId==='sat-t07-real-browser').id"))
+   assert confirmed=='ACKED','7F cannot reveal satellite photo without real packet ACK'
   page.evaluate("""()=>{
    StarfallLaunchUI.persist();StarfallCommsT03.persist();
    StarfallMissionOperationsUI.persist();StarfallImagingUI7F.persist();
@@ -133,11 +143,12 @@ with sync_playwright() as p:
     return{hasSatellite:!!s,received:o?.received.map(x=>x.id),
       journal:journal.map(x=>x.id),completed:b?.completed.length,
       photo:StarfallImagingUI7F.store.photos.find(x=>x.sourceAssetId===id)?.id,
+      footprint:StarfallSurveyUI.coverage[s.bodyId]?.length||0,
       orbitalState:b?.lastOrbit,energy:o?.energyJ};
   }""",setup['id'])
   assert after['hasSatellite'] and len(after['received'])==2 and len(set(after['journal']))==2,after
-  assert after['completed']==2 and after['photo'] and after['energy']>0,after
+  assert after['completed']==2 and after['photo'] and after['energy']>0 and after['footprint']>0,after
   assert not errors,errors
-  print('PASS T07 real file:// Chromium: actual 7B achieved eccentric Kepler ephemeris, SAFE rejects science and radio, finite NADIR slew, 2 timed 7C acquisitions, real 7F GPU photo, satellite radio outage blocks T03 bytes, powered LOS ACKs both numeric records exactly once, persisted 7C+T07+7F+T03 across reload')
+  print('PASS T07 real file:// Chromium: actual 7B achieved eccentric Kepler ephemeris, SAFE rejects science and radio, finite NADIR slew, 2 timed 7C acquisitions, real 7F GPU photo, satellite radio outage blocks T03 bytes, powered LOS ACKs both numeric records exactly once, persisted 7C+T07+7F+T03 and real survey footprints across reload')
  finally:
   browser.close()
