@@ -52,7 +52,9 @@ assert.throws(()=>store.plan({type:'power',definition:ship,conditions:{durationS
 assert.equal(E.restore({schema:999,plans:[{id:'bad'}]}).plans.length,0);
 const roundtrip=new E.Store(store.serialize());assert.deepEqual(roundtrip.serialize(),store.serialize(),'Save roundtrip is lossless');
 const preservedOld=new E.Store(null);assert.equal(preservedOld.plans.length,0,'Older save without 7E data is safe');
-for(let i=0;i<190;i++)store.run(plan.id,200+i);
-assert(store.runs.length<=E.MAX_RUNS,'History is bounded');
+for(let i=store.runs.length;i<E.MAX_RUNS;i++)store.run(plan.id,200+i);
+assert.equal(store.runs.length,E.MAX_RUNS,'Archive retains all created test runs at its capacity');
+assert.throws(()=>store.run(plan.id,999),/full/,'A full archive refuses new tests, never silently deletes a prior test');
+assert(store.runs.some(x=>x.id===run.id),'Old successful run retained after capacity reached');
 close(run.simulated.energyJ,repeat.simulated.energyJ);
 console.log('PASS 7E: deterministic model runs, engineering sensitivity, invalid/slope safety, power/heat, actual rocket flight, provenance, blueprint validation, save migration and bounded records');

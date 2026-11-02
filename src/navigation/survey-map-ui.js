@@ -4,7 +4,7 @@
 const M=root.StarfallSurveyMap,RT=root.StarfallRuntime,T=root.StarfallStableTerrain,BI=root.StarfallBiomes,GL=root.Starfall3D;
 if(!M||!RT||!T||!BI||!GL)throw Error('Survey-map modules unavailable');
 const $=id=>document.getElementById(id),saveKey='surveyMap6g',prior=SF.load()[saveKey]||{};
-let coverage=M.sanitizeCoverage(prior.coverage),waypoints=Array.isArray(prior.waypoints)?prior.waypoints.filter(x=>x&&/^wp-[a-z0-9-]{2,32}$/.test(x.id)&&typeof x.bodyId==='string'&&x.bodyId.length<160&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)&&Math.abs(Math.hypot(...x.local)-1)<.01).slice(-75).map(x=>({id:x.id,bodyId:x.bodyId,local:M.unit(x.local),label:String(x.label||'Waypoint').slice(0,48)})):[];
+let coverage=M.sanitizeCoverage(prior.coverage),waypoints=Array.isArray(prior.waypoints)?prior.waypoints.filter(x=>x&&/^wp-[a-z0-9-]{2,32}$/.test(x.id)&&typeof x.bodyId==='string'&&x.bodyId.length<160&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)&&Math.abs(Math.hypot(...x.local)-1)<.01).map(x=>({id:x.id,bodyId:x.bodyId,local:M.unit(x.local),label:String(x.label||'Waypoint').slice(0,48)})):[];
 let center=null,lastBodyId=null,selected=null,canvas=$('survey-canvas'),ctx=canvas.getContext('2d',{alpha:false}),raster=null,rasterKey='',lastSave=performance.now(),dirty=false,lastTick=0,knownMarkers=[],lastCanvasTime=0,refreshCounter=0;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),fmt=(n,d=1)=>Number.isFinite(n)?n.toFixed(d):'—';
 function current(){const p=RT.outpostContext(),body=p?.body;return body?.landable&&p.landed&&Array.isArray(p.local)?{...p,local:M.unit(p.local)}:null;}
@@ -12,7 +12,7 @@ function save(){if(!dirty)return;SF.save({[saveKey]:{schema:1,coverage,waypoints
 function status(t){$('survey-status').textContent=t;}
 function range(){return Number($('survey-range').value)||350;}
 function isOpen(){return !$('survey-panel').hidden;}
-function visit(){const p=current();if(!p)return;if(!coverage[p.bodyId]&&Object.keys(coverage).length>=40){delete coverage[Object.keys(coverage)[0]];}if(M.addCoverage(coverage,p.bodyId,p.local,p.body.radius,50)){dirty=true;rasterKey='';}}
+function visit(){const p=current();if(!p)return;if(!coverage[p.bodyId]&&Object.keys(coverage).length>=40){if(isOpen())status('40 mapped worlds limit: export expedition before extending coverage; old maps retained.');return;}if(M.addCoverage(coverage,p.bodyId,p.local,p.body.radius,50)){dirty=true;rasterKey='';}}
 function resetCenter(p){if(!p){center=null;lastBodyId=null;return;}if(lastBodyId!==p.bodyId||!center){if(lastBodyId!==p.bodyId)selected=null;lastBodyId=p.bodyId;center=[...p.local];rasterKey='';}else if($('survey-follow').checked&&M.arc(center,p.local,p.body.radius)>8){center=[...p.local];rasterKey='';}}
 function pendingJobsT14(p){
  // A queued camera request is NOT a captured image nor received evidence.
@@ -114,7 +114,7 @@ const observer=setInterval(()=>{if(document.hidden)return;visit();if(dirty&&perf
 function recordOrbitalFootprint(o){if(!o||o.kind!=='orbital-observation'||!o.satelliteId||o.receivedAtS===null||!Array.isArray(o.location)||o.location.length!==3||!o.location.every(Number.isFinite))return false;
  const s=root.StarfallLaunchUI?.store?.satellites.find(x=>x.id===o.satelliteId);const b=RT.galaxy.byId.get(o.bodyId)||root.StarfallMissionOperationsUI?.resolveBody?.(s,o.receivedAtS);if(!b?.radius||!b.landable||b.id!==o.bodyId)return false;
  if(o.instrument!=='orbital-camera'&&o.instrument!=='orbital-spectrometer')return false;
- if(!coverage[b.id]&&Object.keys(coverage).length>=40)delete coverage[Object.keys(coverage)[0]];
+ if(!coverage[b.id]&&Object.keys(coverage).length>=40)return false;
  if(!M.addCoverage(coverage,b.id,o.location,b.radius,Math.max(12,Math.min(140,(o.footprintRadiusM||1000)/1000))))return false;
  dirty=true;rasterKey='';save();if(isOpen())draw();return true;}
 root.StarfallSurveyUI={recordOrbitalFootprint,open,draw,get coverage(){return M.sanitizeCoverage(coverage);},get waypoints(){return waypoints.map(x=>({...x,local:[...x.local]}));},get visibleMarkers(){return knownMarkers.map(x=>({...x,local:[...x.local]}));},get selected(){return selected;},save,observer};

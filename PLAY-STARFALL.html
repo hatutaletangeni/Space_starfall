@@ -193,8 +193,9 @@
   <div class="vignette" aria-hidden="true"></div>
   <header class="masthead">
     <a class="wordmark" href="index.html" aria-label="Starfall free flight"><span class="starlogo">✦</span><span>STARFALL</span><small>EXPEDITION / WALKABLE WORLDS</small></a>
-    <div style="display:flex;gap:8px;align-items:center"><button class="science-action" id="asset-open" type="button" aria-haspopup="dialog">ASSET MANAGER ◈</button><button class="science-action" id="launch-open" type="button">ROCKET LAB ◇</button><button class="science-action" id="controls-open" type="button" aria-haspopup="dialog">CONTROLS ⚙</button><button class="science-action" id="obs-open" type="button">OBSERVATORY ◈</button><button class="top-link" id="chart-open" type="button">STAR CHART <span>↗</span></button></div>
+    <div style="display:flex;gap:8px;align-items:center"><button class="science-action" id="asset-open" type="button" aria-haspopup="dialog">ASSET MANAGER ◈</button><button class="science-action" id="archive-t17-open" type="button" aria-haspopup="dialog">SAVE / RESTORE ▣</button><button class="science-action" id="launch-open" type="button">ROCKET LAB ◇</button><button class="science-action" id="controls-open" type="button" aria-haspopup="dialog">CONTROLS ⚙</button><button class="science-action" id="obs-open" type="button">OBSERVATORY ◈</button><button class="top-link" id="chart-open" type="button">STAR CHART <span>↗</span></button></div>
   </header>
+  <div id="archive-t17-banner" role="alert" hidden style="position:fixed;bottom:12px;left:12px;z-index:150;max-width:min(480px,92vw);background:#3a211d;color:#ffdfce;border:2px solid #e6a084;border-radius:8px;padding:9px;font:12px/1.5 system-ui;box-shadow:0 5px 18px #0008">SAVE WARNING · Browser storage unavailable. Your expedition may not survive closing this tab. Open SAVE / RESTORE to export a backup.</div>
   <section class="identity" aria-label="Current destination">
     <div class="eyebrow" id="phase-top">EXPEDITION / APPROACH VECTOR</div>
     <h1 id="planet-name">Kepler-742 b</h1>
@@ -522,6 +523,22 @@
 @media(prefers-reduced-motion:reduce){.weather-veil{animation:none!important;transition:none!important}}
 
 </style>
+<section id="archive-t17" class="obs-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="archive-t17-title">
+ <div class="obs-window" style="width:min(760px,96vw);max-height:90vh;overflow-y:auto">
+  <div class="obs-head"><div><span class="obs-badge">STARFALL / T17 / OFFLINE EXPEDITION</span><h2 id="archive-t17-title">Save Backup &amp; Recovery</h2></div>
+   <button id="archive-t17-close" class="science-action" type="button">✕ Close</button></div>
+  <p id="archive-t17-save-status" class="field-note" aria-live="polite">Checking browser storage durability…</p>
+  <p class="field-note">Export your expedition before moving this HTML file to another folder, switching browsers, or testing a new branch. Browser saves and camera media are separate stores; copying the HTML file alone does not transfer them.</p>
+  <div class="obs-tools" style="display:flex;flex-wrap:wrap;gap:8px">
+   <button type="button" class="science-action" id="archive-t17-export-state">EXPORT JSON SAVE (no photos)</button>
+   <button type="button" class="science-action" id="archive-t17-export-full">EXPORT COMPLETE SAVE + REAL IMAGE BYTES</button>
+   <button type="button" class="science-action" id="archive-t17-select">VALIDATE &amp; RESTORE BACKUP</button>
+   <input id="archive-t17-file" type="file" accept=".json,application/json" hidden aria-label="Select Starfall expedition archive">
+  </div>
+  <pre id="archive-t17-status" class="field-note" role="status" aria-live="polite">Archive operations have not started. Current save is unchanged.</pre>
+  <p class="field-note">Imports check seed, original owner schemas, coordinates, physical data, and archive checksum before modifying any state. A full media archive is required to restore a game with photo records; a JSON-only backup is still useful for auditing. Confirm before replacement. Large/corrupted archives are rejected. On successful restore, STARFALL reloads its original modules.</p>
+ </div>
+</section>
 <div id="launch-dialog" class="launch-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="launch-title"><section class="launch-window"><header class="launch-head"><div><small>STARFALL ENGINEERING / VEHICLE SYSTEMS</small><h2 id="launch-title">Rocket Lab & Mission Control</h2></div><button id="launch-close" type="button">CLOSE ×</button></header>
 <p class="launch-copy">Build staged launch vehicles from actual mass, propellant, thrust and specific impulse. An existing surface FOUNDATION acts as a launch pad. Local rockets deliver satellites to achieved Kepler orbits. Deep-space rover shipments use a separately identified fictional warp carrier.</p>
 <div class="launch-fields"><label>Launch pad (existing foundation)<select id="launch-pad"></select></label><label>Payload<select id="launch-payload"><option value="relay">Communications satellite</option><option value="observatory">Science satellite</option><option value="rover">Autonomous surface rover</option></select></label><label>First-stage engines<select id="launch-engine"><option value="atlas">Atlas sea-level engine</option><option value="cluster">Tri-engine cluster</option><option value="aether">Aether vacuum bell</option></select></label><label>Stage 1 tanks <input id="launch-tanks" type="number" value="6" min="1" max="16"></label><label>Rocket stages <input id="launch-stages" type="number" value="3" min="1" max="3"></label><label>Solid booster packs <input id="launch-boosters" type="number" value="2" min="0" max="4"></label><label>Find a star by name or ID <input id="launch-system-search" placeholder="Search 2,368 systems" aria-label="Find a destination star"></label><label>Rover destination star system<select id="launch-system"></select></label><label>Rover destination solid body<select id="launch-destination"></select></label></div>
@@ -564,6 +581,7 @@ STOP</textarea></label></div>
 (function (root) {
   'use strict';
   const memory = Object.create(null);
+  let durableStatus={durable:false,reason:'Storage has not been tested yet'};
   const object = value => value && typeof value === 'object' && !Array.isArray(value);
   const read = key => {
     try {
@@ -572,13 +590,41 @@ STOP</textarea></label></div>
     } catch (_) { /* Private browsing and file URLs can deny storage. */ }
     return memory[key] ?? null;
   };
+  const showDurability = (ok,reason='') => {
+    const b=root.document?.getElementById?.('archive-t17-banner');if(!b)return;
+    b.hidden=!!ok;
+    if(!ok)b.textContent='SAVE FAILED / NONPERSISTENT · '+String(reason||'Browser storage denied').slice(0,170)+
+     ' · Your current state is only held in memory. Open SAVE / RESTORE and export an offline backup.';
+  };
   const write = (key, value) => {
-    memory[key] = value;
-    try { root.localStorage.setItem(key, JSON.stringify(value)); return true; }
-    catch (_) { return false; }
+    const json = JSON.stringify(value);
+    try {
+      root.localStorage.setItem(key, json);
+      if (root.localStorage.getItem(key) !== json) throw Error('Persistent write read-back mismatch');
+      memory[key] = value;
+      durableStatus = {durable:true,reason:''};showDurability(true);
+      return true;
+    } catch (error) {
+      // Keep best-effort in-memory play in restricted file:// origins, but
+      // NEVER claim the expedition persisted to disk.
+      memory[key] = value;
+      durableStatus = {durable:false,reason:String(error?.message||error)};
+      showDurability(false,durableStatus.reason);
+      return false;
+    }
   };
   const initial = () => ({ version: 2, credits: 200, discoveries: [], awards: {}, orbital: {} });
   const SF = {
+    storageStatus() {
+      try {
+        const testKey='starfall-t17-durability',token='proof';
+        root.localStorage.setItem(testKey,token);
+        if(root.localStorage.getItem(testKey)!==token)throw Error('Storage read-back mismatch');
+        root.localStorage.removeItem(testKey);
+        durableStatus={durable:true,reason:''};
+      } catch (e) { durableStatus={durable:false,reason:String(e?.message||e)}; }
+      return {...durableStatus};
+    },
     RNG: class {
       constructor(seed) { this.s = (seed | 0) || 1; }
       next() { this.s = (Math.imul(this.s, 1664525) + 1013904223) | 0; return (this.s >>> 0) / 4294967296; }
@@ -2558,18 +2604,18 @@ function acceptPacket(r,program,time,packetId){
  r.commands=program.map(x=>({...x}));r.index=0;r.remaining=0;
  g.remainingM=0;g.remainingS=0;r.status=program.length?'running':'parked';g.mode=program.length?'DRIVING':'IDLE';
  if(hw)hw.state=program.length?'TRAVERSING':'READY';
- g.acceptedPackets.push(packetId);if(g.acceptedPackets.length>500)g.acceptedPackets=g.acceptedPackets.slice(-500);
+ g.acceptedPackets.push(packetId);
  event(g,time,'UPLINK','Packet '+packetId+' accepted by powered rover transceiver');
  return true;
 }
 function useLink(g,time,link){g.lastLink={atS:time,connected:!!link?.connected,reason:link?.reason||'No receiver',delayS:Math.max(0,Number(link?.delayS)||0)};return g.lastLink;}
 function deliver(r,g,time,link){for(const q of g.pending){if(q.status==='AWAITING_LINK'&&link?.connected){q.status='IN_TRANSIT';q.deliverAtS=time+Math.max(.001,Number(link.delayS)||0);}
   if(q.status==='IN_TRANSIT'&&q.deliverAtS<=time){q.status='DELIVERED';r.commands=q.commands.map(x=>({...x}));r.index=0;r.remaining=0;g.remainingM=0;g.remainingS=0;r.status=q.commands.length?'running':'parked';g.mode=q.commands.length?'DRIVING':'IDLE';event(g,time,'UPLINK','Onboard program accepted');}}
- g.pending=g.pending.filter(q=>q.status!=='DELIVERED').slice(-MAXQUEUE);}
+ g.pending=g.pending.filter(q=>q.status!=='DELIVERED');}
 function downlink(r,g,time,link){if(!link?.connected)return[];
  const seen=new Set(g.receivedIds),received=[];let n=0;
  while(g.queuedObservations.length&&n++<4){const record=g.queuedObservations.shift();if(!seen.has(record.id)){seen.add(record.id);received.push(record);}}
- if(received.length){g.receivedIds=[...seen].slice(-160);event(g,time,'DOWNLINK','Received '+received.length+' rover measurements');}return received;}
+ if(received.length){g.receivedIds=[...seen];event(g,time,'DOWNLINK','Received '+received.length+' rover measurements');}return received;}
 /* Physically bounded next step in metres, using same six-contact traction solver as the local rover. */
 function terrainStep(r,body,distanceM,height,unitScale=1000){const G=root.StarfallRoverDynamics;if(!G?.sixWheels)throw Error('Rover traction model unavailable');if(!body||!Number.isFinite(body.radius)||body.radius<=0)throw Error('Destination terrain body unavailable');if(typeof height!=='function')throw Error('Planetary terrain samples unavailable');
  const radiusM=body.radius*unitScale,next=advance(r.local,distanceM,r.heading,radiusM),heights=local=>{const h=height(local,body);if(!Number.isFinite(h))throw Error('Non-finite fixed terrain sample');return h*unitScale;};
@@ -3125,7 +3171,7 @@ const CONFIG=Object.freeze({schema:1,capacityJ:5e6,solarW:1150,busW:52,radioW:12
 const PAYLOADS=Object.freeze({camera:{label:'Orbital terrain camera',powerW:185,unit:'m',parameter:'terrainElevationM',uncertainty:35,needsSun:true},spectrometer:{label:'Orbital mineral spectrometer',powerW:240,unit:'fraction',parameter:'silicateFraction',uncertainty:.075},atmosphere:{label:'Atmospheric radiometer',powerW:170,unit:'K',parameter:'temperatureK',uncertainty:9}});
 function ensure(s){if(!s||!s.id)throw Error('Satellite missing ID');const state=s.ops7c&&s.ops7c.schema===1?s.ops7c:{};if(state._normalized7c===true)return state;
  const power=Number.isFinite(state.energyJ)?state.energyJ:Number.isFinite(s.powerJ)?s.powerJ:5e6;
- const o={schema:1,_normalized7c:true,energyJ:clamp(power,0,CONFIG.capacityJ),capacityJ:CONFIG.capacityJ,solarW:CONFIG.solarW,temperatureK:Number.isFinite(state.temperatureK)?clamp(state.temperatureK,180,430):288,heaterW:0,enabled:state.enabled!==false,radioEnabled:state.radioEnabled!==false,sensor:PAYLOADS[state.sensor]?state.sensor:s.kind==='observatory'?'camera':'none',pointing:state.pointing==='safe'?'safe':'nadir',storage:Array.isArray(state.storage)?state.storage.filter(validObservation).slice(-CONFIG.storageMax):[],inTransit:Array.isArray(state.inTransit)?state.inTransit.filter(v=>validObservation(v)&&Number.isFinite(v.receivedAtS)).slice(-CONFIG.storageMax):[],received:Array.isArray(state.received)?state.received.filter(validObservation).slice(-180):[],lastS:Number.isFinite(state.lastS)?state.lastS:null,lastCaptureS:Number.isFinite(state.lastCaptureS)?state.lastCaptureS:-Infinity,lastLink:state.lastLink||null,lastEclipse:!!state.lastEclipse,lastSolarW:Number.isFinite(state.lastSolarW)?state.lastSolarW:0,lastLoadW:Number.isFinite(state.lastLoadW)?state.lastLoadW:0,t07:state.t07&&typeof state.t07==='object'?state.t07:null};s.ops7c=o;s.powerJ=o.energyJ;return o;}
+ const o={schema:1,_normalized7c:true,energyJ:clamp(power,0,CONFIG.capacityJ),capacityJ:CONFIG.capacityJ,solarW:CONFIG.solarW,temperatureK:Number.isFinite(state.temperatureK)?clamp(state.temperatureK,180,430):288,heaterW:0,enabled:state.enabled!==false,radioEnabled:state.radioEnabled!==false,sensor:PAYLOADS[state.sensor]?state.sensor:s.kind==='observatory'?'camera':'none',pointing:state.pointing==='safe'?'safe':'nadir',storage:Array.isArray(state.storage)?state.storage.filter(validObservation):[],inTransit:Array.isArray(state.inTransit)?state.inTransit.filter(v=>validObservation(v)&&Number.isFinite(v.receivedAtS)):[],received:Array.isArray(state.received)?state.received.filter(validObservation):[],lastS:Number.isFinite(state.lastS)?state.lastS:null,lastCaptureS:Number.isFinite(state.lastCaptureS)?state.lastCaptureS:-Infinity,lastLink:state.lastLink||null,lastEclipse:!!state.lastEclipse,lastSolarW:Number.isFinite(state.lastSolarW)?state.lastSolarW:0,lastLoadW:Number.isFinite(state.lastLoadW)?state.lastLoadW:0,t07:state.t07&&typeof state.t07==='object'?state.t07:null};s.ops7c=o;s.powerJ=o.energyJ;return o;}
 function validObservation(v){return v&&typeof v.id==='string'&&v.id.length<160&&typeof v.bodyId==='string'&&Number.isFinite(v.timeS)&&Number.isFinite(v.value)&&Array.isArray(v.location)&&v.location.length===3&&v.location.every(Number.isFinite);}
 function geometry(s,body,star,time,sceneMetres,orbit){const q=orbit(s,body,time,sceneMetres),relative=sub(q.position,body.position),starDir=unit(sub(star,body.position)),r=length(relative),projection=dot(relative,starDir);const shadow=projection<0&&Math.sqrt(Math.max(0,r*r-projection*projection))<=body.radius;
  const local=unit(relative);return{...q,relative,nadir:local,sunlit:!shadow,shadow,altitudeM:Math.max(0,(r-body.radius)*sceneMetres),rScene:r};}
@@ -4006,7 +4052,7 @@ function placement({kind,body,local,heightAt,structures=[],protectedAreas=[],slo
  for(const p of protectedAreas){if(p?.local&&arc(d,p.local,radius)<spec.radius+(p.radius||0)+1)throw Error('Construction would block a vehicle or its boarding ramp');}
  return{local:d,height:h,slopeDeg:slope*180/PI};
 }
-function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||typeof item.id!=='string'||typeof item.bodyId!=='string')return null;try{return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,energyJ:clamp(Number(item.energyJ)||0,0,SPECS[item.kind].capacityJ),temperatureK:clamp(Number(item.temperatureK)||290,2,1500),condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),enabled:item.enabled!==false,radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,habT09:item.kind==='hab'&&root.StarfallHabitatT09?root.StarfallHabitatT09.ensure({kind:'hab',habT09:item.habT09},Number(item.habT09?.lastS)||0):undefined,t10:['lab','storage'].includes(item.kind)&&item.t10?.schema===1?copy(item.t10):undefined,padT11:item.kind==='foundation'&&root.StarfallPadT11?root.StarfallPadT11.repair(item.padT11):undefined,bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string').slice(0,120):[]};}catch(_){return null;}}
+function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||typeof item.id!=='string'||typeof item.bodyId!=='string')return null;try{return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,energyJ:clamp(Number(item.energyJ)||0,0,SPECS[item.kind].capacityJ),temperatureK:clamp(Number(item.temperatureK)||290,2,1500),condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),enabled:item.enabled!==false,radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,habT09:item.kind==='hab'&&root.StarfallHabitatT09?root.StarfallHabitatT09.ensure({kind:'hab',habT09:item.habT09},Number(item.habT09?.lastS)||0):undefined,t10:['lab','storage'].includes(item.kind)&&item.t10?.schema===1?copy(item.t10):undefined,padT11:item.kind==='foundation'&&root.StarfallPadT11?root.StarfallPadT11.repair(item.padT11):undefined,bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string'):[]};}catch(_){return null;}}
 function intersectsSphere(a,b,centre,r){const d=V.sub(b,a),f=V.sub(centre,a),den=V.dot(d,d);if(den<1e-16)return false;const t=clamp(V.dot(f,d)/den,0,1);return V.len(V.sub(V.add(a,V.mul(d,t)),centre))<r;}
 function radioLink(a,b,occluders=[],rangeScene=Infinity,metresPerSceneUnit=1){const dist=V.len(V.sub(b,a));if(!Number.isFinite(dist)||dist>rangeScene||dist<0) return{connected:false,reason:'Out of radio range',delayS:0,quality:0};for(const oc of occluders){if(oc?.radius>0&&intersectsSphere(a,b,oc.position,oc.radius))return{connected:false,reason:'Body blocks line-of-sight',delayS:0,quality:0};}
  return{connected:true,reason:'Line of sight',delayS:dist*metresPerSceneUnit/C,quality:clamp(1-dist/Math.max(1,rangeScene),0,1),distanceScene:dist};}
@@ -4023,7 +4069,7 @@ const powerOrder=['foundation','connector','battery','solar','hab','lab','storag
 function gridKey(item){const v=item.local;return item.bodyId+':'+Math.floor((Math.asin(clamp(v[1],-1,1))+PI/2)*200)+':'+Math.floor((Math.atan2(v[2],v[0])+PI)*200);}
 class Store{
  constructor(seed,saved){this.seed=seed;this.items=[];this.wires=[];this.relays=[];this.receipts=[];this.serial=0;this.messages=[];this.lastTick=0;this.restore(saved);}
- restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;const ids=new Set();this.items=(Array.isArray(saved.items)?saved.items:[]).slice(0,320).map(cleanItem).filter(x=>{if(!x||ids.has(x.id))return false;ids.add(x.id);return true;});this.wires=(Array.isArray(saved.wires)?saved.wires:[]).filter(x=>x&&ids.has(x.a)&&ids.has(x.b)&&x.a!==x.b).slice(0,600).map(x=>({a:x.a,b:x.b}));this.relays=(Array.isArray(saved.relays)?saved.relays:[]).slice(0,40).filter(x=>typeof x.id==='string'&&typeof x.bodyId==='string'&&Number.isFinite(x.phase)&&Number.isFinite(x.altitude)).map(x=>({...x,altitude:clamp(x.altitude,300,12000),periodS:clamp(x.periodS||1200,120,1e8),axis:saneDir(x.axis||[0,1,0])}));this.receipts=(Array.isArray(saved.receipts)?saved.receipts:[]).filter(x=>x.id&&x.labId&&x.observationId);this.serial=clamp(Number(saved.serial)||0,0,1e7);this.lastTick=Math.max(0,Number(saved.lastTick)||0);}
+ restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;const ids=new Set();this.items=(Array.isArray(saved.items)?saved.items:[]).map(cleanItem).filter(x=>{if(!x||ids.has(x.id))return false;ids.add(x.id);return true;});this.wires=(Array.isArray(saved.wires)?saved.wires:[]).filter(x=>x&&ids.has(x.a)&&ids.has(x.b)&&x.a!==x.b).map(x=>({a:x.a,b:x.b}));this.relays=(Array.isArray(saved.relays)?saved.relays:[]).filter(x=>typeof x.id==='string'&&typeof x.bodyId==='string'&&Number.isFinite(x.phase)&&Number.isFinite(x.altitude)).map(x=>({...x,altitude:clamp(x.altitude,300,12000),periodS:clamp(x.periodS||1200,120,1e8),axis:saneDir(x.axis||[0,1,0])}));this.receipts=(Array.isArray(saved.receipts)?saved.receipts:[]).filter(x=>x.id&&x.labId&&x.observationId);this.serial=clamp(Number(saved.serial)||0,0,1e7);this.lastTick=Math.max(0,Number(saved.lastTick)||0);}
  serialize(){return{schema:1,seed:this.seed,serial:this.serial,items:copy(this.items),wires:copy(this.wires),relays:copy(this.relays),receipts:copy(this.receipts),lastTick:this.lastTick};}
  add(kind,body,local,forward,heightAt,protectedAreas=[]){if(this.items.length>=320)throw Error('Global structure limit reached');const p=placement({kind,body,local,heightAt,structures:this.items,protectedAreas}),id='outpost-'+this.seed+'-'+(++this.serial);const item={id,bodyId:body.id,kind,local:p.local,facing:saneDir(forward),height:p.height,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]};if(kind==='antenna'&&root.StarfallAntennaT04)item.radioT04=root.StarfallAntennaT04.repair(null);if(kind==='hab'&&root.StarfallHabitatT09)root.StarfallHabitatT09.ensure(item,root.StarfallRuntime?.time||0);if(kind==='battery')item.energyJ=SPECS.battery.capacityJ*.5;this.items.push(item);return{item:copy(item),slope:p.slopeDeg};}
  remove(id){if(!this.items.some(x=>x.id===id))return false;this.items=this.items.filter(x=>x.id!==id);this.wires=this.wires.filter(x=>x.a!==id&&x.b!==id);/* Keep original science receipt provenance after dismantling a lab. */return true;}
@@ -5157,7 +5203,7 @@ document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.d
 function rotate(yaw,pitch,roll){const right=V.norm(V.cross(forward,up));if(yaw)forward=V.rot(forward,up,yaw);if(pitch){forward=V.rot(forward,right,pitch);up=V.rot(up,right,pitch);}if(roll)up=V.rot(up,forward,roll);forward=V.norm(forward);up=V.norm(V.sub(up,V.mul(forward,V.dot(forward,up))));}
 function pointTowardWaypoint(){const b=siteWaypoint?.planet||target,way=siteWaypoint?V.add(b.position,V.mul(V.rot(siteWaypoint.dir,b.spinAxis||[0,1,0],b.spinAngle||0),b.radius+180)):b.position,delta=V.sub(way,pos);if(V.len(delta)<30)return;
  let d=V.norm(delta);if(landed){const radial=V.norm(V.sub(pos,nearest.position));d=V.norm(V.sub(d,V.mul(radial,V.dot(d,radial))));if(V.len(d)<.1)return;up=radial;}else{let right=V.norm(V.cross(forward,up));if(V.len(V.cross(right,d))<.01)right=[1,0,0];up=V.norm(V.cross(right,d));}forward=d;showToast('Heading aligned · thrust with W.');}
-const busy=()=>['chart','workbench','field-lab','outpost','observatory','integration-modal','controls-modal','ruin-panel','discovery-panel','survey-panel','interior-panel','ecology-panel','events-panel','sandbox-panel'].some(id=>{const e=$(id);return e&&!e.hidden;});
+const busy=()=>['chart','workbench','field-lab','outpost','observatory','integration-modal','controls-modal','ruin-panel','discovery-panel','survey-panel','interior-panel','ecology-panel','events-panel','sandbox-panel','archive-t17'].some(id=>{const e=$(id);return e&&!e.hidden;});
 function isTyping(target){return !!(target?.closest?.('input,textarea,select,[contenteditable=true]'));}
 addEventListener('keydown',ev=>{
  const code=controls.resolve(ev.code)||ev.code;
@@ -6672,13 +6718,13 @@ function candidates(body,local,sample,ruins=[],radius=3,seed=742){if(!body?.land
  return [...fromGeology,...fromRuins].sort((a,b)=>A.arc(a.local,local,body.radius)-A.arc(b.local,local,body.radius)||a.id.localeCompare(b.id));
 }
 function validateRecords(records){const seen=new Map();if(!Array.isArray(records))return[];
- for(const raw of records.slice(-1000)){
+ for(const raw of records){
   if(!raw||typeof raw.id!=='string'||! /^(geo|ruin)-[a-z0-9]+$/.test(raw.id)||typeof raw.bodyId!=='string'||raw.bodyId.length>150||!['geological','archaeological'].includes(raw.category)||![1,2,3,4].includes(raw.stage)||!Array.isArray(raw.local)||raw.local.length!==3||!raw.local.every(Number.isFinite)||Math.abs(Math.hypot(...raw.local)-1)>.015||!Number.isFinite(raw.timeS)||raw.timeS<0||raw.timeS>1e14)continue;
   const ids=Array.isArray(raw.evidenceIds)?[...new Set(raw.evidenceIds.filter(s=>typeof s==='string'&&/^obs-[0-9a-z]+$/.test(s)))].slice(0,20):[];
   const receipts=Array.isArray(raw.labReceiptIds)?[...new Set(raw.labReceiptIds.filter(s=>typeof s==='string'&&s.length<160))].slice(0,20):[];
   const stage=Math.min(raw.stage,ids.length?4:2,receipts.length?4:3);
   seen.set(raw.id,{id:raw.id,bodyId:raw.bodyId,category:raw.category,kind:String(raw.kind||'unknown').slice(0,35),local:A.norm(raw.local),biome:String(raw.biome||'unknown').slice(0,60),stage:stage===4&&!receipts.length?3:stage,timeS:raw.timeS,evidenceIds:ids,labReceiptIds:receipts,notes:String(raw.notes||'').slice(0,500)});
- }return[...seen.values()].slice(-400);
+ }return[...seen.values()];
 }
 function evidenceNear(site,observations,bodyRadius,maxDistance=65){return(Array.isArray(observations)?observations:[]).filter(o=>o&&o.bodyId===site.bodyId&&typeof o.id==='string'&&Array.isArray(o.location)&&o.location.length===3&&o.location.every(Number.isFinite)&&Number.isFinite(o.value)&&Number.isFinite(o.uncertainty)&&o.uncertainty>=0&&A.arc(o.location,site.local,bodyRadius)<=maxDistance).sort((a,b)=>a.id.localeCompare(b.id));}
 function labEvidence(record,receipts){if(!record)return[];const ids=new Set(record.evidenceIds);return(Array.isArray(receipts)?receipts:[]).filter(r=>r&&ids.has(r.observationId)&&r.bodyId===record.bodyId&&typeof r.labId==='string'&&Number.isFinite(r.receivedAtS));}
@@ -6781,7 +6827,7 @@ function faceCell(local,res=96){const [x,y,z]=unit(local),ab=[Math.abs(x),Math.a
  return f+':'+clamp(Math.floor((u+1)*res/2),0,res-1)+':'+clamp(Math.floor((v+1)*res/2),0,res-1);
 }
 function coverageKey(bodyId,local){return String(bodyId).slice(0,160)+'|'+faceCell(local);}
-function sanitizeCoverage(data){const ret={};if(!data||typeof data!=='object')return ret;for(const [id,keys] of Object.entries(data).slice(-40)){if(!id||id.length>160||!Array.isArray(keys))continue;ret[id]=[...new Set(keys.filter(s=>typeof s==='string'&&/^[0-5]:\d{1,3}:\d{1,3}$/.test(s)&&s.split(':').slice(1).every(n=>Number(n)<96)))].slice(-2400);}return ret;}
+function sanitizeCoverage(data){const ret={};if(!data||typeof data!=='object')return ret;for(const [id,keys] of Object.entries(data)){if(!id||id.length>160||!Array.isArray(keys))continue;ret[id]=[...new Set(keys.filter(s=>typeof s==='string'&&/^[0-5]:\d{1,3}:\d{1,3}$/.test(s)&&s.split(':').slice(1).every(n=>Number(n)<96)))];}return ret;}
 function addCoverage(coverage,bodyId,local,bodyRadius,revealScene=44){const id=String(bodyId),old=coverage[id]||[],seen=new Set(old);if(seen.size>=2400)return false;let changed=false;for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++){if(x*x+y*y>5)continue;const cell=faceCell(fromLocal(local,x*revealScene/2,y*revealScene/2,bodyRadius));if(!seen.has(cell)&&seen.size<2400){seen.add(cell);changed=true;}}if(changed)coverage[id]=[...seen];return changed;}
 function visibleByCoverage(coverage,bodyId,position){return(coverage[bodyId]||[]).includes(faceCell(position));}
 function markerProjection(center,local,radius,mapRange,width,height){const p=toLocal(center,local,radius),scale=(Math.min(width,height)/2-23)/mapRange;return{px:width/2+p.x*scale,py:height/2-p.y*scale,distance:p.distance,inside:p.distance<=mapRange};}
@@ -6796,7 +6842,7 @@ root.StarfallSurveyMap=API;if(typeof module!=='undefined'&&module.exports)module
 const M=root.StarfallSurveyMap,RT=root.StarfallRuntime,T=root.StarfallStableTerrain,BI=root.StarfallBiomes,GL=root.Starfall3D;
 if(!M||!RT||!T||!BI||!GL)throw Error('Survey-map modules unavailable');
 const $=id=>document.getElementById(id),saveKey='surveyMap6g',prior=SF.load()[saveKey]||{};
-let coverage=M.sanitizeCoverage(prior.coverage),waypoints=Array.isArray(prior.waypoints)?prior.waypoints.filter(x=>x&&/^wp-[a-z0-9-]{2,32}$/.test(x.id)&&typeof x.bodyId==='string'&&x.bodyId.length<160&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)&&Math.abs(Math.hypot(...x.local)-1)<.01).slice(-75).map(x=>({id:x.id,bodyId:x.bodyId,local:M.unit(x.local),label:String(x.label||'Waypoint').slice(0,48)})):[];
+let coverage=M.sanitizeCoverage(prior.coverage),waypoints=Array.isArray(prior.waypoints)?prior.waypoints.filter(x=>x&&/^wp-[a-z0-9-]{2,32}$/.test(x.id)&&typeof x.bodyId==='string'&&x.bodyId.length<160&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)&&Math.abs(Math.hypot(...x.local)-1)<.01).map(x=>({id:x.id,bodyId:x.bodyId,local:M.unit(x.local),label:String(x.label||'Waypoint').slice(0,48)})):[];
 let center=null,lastBodyId=null,selected=null,canvas=$('survey-canvas'),ctx=canvas.getContext('2d',{alpha:false}),raster=null,rasterKey='',lastSave=performance.now(),dirty=false,lastTick=0,knownMarkers=[],lastCanvasTime=0,refreshCounter=0;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),fmt=(n,d=1)=>Number.isFinite(n)?n.toFixed(d):'—';
 function current(){const p=RT.outpostContext(),body=p?.body;return body?.landable&&p.landed&&Array.isArray(p.local)?{...p,local:M.unit(p.local)}:null;}
@@ -6804,7 +6850,7 @@ function save(){if(!dirty)return;SF.save({[saveKey]:{schema:1,coverage,waypoints
 function status(t){$('survey-status').textContent=t;}
 function range(){return Number($('survey-range').value)||350;}
 function isOpen(){return !$('survey-panel').hidden;}
-function visit(){const p=current();if(!p)return;if(!coverage[p.bodyId]&&Object.keys(coverage).length>=40){delete coverage[Object.keys(coverage)[0]];}if(M.addCoverage(coverage,p.bodyId,p.local,p.body.radius,50)){dirty=true;rasterKey='';}}
+function visit(){const p=current();if(!p)return;if(!coverage[p.bodyId]&&Object.keys(coverage).length>=40){if(isOpen())status('40 mapped worlds limit: export expedition before extending coverage; old maps retained.');return;}if(M.addCoverage(coverage,p.bodyId,p.local,p.body.radius,50)){dirty=true;rasterKey='';}}
 function resetCenter(p){if(!p){center=null;lastBodyId=null;return;}if(lastBodyId!==p.bodyId||!center){if(lastBodyId!==p.bodyId)selected=null;lastBodyId=p.bodyId;center=[...p.local];rasterKey='';}else if($('survey-follow').checked&&M.arc(center,p.local,p.body.radius)>8){center=[...p.local];rasterKey='';}}
 function pendingJobsT14(p){
  // A queued camera request is NOT a captured image nor received evidence.
@@ -6906,7 +6952,7 @@ const observer=setInterval(()=>{if(document.hidden)return;visit();if(dirty&&perf
 function recordOrbitalFootprint(o){if(!o||o.kind!=='orbital-observation'||!o.satelliteId||o.receivedAtS===null||!Array.isArray(o.location)||o.location.length!==3||!o.location.every(Number.isFinite))return false;
  const s=root.StarfallLaunchUI?.store?.satellites.find(x=>x.id===o.satelliteId);const b=RT.galaxy.byId.get(o.bodyId)||root.StarfallMissionOperationsUI?.resolveBody?.(s,o.receivedAtS);if(!b?.radius||!b.landable||b.id!==o.bodyId)return false;
  if(o.instrument!=='orbital-camera'&&o.instrument!=='orbital-spectrometer')return false;
- if(!coverage[b.id]&&Object.keys(coverage).length>=40)delete coverage[Object.keys(coverage)[0]];
+ if(!coverage[b.id]&&Object.keys(coverage).length>=40)return false;
  if(!M.addCoverage(coverage,b.id,o.location,b.radius,Math.max(12,Math.min(140,(o.footprintRadiusM||1000)/1000))))return false;
  dirty=true;rasterKey='';save();if(isOpen())draw();return true;}
 root.StarfallSurveyUI={recordOrbitalFootprint,open,draw,get coverage(){return M.sanitizeCoverage(coverage);},get waypoints(){return waypoints.map(x=>({...x,local:[...x.local]}));},get visibleMarkers(){return knownMarkers.map(x=>({...x,local:[...x.local]}));},get selected(){return selected;},save,observer};
@@ -7697,20 +7743,20 @@ function runModel(plan){if(plan.type==='rover')return roverRun(plan);if(plan.typ
 function restore(saved){
  const empty={schema:SCHEMA,serial:0,plans:[],runs:[],blueprints:[]};
  if(!isObj(saved)||saved.schema!==SCHEMA)return empty;
- const ids=new Set(),keep=(arr,max)=>Array.isArray(arr)?arr.filter(x=>isObj(x)&&safeId(x.id)&&!ids.has(x.id)&&(ids.add(x.id),true)).slice(-max).map(clone):[];
+ const ids=new Set(),keep=(arr,max)=>Array.isArray(arr)?arr.filter(x=>isObj(x)&&safeId(x.id)&&!ids.has(x.id)&&(ids.add(x.id),true)).map(clone):[];
  return{schema:SCHEMA,serial:finite(saved.serial)?bound(Math.floor(saved.serial),0,1e9):0,
   plans:keep(saved.plans,MAX_PLANS),runs:keep(saved.runs,MAX_RUNS),blueprints:keep(saved.blueprints,MAX_BLUEPRINTS)};
 }
 class Store{
  constructor(saved){this.data=restore(saved);}
  next(prefix){this.data.serial++;return prefix+'-'+this.data.serial.toString(36);}
- plan(input){const p=normalize(input);p.id=this.next('exp');p.schema=SCHEMA;this.data.plans.push(p);if(this.data.plans.length>MAX_PLANS)this.data.plans.shift();return clone(p);}
- run(planId,timeS=0){const p=this.data.plans.find(x=>x.id===planId);if(!p)throw Error('Experiment plan not found');
+ plan(input){if(this.data.plans.length>=MAX_PLANS)throw Error('Research plans full: export expedition backup before explicitly archiving any plan');const p=normalize(input);p.id=this.next('exp');p.schema=SCHEMA;this.data.plans.push(p);return clone(p);}
+ run(planId,timeS=0){if(this.data.runs.length>=MAX_RUNS)throw Error('Research runs full: export expedition backup and archive explicitly before another test');const p=this.data.plans.find(x=>x.id===planId);if(!p)throw Error('Experiment plan not found');
   const result=runModel(p),run={id:this.next('run'),schema:SCHEMA,planId:p.id,type:p.type,title:p.title,sourceAssetId:p.sourceAssetId,
    timeS:finite(timeS)?bound(timeS,0,1e13):0,bodyId:p.bodyId,systemId:p.systemId,conditions:clone(p.conditions),
    sourceDefinition:p.definition?clone(p.definition):null,observationRefs:p.observations.slice(),photoRefs:(p.photoRefs||[]).slice(),...result};
-  this.data.runs.push(run);if(this.data.runs.length>MAX_RUNS)this.data.runs.shift();return clone(run);}
- blueprint(runId,title){const r=this.data.runs.find(x=>x.id===runId);if(!r)throw Error('Test run not found');
+  this.data.runs.push(run);return clone(run);}
+ blueprint(runId,title){if(this.data.blueprints.length>=MAX_BLUEPRINTS)throw Error('Research blueprints full: export expedition backup before adding another design');const r=this.data.runs.find(x=>x.id===runId);if(!r)throw Error('Test run not found');
   if(!r.success)throw Error('Cannot validate failed/incomplete engineering test');
   const p=this.data.plans.find(x=>x.id===r.planId);
   if(!p)throw Error('Original test plan is no longer present');
@@ -7718,14 +7764,14 @@ class Store{
    definition:p.definition?validDefinition(p.definition):null,rocket:p.rocket?clone(p.rocket):null,conditions:clone(p.conditions),
    predicted:clone(r.predicted),simulated:clone(r.simulated),observationRefs:r.observationRefs.slice(),photoRefs:(r.photoRefs||[]).slice(),
    model:r.model,createdS:r.timeS,benchOnly:r.type==='rocket'||p.type==='rover'&&(p.conditions.gearRatio!==1||p.conditions.wheelScale!==1)};
-  this.data.blueprints.push(b);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(b);}
+  this.data.blueprints.push(b);return clone(b);}
  compare(a,b){const x=this.data.runs.find(r=>r.id===a),y=this.data.runs.find(r=>r.id===b);
   if(!x||!y||x.type!==y.type)throw Error('Compare two runs of the same test type');
   const keys=Object.keys(x.simulated).filter(k=>finite(x.simulated[k])&&finite(y.simulated[k]));
   return keys.map(key=>({metric:key,first:x.simulated[key],second:y.simulated[key],difference:y.simulated[key]-x.simulated[key]}));}
  exportBlueprint(id){const b=this.data.blueprints.find(x=>x.id===id);if(!b)throw Error('Unknown blueprint');
   return JSON.stringify({format:'starfall-blueprint-7e',schema:SCHEMA,blueprint:b},null,2);}
- importBlueprint(raw){if(typeof raw!=='string'||raw.length>100000)throw Error('Blueprint exceeds 100 KB import limit');
+ importBlueprint(raw){if(this.data.blueprints.length>=MAX_BLUEPRINTS)throw Error('Research blueprints full: export expedition backup before import');if(typeof raw!=='string'||raw.length>100000)throw Error('Blueprint exceeds 100 KB import limit');
   let pack;try{pack=JSON.parse(raw);}catch(_){throw Error('Invalid blueprint JSON');}
   if(pack?.format!=='starfall-blueprint-7e'||pack?.schema!==SCHEMA||!isObj(pack.blueprint))throw Error('Unsupported blueprint format');
   const b=pack.blueprint;
@@ -7737,7 +7783,7 @@ class Store{
    definition:b.definition?clone(b.definition):null,rocket:b.rocket?clone(b.rocket):null,conditions:clone(b.conditions),
    predicted:clone(b.predicted),simulated:clone(b.simulated),observationRefs:Array.isArray(b.observationRefs)?b.observationRefs.filter(safeId).slice(0,12):[],photoRefs:Array.isArray(b.photoRefs)?b.photoRefs.filter(safeId).slice(0,12):[],
    model:text(b.model,120),createdS:finite(b.createdS)?b.createdS:0,benchOnly:!!b.benchOnly,
-   imported:true};this.data.blueprints.push(fresh);if(this.data.blueprints.length>MAX_BLUEPRINTS)this.data.blueprints.shift();return clone(fresh);}
+   imported:true};this.data.blueprints.push(fresh);return clone(fresh);}
  serialize(){return clone(this.data);}
  get plans(){return clone(this.data.plans);}
  get runs(){return clone(this.data.runs);}
@@ -7867,13 +7913,13 @@ function restore(raw){
  const out={schema:SCHEMA,serial:0,photos:[],jobs:[]};
  if(!raw||raw.schema!==SCHEMA)return out;
  out.serial=finite(raw.serial)?clamp(Math.floor(raw.serial),0,1e9):0;
- const used=new Set();for(const p of (Array.isArray(raw.photos)?raw.photos:[]).slice(-MAX_TOTAL)){
+ const used=new Set();for(const p of (Array.isArray(raw.photos)?raw.photos:[])){
   if(!p||!idOK(p.id)||used.has(p.id))continue;
   try{validateCapture(p);}catch(_){continue;}
   if(!['stored-local','queued','transmitting','in-transit','downlinked','failed'].includes(p.status))continue;
   used.add(p.id);out.photos.push(copy({...p,sourceName:String(p.sourceName||p.sourceAssetId).slice(0,100),caption:String(p.caption||'').slice(0,120)}));
  }
- out.jobs=(Array.isArray(raw.jobs)?raw.jobs:[]).filter(x=>x&&idOK(x.id)&&idOK(x.assetId)&&['rover','satellite'].includes(x.sourceType)&&finite(x.createdS)&&x.createdS>=0&&!used.has(x.id)).slice(-MAX_JOB).map(copy);
+ out.jobs=(Array.isArray(raw.jobs)?raw.jobs:[]).filter(x=>x&&idOK(x.id)&&idOK(x.assetId)&&['rover','satellite'].includes(x.sourceType)&&finite(x.createdS)&&x.createdS>=0&&!used.has(x.id)).map(copy);
  return out;
 }
 class Store{
@@ -8286,7 +8332,12 @@ async function showPhoto(id){
  im.removeAttribute('src');im.alt='';im.hidden=true;
  if(p.status==='downlinked'){
   const data=await imageGet(id);
-  if(!data)throw Error('Image bytes missing from this device; restore the original browser archive.');
+  if(!data){
+   $('imaging7f-download').disabled=true;
+   $('imaging7f-pending').textContent='T17 MISSING IMAGE FILE: metadata reports receipt, but no original IndexedDB binary is present. Restore a FULL MEDIA expedition backup. An ACK is not a replacement for actual pixels.';
+   $('imaging7f-metadata').textContent+='\\nT17 FILE PRESENCE: MISSING / RESTORE REAL 7F IMAGE BYTES';
+   return;
+  }
   im.src=data;im.alt='Actual Starfall in-game '+p.sourceType+' photo of '+p.bodyId+' ('+p.mode+')';im.hidden=false;
   $('imaging7f-download').disabled=false;
  }else $('imaging7f-download').disabled=true;
@@ -8411,9 +8462,9 @@ class Clock{
   this.handler=null;this.stepsExecuted=0;
   if(saved&&saved.schema===SCHEMA&&saved.seed===seed&&valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS+1e-7){
    if(valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS){this.lastSimulatedS=saved.lastSimulatedS;}
-   this.events=bounded(saved.events,MAX_EVENTS).filter(e=>cleanId(e?.id)&&TYPES.includes(e.type)&&valid(e.atS));
-   this.receipts=bounded(saved.receipts,MAX_RECEIPTS).filter(cleanId);
-   const used=new Set();this.jobs=bounded(saved.jobs,MAX_JOBS).filter(j=>{
+   this.events=(Array.isArray(saved.events)?saved.events:[]).filter(e=>cleanId(e?.id)&&TYPES.includes(e.type)&&valid(e.atS));
+   this.receipts=(Array.isArray(saved.receipts)?saved.receipts:[]).filter(cleanId);
+   const used=new Set();this.jobs=(Array.isArray(saved.jobs)?saved.jobs:[]).filter(j=>{
     if(!cleanId(j?.id)||used.has(j.id)||!cleanId(j.assetId)||!cleanId(j.kind)||!valid(j.createdAtS)||!valid(j.eligibleAtS)||!valid(j.lastIntegratedS))return false;
     used.add(j.id);return ['QUEUED','WAITING','PAUSED','AWAITING_REVIEW','DONE','FAULT'].includes(j.status);
    }).map(clone);
@@ -8637,13 +8688,13 @@ class Transport{
    // durable packets/receipts and freeze radio time until flight catches up.
    // NEVER discard delivery evidence merely because clocks disagree.
    if(valid(saved.cursorS)&&saved.cursorS<1e13){
-    this.cursorS=saved.cursorS;this.receipts=Array.isArray(saved.receipts)?saved.receipts.filter(id).slice(-4000):[];
+    this.cursorS=saved.cursorS;this.receipts=Array.isArray(saved.receipts)?saved.receipts.filter(id):[];
     const seen=new Set();
     for(const x of Array.isArray(saved.packets)?saved.packets:[]){
      if(!x||!id(x.id)||seen.has(x.id)||!VALID.has(x.type)||!STATES.has(x.state)||!valid(x.bytes)||!valid(x.sendBytes)||!valid(x.recvBytes))continue;
      if(x.sendBytes>x.bytes+96||x.recvBytes>x.bytes+96)continue;
      seen.add(x.id);this.packets.push(copy(x));
-     if(this.packets.length>=MAX_PACKETS)break;
+     // Preserve oversized legacy packet archives; refuse new work at capacity.
     }
     if(saved.metrics&&valid(saved.metrics.txBytes)&&valid(saved.metrics.delivered))this.metrics=copy(saved.metrics);
    }
@@ -9556,7 +9607,7 @@ initCards();
 const output=make('p','Select original controls to perform any physical command; this T16 display is read-only.','op16-note');
 output.id='op16-action-result';cards.get('main')?.block?.append(output);
 function focusGuard(){
- const ids=['workbench','research7e','imaging7f','field-lab','outpost','asset-manager','launch-dialog'];
+ const ids=['workbench','research7e','imaging7f','field-lab','outpost','asset-manager','launch-dialog','archive-t17'];
  let previous=null;
  let launcher=null;
  document.addEventListener('pointerdown',e=>{const b=e.target?.closest?.('button');if(b&&!ids.some(id=>$(id)?.contains(b)))launcher=b;},true);
@@ -9593,6 +9644,306 @@ function focusGuard(){
 focusGuard();setInterval(()=>{if(!document.hidden)refreshAll();},1800);
 refreshAll(true);
 root.StarfallOperationsUI16={refresh:()=>refreshAll(true),report,realAssets,openOwner,renderLog,get cards(){return cards}};
+})(window);
+</script><script>
+/* STARFALL T17 — deterministic, bounded, offline expedition archive.
+ * Does NOT mutate stores or import media. UI performs transactions and rollback.
+ * Checksum protects against accidental corruption (FNV-1a, NOT authentication).
+ */
+(function(root){'use strict';
+const FORMAT='STARFALL_EXPEDITION_BACKUP',SCHEMA=17,MAX_JSON_BYTES=32*1048576,MAX_MEDIA_BYTES=128*1048576;
+const valid=x=>Number.isFinite(x)&&x>=0,object=x=>x&&typeof x==='object'&&!Array.isArray(x);
+const id=x=>typeof x==='string'&&/^[A-Za-z0-9_.:/-]{1,180}$/.test(x);
+const dir=a=>Array.isArray(a)&&a.length===3&&a.every(Number.isFinite)&&Math.abs(Math.hypot(...a)-1)<.04;
+const path=(name,condition)=>{if(!condition)throw Error('T17 invalid archive: '+name);};
+function hash(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193);}return(h>>>0).toString(16).padStart(8,'0');}
+function uniqueRows(rows,field,label,cap=100000){
+ if(rows===undefined)return;
+ path(label+' must be an array',Array.isArray(rows)&&rows.length<=cap);
+ const seen=new Set();
+ for(const row of rows){path(label+' entry identity',object(row)&&id(row[field])&&!seen.has(row[field]));seen.add(row[field]);}
+}
+function validateState(s,seed){
+ path('state must be an object',object(s));
+ path('unsupported original save version',s.version===undefined||s.version===1||s.version===2);
+ if(s.credits!==undefined)path('negative/nonfinite credits',valid(s.credits));
+ for(const k of ['launch7','outpost5','missionOps','commsT03','engineering7A']){
+  const v=s[k];if(!v)continue;
+  path(k+' must use known original schema',object(v)&&v.schema===1);
+  path(k+' wrong galaxy seed',v.seed===seed);
+ }
+ const kinds=[
+  ['outpost5','items'],['outpost5','relays'],['launch7','launches'],['launch7','satellites'],['launch7','rovers'],
+  ['imaging7f','photos'],['imaging7f','jobs'],['research7e','plans'],['research7e','runs'],['research7e','blueprints'],
+  ['missionOps','jobs'],['missionOps','events'],['commsT03','packets']];
+ for(const [key,field] of kinds){
+  const value=s[key];if(!value)continue;
+  path(key+' schema',object(value)&&value.schema===1);
+  uniqueRows(value[field],'id',key+'.'+field);
+ }
+ const outpost=s.outpost5;
+ if(outpost){
+  const all=new Set((outpost.items||[]).map(x=>x.id));
+  for(const item of outpost.items||[]){path('outpost world and coordinate',id(item.bodyId)&&dir(item.local));
+   path('outpost charge (J) is finite',item.energyJ===undefined||valid(item.energyJ));
+  }
+  path('outpost wire list',outpost.wires===undefined||Array.isArray(outpost.wires)&&outpost.wires.length<=100000);
+  for(const w of outpost.wires||[])path('dangling or self-loop electrical wire',
+   object(w)&&all.has(w.a)&&all.has(w.b)&&w.a!==w.b);
+  for(const r of outpost.receipts||[])path('laboratory receipt identity',id(r.labId)&&id(r.observationId));
+ }
+ const launch=s.launch7;
+ if(launch)for(const r of launch.rovers||[]){
+  path('rover body-fixed position',id(r.bodyId)&&dir(r.local));
+  path('rover battery (J)',r.batteryJ===undefined||valid(r.batteryJ));
+  uniqueRows(r.records,'id','rover '+r.id+' source observations');
+ }
+ if(s.research7e){
+  const res=s.research7e;
+  path('7E research schema',res.schema===1);
+  const plans=new Set((res.plans||[]).map(x=>x.id)),runs=new Set((res.runs||[]).map(x=>x.id));
+  for(const r of res.runs||[])path('7E original run source plan',plans.has(r.planId));
+  for(const b of res.blueprints||[]){
+   if(b.imported===true)continue; // Legacy imported blueprint may legitimately refer to an unavailable external run.
+   path('7E blueprint original run',runs.has(b.sourceRunId));
+  }
+ }
+ const media=s.imaging7f;
+ if(media){
+  path('7F metadata schema',media.schema===1);
+  for(const p of media.photos||[]){
+   path('camera asset/body ID',id(p.sourceAssetId)&&id(p.bodyId));
+   path('camera recorded bytes and geometry',valid(p.bytes)&&p.bytes>=200&&p.bytes<=2500000&&
+     Number.isSafeInteger(p.width)&&p.width>0&&Number.isSafeInteger(p.height)&&p.height>0);
+   path('camera source timestamp',valid(p.timeS));
+   if(p.captureLocal!==undefined&&p.captureLocal!==null)path('camera body-fixed coordinate',dir(p.captureLocal));
+  }
+ }
+ const ops=s.missionOps;if(ops){
+  path('operation clock finite',valid(ops.lastSimulatedS));
+  for(const x of ops.jobs||[])path('operation timestamp',id(x.assetId)&&valid(x.createdAtS)&&valid(x.eligibleAtS));
+ }
+ const comms=s.commsT03;if(comms){
+  path('radio cursor finite',valid(comms.cursorS));
+  uniqueRows(comms.packets,'id','packet IDs');
+  for(const p of comms.packets||[]){
+   path('T03 packet time/byte custody',id(p.sourceId)&&id(p.destId)&&id(p.bodyId)&&
+    valid(p.createdS)&&valid(p.sendBytes)&&valid(p.recvBytes)&&valid(p.encodedBytes)&&
+    p.sendBytes<=p.encodedBytes&&p.recvBytes<=p.encodedBytes);
+  }
+ }
+ if(s.equipmentT15){path('T15 service schema',s.equipmentT15.schema===15);
+  uniqueRows(s.equipmentT15.events,'id','service event IDs');
+ }
+ if(s.flightGalaxy?.seed!==undefined)path('flight snapshot wrong galaxy seed',s.flightGalaxy.seed===seed);
+ return {launches:launch?.launches?.length||0,rovers:launch?.rovers?.length||0,satellites:launch?.satellites?.length||0,
+  outposts:outpost?.items?.length||0,photos:media?.photos?.length||0,blueprints:s.research7e?.blueprints?.length||0,
+  packets:comms?.packets?.length||0,receipts:comms?.receipts?.length||0};
+}
+function checkMediaEntry(entry,meta){
+ path('photo metadata must exist',object(entry)&&object(meta)&&entry.id===meta.id);
+ path('media payload format',typeof entry.image==='string'&&typeof entry.thumbnail==='string'&&
+ /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(entry.image)&&
+ /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(entry.thumbnail));
+ path('media mime type',entry.image.startsWith('data:'+meta.mime+';'));
+ path('media bytes',entry.image.length<3400000&&entry.thumbnail.length<500000);
+ path('camera binary length',Math.abs(Math.floor(entry.image.split(',')[1].length*3/4)-meta.bytes)<=6);
+ path('media image checksum',entry.imageHash===hash(entry.image)&&entry.thumbnailHash===hash(entry.thumbnail));
+}
+function create({state,galaxySeed,media=[],includeMedia=false}){
+ path('galaxy seed required',Number.isSafeInteger(galaxySeed)&&galaxySeed>=0);
+ const summary=validateState(state,galaxySeed),refs=state.imaging7f?.photos||[];
+ if(includeMedia){
+  path('full archive must contain all original photo files',Array.isArray(media)&&media.length===refs.length);
+  const indexed=new Map(media.map(x=>[x.id,x]));
+  path('duplicate photo media identity',indexed.size===refs.length);
+  for(const ref of refs)checkMediaEntry(indexed.get(ref.id),ref);
+ }
+ const payload={format:FORMAT,schema:SCHEMA,galaxySeed,scope:includeMedia?'FULL_MEDIA':'STATE_ONLY',
+  state,media:includeMedia?media:[],summary};
+ const json=JSON.stringify(payload);
+ path('archive too large',json.length<MAX_JSON_BYTES+(includeMedia?MAX_MEDIA_BYTES:0));
+ return {...payload,integrity:{algorithm:'fnv1a32-utf16-v1',bytes:json.length,checksum:hash(json)}};
+}
+function validate(archive,expectedSeed){
+ path('archive format/schema',object(archive)&&archive.format===FORMAT&&archive.schema===SCHEMA);
+ path('wrong galaxy seed',archive.galaxySeed===expectedSeed);
+ path('unsupported backup scope',archive.scope==='FULL_MEDIA'||archive.scope==='STATE_ONLY');
+ path('backup integrity footer',object(archive.integrity)&&archive.integrity.algorithm==='fnv1a32-utf16-v1');
+ const {integrity,...payload}=archive,json=JSON.stringify(payload);
+ path('archive size exceeded',json.length<=MAX_JSON_BYTES+(archive.scope==='FULL_MEDIA'?MAX_MEDIA_BYTES:0));
+ path('backup checksum mismatch',integrity.bytes===json.length&&integrity.checksum===hash(json));
+ const summary=validateState(archive.state,expectedSeed);
+ path('archive summary mismatch',JSON.stringify(archive.summary)===JSON.stringify(summary));
+ if(archive.scope==='FULL_MEDIA'){
+  path('media collection',Array.isArray(archive.media)&&archive.media.length===(archive.state.imaging7f?.photos||[]).length);
+  const refs=new Map((archive.state.imaging7f?.photos||[]).map(p=>[p.id,p])),seen=new Set();
+  for(const row of archive.media){path('media reference uniqueness',id(row?.id)&&!seen.has(row.id));seen.add(row.id);checkMediaEntry(row,refs.get(row.id));}
+ }else path('state-only archive cannot declare photo payloads',Array.isArray(archive.media)&&!archive.media.length);
+ return summary;
+}
+const API={FORMAT,SCHEMA,MAX_JSON_BYTES,MAX_MEDIA_BYTES,hash,validateState,checkMediaEntry,create,validate};
+root.StarfallArchiveT17=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+</script><script>
+/* STARFALL T17 — actual offline portable backup UI.
+ * No dependence on a server. Full imports are staged and validated in RAM,
+ * committed to one IndexedDB transaction and ONE localStorage write.
+ * Rollback replays checkpoint if disk is denied or any verification fails.
+ */
+(function(root){'use strict';
+const M=root.StarfallArchiveT17,$=id=>document.getElementById(id);
+if(!M||!$('archive-t17'))return;
+const DB='starfall-7f-images-v1',safe=x=>String(x??'').slice(0,350),seed=()=>root.StarfallRuntime?.galaxy?.seed;
+const status=$('archive-t17-status');let busy=false;
+function display(text,ok=true){status.textContent=text;status.dataset.ok=String(ok);}
+function storage(){
+ try{const s=root.localStorage,token='starfall-t17-write-check';
+  s.setItem(token,'ok');if(s.getItem(token)!=='ok')throw Error('storage read-back mismatch');
+  s.removeItem(token);
+  return{durable:true,raw:s.getItem('starfall_save')};
+ }catch(e){return{durable:false,reason:'Browser persistent localStorage unavailable: '+safe(e.message)};}
+}
+function indexedDBOpen(){
+ return new Promise((resolve,reject)=>{
+  if(!root.indexedDB)return reject(Error('IndexedDB denied/unavailable. Full camera backup is unavailable.'));
+  const req=root.indexedDB.open(DB,1);
+  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('images'))req.result.createObjectStore('images');};
+  req.onerror=()=>reject(Error('Cannot open camera binary store: '+(req.error?.message||'denied')));
+  req.onsuccess=()=>resolve(req.result);
+ });
+}
+async function readAllMedia(){
+ const db=await indexedDBOpen();
+ try{return await new Promise((resolve,reject)=>{
+  const tx=db.transaction('images','readonly'),store=tx.objectStore('images'),
+   keys=store.getAllKeys(),values=store.getAll();
+  tx.oncomplete=()=>resolve(new Map(keys.result.map((key,i)=>[key,values.result[i]])));
+  tx.onerror=()=>reject(Error('Cannot read all camera binary records; no files changed'));
+  tx.onabort=()=>reject(Error('Camera archive read transaction aborted'));
+ });}finally{db.close();}
+}
+async function replaceMedia(map){
+ const db=await indexedDBOpen();
+ try{await new Promise((resolve,reject)=>{
+  const tx=db.transaction('images','readwrite'),store=tx.objectStore('images');
+  store.clear();for(const [key,val] of map)store.put(val,key);
+  tx.oncomplete=resolve;tx.onerror=()=>reject(Error('Camera binary write failed; old save must remain intact'));
+  tx.onabort=()=>reject(Error('Camera binary archive transaction aborted'));
+ });}finally{db.close();}
+}
+const toData=raw=>typeof raw==='string'?{image:raw,thumbnail:raw}:raw;
+const download=(filename,text)=>{
+ const blob=new Blob([text],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),3000);
+ return blob.size;
+};
+function visibleState(){const s=storage();
+ $('archive-t17-save-status').textContent=s.durable?
+  'DURABLE BROWSER STORAGE: available. Portable backups are still recommended.':
+  'NONPERSISTENT SESSION · '+s.reason+' · Your current game may disappear on close. Export a backup now.';
+ $('archive-t17-save-status').dataset.ok=String(s.durable);
+ return s;
+}
+async function exportBackup(includeMedia=false){
+ if(busy)throw Error('Another archive operation is in progress');busy=true;
+ try{
+  const s=visibleState(),state=root.SF.load();
+  const photos=state.imaging7f?.photos||[];
+  let media=[];
+  if(includeMedia){
+   const all=await readAllMedia();
+   media=photos.map(p=>{
+    const data=toData(all.get(p.id));
+    if(typeof data?.image!=='string'||typeof data?.thumbnail!=='string')
+     throw Error('Original photo '+p.id+' has missing camera binary data. Backup cancelled: use existing 7F gallery to repair or archive it.');
+    return{id:p.id,image:data.image,thumbnail:data.thumbnail,
+     imageHash:M.hash(data.image),thumbnailHash:M.hash(data.thumbnail)};
+   });
+  }
+  const pack=M.create({state,galaxySeed:seed(),media,includeMedia}),size=download(
+   'STARFALL-expedition-'+seed()+(includeMedia?'-FULL-MEDIA':'-STATE')+'.json',JSON.stringify(pack));
+  display('Exported '+(includeMedia?'FULL MEDIA':'STATE-ONLY')+' expedition backup · '+pack.summary.rovers+
+   ' deployed rovers · '+pack.summary.photos+' camera IDs · '+Math.ceil(size/1024)+' KiB. '+
+   (!includeMedia&&photos.length?'State-only file does NOT include photo bytes: for portable image restore export FULL MEDIA. ':'')+
+   (!s.durable?'WARNING: current session is not persistent.':''));
+  return pack;
+ }finally{busy=false;}
+}
+const decode=data=>new Promise((resolve,reject)=>{
+ const img=new Image();img.onload=()=>resolve({w:img.naturalWidth,h:img.naturalHeight});
+ img.onerror=()=>reject(Error('Camera payload cannot be decoded as a real image'));
+ img.src=data;
+});
+async function validateMediaBinary(pack){
+ const refs=new Map((pack.state.imaging7f?.photos||[]).map(p=>[p.id,p]));
+ const result=new Map();
+ for(const record of pack.media){
+  const p=refs.get(record.id),img=await decode(record.image),thumb=await decode(record.thumbnail);
+  if(img.w!==p.width||img.h!==p.height||thumb.w<1||thumb.h<1)
+   throw Error('Camera '+p.id+' dimensions do not match original image/thumbnail.');
+  result.set(p.id,{image:record.image,thumbnail:record.thumbnail});
+ }
+ return result;
+}
+async function importBackup(file,{approved=false}={}){
+ if(busy)throw Error('Another backup/import operation is in progress');
+ if(!file||file.size<50||file.size>M.MAX_JSON_BYTES+M.MAX_MEDIA_BYTES+4096)
+  throw Error('Wrong file size: select an expedition JSON smaller than 160 MiB.');
+ busy=true;
+ let frozen=false,switched=false,mediaBefore=null,rawBefore=null,mediaChanged=false;
+ try{
+  const local=visibleState();
+  if(!local.durable)throw Error('Persistent localStorage is unavailable: import safely refused. Export and enable browser storage.');
+  const text=await file.text(),pack=JSON.parse(text);
+  const summary=M.validate(pack,seed());
+  if(pack.scope==='STATE_ONLY'&&summary.photos)
+   throw Error('This save references '+summary.photos+' actual camera files but provides no image bytes. Export FULL MEDIA at the source browser; state-only import is refused to prevent phantom photos.');
+  const staged=pack.scope==='FULL_MEDIA'?await validateMediaBinary(pack):new Map();
+  // Do not attempt to apply owner stores until all checks and binary decode pass.
+  const acceptance='REPLACE the current local expedition with '+summary.outposts+' outposts, '+summary.rovers+
+   ' deployed rovers and '+summary.photos+' real images? This will reload the original game. Export your current game first.';
+  if(!approved&&!root.confirm(acceptance))throw Error('Import cancelled; existing expedition preserved.');
+  const verify=storage();if(!verify.durable)throw Error('Browser save lost write permission before import.');
+  rawBefore=verify.raw;mediaBefore=await readAllMedia();
+  if(pack.scope==='FULL_MEDIA'&&!root.indexedDB)throw Error('Camera binary storage denied');
+  root.__STARFALL_IMPORT_PENDING=true;frozen=true;
+  // Original UIs must not autosave stale in-memory state during import.
+  await replaceMedia(staged);mediaChanged=true;
+  root.localStorage.setItem('starfall_save',JSON.stringify(pack.state));
+  if(root.localStorage.getItem('starfall_save')!==JSON.stringify(pack.state))
+   throw Error('Local expedition state read-back does not match imported archive.');
+  // Verifies committed durable state using original SF.load path, not a new owner.
+  M.validateState(root.SF.load(),seed());
+  display('RESTORE VERIFIED · original save and '+staged.size+' images switched together. Reloading the original game.',true);
+  switched=true;
+  root.location.reload();
+  return summary;
+ }catch(error){
+  if(frozen){
+   const failures=[];
+   try{if(rawBefore===null)root.localStorage.removeItem('starfall_save');
+    else root.localStorage.setItem('starfall_save',rawBefore);}catch(e){failures.push('localStorage rollback: '+safe(e.message));}
+   if(mediaChanged)try{await replaceMedia(mediaBefore);}catch(e){failures.push('IndexedDB rollback: '+safe(e.message));}
+   if(failures.length)throw Error('IMPORT FAILED; RECOVERY INCOMPLETE. Keep this browser open and export current data. '+
+    failures.join(' | ')+' · Original cause: '+safe(error.message));
+  }
+  throw error;
+ }finally{if(frozen&&!switched)root.__STARFALL_IMPORT_PENDING=false;busy=false;}
+}
+$('archive-t17-export-state').onclick=()=>exportBackup(false).catch(e=>display('EXPORT FAILED · '+safe(e.message),false));
+$('archive-t17-export-full').onclick=()=>exportBackup(true).catch(e=>display('EXPORT FAILED · '+safe(e.message),false));
+$('archive-t17-select').onclick=()=>$('archive-t17-file').click();
+$('archive-t17-file').onchange=e=>{
+ const file=e.target.files?.[0];e.target.value='';
+ if(file)importBackup(file).catch(err=>display('IMPORT REJECTED · '+safe(err.message)+' · Existing save retained unless a rollback failure is explicitly shown.',false));
+};
+$('archive-t17-open').onclick=()=>{$('archive-t17').hidden=false;visibleState();};
+$('archive-t17-close').onclick=()=>{$('archive-t17').hidden=true;};
+$('archive-t17').onclick=e=>{if(e.target===$('archive-t17'))$('archive-t17').hidden=true;};
+visibleState();
+root.StarfallExpeditionArchiveUI17={exportBackup,importBackup,validateMediaBinary,readAllMedia,replaceMedia,storage,visibleState};
 })(window);
 </script>
 </body>

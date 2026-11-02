@@ -29,13 +29,13 @@ function candidates(body,local,sample,ruins=[],radius=3,seed=742){if(!body?.land
  return [...fromGeology,...fromRuins].sort((a,b)=>A.arc(a.local,local,body.radius)-A.arc(b.local,local,body.radius)||a.id.localeCompare(b.id));
 }
 function validateRecords(records){const seen=new Map();if(!Array.isArray(records))return[];
- for(const raw of records.slice(-1000)){
+ for(const raw of records){
   if(!raw||typeof raw.id!=='string'||! /^(geo|ruin)-[a-z0-9]+$/.test(raw.id)||typeof raw.bodyId!=='string'||raw.bodyId.length>150||!['geological','archaeological'].includes(raw.category)||![1,2,3,4].includes(raw.stage)||!Array.isArray(raw.local)||raw.local.length!==3||!raw.local.every(Number.isFinite)||Math.abs(Math.hypot(...raw.local)-1)>.015||!Number.isFinite(raw.timeS)||raw.timeS<0||raw.timeS>1e14)continue;
   const ids=Array.isArray(raw.evidenceIds)?[...new Set(raw.evidenceIds.filter(s=>typeof s==='string'&&/^obs-[0-9a-z]+$/.test(s)))].slice(0,20):[];
   const receipts=Array.isArray(raw.labReceiptIds)?[...new Set(raw.labReceiptIds.filter(s=>typeof s==='string'&&s.length<160))].slice(0,20):[];
   const stage=Math.min(raw.stage,ids.length?4:2,receipts.length?4:3);
   seen.set(raw.id,{id:raw.id,bodyId:raw.bodyId,category:raw.category,kind:String(raw.kind||'unknown').slice(0,35),local:A.norm(raw.local),biome:String(raw.biome||'unknown').slice(0,60),stage:stage===4&&!receipts.length?3:stage,timeS:raw.timeS,evidenceIds:ids,labReceiptIds:receipts,notes:String(raw.notes||'').slice(0,500)});
- }return[...seen.values()].slice(-400);
+ }return[...seen.values()];
 }
 function evidenceNear(site,observations,bodyRadius,maxDistance=65){return(Array.isArray(observations)?observations:[]).filter(o=>o&&o.bodyId===site.bodyId&&typeof o.id==='string'&&Array.isArray(o.location)&&o.location.length===3&&o.location.every(Number.isFinite)&&Number.isFinite(o.value)&&Number.isFinite(o.uncertainty)&&o.uncertainty>=0&&A.arc(o.location,site.local,bodyRadius)<=maxDistance).sort((a,b)=>a.id.localeCompare(b.id));}
 function labEvidence(record,receipts){if(!record)return[];const ids=new Set(record.evidenceIds);return(Array.isArray(receipts)?receipts:[]).filter(r=>r&&ids.has(r.observationId)&&r.bodyId===record.bodyId&&typeof r.labId==='string'&&Number.isFinite(r.receivedAtS));}
