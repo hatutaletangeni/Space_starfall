@@ -45,6 +45,15 @@ class Store{
   this.state.jobs.push(job);return copy(job);
  }
  markDelivered(id,time){const j=this.state.jobs.find(x=>x.id===id);if(!j)throw Error('Capture command missing');j.deliveredS=time;return copy(j);}
+ renderPending(id,reason,timeS){
+  const j=this.state.jobs.find(x=>x.id===id);if(!j)throw Error('Camera job not found');
+  j.renderState='AWAITING_RENDER';j.renderReason=String(reason||'Renderer unavailable').slice(0,220);
+  j.lastRenderAttemptS=Number.isFinite(timeS)?timeS:j.createdS;return copy(j);
+ }
+ markRendering(id){
+  const j=this.state.jobs.find(x=>x.id===id);if(!j)throw Error('Camera job not found');
+  j.renderState='RENDERING';j.renderReason='';return copy(j);
+ }
  finishJob(id){this.state.jobs=this.state.jobs.filter(x=>x.id!==id);}
  put(meta){
   validateCapture(meta);const limit=meta.sourceType==='rover'?MAX_ROVER:MAX_SATELLITE;
