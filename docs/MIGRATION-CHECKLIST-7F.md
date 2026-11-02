@@ -24,7 +24,7 @@ The update modifies only the launch inventory safety limits, save import validat
 | Original Update 7 `launch7` save with legacy ascent states | Same ID retained; 7B restart model already provides an upgrade path instead of fake orbital insertion | **PARTIAL**: model code and tests; no attached authentic Update 7 browser save was supplied for a full import |
 | Original 6J save | Validation may accept basic older version and matching seed | **NOT VERIFIED**: no authentic 6J fixture or browser persistence test supplied |
 | Wrong galaxy seed | Import rejected with clear message, original stored file remains | **PASS**: actual headless browser validator and prior model seed isolation |
-| Damaged/unsupported `launch7` / `imaging7f` / `research7e` | Import is rejected before writing to localStorage | **PASS**: actual offline browser validator for wrong-seed, damaged inventory and camera metadata |
+| Damaged/unsupported `launch7` / `imaging7f` / `research7e` | Import is rejected before writing to localStorage | **PASS**: actual offline browser validator for wrong-seed, damaged/duplicate-ID inventory and camera metadata |
 | Browser denied storage / quota reached | UI import rejects unverified write; the game can run in volatile memory but persistence is not guaranteed | Source reviewed; actual denied-storage device case **NOT VERIFIED** |
 
 ## Recovery
