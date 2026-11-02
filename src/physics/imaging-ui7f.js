@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id),M=root.StarfallImaging7F,RT=root.Starfal
 if(!M||!RT||!V||!$('imaging7f'))return;
 const store=new M.Store(root.SF.load().imaging7f),units=root.StarfallPhysics.SCENE_METERS_PER_UNIT,DB='starfall-7f-images-v1';
 const safe=n=>Number.isFinite(n)?n.toFixed(1):'—',err=e=>message(String(e.message||e),false);
-let busy=false,lastUI=0,lastPersist=0,dirty=false,current=null,dbPromise=null;
+let busy=false,lastUI=0,lastPersist=0,dirty=false,energyDirty=false,current=null,dbPromise=null;
 function message(t,success=true){const s=$('imaging7f-status');s.textContent=t;s.dataset.success=String(success);}
 function persist(){if(root.SF.save({imaging7f:store.serialize()})===false)message('Image metadata could not be saved; check local storage quota.',false);else{dirty=false;lastPersist=performance.now();}}
 function database(){
@@ -90,11 +90,11 @@ function sourceForPhoto(p){const s=sources().find(x=>x.type===p.sourceType&&x.as
  return s||null;}
 function availableEnergy(s){if(s.type==='satellite')return Sat.ensure(s.sat).energyJ;
  return s.local?RT.vehicleStore.get('rover').state.energyJ:s.rover.batteryJ;}
-function consumeEnergy(s,j){if(s.type==='satellite'){
-  const o=Sat.ensure(s.sat);o.energyJ=Math.max(0,o.energyJ-j);s.sat.powerJ=o.energyJ;root.StarfallLaunchUI?.persist?.();return;
+function consumeEnergy(s,j,immediate=true){if(s.type==='satellite'){
+  const o=Sat.ensure(s.sat);o.energyJ=Math.max(0,o.energyJ-j);s.sat.powerJ=o.energyJ;if(immediate)root.StarfallLaunchUI?.persist?.();else energyDirty=true;return;
  }
- if(s.local){const v=RT.vehicleStore.get('rover');RT.vehicleStore.update('rover',{...v.state,energyJ:Math.max(0,v.state.energyJ-j)});RT.persistVehicles();}
- else{s.rover.batteryJ=Math.max(0,s.rover.batteryJ-j);root.StarfallLaunchUI?.persist?.();}
+ if(s.local){const v=RT.vehicleStore.get('rover');RT.vehicleStore.update('rover',{...v.state,energyJ:Math.max(0,v.state.energyJ-j)});if(immediate)RT.persistVehicles();else energyDirty=true;}
+ else{s.rover.batteryJ=Math.max(0,s.rover.batteryJ-j);if(immediate)root.StarfallLaunchUI?.persist?.();else energyDirty=true;}
 }
 function cameraCapture(pose,mode,size,caption){
  const rd=RT.captureScienceImage;if(typeof rd!=='function')throw Error('Offscreen renderer not initialized');
@@ -166,6 +166,7 @@ async function deletePhoto(){const id=current;if(!id)return;await imageRemove(id
 function open(){selectSources();$('imaging7f').hidden=false;refresh();$('imaging7f-source').focus();}
 function close(){$('imaging7f').hidden=true;}
 $('imaging7f-open').onclick=open;
+document.querySelectorAll('[data-imaging7f-open]').forEach(btn=>{btn.addEventListener('click',()=>{open();if(btn.dataset.imaging7fType){const found=sources().find(x=>x.type===btn.dataset.imaging7fType);if(found){$('imaging7f-source').value=found.key;selectModes();refresh();}}});});
 $('imaging7f-close').onclick=close;$('imaging7f').addEventListener('click',e=>{if(e.target===$('imaging7f'))close();});
 $('imaging7f-source').onchange=()=>{selectModes();refresh();};
 $('imaging7f-filter').onchange=refresh;
@@ -194,13 +195,13 @@ function tick(_dt){
   const s=sourceForPhoto(p);if(!s)return-1;
   const budget=Math.min(bandwidth*seconds,p.bytes-p.progressBytes),rate=s.type==='satellite'?125:45,joules=rate*seconds;
   if(availableEnergy(s)<joules+250)return -1;
-  consumeEnergy(s,joules);return budget;
+  consumeEnergy(s,joules,false);return budget;
  });
  if(changes.length)dirty=true;
  const now=performance.now();
- if(dirty&&now-lastPersist>2500)persist();
+ if((dirty||energyDirty)&&now-lastPersist>2500){if(energyDirty){root.StarfallLaunchUI?.persist?.();RT.persistVehicles?.();energyDirty=false;}if(dirty)persist();else lastPersist=now;}
  if(!$('imaging7f').hidden&&now-lastUI>900){lastUI=now;refresh();if(current&&store.get(current)?.status==='downlinked'&&$('imaging7f-photo').hidden)showPhoto(current).catch(err);}
 }
-addEventListener('pagehide',()=>{if(dirty)persist();});
+addEventListener('pagehide',()=>{if(energyDirty){root.StarfallLaunchUI?.persist?.();RT.persistVehicles?.();}if(dirty)persist();});
 root.StarfallImagingUI7F={open,store,tick,refresh,get localAssetCount(){return sources().length;}};
 })(window);
