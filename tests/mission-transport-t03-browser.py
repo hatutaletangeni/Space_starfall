@@ -11,7 +11,8 @@ with sync_playwright() as p:
     browser=p.chromium.launch(headless=True,args=['--use-gl=angle','--use-angle=swiftshader',
         '--enable-unsafe-swiftshader','--enable-webgl','--no-sandbox','--disable-dev-shm-usage'])
     try:
-        page=browser.new_page(viewport={'width':1200,'height':760})
+        context=browser.new_context(viewport={'width':1200,'height':760})
+        page=context.new_page()
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
@@ -24,7 +25,11 @@ with sync_playwright() as p:
             position:[p[0],p[1]+b.radius+8,p[2]],target:b.id,
             attached:b.id,groundDirection:up,forward:[0,0,1],up,landed:true}});
         }""")
-        page.reload(wait_until='domcontentloaded',timeout=90000)
+        # A fresh tab reads the saved *landed* fixture; old tab stays open so
+        # its pagehide handler cannot overwrite the fixture with orbit flight.
+        page=context.new_page()
+        page.on('pageerror',lambda e:errors.append(str(e)))
+        page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallCommsT03)",timeout=30000)
         setup=page.evaluate("""()=>{
           const rt=StarfallRuntime,UI=StarfallLaunchUI,O=StarfallOutposts,T=StarfallCommsT03,
