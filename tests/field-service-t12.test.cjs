@@ -64,7 +64,7 @@ assert.throws(()=>S.transfer({...opts,readyAtS:200}),/cooling down/);
 assert.throws(()=>S.transfer({...opts,portTemperatureK:400}),/overheated/);
 assert.throws(()=>S.transfer({...opts,installed:false}),/installed port/);
 const installed=V.presets.rover.slots.motor;
-const rover={id:'probe-A',bodyId:body.id,local:local(5),status:'safe-stop',batteryJ:200000,
+const rover={id:'probe-A',bodyId:body.id,local:local(5),status:'safe-stop',batteryJ:800000,
  roverT06:{state:'SAFE_STOP',health:.35,fault:'Drive motor fault',landing:{safe:true}}};
 const old=S.createService({conditions:{motor:.35}});
 const diagnosis=S.diagnosis({service:old,rover,health:.35});
