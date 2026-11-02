@@ -2602,12 +2602,13 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
    }
   }
   const grossW=servedW*factor,wireLossW=grossW-servedW,genUsedW=Math.min(grossW,generatedW),batteryOutW=Math.max(0,grossW-genUsedW);
+  const sourceContributions=new Map(solar.map(x=>[x.item.id,generatedW>0?genUsedW*x.generatedW/generatedW:0]));
   let toDrawJ=dt>0?batteryOutW*dt/ETA_DISCHARGE:0,dischargedJ=0;
   for(const b of batteries){
    const maxJ=Math.min(b.item.energyJ,b.spec.maxDischargeW*dt,toDrawJ);
    if(maxJ<=0)continue;
    b.item.energyJ=clamp(b.item.energyJ-maxJ,0,b.spec.capacityJ);dischargedJ+=maxJ;toDrawJ-=maxJ;
-   bus.sourceIds.push(b.item.id);report.byId[b.item.id].dischargeJ=maxJ;
+   bus.sourceIds.push(b.item.id);sourceContributions.set(b.item.id,(sourceContributions.get(b.item.id)||0)+(dt>0?maxJ*ETA_DISCHARGE/dt:0));report.byId[b.item.id].dischargeJ=maxJ;
   }
   // No self-charging from the same battery, no double-counting existing charge.
   let remainingInputJ=Math.max(0,generatedW-grossW)*dt,chargedJ=0;
@@ -2617,6 +2618,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
    const stored=rawInputJ*ETA_CHARGE;b.item.energyJ=clamp(b.item.energyJ+stored,0,cap);remainingInputJ-=rawInputJ;chargedJ+=stored;
    report.byId[b.item.id].chargeJ=stored;
   }
+  if(dt===0&&batteryOutW>0){let neededW=batteryOutW;for(const b of batteries){const safeW=Math.min(neededW,b.spec.maxDischargeW*ETA_DISCHARGE);if(safeW<=0)continue;sourceContributions.set(b.item.id,safeW);neededW-=safeW;bus.sourceIds.push(b.item.id);}}
   bus.sourceIds.push(...solar.map(x=>x.item.id));bus.sourceIds=[...new Set(bus.sourceIds)].sort();
   bus.servedW=servedW;bus.currentA=grossW/VOLTS;bus.wireLossW=wireLossW;bus.chargedJ=chargedJ;bus.dischargedJ=dischargedJ;
   bus.lossJ=wireLossW*dt+dischargedJ*(1-ETA_DISCHARGE)+chargedJ*(1/ETA_CHARGE-1);
@@ -2624,7 +2626,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
   for(const item of group){
    const r=report.byId[item.id],spec=SPECS[item.kind];
    r.sourceIds=r.power?[...bus.sourceIds]:[];r.voltageV=r.power?bus.voltageV:0;r.currentA=r.loadW/VOLTS;r.batteryJ=item.energyJ||0;
-   if(r.power&&r.sourceIds.length){const denom=r.sourceIds.length;for(const id of r.sourceIds)r.sourceWatts[id]=+(r.loadW/denom).toFixed(4);}
+   if(r.power&&r.sourceIds.length&&grossW>0){for(const id of r.sourceIds){const share=(sourceContributions.get(id)||0)/grossW;r.sourceWatts[id]=+(r.loadW*share).toFixed(5);}}
    if(live.has(item.id)){
     const ambient=160,heat=r.power?(spec.watts||0)*.08:0,k=.00005;
     const steady=ambient+heat/Math.max(1,k*50000);
