@@ -57,7 +57,7 @@ with sync_playwright() as p:
    C.advanceLab(work,now+14,false);
    if(work.t10.analysis[0].status!=='PAUSED')throw Error('Lab did not pause on power failure');
    C.advanceLab(work,now+20,true);C.advanceLab(work,now+40,true);
-   if(work.t10.analysis[0].status!=='COMPLETE')throw Error('Real timed assay did not complete with power');
+   if(work.t10.analysis[0].status!=='COMPLETE')throw Error('Real timed assay did not complete with power: '+JSON.stringify({work:work.t10,now,report:ui.powerReports.get(body.id)?.byId?.[lab.id]}));
    ui.persist();StarfallLaunchUI.persist();
    return{lab:lab.id,storage:storage.id,rover:rover.id,bodyId:body.id,
     specimen:specimen.id,originalObs:obs.id,analysis:job.id,receipt:site.t10.receipts[0].id,
