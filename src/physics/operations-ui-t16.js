@@ -6,6 +6,7 @@ const M=root.StarfallOperationsT16,$=id=>document.getElementById(id),RT=root.Sta
 if(!M||!RT||!$('panel-body'))return;
 const make=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const num=(v,d=1)=>Number.isFinite(v)?v.toLocaleString('en-US',{maximumFractionDigits:d}):'NOT RECORDED';
+const clean=x=>String(x??'').slice(0,220);
 const words=(x,fallback='NOT RECORDED')=>x===null||x===undefined||x===''?fallback:String(x);
 const panelIds={main:'panel-body',launch:'launch-dialog',sat:'sat7c-section',outpost:'outpost',
  photos:'imaging7f',field:'field-lab',workbench:'workbench',assets:'asset-manager',research:'research7e'};
@@ -71,8 +72,10 @@ function report(id){
   sourceModel:'SIMULATED / ORIGINAL SOURCE OWNER; no laboratory certification'};
  if(['ship','rover'].includes(a.kind)){
   const v=a.kind==='ship'?ship:rover,eng=RT.engineeringSystemReport?.()?.[a.kind],st=v?.state,s=v?.stats;
+  const deployed=a.kind==='ship'||!!RT.engineeringAssetPoses?.().roverPose;
   return M.status({...common,energyJ:st?.energyJ,capacityJ:s?.batteryCapacityJ,health:st?.health,
    powered:st?.powerEnabled?!(eng?.shed||[]).includes('avionics'):null,
+   fault:deployed?null:'Rover remains onboard / no world-fixed surface pose; deploy before field commands.',
    temperatureK:st?.temperatureK,supplyW:eng?.generated?.totalW,loadW:eng?.totalLoadW,
    mode:st?.powerEnabled?'ENGINEERING BUS':'LEGACY OPTIONAL POWER MODEL',
    limits:'Rated loads modeled; fictional fuel-independent generator. Actual ship ramp and local rover autonomy unchanged.',
@@ -97,7 +100,7 @@ function report(id){
  if(a.kind==='satellite'){
   const s=launch?.satellites.find(x=>x.id===id),o=s?.ops7c;
   return M.status({...common,energyJ:o?.energyJ??s?.powerJ,capacityJ:o?.capacityJ??root.StarfallSatelliteOps7C?.CONFIG?.capacityJ,
-   powered:o?.enabled===true&&o?.radioEnabled===true,temperatureK:o?.temperatureK,
+   powered:o?o.enabled===true&&o.radioEnabled===true:null,temperatureK:o?.temperatureK,
    supplyW:o?.lastSolarW,loadW:o?.lastLoadW,storageUsed:o?.storage?.length,
    storageMax:root.StarfallSatelliteOps7C?.CONFIG?.storageMax,
    remoteTimeS:o?.lastS,mode:o?.enabled===false?'STANDBY':'OPERATING',
@@ -108,7 +111,7 @@ function report(id){
  if(item){
   const rep=root.StarfallOutpostUI?.powerReports?.get(item.bodyId)?.byId?.[id];
   return M.status({...common,energyJ:item.energyJ,capacityJ:root.StarfallOutposts?.SPECS?.[item.kind]?.capacityJ,
-   health:item.condition,powered:rep?.power===true&&item.enabled!==false,
+   health:item.condition,powered:rep?rep.power===true&&item.enabled!==false:null,
    supplyW:rep?.generatedW,loadW:rep?.drawW??rep?.consumedW,temperatureK:item.temperatureK,
    mode:item.enabled===false?'STANDBY':item.kind==='lab'&&item.t10?.analysis?.some(j=>j.status==='FAULT')?'FAULT':'CONNECTED HARDWARE',
    storageUsed:item.samples?.length??item.t10?.samples?.length??null,
@@ -253,11 +256,13 @@ output.id='op16-action-result';cards.get('main')?.block?.append(output);
 function focusGuard(){
  const ids=['workbench','research7e','imaging7f','field-lab','outpost','asset-manager','launch-dialog'];
  let previous=null;
+ let launcher=null;
+ document.addEventListener('pointerdown',e=>{const b=e.target?.closest?.('button');if(b&&!ids.some(id=>$(id)?.contains(b)))launcher=b;},true);
  const prev=new Map();
  const observer=new MutationObserver(records=>{
   for(const r of records){
    const el=r.target,open=!el.hidden,was=prev.get(el);prev.set(el,open);
-   if(open&&was===false){previous=document.activeElement;const c=el.querySelector('input:not([disabled]),select:not([disabled]),button:not([disabled])');
+   if(open&&was===false){previous=launcher?.isConnected?launcher:document.activeElement;const c=el.querySelector('input:not([disabled]),select:not([disabled]),button:not([disabled])');
     if(c&&!el.contains(document.activeElement))c.focus({preventScroll:true});
    }
    if(!open&&was===true&&!ids.some(id=>$(id)&&!$(id).hidden)){
