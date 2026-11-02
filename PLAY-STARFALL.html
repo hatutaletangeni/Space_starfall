@@ -2185,8 +2185,8 @@ function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive
   r.batteryJ=Math.max(0,r.batteryJ-e);g.totalEnergyJ+=e;
   // Passive thermal relaxation is bounded, autonomous computer draws real Joules.
   g.temperatureK=clamp((Number.isFinite(g.temperatureK)?g.temperatureK:290)+elapsed*((r.status==='running'?.38:-.09)),205,400);
-  if(g.temperatureK>365){T.fault(r,time,'Rover controller overheated · passive cooling required');return g;}
-  if(r.batteryJ<g.safeReserveJ&&r.status==='running'){T.fault(r,time,'Power reserve reached; rover hibernated');return g;}
+  if(g.temperatureK>365){T.fault(r,time,'Rover controller overheated · passive cooling required');event(g,time,'THERMAL','Controller thermal hard limit; resume only after safe cool-down');return g;}
+  if(r.batteryJ<g.safeReserveJ&&r.status==='running'){T.fault(r,time,'Power reserve reached; rover hibernated');event(g,time,'POWER','Reserve reached: local motion and science halted, awaiting physical charge');return g;}
  }
  useLink(g,time,link);if(!transportActive)deliver(r,g,time,link);const received=transportActive?[]:downlink(r,g,time,link);if(received.length&&onReceive)for(const obs of received)onReceive(obs,r);
  if(r.status!=='running'||!r.commands.length||elapsed<=0)return g;
