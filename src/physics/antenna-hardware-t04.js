@@ -16,6 +16,8 @@ function repair(raw){
   boresightLocal:normalized(o.boresightLocal),targetId:typeof o.targetId==='string'?o.targetId.slice(0,160):'',
   radioEnabled:o.radioEnabled!==false,
   bufferCapacityBytes:TOWER_BUFFER_BYTES,
+  inbox:Array.isArray(o.inbox)?o.inbox.filter(v=>v&&typeof v.packetId==='string'&&typeof v.observationId==='string'&&typeof v.sourceId==='string'&&Number.isSafeInteger(v.bytes)&&v.bytes>0&&v.bytes<=TOWER_BUFFER_BYTES&&num(v.receivedAtS))
+   .slice(-80).reduce((arr,v)=>{if(!arr.some(x=>x.packetId===v.packetId)&&arr.reduce((n,x)=>n+x.bytes,0)+v.bytes<=TOWER_BUFFER_BYTES)arr.push({packetId:v.packetId,observationId:v.observationId,sourceId:v.sourceId,bytes:v.bytes,receivedAtS:v.receivedAtS});return arr;},[]):[],
   // Last contact is telemetry, not radio delivery authority; packets are T03-owned.
   lastContactS:num(o.lastContactS)&&o.lastContactS>=0?o.lastContactS:null,
   lastPeerId:typeof o.lastPeerId==='string'?o.lastPeerId.slice(0,160):'',
@@ -112,7 +114,7 @@ function bufferLoad(packets,nodeId){
 }
 function diagnostics(item,body,report,packets,rotate,timeS){
  const stationNode=station(item,body,report,rotate);if(!stationNode)return null;
- const backlog=bufferLoad(packets,stationNode.id),records=packets.filter(p=>p.route?.includes(item.id)).slice(-25);
+ const backlog=bufferLoad(packets,stationNode.id)+repair(item.radioT04).inbox.reduce((n,x)=>n+x.bytes,0),records=packets.filter(p=>p.route?.includes(item.id)).slice(-25);
  const c=stationNode.config;
  return{id:item.id,bodyId:item.bodyId,mode:c.mode,targetId:c.targetId,enabled:item.enabled!==false,
   radioEnabled:c.radioEnabled,powered:stationNode.powered,busId:stationNode.busId,
@@ -125,7 +127,7 @@ function diagnostics(item,body,report,packets,rotate,timeS){
   lastContactS:c.lastContactS,lastPeerId:c.lastPeerId,
   lastSimulatedS:report?.simulatedAtS??timeS,
   fault:stationNode.reason|| (backlog>TOWER_BUFFER_BYTES?'RELAY_BUFFER_FULL':''),
-  queuedPacketIds:records.map(p=>p.id)};
+  queuedPacketIds:records.map(p=>p.id),receivedReferenceIds:c.inbox.map(x=>x.observationId)};
 }
 const API={SCHEMA,BASE_W,TRACK_W,TOWER_BUFFER_BYTES,RELAY_BUFFER_BYTES,MAX_HOPS,repair,configure,loadW,station,position,gain,link,candidates,bufferLoad,diagnostics};
 root.StarfallAntennaT04=API;
