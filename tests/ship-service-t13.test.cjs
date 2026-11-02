@@ -68,5 +68,14 @@ assert(recharge.transfer.deliveredJ>0);
 assert.equal(recharge.transfer.fromEnergyJ+recharge.transfer.drawnJ,source.energyJ);
 assert.equal(recharge.transfer.toEnergyJ-ship.state.energyJ,recharge.transfer.deliveredJ);
 assert(recharge.transfer.lossJ>0);
+const deadShip={...ship,state:{...ship.state,energyJ:0}};
+const revived=S.cycle({state:shore,ship:deadShip,shipLocal:at(0),body,target:battery,timeS:260,report:null,source});
+assert(revived.transfer.deliveredJ>0&&revived.transfer.toEnergyJ>0,
+ 'Live external 48V battery can restore a truly depleted spacecraft without inventing charge');
+assert.equal(revived.transfer.drawnJ+revived.transfer.fromEnergyJ,source.energyJ);
+assert.throws(()=>S.cycle({state:shore,ship:deadShip,shipLocal:at(0),body,
+ target:{...battery,powered:false},timeS:260,report:null,source}),/live wired/,
+ 'An unpowered/out-of-service shore battery must never recharge a dead spacecraft');
+
 assert.throws(()=>S.receiveRecord({state:shore,ship,shipLocal:at(0),body,target:battery,observation:obs,atS:201,report}),/not a rover/);
 console.log('PASS T13 pure ship model: legacy but non-free radio, served load guards, actual docking, range/velocity/planet interlocks, joule-conserving battery and shore, source-owned science receipts, duplicate/old-save recovery');
