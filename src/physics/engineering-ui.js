@@ -11,9 +11,24 @@ function refreshSystems(){const selected=$('systems-vehicle').value,v=Store.get(
  refreshShipT13();
  const parent=$('systems-loads');parent.replaceChildren();for(const name of ['avionics','radiator','drive','lights','instruments']){const l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.checked=st.loads[name]!==false;c.onchange=()=>{Store.setLoad(selected,name,c.checked);RT.persistVehicles();refreshSystems();};l.append(c,document.createTextNode(' '+name.toUpperCase()));parent.append(l);}
 }
+function liveT15(){
+ const x=RT.equipmentSnapshotT15(kind),lines=[
+ 'OWNER '+x.assetId+' · '+kind.toUpperCase()+' · installed '+x.components.length+' physical module slots',
+ 'BATTERY '+format(x.state.energyJ,0)+' / '+format(x.stats.batteryCapacityJ,0)+' J · dry '+format(x.stats.dryMassKg,0)+' kg',
+ 'GENERATION '+format(x.stats.maxSolarW+x.stats.generatorW,0)+' W (rated, generator fictional)',
+ 'DRIVE '+format(x.stats.driveTorqueNm,0)+' N·m · traction '+format(x.stats.traction,3)+' · SHIP THRUST '+format(x.stats.thrustN,0)+' N',
+ ...x.components.map(p=>p.slot.toUpperCase()+' / '+p.partId+' / '+p.status+' / '+p.reason+' / '+format(p.massKg,0)+' kg'+(p.powerW===null?'':' / '+format(p.powerW,0)+' W')),
+ 'LIVE FAULTS: '+(x.faults.map(f=>f.id+' '+f.severity+' / '+f.rootCause+' / '+f.service).join(' · ')||'none reported by modeled hull/power/thermal state'),
+ 'LATEST CHANGE: '+(x.serviceEvents.at(-1)?.id||'legacy / no T15 part changes'),
+ 'ROLLBACK: '+(x.backup?'Previous valid assembly available; does not refund burned electricity':'No prior applied assembly stored')
+ ];
+ $('wb-live-t15').textContent=lines.join('\n');
+ $('wb-restore-t15').disabled=!x.backup||!RT.safeToReconfigure(kind);
+}
 function edit(kindName='ship'){kind=kindName;draft=Store.get(kind).definition;history=[];$('wb-vehicle').value=kind;showDraft();}
 function saveHistory(){if(draft){history.push(M.clone(draft));if(history.length>20)history.shift();}}
 function showDraft(){const list=$('wb-slots'),box=$('wb-preview');list.replaceChildren();box.replaceChildren();status('');
+ liveT15();
  const spec=M.slots[kind];for(const [slot,type] of spec){const wrap=document.createElement('div');wrap.className='wb-slot';const label=document.createElement('label'),sel=document.createElement('select');const id='wb-slot-'+slot;label.htmlFor=id;label.textContent=slot.toUpperCase();sel.id=id;
   const options=Object.values(M.components).filter(c=>c.type===type&&((kind==='ship'&&!c.id.startsWith('rover-')&&!c.id.includes('-rover'))||(kind==='rover'&&(c.id.startsWith('rover-')||c.id.includes('-rover')||['wheels','suspension'].includes(c.type)))));
   // Type compatibility is mandatory; chassis/vehicle restrictions are checked by validator.
@@ -28,7 +43,9 @@ function showDraft(){const list=$('wb-slots'),box=$('wb-preview');list.replaceCh
  status(RT.safeToReconfigure(kind)?'Preview valid. Applying will update vehicle state atomically.':'Preview only. Land and park before applying.',true);
 }
 function download(name,data){const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),800);}
-function apply(){try{const result=RT.configureVehicle(kind,draft);status('APPLIED · Dry mass '+format(result.next.dryMassKg)+' kg; saved.',true);edit(kind);refreshSystems();}catch(e){status(e.message);}}
+function apply(){try{const result=RT.configureVehicle(kind,draft);
+ edit(kind);refreshSystems();status('T15 VERIFIED INSTALLED CHANGE '+result.serviceId+' · dry mass '+format(result.next.dryMassKg)+' kg; real capacity/torque/power updated.',true);
+ }catch(e){status(e.message);liveT15();}}
 let shipT13Message='';
 function shipMessage(text,failed=false){
  shipT13Message=(failed?'SERVICE DENIED: ':'SERVICE: ')+String(text);
@@ -103,6 +120,11 @@ $('wb-vehicle').onchange=e=>edit(e.target.value);
 $('wb-reset').onclick=()=>{saveHistory();draft=M.clone(M.presets[kind]);showDraft();};
 $('wb-undo').onclick=()=>{if(history.length){draft=history.pop();showDraft();}else status('Nothing to undo.');};
 $('wb-apply').onclick=apply;
+$('wb-refresh-t15').onclick=()=>liveT15();
+$('wb-restore-t15').onclick=()=>{try{const r=RT.restoreVehicleT15(kind);edit(kind);refreshSystems();
+ status('T15 PREVIOUS INSTALLED PARTS RESTORED '+r.serviceId+' · existing battery joules not replenished.',true);
+ }catch(e){status(e.message);liveT15();}};
+
 $('wb-save').onclick=()=>{if(M.validate(draft).length){status('Cannot save an invalid design.');return;}const saved=SF.load().engineeringDesigns||{};saved[kind]=M.clone(draft);SF.save({engineeringDesigns:saved});status('Design saved locally for '+kind+'.',true);};
 $('wb-load').onclick=()=>{const saved=SF.load().engineeringDesigns?.[kind];if(!saved){status('No saved design for '+kind+'.');return;}if(M.validate(saved).length){status('Saved design is invalid; no changes made.');return;}saveHistory();draft=M.clone(saved);showDraft();};
 $('wb-export').onclick=()=>{if(M.validate(draft).length){status('Cannot export an invalid assembly.');return;}download('starfall-'+kind+'-engineering-design.json',JSON.stringify({schema:'starfall-engineering-1',definition:draft,stats:M.evaluate(draft)},null,2));status('Design exported.',true);};
