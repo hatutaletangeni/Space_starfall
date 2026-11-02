@@ -24,6 +24,11 @@
 .op16-log-line[data-severity="warning"]{color:#f4d19b}
 .op16-card button:focus-visible,.op16-card select:focus-visible{outline:2px solid #8ddbf8;outline-offset:2px}
 #panel-body>.op16-card{margin-bottom:14px}
+#panel-body>.op16-card .op16-body{max-height:225px;overflow-y:auto;overscroll-behavior:contain}
+#panel-body>.op16-card .op16-log-rows{max-height:110px}
 #launch-dialog .op16-card,#outpost .op16-card,#imaging7f .op16-card,#asset-manager .op16-card,
 #field-lab .op16-card,#workbench .op16-card,#research7e .op16-card{font-size:12px}
 @media(max-width:640px){.op16-card{padding:8px}.op16-tools{gap:6px}.op16-body{grid-template-columns:1fr}.op16-tools button{width:100%}.op16-log-rows{max-height:125px}}
+
+#launch-emergency{border:1px solid #ed9a80!important;color:#ffdbcd!important;font-weight:800!important;letter-spacing:.05em}
+#launch-emergency:focus-visible{outline:3px solid #ffd5ae;outline-offset:3px}
