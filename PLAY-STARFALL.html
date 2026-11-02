@@ -262,6 +262,14 @@ body.ui20[data-sf-view=ship-cockpit] .panel:not(:hover):not(:focus-within),body.
 @media(max-width:650px){body.ui20 .masthead{top:10px;left:12px;right:12px}body.ui20 .wordmark{font-size:13px}body.ui20 .sf-head-actions{max-width:76%}body.ui20 .sf-head-actions>button{padding:0 9px}body.ui20 .identity{top:56px;left:15px;max-width:69vw}body.ui20 .identity h1{font-size:17px}body.ui20 .identity p{display:none}body.ui20 .status-strip{top:110px;left:15px;max-width:72vw;font-size:9px}body.ui20 .panel{left:auto;right:10px;bottom:98px;width:min(246px,63vw);max-height:25dvh;padding:10px 12px}body.ui20 .panel.collapsed{left:auto;right:10px;bottom:98px;width:185px}body.ui20 .panel:focus-within,body.ui20 .panel:hover{max-height:53dvh}body.ui20 .panel-title{top:-10px}body.ui20 .panel .planet-meta{display:grid}body.ui20 .panel .flight-line{display:flex}body.ui20 #ui-help-open{left:11px;bottom:12px}body.ui20 .telemetry{bottom:12px;gap:9px;padding:8px 10px;max-width:calc(100vw - 92px)}body.ui20 .tele span{font-size:8px}body.ui20 .tele b{font-size:10px}body.ui20 .tele:nth-child(4){display:none}body.ui20 .controls-hint{bottom:54px}body.ui20 .mobile-controls{bottom:calc(24dvh + 85px)}body.ui20 .reticle{top:42%}body.ui20 .waypoint-label{top:calc(42% + 27px)}body.ui20 #walk-context{bottom:78px!important;font-size:10px!important;max-width:70vw}}
 @media(prefers-reduced-motion:reduce){body.ui20 .panel{transition:none}}
 
+/* The responsive tools menu must have real text labels on touch, not mystery glyphs. */
+@media(min-width:981px){body.ui20 #ui-tools-toggle{display:none}}
+@media(max-width:980px){
+ body.ui20 #sf-quick-tools{flex-direction:column;align-items:stretch;min-width:205px;box-shadow:0 15px 45px #000a}
+ body.ui20 #sf-quick-tools>button{width:100%;height:39px;text-align:left;padding:0 12px;white-space:normal;font:600 11px system-ui!important;line-height:1.3!important}
+ body.ui20 #sf-quick-tools>button::before{display:none!important}
+}
+
 </style>
 </head>
 <body class="ui20">
