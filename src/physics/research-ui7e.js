@@ -81,8 +81,16 @@ $('research7e-apply-bp').onclick=()=>{try{const b=store.blueprints.find(x=>x.id=
  if(b.imported)throw Error('Imported blueprints require local revalidation before applying to a live vehicle');
  if(b.benchOnly)throw Error('This trial uses bench-only tuning. The stock vehicle controller has no compatible live gear/rocket parameter interface.');
  if(!b.definition)throw Error('This is a rocket test plan, not a live ship/rover assembly');
- const result=RT.configureVehicle(b.definition.kind,b.definition);
- RT.persistVehicles();status('Applied validated '+b.definition.kind+' design safely: '+fmt(result.next?.massKg)+' kg.',true);
+ if(b.sourceAssetId!==RT.vehicleStore.get(b.definition.kind).definition.id)
+  throw Error('T15 blueprint targets a different registered vehicle; do not overwrite unrelated assets');
+ const provenance={kind:'7E',imported:b.imported===true,benchOnly:b.benchOnly===true,
+  blueprintId:b.id,runId:b.sourceRunId,sourceAssetId:b.sourceAssetId,
+  sourceDefinitionFingerprint:root.StarfallEquipmentT15.fingerprint(b.definition),
+  observationRefs:b.observationRefs||[],photoRefs:b.photoRefs||[]};
+ const result=RT.configureVehicle(b.definition.kind,b.definition,provenance);
+ status('T15 verified LIVE machine change '+result.serviceId+' · original 7E run '+b.sourceRunId+
+  ' · readings '+(b.observationRefs||[]).length+' · photos '+(b.photoRefs||[]).length+
+  ' · mass '+fmt(result.next?.massKg)+' kg. No additional test claims.',true);
  }catch(e){status(e.message);}};
 renderInputs();render();
 root.StarfallResearchUI7E={open:()=>$('research7e-open').click(),store};
