@@ -319,7 +319,7 @@ function receive(p,at){
   if(r&&G.migrate(r).receivedIds.includes(p.ref.observationId))return true;
   if(!r||!o||!root.StarfallScienceUI?.ingestRover)return false;
   if(!receiveEnergy(p))return false;
-  root.StarfallScienceUI.ingestRover(o);
+  const accepted=root.StarfallScienceUI.ingestRover({...o,receivedAtS:at});if(accepted===false&&!(root.StarfallScienceUI.journal||[]).some(x=>x.id===o.id))return false;
   const g=G.migrate(r);if(!g.receivedIds.includes(o.id))g.receivedIds.push(o.id);
   g.queuedObservations=g.queuedObservations.filter(x=>x.id!==o.id);
   if(p.sourceId!==r.id){const station=root.StarfallOutpostUI?.store?.items.find(i=>i.id===p.sourceId&&i.kind==='antenna');
