@@ -81,7 +81,7 @@ with sync_playwright() as p:
         assert blocked['packet']['sendBytes']==0,blocked
         assert not blocked['route']['connected'],blocked
         # Put battery back and persist a currently queued packet.
-        page.evaluate("""()=>{
+        persisted=page.evaluate("""()=>{
           const rt=StarfallRuntime,v=rt.vehicleStore.get('ship');
           rt.vehicleStore.update('ship',{...v.state,energyJ:2000000});
           const at=StarfallMissionOperationsUI.clock.lastSimulatedS;
@@ -90,7 +90,12 @@ with sync_playwright() as p:
           StarfallMissionOperationsUI.persist();
           const old=SF.load().flightGalaxy||{};
           SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
+          const value=SF.load(),raw=JSON.parse(localStorage.getItem('starfall_save')||'{}');
+          return{packets:value.commsT03?.packets?.length||0,rovers:value.launch7?.rovers?.length||0,
+            diskPackets:raw.commsT03?.packets?.length||0,diskRovers:raw.launch7?.rovers?.length||0,
+            guard:sessionStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
         }""")
+        assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallLaunchUI)",timeout=30000)
         restored=page.evaluate("""()=>{
