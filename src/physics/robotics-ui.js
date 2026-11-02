@@ -70,5 +70,13 @@ function ingestOrbital(obs){if(!obs||obs.kind!=='orbital-observation'||!S.journa
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
 function ingestRover(obs){if(!obs||!obs.probeId||!obs.bodyId||!Array.isArray(obs.location)||!Number.isFinite(obs.value))return false;
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
-root.StarfallScienceUI={ingestRover,ingestOrbital,tick,open:()=>$('field-open').click(),get controller(){return controller;},get journal(){return journal.list();},get autoDriving(){return['MOVING','RETURNING'].includes(controller.state);},measure:collect,refresh:()=>refresh(true)};
+function ingestShip(obs){
+ if(!obs||obs.sourceAssetId!=='starfall-ship'||obs.kind!=='measurement'||
+  obs.instrument!=='thermometer'||obs.parameter!=='hullTemperatureK'||obs.unit!=='K'||
+  !Number.isFinite(obs.value)||!Number.isFinite(obs.timeS)||!Array.isArray(obs.location)||!obs.location.every(Number.isFinite))
+  return false;
+ if(!journal.add(obs))return false;
+ dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;
+}
+root.StarfallScienceUI={ingestRover,ingestOrbital,ingestShip,tick,open:()=>$('field-open').click(),get controller(){return controller;},get journal(){return journal.list();},get autoDriving(){return['MOVING','RETURNING'].includes(controller.state);},measure:collect,refresh:()=>refresh(true)};
 })(globalThis);
