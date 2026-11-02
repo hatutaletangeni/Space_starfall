@@ -57,7 +57,7 @@ assert(charge.deliveredJ>0&&charge.drawnJ>charge.deliveredJ&&charge.lossJ>0);
 assert.equal(charge.fromEnergyJ+charge.drawnJ,chargedSource.energyJ,'battery debit is exact');
 assert.equal(charge.toEnergyJ-opts.targetEnergyJ,charge.deliveredJ,'recipient credit is exact');
 assert(Math.abs(charge.drawnJ-charge.deliveredJ-charge.lossJ)<1e-7,'no joules created');
-assert.throws(()=>S.transfer({...opts,targetBodyId:'planet-B'}),/same world/);
+assert.throws(()=>S.transfer({...opts,targetBodyId:'planet-B'}),/share one world/);
 assert.throws(()=>S.transfer({...opts,sourcePowered:false}),/live enabled/);
 assert.throws(()=>S.transfer({...opts,targetLocal:local(500)}),/physical range/);
 assert.throws(()=>S.transfer({...opts,readyAtS:200}),/cooling down/);
