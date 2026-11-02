@@ -74,3 +74,11 @@ jobs:
           path: artifacts/7f-expedition-ci/
           if-no-files-found: ignore
           retention-days: 14
+      - name: Upload real remote-camera WebGL readback for visual QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-t05-remote-camera-actual-webgl
+          path: artifacts/t05-camera-evidence/
+          if-no-files-found: ignore
+          retention-days: 14
