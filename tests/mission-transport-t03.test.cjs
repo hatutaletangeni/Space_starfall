@@ -59,4 +59,9 @@ const energy=mk(),charges=[];energy.queue(meta('charged','TELEMETRY',1024));driv
 assert(charges.reduce((s,v)=>s+v,0)>0);
 assert(Math.abs(charges.reduce((s,v)=>s+v,0)-energy.get('charged').energyJ)<1e-7);
 assert.equal(energy.advanceTo(86400+1000,route).status,'AWAITING_REVIEW');
+const ahead=mk();ahead.queue(meta('clock-skew','TELEMETRY',512));drive(ahead,20);
+const frozen=mk(ahead.serialize(),0);
+assert.equal(frozen.get('clock-skew').id,'clock-skew','persisted radio packet must survive flight clock lag');
+assert.deepEqual(frozen.receipts,ahead.receipts,'clock-skew never deletes receipt ledger');
+assert.equal(frozen.advanceTo(5,route).status,'CLOCK_REWOUND','freeze until flight catches up; no time travel');
 console.log('PASS T03: priority STOP, fair shared byte budget, 1KiB/1MiB delay, blackout pause, resume/reload equivalence, ACK exactly once, seed isolation, no embedded image, energy costs');
