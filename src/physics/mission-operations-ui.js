@@ -44,7 +44,7 @@ function orbitalReceipt(obs,s){if(!obs?.id)return;
  if(root.StarfallScienceUI?.ingestOrbital?.(obs))root.StarfallSurveyUI?.recordOrbitalFootprint?.(obs);
  eventOnce('OBSERVATION_RECEIVED','t01-satellite-observation:'+obs.id,clock.lastSimulatedS,s.id,{observationId:obs.id});}
 function stepSource(start,end,seconds){
- const ops=root.StarfallOutpostUI;
+ const ops=root.StarfallOutpostUI,comms=root.StarfallCommsT03;
  // Source records are the only writable physics state. On a per-asset model
  // exception preserve that asset's previous state, report a fault, and keep
  // all other assets independent. No remote job is magically completed.
@@ -57,11 +57,12 @@ function stepSource(start,end,seconds){
    G.tick(r,end,{body,seed,science:F,unitScale:P.SCENE_METERS_PER_UNIT,
     height:(local,b)=>root.Starfall3D.groundHeight(local,b),
     link:root.StarfallLaunchUI.remoteLink(r,end),
+    transportActive:!!comms,
     onReceive:obs=>arrived.push(obs)});
    if(before.status!==r.status)eventOnce('ASSET_EVENT','t01-rover:'+r.id+':'+Math.round(end*100),end,r.id,{from:before.status,to:r.status});
    if((r.ground7d?.pending?.length||0)<(before.ground7d?.pending?.length||0))
     eventOnce('COMMAND_DELIVERED','t01-command:'+r.id+':'+Math.round(end*100),end,r.id);
-   for(const obs of arrived)scienceReceipt(obs,r);
+   if(!comms)for(const obs of arrived)scienceReceipt(obs,r);
    if(finite(before.batteryJ)&&finite(r.batteryJ)&&before.batteryJ!==r.batteryJ)lastKnownEnergy.set(r.id,r.batteryJ);
   }catch(error){
    for(const k of Object.keys(r))delete r[k];Object.assign(r,before);
@@ -79,7 +80,7 @@ function stepSource(start,end,seconds){
    S.step(s,body,star,end,P.SCENE_METERS_PER_UNIT,L.orbit);
    // This is a truthful saved numeric downlink, never a fabricated Camera 7F
    // image. If journal owner is unavailable, hold in-transit data in 7C.
-   if(root.StarfallScienceUI?.ingestOrbital)for(const obs of S.receive(s,end))orbitalReceipt(obs,s);
+   if(!comms&&root.StarfallScienceUI?.ingestOrbital)for(const obs of S.receive(s,end))orbitalReceipt(obs,s);
    if(before.ops7c?.enabled!==s.ops7c?.enabled)
     eventOnce('POWER_STATE_CHANGED','t01-power:'+s.id+':'+Math.round(end*100),end,s.id,{enabled:s.ops7c?.enabled});
    if(s.ops7c.energyJ!==before.ops7c?.energyJ)lastKnownEnergy.set(s.id,s.ops7c.energyJ);
@@ -89,6 +90,7 @@ function stepSource(start,end,seconds){
   }
  }
  if(ops?.advancePowerTo){try{ops.advancePowerTo(end,(asset,t)=>resolveBody(asset,t));}catch(e){failure('outpost-grid',String(e.message||e),end);}}
+ if(comms){comms.poll(end);const report=comms.advanceTo(end);if(report.status==='AWAITING_REVIEW')failure('radio-backlog',report.reason,end);}
 }
 // Register owner function only: the scheduler never invents received images, radio
 // routes or physical science results. T03/T05 will add truthful job handlers.
