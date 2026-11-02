@@ -82,4 +82,7 @@ assert.throws(()=>S.maintain({service:old,slot:'motor',atS:300,truckEnergyJ:2e6,
 const wreck={...rover,id:'wreck',roverT06:{state:'FAULT',fault:'motor fault',landing:{safe:false}}};
 assert.throws(()=>S.maintain({service:old,slot:'motor',atS:400,truckEnergyJ:2e6,installedId:installed,rover:wreck}),/destroyed/);
 assert.equal(S.createService().conditions.wheels,1,'old saves migrate to healthy, not phantom faults');
+const oldHistory=Array.from({length:215},(_,n)=>({id:'old-history-'+n,slot:'motor',atS:n}));
+assert.equal(S.createService({records:oldHistory}).records.length,215,'never silently discard historical service records on load');
+assert.throws(()=>S.maintain({service:{records:oldHistory,conditions:{motor:.2}},slot:'motor',atS:400,truckEnergyJ:2e6,installedId:installed}),/ledger full/);
 console.log('PASS T12 bounded recover/cancel/persist/terrain/energy; powered port loss and range, component repair and health migration');
