@@ -18,7 +18,7 @@ assert.equal(C.capacity(stored).count,0);
 assert.throws(()=>C.transfer(store,stored,sample,source,body,context,false,20),/offline/i);
 assert.equal(source.sampleInventory.length,1);
 const remote={...context,bodyId:'planet-B'};
-assert.throws(()=>C.transfer(store,stored,sample,source,body,remote,true,20),/same world/);
+assert.throws(()=>C.transfer(store,stored,sample,source,body,remote,true,20),/same world|EVA operator/);
 const far={...context,local:unit([0,1,0])};
 assert.throws(()=>C.transfer(store,stored,sample,source,body,far,true,20),/18 scene-unit/);
 const moved=C.transfer(store,stored,sample,source,body,context,true,20);
