@@ -163,7 +163,7 @@ with sync_playwright() as p:
             storedOutpost:SF.load().outpost5?.items?.length||0,storedRadio:SF.load().outpost5?.items?.find(x=>x.id===id)?.radioT04||null,
             runtimeItems:StarfallOutpostUI.store.items.length,bodyId:StarfallRuntime.nearest?.id,storedComms:SF.load().commsT03?.packets?.length||0};
         }""",setup['tower'])
-        assert after['radio']?.get('mode')=='omni' and after['linked'] and after['receipt']==1,after
+        assert after['radio'] is not None and after['radio'].get('mode')=='omni' and after['linked'] and after['receipt']==1,after
         assert not failures,failures
         print('PASS T04 real file:// Chromium: genuine wired powered antenna, 2-hop LOS, fixed-pointing loss, 35W tracking, radio-off outage, tower custody during ship blackout, forwarded science once, saved radio/reload')
     finally:
