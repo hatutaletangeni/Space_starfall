@@ -1,0 +1,29 @@
+name: T03 temporary standalone synchronization
+on:
+  push:
+    branches: [feature/t03-mission-comms-protocol]
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build offline single file from real sources
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Commit only if standalone changed
+        run: |
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PLAY-STARFALL.html
+            git commit -m "build(t03): synchronize standalone with packet transport source"
+            git push origin HEAD:feature/t03-mission-comms-protocol
+          fi
