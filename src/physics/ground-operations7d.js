@@ -30,18 +30,18 @@ function acceptPacket(r,program,time,packetId){
  r.commands=program.map(x=>({...x}));r.index=0;r.remaining=0;
  g.remainingM=0;g.remainingS=0;r.status=program.length?'running':'parked';g.mode=program.length?'DRIVING':'IDLE';
  if(hw)hw.state=program.length?'TRAVERSING':'READY';
- g.acceptedPackets.push(packetId);if(g.acceptedPackets.length>500)g.acceptedPackets=g.acceptedPackets.slice(-500);
+ g.acceptedPackets.push(packetId);
  event(g,time,'UPLINK','Packet '+packetId+' accepted by powered rover transceiver');
  return true;
 }
 function useLink(g,time,link){g.lastLink={atS:time,connected:!!link?.connected,reason:link?.reason||'No receiver',delayS:Math.max(0,Number(link?.delayS)||0)};return g.lastLink;}
 function deliver(r,g,time,link){for(const q of g.pending){if(q.status==='AWAITING_LINK'&&link?.connected){q.status='IN_TRANSIT';q.deliverAtS=time+Math.max(.001,Number(link.delayS)||0);}
   if(q.status==='IN_TRANSIT'&&q.deliverAtS<=time){q.status='DELIVERED';r.commands=q.commands.map(x=>({...x}));r.index=0;r.remaining=0;g.remainingM=0;g.remainingS=0;r.status=q.commands.length?'running':'parked';g.mode=q.commands.length?'DRIVING':'IDLE';event(g,time,'UPLINK','Onboard program accepted');}}
- g.pending=g.pending.filter(q=>q.status!=='DELIVERED').slice(-MAXQUEUE);}
+ g.pending=g.pending.filter(q=>q.status!=='DELIVERED');}
 function downlink(r,g,time,link){if(!link?.connected)return[];
  const seen=new Set(g.receivedIds),received=[];let n=0;
  while(g.queuedObservations.length&&n++<4){const record=g.queuedObservations.shift();if(!seen.has(record.id)){seen.add(record.id);received.push(record);}}
- if(received.length){g.receivedIds=[...seen].slice(-160);event(g,time,'DOWNLINK','Received '+received.length+' rover measurements');}return received;}
+ if(received.length){g.receivedIds=[...seen];event(g,time,'DOWNLINK','Received '+received.length+' rover measurements');}return received;}
 /* Physically bounded next step in metres, using same six-contact traction solver as the local rover. */
 function terrainStep(r,body,distanceM,height,unitScale=1000){const G=root.StarfallRoverDynamics;if(!G?.sixWheels)throw Error('Rover traction model unavailable');if(!body||!Number.isFinite(body.radius)||body.radius<=0)throw Error('Destination terrain body unavailable');if(typeof height!=='function')throw Error('Planetary terrain samples unavailable');
  const radiusM=body.radius*unitScale,next=advance(r.local,distanceM,r.heading,radiusM),heights=local=>{const h=height(local,body);if(!Number.isFinite(h))throw Error('Non-finite fixed terrain sample');return h*unitScale;};
