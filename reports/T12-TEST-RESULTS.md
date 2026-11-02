@@ -21,3 +21,8 @@
 - Real browser smoke: `tests/field-service-t12-browser.py`, plus all prior T01–T11 scripts in `.github/workflows/engineering-ci.yml`.
 
 **Decision:** candidate only pending current source and standalone regression, human-driven mission and GPU validation. Keep `main` unchanged until requested and review-ready.
+
+## Final source and bundle checkpoint
+
+- Rebuilt exact T12 source+standalone bundle workflow: [run 41514418575](https://github.com/hatutaletangeni/Space_starfall/actions/runs/41514418575) **PASS**.
+- Following human-authored verification commit triggers the engineering gate against the generated artifact. The gate result remains pending until GitHub Actions finishes; the software-GPU mission is not a claim of hardware playtesting.
