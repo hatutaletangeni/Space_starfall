@@ -20,7 +20,7 @@ class Renderer{
  dispose(){disposed++;}
 }
 const global={Starfall3D:{Renderer,groundHeight:()=>0,V:{len:x=>Math.hypot(...x),sub:(a,b)=>a.map((x,i)=>x-b[i]),
- add:(a,b)=>a.map((x,i)=>x+b[i]),mul:(a,v)=>a.map(x=>x*v)}},
+ add:(a,b)=>a.map((x,i)=>x+b[i]),mul:(a,v)=>a.map(x=>x*v),norm:x=>{const n=Math.hypot(...x);return n>0?x.map(v=>v/n):[0,1,0];},rot:x=>x}},
  StarfallRuntime:{galaxy},StarfallMissionOperationsUI:{resolveBody:(asset,time)=>asset.bodySnapshot},
  StarfallOutpostUI:{store:{items:[]}},StarfallOutposts:{rotate:v=>v},
  StarfallLaunchUI:{store:{rovers:[]}},SF:{load:()=>({})},
