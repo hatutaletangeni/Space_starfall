@@ -185,13 +185,20 @@ function receive(p,at){
  }
  if(p.type==='IMAGE_REF'){
   const store=root.StarfallImagingUI7F?.store;if(!store||!store.get(p.ref.photoId))return false;
-  store.applyTransportProgress(p.ref.photoId,p.encodedBytes,p.encodedBytes,at);
+  // Bytes are received, but the original gallery unlocks only after durable ACK.
   return true;
  }
  return false;
 }
 function advanceTo(at){
  const out=transport.advanceTo(at,routeFor,receive,energy);
+ const gallery=root.StarfallImagingUI7F?.store;
+ if(gallery)for(const p of transport.packets){
+  if(p.type!=='IMAGE_REF')continue;
+  const picture=gallery.get(p.ref.photoId);if(!picture||picture.status==='downlinked')continue;
+  if(p.state==='ACKED')gallery.applyTransportProgress(p.ref.photoId,p.bytes,p.bytes,at);
+  else if(p.sendBytes>0)gallery.applyTransportProgress(p.ref.photoId,Math.max(0,p.sendBytes-96),p.bytes);
+ }
  if(dirty||out.steps){dirty=true;const now=performance.now();if(now-stamp>3000){persist();stamp=now;}}
  return out;
 }
