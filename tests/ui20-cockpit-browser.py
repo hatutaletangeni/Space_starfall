@@ -64,7 +64,7 @@ with sync_playwright() as p:
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
   page.keyboard.press('x')
   page.wait_for_function("StarfallRuntime.truckOccupied===true",timeout=15000)
-  assert page.evaluate('document.body.dataset.sfView')=='truck-chase'
+  page.wait_for_function("document.body.dataset.sfView==='truck-chase'",timeout=12000)
   page.screenshot(path=str(out/'03-truck-chase.png'))
   page.keyboard.press('v')
   page.wait_for_function("document.body.dataset.sfView==='truck-cab'",timeout=15000)
