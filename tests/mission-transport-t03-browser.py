@@ -31,12 +31,17 @@ with sync_playwright() as p:
         # tab boots; initialize the landed record before that tab's JS starts.
         snapshot=json.dumps(json.dumps(landed_save))
         context.add_init_script("(()=>{if(localStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");localStorage.setItem('t03-fixture-installed','1');})()")
+        boot_tab=page
         # A fresh tab reads the saved *landed* fixture; old tab stays open so
         # its pagehide handler cannot overwrite the fixture with orbit flight.
         page=context.new_page()
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallCommsT03)",timeout=30000)
+        # Close the old *unlanded* simulation before adding remote assets.
+        # Otherwise its own T01 autosaves race and overwrite the new tab's
+        # authoritative launch7 inventory during the long Chromium test.
+        boot_tab.close()
         setup=page.evaluate("""()=>{
           const rt=StarfallRuntime,UI=StarfallLaunchUI,O=StarfallOutposts,T=StarfallCommsT03,
             body=rt.nearest,ship=rt.engineeringAssetPoses().shipPose;
