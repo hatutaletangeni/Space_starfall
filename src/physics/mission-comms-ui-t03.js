@@ -83,7 +83,58 @@ function hop(a,b,body){
  if(!h.connected)return null;
  return{connected:true,delayS:Math.max(.001,h.delayS),bandwidthBps:Math.min(a.bandwidthBps,b.bandwidthBps),quality:h.quality,txPowerW:a.txPowerW};
 }
+// T08 extends the existing T03/T04 route resolver, not the packet ledger.
+function crossRoute(packet,at){
+ const deep=root.StarfallDeepSpaceT08,hw=root.StarfallAntennaT04,ui=root.StarfallOutpostUI;
+ if(!deep||!hw||!ui)return null;
+ const ctx=RT.outpostContext(),shipBodyId=ctx?.landed?ctx.bodyId:null;
+ const ownerBody=id=>id==='starfall-ship'?shipBodyId:
+  id===localRoverId()?RT.roverAutonomyPosition?.()?.bodyId:
+  rover(id)?.bodyId||sat(id)?.bodyId||ui.store.items.find(x=>x.id===id)?.bodyId||null;
+ const from=ownerBody(packet.sourceId),to=ownerBody(packet.destId);
+ if(!from||!to||from===to)return null;
+ const cache=new Map(),bodyAt=(id,t)=>{
+  const key=id+':'+Math.round(t*1000)/1000;
+  if(cache.has(key))return cache.get(key);
+   const snapshot=ui.store.items.find(x=>x.bodyId===id&&x.bodySnapshot)||
+   UI.store.rovers.find(x=>x.bodyId===id&&x.bodySnapshot)||
+   UI.store.satellites.find(x=>x.bodyId===id&&x.bodySnapshot)||
+   id;
+  const b=calcBody(typeof snapshot==='string'?id:id===snapshot.bodyId?snapshot:id,t);
+  cache.set(key,b);return b;
+ };
+ const nodes=[];
+ for(const item of ui.store.items.filter(x=>x.kind==='antenna')){
+  const body=bodyAt(item.bodyId,at);if(!body?.position)continue;
+  const st=deep.station(item,body,ui.powerReports.get(body.id),O.rotate);
+  if(st?.powered)nodes.push(st);
+ }
+ for(const v of UI.store.satellites){
+  const body=bodyAt(v.bodyId,at);if(!body?.position)continue;
+  const sn=satelliteNode(v,body,at);if(sn)nodes.push(sn);
+ }
+ const resolve=(id,bodyId)=>{
+  const b=bodyAt(bodyId,at);if(!b?.position)return null;
+  if(id==='starfall-ship')return shipNode(b,at);
+  if(id===localRoverId())return localRoverNode(b);
+  const r=rover(id);if(r)return roverNode(r,b);
+  const satellite=sat(id);if(satellite)return satelliteNode(satellite,b,at);
+  const tower=nodes.find(n=>n.id===id);if(tower)return tower;
+  return labNode(ui.store.items.find(x=>x.id===id),b,nodes.filter(n=>n.bodyId===b.id&&n.kind==='wired-radio'));
+ };
+ const source=resolve(packet.sourceId,from),dest=resolve(packet.destId,to);
+ if(!source||!dest)return{connected:false,reason:'T08 endpoint offline: ship must be physically landed/powered; rover and station must be deployed and supplied'};
+ const occluders=[...RT.galaxy.byId.values()].filter(x=>x?.kind!=='star'&&x?.radius>0&&Array.isArray(x.position))
+  .filter(x=>x.id!==from&&x.id!==to).slice(0,35).map(x=>({position:x.position,radius:x.radius,id:x.id}));
+ const plan=deep.plan({packet:{...packet,occluders},time:at,source,destination:dest,
+  localNodes:nodes,allStations:nodes.filter(x=>x.kind==='wired-radio'),bodyAt,
+  localLink:(a,b,body)=>hw.link(a,b,body,O.radioLink,O.rotate,P.SCENE_METERS_PER_UNIT),
+  unit:P.SCENE_METERS_PER_UNIT,
+  bufferLoad:id=>hw.bufferLoad(transport.packets,id)});
+ return plan;
+}
 function routeFor(packet,at,phase='send'){
+ const cross=crossRoute(packet,at);if(cross)return cross;
  const body=calcBody(packet.bodyId,at);
  if(!body?.position||!finite(body.radius))return{connected:false,reason:'Destination ephemeris is not loaded/cached; no invented radio route'};
  const current=shipNode(body,at),towers=towerNodes(body),hw=root.StarfallAntennaT04;
@@ -147,10 +198,12 @@ function energy(packet,j){
  if(s){const o=S.ensure(s);if(o.energyJ<j+150)return false;o.energyJ-=j;s.powerJ=o.energyJ;return true;}
  // Powered antenna already draws T02's modeled 165 W operating load. A later
  // T04 dynamic load model must split TX amplifier demand; never double-debit.
- return !!root.StarfallOutpostUI?.powerReports?.get(packet.bodyId)?.byId?.[packet.sourceId]?.power;
+ return !!root.StarfallOutpostUI?.powerReports?.get(root.StarfallOutpostUI?.store?.items.find(x=>x.id===packet.sourceId)?.bodyId||packet.bodyId)?.byId?.[packet.sourceId]?.power;
 }
-function queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS=RT.time}){
- const packet=transport.queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS});dirty=true;return packet;
+function queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS=RT.time,ttlS}){
+ // Deep-space missions may wait for multiple orbital contacts or long light time.
+ const shipBody=RT.outpostContext()?.bodyId,remote=(sourceId==='starfall-ship'||destId==='starfall-ship')&&shipBody&&shipBody!==bodyId;
+ const packet=transport.queue({id:pid,type,sourceId,destId,bodyId,systemId,bytes,ref,createdS,ttlS:ttlS??(remote?3.154e9:86400)});dirty=true;return packet;
 }
 function command(r,script,time=RT.time,isStop=false){
  if(!r)throw Error('Select an actual deployed rover');
