@@ -175,9 +175,22 @@ function photo(p){if(!p)return null;
 function observations(at){
  for(const r of UI.store.rovers){
   for(const o of r.ground7d?.queuedObservations||[]){
-   queue({id:'comms-obs-'+o.id,type:'ROVER_OBSERVATION',sourceId:r.id,destId:'starfall-ship',
-    bodyId:r.bodyId,systemId:r.systemId,bytes:Math.max(180,Math.ceil(JSON.stringify(o).length)),
-    ref:{observationId:o.id},createdS:Math.max(0,o.timeS||at)});
+   const id='comms-obs-'+o.id;
+   if(transport.get(id))continue; // the original command/data owner retains packet ID through blackout.
+   const bytes=Math.max(180,Math.ceil(JSON.stringify(o).length));
+   const direct=routeFor({sourceId:r.id,destId:'starfall-ship',bodyId:r.bodyId,systemId:r.systemId,encodedBytes:bytes+96},at);
+   let dest='starfall-ship';
+   if(!direct.connected&&root.StarfallAntennaT04){
+    const body=calcBody(r.bodyId,at);
+    if(body){const tower=towerNodes(body).find(x=>{
+     const radio=root.StarfallOutpostUI.store.items.find(i=>i.id===x.id);
+     const used=root.StarfallAntennaT04.repair(radio?.radioT04).inbox.reduce((n,v)=>n+v.bytes,0);
+     return used+bytes<=root.StarfallAntennaT04.TOWER_BUFFER_BYTES&&routeFor({sourceId:r.id,destId:x.id,bodyId:r.bodyId,systemId:r.systemId,encodedBytes:bytes+96},at).connected;
+    });if(tower)dest=tower.id;}
+   }
+   queue({id,type:'ROVER_OBSERVATION',sourceId:r.id,destId:dest,
+    bodyId:r.bodyId,systemId:r.systemId,bytes,
+    ref:{observationId:o.id,originSourceId:r.id},createdS:Math.max(0,o.timeS||at)});
   }
  }
 }
@@ -228,13 +241,34 @@ function receive(p,at){
   if(job.deliveredS===null)store.markDelivered(job.id,at);return true;
  }
  if(p.type==='ROVER_OBSERVATION'){
-  const r=rover(p.sourceId),o=r?.ground7d?.queuedObservations?.find(x=>x.id===p.ref.observationId);
+  const tower=root.StarfallOutpostUI?.store?.items.find(i=>i.id===p.destId&&i.kind==='antenna');
+  if(tower&&root.StarfallAntennaT04){
+   if(!root.StarfallOutpostUI.powerReports.get(tower.bodyId)?.byId?.[tower.id]?.power)return false;
+   const config=root.StarfallAntennaT04.repair(tower.radioT04),bufferUsed=config.inbox.reduce((n,x)=>n+x.bytes,0);
+   if(config.inbox.some(x=>x.packetId===p.id))return true;
+   if(bufferUsed+p.encodedBytes>root.StarfallAntennaT04.TOWER_BUFFER_BYTES)return false;
+   if(!receiveEnergy(p))return false;
+   config.inbox.push({packetId:p.id,observationId:p.ref.observationId,sourceId:p.ref.originSourceId||p.sourceId,
+     bytes:p.encodedBytes,receivedAtS:at});
+   config.lastContactS=at;config.lastPeerId=p.sourceId;
+   tower.radioT04=config;
+   // Custody moves to the real tower. The original rover.records[] still
+   // owns evidence bytes; no science journal receipt exists until forward ACK.
+   const r=rover(p.sourceId);
+   if(r?.ground7d)r.ground7d.queuedObservations=r.ground7d.queuedObservations.filter(x=>x.id!==p.ref.observationId);
+   return true;
+  }
+  const r=rover(p.ref.originSourceId||p.sourceId),o=r?.ground7d?.queuedObservations?.find(x=>x.id===p.ref.observationId)||r?.records?.find(x=>x.id===p.ref.observationId);
   if(r&&G.migrate(r).receivedIds.includes(p.ref.observationId))return true;
   if(!r||!o||!root.StarfallScienceUI?.ingestRover)return false;
   if(!receiveEnergy(p))return false;
   root.StarfallScienceUI.ingestRover(o);
   const g=G.migrate(r);if(!g.receivedIds.includes(o.id))g.receivedIds.push(o.id);
-  g.queuedObservations=g.queuedObservations.filter(x=>x.id!==o.id);return true;
+  g.queuedObservations=g.queuedObservations.filter(x=>x.id!==o.id);
+  if(p.sourceId!==r.id){const station=root.StarfallOutpostUI?.store?.items.find(i=>i.id===p.sourceId&&i.kind==='antenna');
+   if(station&&root.StarfallAntennaT04){const state=root.StarfallAntennaT04.repair(station.radioT04);
+    state.inbox=state.inbox.filter(x=>x.observationId!==o.id);state.lastContactS=at;state.lastPeerId=p.destId;station.radioT04=state;}}
+  return true;
  }
  if(p.type==='SATELLITE_OBSERVATION'){
   const s=sat(p.sourceId),o=s&&S.ensure(s),obs=o?.storage.find(x=>x.id===p.ref.observationId)||o?.inTransit.find(x=>x.id===p.ref.observationId);
@@ -268,6 +302,19 @@ function advanceTo(at){
 }
 function poll(at){
  observations(at);imagingScan(at);
+ // Store-and-forward tower custody: referenced rover records remain with their
+ // original rover owner until the actual downstream ship receives and ACKs.
+ for(const tower of root.StarfallOutpostUI?.store?.items||[]){
+  if(tower.kind!=='antenna'||!root.StarfallAntennaT04)continue;
+  for(const row of root.StarfallAntennaT04.repair(tower.radioT04).inbox){
+   const id='comms-forward-'+row.packetId;
+   if(transport.get(id))continue;
+   queue({id,type:'ROVER_OBSERVATION',sourceId:tower.id,destId:'starfall-ship',
+    bodyId:tower.bodyId,systemId:tower.bodySnapshot?.systemId||calcBody(tower.bodyId,at)?.systemId||'unknown',
+    bytes:row.bytes,ref:{observationId:row.observationId,originSourceId:row.sourceId},
+    createdS:at});
+  }
+ }
  // Conservatively requeue old 7C in-transit observations through physical T03 routes.
  for(const s of UI.store.satellites){for(const old of S.ensure(s).inTransit)satelliteObservation(s,old,at);}
  // Preserve old saves with old pre-T03 uplink queue instead of silently losing it.
@@ -282,7 +329,10 @@ function poll(at){
  }
 }
 function persist(){
+ const outposts=root.StarfallOutpostUI?.store;
+ const savedOutpost=root.SF.load().outpost5||{};
  const result=root.SF.save({commsT03:{...transport.serialize(),serial},launch7:UI.store.serialize(),
+  ...(outposts?{outpost5:{...savedOutpost,...outposts.serialize()}}:{}),
   engineeringVehicles:RT.vehicleStore.serialize(),imaging7f:root.StarfallImagingUI7F?.store?.serialize()||root.SF.load().imaging7f||{}});
  if(result===false){lastWarning='Radio and source-owner state could not be saved atomically (browser storage quota).';return false;}
  dirty=false;lastWarning='';return true;
