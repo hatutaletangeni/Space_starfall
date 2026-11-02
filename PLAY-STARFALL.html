@@ -10321,6 +10321,15 @@ root.StarfallRFAnalyzerUI19={inspect,refresh:inspectOnly,selection};
  const $=id=>document.getElementById(id),panel=$('panel'),body=document.body;
  const consoleButton=$('ui-console-open'),toggle=$('panel-toggle'),help=$('ui-help-open'),tools=$('ui-tools-toggle');
  if(!panel||!consoleButton||!toggle||!help||!tools)return;
+ const toolTitles={
+  'asset-open':'Asset manager · all installed spacecraft and equipment',
+  'archive-t17-open':'Save and restore expedition',
+  'launch-open':'Rocket lab',
+  'controls-open':'Control settings and remapping',
+  'obs-open':'Observatory and astronomy',
+  'chart-open':'Open star chart to navigate'
+ };
+ for(const [id,label] of Object.entries(toolTitles)){const button=$(id);if(button)button.title=label;}
  const openPanel=()=>{
   if(panel.classList.contains('collapsed'))toggle.click();
   panel.classList.add('ui20-expanded');
