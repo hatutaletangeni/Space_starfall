@@ -19,6 +19,7 @@ function repair(raw){
   connectedAtS:valid(s.connectedAtS)?s.connectedAtS:0,
   readyAtS:valid(s.readyAtS)?s.readyAtS:0,
   connectorK:valid(s.connectorK)?clamp(s.connectorK,160,450):290,
+  observationSerial:valid(s.observationSerial)?Math.max(0,Math.floor(s.observationSerial)):0,
   history,receipts};
 }
 function installed(v,slot){const id=v?.definition?.slots?.[slot];return id&&root.StarfallVehicles?.components?.[id]?.type===(slot==='docking'?'docking':slot==='avionics'?'avionics':'instrument');}
