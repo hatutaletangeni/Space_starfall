@@ -1,3 +1,13 @@
+# STARFALL T17 — Lossless Legacy Save Recovery and Full Offline Expedition Backups (2026-11-02)
+
+- Added explicit **SAVE / RESTORE ▣** header panel for portable state-only expedition backups and complete state + genuine 7F IndexedDB image/thumbnail archives. Fully offline; no cloud, external services, or fake photos.
+- Import validates exact original source owner schema/galaxy seed, physical body-fixed positions, unique IDs, camera identity/bytes, outpost wire relationships, research source references, radio packet bytes, finite clocks, data scope and accidental-corruption checksums, then asks before replacing any saved game. Invalid/oversized/wrong-seed imports never change the current expedition.
+- Complete media imports decode each real image and verify dimensions, checkpoint original localStorage and IndexedDB, atomically replace image files and verify the original game save, then reload actual owners. If a normal import error occurs, restore previous source and media checkpoint; report any rollback failure rather than claiming complete safety. A browser kill between distinct databases is not ACID, so full ZIP/JSON external backup is recommended.
+- The original `SF.save()` now checks persistent readback and returns `false` on a denied/quota-limited localStorage; preserves optional best-effort session memory and shows a persistent **SAVE FAILED / NONPERSISTENT** gameplay alert instead of silently pretending the expedition was saved.
+- Fixed historical restore truncations for 7F image metadata and camera jobs, 7E plans/runs/blueprints, Outpost structures/wires/relays/samples, T03 radio packets/exactly-once receipts, T01 jobs/events/receipts, 7C onboard orbital science, 7D rover received/accepted IDs, and 6G planet survey coverage/waypoints. New-record capacity limits remain; 7E newly refuses additional runs rather than deleting old experiments.
+- Original image gallery distinguishes valid ACKed metadata from actual missing image bytes, explicitly disables download and advises full-media restoration.
+- Add synthetic-only structural over-cap migration tests and real Chromium/SwiftShader photo-binary/backup/corrupt-import/reload tests. **Authentic 6J and original Update 7 user saves were not supplied; their exact migration is NOT VERIFIED.** Full audit and rollback instructions: `docs/SAVE-MIGRATION-T17.md`.
+
 # STARFALL T16 — Operational Telemetry, Four-Stage Command Truth and Discoverable Owner Actions (2026-11-02)
 
 - Added a lightweight, source-derived **OPERATIONS / ACTUAL STATUS** card to existing Reconnaissance, Rocket Lab, Satellite Operations, Outposts, Mission Photos, Field Lab, Workbench, Asset Manager and Research Bench. Kept original dark-blue/vibrant science branding, all UI IDs and existing controls.
