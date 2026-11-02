@@ -195,6 +195,37 @@ function refreshHabitat(bodyId){
  'LAST SIMULATED T+'+fmt(h.lastS,1)+' s; optional service, NOT PLAYER SURVIVAL / NO PLAYER TELEPORT'
  ].join('\\n');
 }
+function refreshScienceT10(){
+ const C=root.StarfallScienceCustodyT10;
+ if(!C)return;
+ const body=RT.outpostContext()?.body,lab=store.items.find(x=>x.id===$('outpost-lab').value&&x.kind==='lab');
+ const pick=$('t10-sample-storage'),prev=pick.value;
+ pick.replaceChildren();
+ for(const item of store.items.filter(x=>x.kind==='storage'&&x.bodyId===body?.id)){
+  const option=document.createElement('option');option.value=item.id;option.textContent=item.id;pick.append(option);
+ }
+ if([...pick.options].some(x=>x.value===prev))pick.value=prev;
+ const observation=$('t10-lab-observation'),old=observation.value;
+ observation.replaceChildren();
+ const evidence=(root.StarfallScienceUI?.journal||[]).filter(x=>x?.id&&Number.isFinite(x.receivedAtS)&&x.bodyId===lab?.bodyId).slice(-100);
+ for(const row of evidence){const option=document.createElement('option');option.value=row.id;
+  option.textContent=row.instrument+' · '+row.id.slice(-35);observation.append(option);}
+ if([...observation.options].some(x=>x.value===old))observation.value=old;
+ const storage=store.items.find(x=>x.id===pick.value),cap=storage?C.capacity(storage):null;
+ const records=lab?.t10?.analysis||[];
+ const photos=root.StarfallImagingUI7F?.store?.photos?.filter(p=>p.status==='downlinked')||[];
+ const packets=root.StarfallCommsT03?.transport?.list()?.filter(p=>p.destId==='starfall-ship'||p.destId===lab?.id).slice(-8)||[];
+ $('t10-lab-readout').textContent=[
+  'LAB '+(lab?.id||'NONE')+' · electric '+(lab&&powered(lab.id,lab.bodyId)?'POWERED':'OFFLINE')+' · '+(lab?.t10?.mode||'STANDBY'),
+  'NUMERIC ORIGINAL JOURNAL '+evidence.length+' received observation(s) · latest '+(evidence.at(-1)?.id||'NONE'),
+  'LAB PROCESSING '+records.slice(-5).map(x=>x.observationId+' '+x.status+' · '+x.result).join(' | '),
+  'STORAGE '+(storage?.id||'NONE')+' · '+(cap?cap.count+'/'+cap.maxCount+' samples, '+fmt(cap.massKg,2)+'/'+cap.maxMassKg+' kg':'NO MODULE'),
+  'SAMPLES '+(storage?.t10?.samples||[]).slice(-5).map(x=>x.id+' '+x.type+' '+fmt(x.massKg,2)+' kg / '+x.sourceId).join(' | '),
+  'PHOTO IDs ACKED '+photos.slice(-5).map(x=>x.id).join(' | '),
+  'T03 PACKETS '+packets.map(x=>x.id+' '+x.state+' '+x.sendBytes+'/'+x.encodedBytes+' B').join(' | '),
+  'RECEIPTS '+store.receipts.length+' total; physical transfer requires on-world EVA within 18 units.'
+ ].join('\\n');
+}
 function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT.outpostContext(),bodyId=ctx.body?.id||null,all=bodyId?store.items.filter(x=>x.bodyId===bodyId):[];
  const options=(el,list,placeholder)=>{const old=el.value;el.replaceChildren();if(placeholder){const p=document.createElement('option');p.value='';p.textContent=placeholder;el.append(p);}for(const item of list){const p=document.createElement('option');p.value=item.id;p.textContent=item.kind.toUpperCase()+' / '+item.id.slice(-8);el.append(p);}if([...el.options].some(x=>x.value===old))el.value=old;};
  options($('outpost-node-a'),all,'A: select module');options($('outpost-node-b'),all,'B: select module');options($('outpost-lab'),all.filter(x=>x.kind==='lab'),'Select laboratory');
@@ -221,6 +252,7 @@ function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT
  if(lab){const l=linkFor(lab);$('outpost-radio').textContent=(l.connected?'ONLINE':'OFFLINE')+' · '+(l.via||l.reason)+' · '+fmt(l.delayS,5)+' s one-way';}else $('outpost-radio').textContent='Choose a laboratory for radio status';
  refreshRadioHardware(ctx.body);
  refreshHabitat(bodyId);
+ refreshScienceT10();
  const r=$('outpost-relays');r.replaceChildren();for(const item of store.relays.filter(x=>x.bodyId===bodyId)){const opt=document.createElement('div');opt.className='field-entry';opt.textContent=item.id+' · altitude '+fmt(item.altitude)+' scene units · analytic orbit '+fmt(item.periodS)+'s';r.append(opt);}
  try{const key=placementKey(),p=lastPlacement?.key===key?lastPlacement:selection();p.key=key;lastPlacement=p;$('outpost-placement').textContent='VALID LOCATION · '+fmt(p.check.slopeDeg,1)+'° slope · '+fmt(p.check.height,2)+' scene-units elevation';$('outpost-placement').style.color='#a7d4b7';}catch(e){lastPlacement=null;$('outpost-placement').textContent='INVALID LOCATION · '+e.message;$('outpost-placement').style.color='#ffb19a';}
 }
@@ -292,12 +324,33 @@ $('hab-t09-service').onclick=wrapped(()=>{
  root.StarfallLaunchUI?.persist?.();dirty=true;persist();
  show('Habitat service: drew '+fmt(result.drawnJ,0)+' J from actual wired battery, credited '+fmt(result.deliveredJ,0)+' J to rover; lost '+fmt(result.lossJ,0)+' J.');
 });
+$('t10-process').onclick=wrapped(()=>{
+ const C=root.StarfallScienceCustodyT10,lab=store.items.find(x=>x.id===$('outpost-lab').value&&x.kind==='lab');
+ const obs=(root.StarfallScienceUI?.journal||[]).find(x=>x.id===$('t10-lab-observation').value);
+ if(!obs||!lab)throw Error('Select a real lab and acknowledged numerical journal observation');
+ const record=C.analyze(store,lab,obs,RT.time,powered(lab.id,lab.bodyId));
+ dirty=true;persist();show('T10 '+record.id+' · '+record.status+'; result after 20 simulated seconds and continuous DC supply.');
+});
+$('t10-transfer').onclick=wrapped(()=>{
+ const C=root.StarfallScienceCustodyT10,ctx=RT.outpostContext(),body=ctx.body,
+  item=store.items.find(x=>x.id===$('t10-sample-storage').value&&x.kind==='storage');
+ if(!item||!body)throw Error('Select physical storage on the world you are visiting');
+ const rovers=root.StarfallLaunchUI?.store?.rovers||[];
+ const nearby=rovers.filter(r=>r.bodyId===body.id&&r.sampleInventory?.length&&r.local)
+  .sort((a,b)=>O.arc(a.local,item.local,body.radius)-O.arc(b.local,item.local,body.radius));
+ const source=nearby[0],sample=source?.sampleInventory?.[0];
+ if(!sample)throw Error('No authentic unique physical sample in a nearby deployed rover inventory; numeric observations cannot be converted into rocks.');
+ const receipt=C.transfer(store,item,sample,source,body,ctx,powered(item.id,item.bodyId),RT.time);
+ root.StarfallLaunchUI?.persist?.();dirty=true;persist();
+ show('T10 specimen '+receipt.id+' physically transferred, with one source debit and matching custody receipt.');
+});
 $('outpost-export').onclick=wrapped(()=>{const file=new Blob([JSON.stringify(store.serialize(),null,2)],{type:'application/json'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='starfall-outposts-'+store.seed+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Infrastructure JSON exported');});
 $('outpost-export-receipts').onclick=wrapped(()=>{const rows=['observationId,labId,bodyId,instrument,value,unit,uncertainty,measurementTimeS,receivedAtS'];for(const x of store.receipts){const escape=v=>'"'+String(v??'').replaceAll('"','""')+'"';rows.push([x.observationId,x.labId,x.bodyId,x.instrument,x.value,x.unit,x.uncertainty,x.timeS,x.receivedAtS].map(escape).join(','));}const url=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='starfall-lab-receipts.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Laboratory receipts exported');});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('outpost').hidden){$('outpost').hidden=true;e.stopImmediatePropagation();}});
 function tick(dt,timeScale){if(document.hidden)return;const time=RT.time;
  if(!root.StarfallMissionOperationsUI&&time>=lastPowerTick+1){const used=Math.min(Math.max(0,time-lastPowerTick),600);if(store.items.length){powerTick(used);dirty=true;}lastPowerTick=time;}
  let completedTransmission=false;if(queue.length){for(const q of [...queue]){if(time<q.deliverAt)continue;const lab=store.items.find(x=>x.id===q.labId);if(!lab){queue.splice(queue.indexOf(q),1);dirty=true;completedTransmission=true;continue;}const connection=linkFor(lab);if(powered(lab.id,lab.bodyId)&&connection.connected){try{store.addReceipt(lab,q.obs,time,connection);queue.splice(queue.indexOf(q),1);dirty=true;completedTransmission=true;}catch(error){show(error.message,true);queue.splice(queue.indexOf(q),1);dirty=true;completedTransmission=true;}}}}
+ if(root.StarfallScienceCustodyT10){for(const lab of store.items.filter(x=>x.kind==='lab'&&x.t10?.analysis?.some(j=>j.status==='RUNNING'||j.status==='PAUSED'))){const before=JSON.stringify(lab.t10);root.StarfallScienceCustodyT10.advanceLab(lab,time,powered(lab.id,lab.bodyId));if(before!==JSON.stringify(lab.t10))dirty=true;}}
  if(completedTransmission||dirty&&performance.now()-lastFlush>6000)persist();if(!$('outpost').hidden&&performance.now()-lastPanel>900){lastPanel=performance.now();refresh();}
 }
 addEventListener('pagehide',()=>{if(dirty)persist();});
