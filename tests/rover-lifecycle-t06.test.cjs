@@ -5,7 +5,7 @@ globalThis.Starfall3D={groundHeight:()=>0};
 const T=require('../src/physics/rover-lifecycle-t06.js');
 const dynamics=require('../src/physics/rover-dynamics.js');
 const G=require('../src/physics/ground-operations7d.js');
-const L=require('../src/physics/launch-systems.js');
+require('../src/physics/launch-systems.js');const L=globalThis.StarfallLaunch;
 const Power=require('../src/physics/power-ledger-t02.js');
 const Outposts=require('../src/physics/outposts.js');
 assert.equal(globalThis.StarfallRoverT06,T);
