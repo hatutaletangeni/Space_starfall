@@ -2777,8 +2777,13 @@ function link(a,b,body,radioLink,rotate,metresPerSceneUnit=1000){
 }
 function candidates(source,destination,intermediates,body,radioLink,rotate,unitScale=1000,bufferAllowed=()=>true){
  if(!source||!destination||source.id===destination.id)return[];
- const nodes=[source,...intermediates.filter(n=>n.id!==source.id&&n.id!==destination.id),destination],found=[];
+ const ranked=intermediates.filter(n=>n.id!==source.id&&n.id!==destination.id)
+   .sort((x,y)=>(V.length(V.sub(x.position,source.position))+V.length(V.sub(x.position,destination.position)))-
+                (V.length(V.sub(y.position,source.position))+V.length(V.sub(y.position,destination.position)))||x.id.localeCompare(y.id))
+   .slice(0,12);
+ const nodes=[source,...ranked,destination],found=[];let expansions=0;
  function visit(path,links){
+  if(++expansions>400)return;
   const last=path[path.length-1];
   if(last.id===destination.id){
    const bw=Math.min(...links.map(x=>x.bandwidthBps)),delay=links.reduce((n,x)=>n+x.delayS,0);
