@@ -25,6 +25,12 @@
   body.classList.toggle('ui20-help-open');
   help.setAttribute('aria-expanded',String(body.classList.contains('ui20-help-open')));
  });
+ // T16 originally prepended a dense full asset card to the always-on
+ // reconnaissance surface. Keep every live source/selector and test contract,
+ // but put the SAME live card after the collapsible flight computer instead.
+ const liveCard=$('panel-body')?.querySelector(':scope > .op16-card');
+ const flightComputer=$('fc-extra');
+ if(liveCard&&flightComputer)flightComputer.after(liveCard);
  const nav=$('sf-console-nav');
  const targets=[['Overview','#panel-body .planet-meta'],['Survey','#biome-section'],['Systems','#fc-extra'],['Explore','#survey-open'],['Science','#field-open']];
  for(const [i,[name,selector]] of targets.entries()){
