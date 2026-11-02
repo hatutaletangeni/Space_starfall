@@ -13,6 +13,9 @@ const sent={...sample,state:'TRANSMITTING',route:['probe-1','relay-1','starfall-
 assert.equal(M.packetState(sent).route,'probe-1 → relay-1 → starfall-ship');
 assert.equal(M.packetState(sent).delayS,13.5);
 assert.equal(M.packetState(sent).quality,.31);
+assert.equal(M.packetState({...sent,state:'RECEIVED',ackAtS:169}).receivedS,null,'T03 RECEIVED is not a durable final ACK');
+assert.equal(M.packetState({...sent,state:'IN_FLIGHT',arrivalS:175}).expectedArrivalS,175);
+assert.equal(M.packetState({...sent,state:'ACKED',ackAtS:169}).receivedS,169);
 assert.equal(M.packetState({...sent,state:'ACKED',ackAtS:150}).stage,'COMPLETE');
 assert.equal(M.packetState({...sent,state:'EXPIRED',reason:'Past TTL'}).stage,'FAILED');
 const photo={id:'photo-1',sourceAssetId:'probe-1',sourceType:'rover',timeS:122,
