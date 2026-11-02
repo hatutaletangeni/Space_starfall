@@ -19,7 +19,7 @@ function options(){
  const conditions={durationS:inputNum('research7e-duration')};
  if(type==='rover'){Object.assign(conditions,{slopeDeg:inputNum('research7e-slope'),gearRatio:inputNum('research7e-gear'),wheelScale:inputNum('research7e-wheel'),gravityMS2:inputNum('research7e-gravity')});}
  if(type==='power'){Object.assign(conditions,{daylight:inputNum('research7e-daylight'),chargeFraction:inputNum('research7e-charge'),driveFraction:inputNum('research7e-drive'),lights:$('research7e-lights').checked});}
- if(type==='rocket'){Object.assign(conditions,{gravityMS2:inputNum('research7e-gravity'),rho0:inputNum('research7e-rho'),targetAltitudeM:inputNum('research7e-altitude')});}
+ if(type==='rocket'){Object.assign(conditions,{gravityMS2:inputNum('research7e-rocket-gravity'),rho0:inputNum('research7e-rho'),targetAltitudeM:inputNum('research7e-altitude')});}
  const rocket=type==='rocket'?{engine:$('research7e-engine').value,payload:'relay',stages:inputNum('research7e-stages'),tanks:inputNum('research7e-tanks'),boosters:inputNum('research7e-boosters')}:undefined;
  const observations=(root.StarfallScienceUI?.journal||[]).slice(-12).map(x=>x.id).filter(x=>typeof x==='string');
  return {type,title:$('research7e-name').value||type+' bench test',definition,rocket,conditions,
