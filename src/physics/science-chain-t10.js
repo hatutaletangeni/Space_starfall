@@ -70,7 +70,9 @@ function analyze(store,lab,observation,at,powered){
   throw Error('Real laboratory, existing journal observation and source ID are required');
  if(!powered)throw Error('Laboratory 950 W electric circuit OFFLINE: work PAUSED');
  if(!finite(at)||at<observation.receivedAtS)throw Error('Observation must first be received and acknowledged');
- if(observation.bodyId!==lab.bodyId)throw Error('Remote observation can be processed only at receiving-body lab after a physical T03 receipt/transfer');
+ // Numeric data legitimately ACKed by T03 are information, not physical
+ // specimens: a lab on world A may analyze received world B readings.
+ // Physical sample transfer is separately constrained by authorized().
  if(!lab.t10||lab.t10.schema!==SCHEMA)lab.t10={schema:SCHEMA,analysis:[],jobs:[],mode:'STANDBY'};
  const state=lab.t10;state.analysis=Array.isArray(state.analysis)?state.analysis:[];
  if(state.analysis.some(x=>x.observationId===observation.id))return clone(state.analysis.find(x=>x.observationId===observation.id));
