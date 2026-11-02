@@ -57,7 +57,16 @@ function status({id,kind,bodyId,systemId,parentId=null,energyJ=null,capacityJ=nu
  if(storageUsed!==null&&storageMax!==null&&storageUsed>=storageMax){warnings.push('Device data storage full');recommendations.push('Wait for ACKed downlink, then export/archive through the original app.');}
  if(packet&&!['ACKED','RECEIVED'].includes(packet.state)&&!packet.lastLink){warnings.push('No confirmed packet route/ACK');recommendations.push(r.recovery);}
  if(photo&&cam.stage!=='COMPLETE')recommendations.push(cam.recovery);
- const phase=FAILED.has(mode)||fault?'FAILED':packet?r.stage:photo||job?cam.stage:mode&&SUCCESS.has(mode)?'COMPLETE':'READY';
+ // A newly queued camera action must never look completed merely because an
+ // older, unrelated packet was ACKed. Use acquisition/request time recorded
+ // by each authoritative owner; never mint a synthetic event timestamp.
+ const operations=[];
+ if(packet)operations.push({at:finite(packet.createdS)?packet.createdS:0,stage:r.stage});
+ if(photo||job)operations.push({at:Math.max(finite(photo?.timeS)?photo.timeS:0,
+   finite(job?.createdS)?job.createdS:0),stage:cam.stage});
+ operations.sort((a,b)=>b.at-a.at);
+ const phase=FAILED.has(mode)||fault?'FAILED':operations[0]?.stage||(
+  mode&&SUCCESS.has(mode)?'COMPLETE':'READY');
  const statusText=phase==='FAILED'?'FAULT':powered===false?'STANDBY':powered===true?'POWERED':'POWER UNCONFIRMED';
  return{schema:16,id,kind,bodyId:bodyId||null,systemId:systemId||null,parentId:parentId||null,stage:phase,
   statusText,energyJ:e,capacityJ:cap,powered,supplyW:number(supplyW),loadW:number(loadW),health:number(health),
