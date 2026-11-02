@@ -24,18 +24,18 @@ function preview(){try{const p=lastPlacement?.key===placementKey()?lastPlacement
 function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[];const list=store.surfaceItems(ctx.body.id,ctx.local,ctx.body.radius,65);const result=list.map(renderLoc).filter(Boolean);if(!$('outpost').hidden&&tab==='build'){const item=preview();if(item){item.preview=true;result.push(item);}}return result;}
 function groupFor(id,bodyId){return store.connectedGroups(bodyId).find(g=>g.some(x=>x.id===id))||[];}
 function powered(id,bodyId){const rep=powerReports.get(bodyId);return rep?.byId[id]?.power===true;}
-function powerTick(dt){const byBody=new Set(store.items.map(x=>x.bodyId));for(const bodyId of byBody){const body=RT.galaxy.byId.get(bodyId);if(!body||!body.radius)continue;const sys=RT.galaxy.byId.get(body.systemId),star=sys?.star;if(!star)continue;const luminosity=P.starProfile(star).luminosityW;const occluders=(sys.bodies||[]).filter(x=>x.id!==bodyId&&x.radius>0).map(x=>({position:x.position,radius:x.radius}));
+function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(store.items.map(x=>x.bodyId));for(const bodyId of byBody){const oldSite=store.items.find(x=>x.bodyId===bodyId)?.bodySnapshot;const body=(resolveRemote?resolveRemote({bodyId,bodySnapshot:oldSite},atTime):null)||RT.galaxy.byId.get(bodyId);if(!body||!body.radius)continue;const sys=RT.galaxy.byId.get(body.systemId),star=sys?.star;if(!star)continue;const luminosity=P.starProfile(star).luminosityW;const occluders=(sys.bodies||[]).filter(x=>x.id!==bodyId&&x.radius>0).map(x=>({position:x.position,radius:x.radius}));
   // Rehydrate distant sites by analytic elapsed time. Sample changing rotation at up to
   // 12 points, cap an individual catch-up to one simulated day to avoid long stalls.
-  const start=Number.isFinite(lastPoweredAt[bodyId])?lastPoweredAt[bodyId]:RT.time;
-  const total=Math.max(0,Math.min(86400,RT.time-start)),steps=total>0?Math.min(12,Math.max(1,Math.ceil(total/600))):1;
+  if(Number.isFinite(lastPoweredAt[bodyId])&&lastPoweredAt[bodyId]>atTime+1e-8)continue;const start=Number.isFinite(lastPoweredAt[bodyId])?lastPoweredAt[bodyId]:atTime;
+  const total=Math.max(0,Math.min(86400,atTime-start)),steps=total>0?Math.min(12,Math.max(1,Math.ceil(total/600))):1;
   let report=null;for(let i=0;i<steps;i++){
     const past=(i+.5)*total/steps-total;
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
-    report=store.power(virtualBody,star.position,luminosity,RT.time+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
+    report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
   }
-  lastPoweredAt[bodyId]=RT.time;powerReports.set(bodyId,report);
+  lastPoweredAt[bodyId]=atTime;powerReports.set(bodyId,report);
 }}
 function linkFor(lab){const body=RT.galaxy.byId.get(lab.bodyId),ctx=RT.outpostContext();if(!body||ctx.body?.id!==lab.bodyId||!ctx.landed)return{connected:false,reason:'Not on laboratory body'};
  const receiver=renderLoc(lab);if(!receiver)return{connected:false,reason:'Lab not rendered'};
@@ -91,10 +91,11 @@ $('outpost-export').onclick=wrapped(()=>{const file=new Blob([JSON.stringify(sto
 $('outpost-export-receipts').onclick=wrapped(()=>{const rows=['observationId,labId,bodyId,instrument,value,unit,uncertainty,measurementTimeS,receivedAtS'];for(const x of store.receipts){const escape=v=>'"'+String(v??'').replaceAll('"','""')+'"';rows.push([x.observationId,x.labId,x.bodyId,x.instrument,x.value,x.unit,x.uncertainty,x.timeS,x.receivedAtS].map(escape).join(','));}const url=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='starfall-lab-receipts.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Laboratory receipts exported');});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('outpost').hidden){$('outpost').hidden=true;e.stopImmediatePropagation();}});
 function tick(dt,timeScale){if(document.hidden)return;const time=RT.time;
- if(time>=lastPowerTick+1){const used=Math.min(Math.max(0,time-lastPowerTick),600);if(store.items.length){powerTick(used);dirty=true;}lastPowerTick=time;}
+ if(!root.StarfallMissionOperationsUI&&time>=lastPowerTick+1){const used=Math.min(Math.max(0,time-lastPowerTick),600);if(store.items.length){powerTick(used);dirty=true;}lastPowerTick=time;}
  let completedTransmission=false;if(queue.length){for(const q of [...queue]){if(time<q.deliverAt)continue;const lab=store.items.find(x=>x.id===q.labId);if(!lab){queue.splice(queue.indexOf(q),1);dirty=true;completedTransmission=true;continue;}const connection=linkFor(lab);if(powered(lab.id,lab.bodyId)&&connection.connected){try{store.addReceipt(lab,q.obs,time,connection);queue.splice(queue.indexOf(q),1);dirty=true;completedTransmission=true;}catch(error){show(error.message,true);queue.splice(queue.indexOf(q),1);dirty=true;completedTransmission=true;}}}}
  if(completedTransmission||dirty&&performance.now()-lastFlush>6000)persist();if(!$('outpost').hidden&&performance.now()-lastPanel>900){lastPanel=performance.now();refresh();}
 }
 addEventListener('pagehide',()=>{if(dirty)persist();});
-root.StarfallOutpostUI={store,tick,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
+function advancePowerTo(atTime,resolve){if(!Number.isFinite(atTime)||atTime<0)return false;powerTick(0,atTime,resolve);lastPowerTick=atTime;dirty=true;return true;}
+root.StarfallOutpostUI={store,tick,advancePowerTo,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
 })(globalThis);
