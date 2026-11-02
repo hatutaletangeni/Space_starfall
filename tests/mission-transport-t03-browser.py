@@ -4,6 +4,7 @@ existing radioLink occlusion, program transfer, blackout and reload.
 No stubbed link/connectivity; controlled installed rover fixture only.
 """
 from pathlib import Path
+import json
 from playwright.sync_api import sync_playwright
 
 target=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').resolve()
@@ -18,13 +19,18 @@ with sync_playwright() as p:
         page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallCommsT03 && window.StarfallMissionOperationsUI)",timeout=30000)
         # Use actual saved landed flight, not stubbing the transceiver endpoint.
-        page.evaluate("""()=>{
+        landed_save=page.evaluate("""()=>{
           const rt=StarfallRuntime,b=rt.galaxy.byId.get('star-0-p0'),p=b.position,
           up=[0,1,0],save=SF.load().flightGalaxy||{};
           SF.save({flightGalaxy:{...save,seed:rt.galaxy.seed,time:0,
             position:[p[0],p[1]+b.radius+8,p[2]],target:b.id,
             attached:b.id,groundDirection:up,forward:[0,0,1],up,landed:true}});
+          return SF.load();
         }""")
+        # The live first tab can autosave its orbital position while a second WebGL
+        # tab boots; initialize the landed record before that tab's JS starts.
+        snapshot=json.dumps(json.dumps(landed_save))
+        context.add_init_script("(()=>{if(sessionStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t03-fixture-installed','1');})()")
         # A fresh tab reads the saved *landed* fixture; old tab stays open so
         # its pagehide handler cannot overwrite the fixture with orbit flight.
         page=context.new_page()
