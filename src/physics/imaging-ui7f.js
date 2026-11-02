@@ -152,7 +152,10 @@ async function showPhoto(id){
  $('imaging7f-metadata').textContent=[p.id,'SOURCE '+p.sourceType.toUpperCase()+' '+p.sourceAssetId,'BODY '+p.bodyId,
  'SYSTEM '+p.systemId,'CAPTURE T+'+safe(p.timeS)+' s','VIEW '+p.mode.toUpperCase(),'RESOLUTION '+p.width+'×'+p.height,
  'ALTITUDE '+safe(p.altitudeM)+' m','SIZE '+Math.round(p.bytes/1024)+' KiB','LINK '+p.status.toUpperCase(),
- 'TRANSMITTED '+Math.round(p.progressBytes/p.bytes*100)+'%'].join('\n');
+ 'TRANSMITTED '+Math.round(p.progressBytes/p.bytes*100)+'%',
+ 'JOURNAL OBSERVATIONS '+(p.observationRefs||[]).join(', '),
+ 'RESEARCH RUNS '+(root.StarfallResearchUI7E?.store?.runs||[]).filter(r=>(r.photoRefs||[]).includes(p.id)).map(r=>r.id).slice(-6).join(', ')].join('\n');
+ $('imaging7f-note').value=p.note||'';
  const im=$('imaging7f-photo');
  im.removeAttribute('src');im.alt='';im.hidden=true;
  if(p.status==='downlinked'){
@@ -177,6 +180,7 @@ $('imaging7f-downlink').onclick=()=>{try{if(!current)throw Error('Select photo f
 $('imaging7f-download').onclick=async()=>{try{const p=store.get(current);if(!p||p.status!=='downlinked')throw Error('Photo not yet downlinked');
  const data=await imageGet(p.id);if(!data)throw Error('Original image missing');const a=document.createElement('a');a.href=data;a.download='starfall-'+p.id+'.'+(p.mime==='image/webp'?'webp':'jpg');a.click();
  }catch(e){err(e);}};
+$('imaging7f-save-note').onclick=()=>{try{if(!current)throw Error('Select a photo');store.annotate(current,$('imaging7f-note').value);persist();message('Mission photo note saved.',true);}catch(e){err(e);}};
 $('imaging7f-delete').onclick=()=>deletePhoto().catch(err);
 $('imaging7f-photo').onclick=()=>{const img=$('imaging7f-photo');if(img.src)root.open(img.src,'_blank','noopener,noreferrer');};
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('imaging7f').hidden){close();e.stopImmediatePropagation();}},true);
