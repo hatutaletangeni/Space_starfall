@@ -26,8 +26,11 @@ class Transport{
   if(!Number.isSafeInteger(seed)||seed<0||!valid(startS))throw Error('T03 seed/clock invalid');
   this.seed=seed;this.cursorS=startS;this.packets=[];this.receipts=[];this.metrics={txBytes:0,delivered:0};this.fault=null;
   if(saved?.schema===SCHEMA&&saved.seed===seed){
-   // Never allow future-dated state to roll a caller's simulation clock backward.
-   if(valid(saved.cursorS)&&saved.cursorS<=startS+1e-7){
+   // A saved comms cursor may legitimately be ahead of the flight snapshot
+   // (e.g., mission-ops flushed while flight autosave lagged). Retain ALL
+   // durable packets/receipts and freeze radio time until flight catches up.
+   // NEVER discard delivery evidence merely because clocks disagree.
+   if(valid(saved.cursorS)&&saved.cursorS<1e13){
     this.cursorS=saved.cursorS;this.receipts=Array.isArray(saved.receipts)?saved.receipts.filter(id).slice(-4000):[];
     const seen=new Set();
     for(const x of Array.isArray(saved.packets)?saved.packets:[]){
