@@ -39,6 +39,9 @@ with sync_playwright() as p:
      bodyId:b.id,systemId:b.systemId,mode:'forward',resolution:256,
      timeS:rt.time,position:eye,bytes:photo.bytes,width:photo.width,height:photo.height,
      mime:photo.mime,caption:'Real world scene; synthetic T17 test request'});
+   // Use the original T17 camera archive adapter to open and upgrade the
+   // exact 7F IndexedDB schema; no fake test-only object store.
+   await StarfallExpeditionArchiveUI17.readAllMedia();
    const db=await new Promise((ok,no)=>{
     const r=indexedDB.open('starfall-7f-images-v1',1);r.onsuccess=()=>ok(r.result);r.onerror=no;
    });
