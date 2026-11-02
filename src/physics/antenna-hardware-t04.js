@@ -82,9 +82,9 @@ function candidates(source,destination,intermediates,body,radioLink,rotate,unitS
  function visit(path,links){
   const last=path[path.length-1];
   if(last.id===destination.id){
-   const bw=min(...links.map(x=>x.bandwidthBps)),delay=links.reduce((n,x)=>n+x.delayS,0);
+   const bw=Math.min(...links.map(x=>x.bandwidthBps)),delay=links.reduce((n,x)=>n+x.delayS,0);
    found.push({connected:true,hops:path.map(x=>x.id),hopReports:links.map((x,i)=>({from:path[i].id,to:path[i+1].id,quality:x.quality,delayS:x.delayS,bandwidthBps:x.bandwidthBps,distanceM:x.distanceM})),
-    bandwidthBps:bw,delayS:delay,quality:min(...links.map(x=>x.quality)),txPowerW:source.txPowerW??24,
+    bandwidthBps:bw,delayS:delay,quality:Math.min(...links.map(x=>x.quality)),txPowerW:source.txPowerW??24,
     reason:path.map(x=>x.kind).join(' → ')});return;
   }
   if(path.length>=MAX_HOPS)return;
