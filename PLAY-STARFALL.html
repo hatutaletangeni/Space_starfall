@@ -5830,7 +5830,7 @@ $('imaging7f-save-note').onclick=()=>{try{if(!current)throw Error('Select a phot
 $('imaging7f-delete').onclick=()=>deletePhoto().catch(err);
 $('imaging7f-photo').onclick=()=>{const img=$('imaging7f-photo');if(img.src)root.open(img.src,'_blank','noopener,noreferrer');};
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('imaging7f').hidden){close();e.stopImmediatePropagation();}},true);
-let lastTime=RT.time,lastCheck=performance.now(),lastT03CaptureAttempt=0;
+let lastTime=RT.time,lastCheck=performance.now(),lastT03CaptureAttempt=-Infinity;
 function tick(_dt){
  const t=RT.time,step=Math.max(0,Math.min(15,t-lastTime));lastTime=t;
  if(!busy&&store.jobs.length){
