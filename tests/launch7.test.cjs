@@ -2,8 +2,9 @@
    Do not assume a scripted ascent automatically creates a satellite or probe. */
 'use strict';
 const assert=require('node:assert/strict');
-const F=require('../src/physics/rocket-flight7b.js');
-const X=require('../src/physics/launch-systems.js');
+require('../src/physics/rocket-flight7b.js');
+require('../src/physics/launch-systems.js');
+const F=globalThis.StarfallRocketFlight7B,X=globalThis.StarfallLaunch;
 const seed=742;
 const home={id:'star-0-p0',systemId:'star-0',landable:true,gravity:1.24,radius:2150,position:[0,0,0]};
 const pad={id:'pad',kind:'foundation',bodyId:home.id,local:[0,1,0]};
