@@ -198,14 +198,107 @@
 #rf-t19 button:focus-visible,#rf-t19 select:focus-visible{outline:2px solid #8de0ff;outline-offset:3px}
 @media(max-width:640px){#rf-t19{padding:8px 0}#rf-t19 .obs-tools button{flex:1 1 130px}}
 
+</style><style>
+/* UI20 – Game world first. UI-only: real flight, radio and simulation state unchanged. */
+body.ui20{--u20-line:#8bbdd847;--u20-text:#eaf5ff;--u20-glass:#0a1a2edb;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body.ui20 .vignette{background:radial-gradient(ellipse at 50% 47%,transparent 45%,#06101c47 100%)}
+body.ui20 .masthead{top:17px;left:26px;right:26px;align-items:center;gap:15px}
+body.ui20 .wordmark{font-size:15px;letter-spacing:2px;gap:7px;text-shadow:0 2px 8px #000}
+body.ui20 .wordmark .starlogo{color:#b3def9;font-size:18px}body.ui20 .wordmark small{display:none}
+body.ui20 .sf-head-actions{display:flex;align-items:center;gap:7px;max-width:70%;justify-content:flex-end;flex-wrap:wrap}
+body.ui20 .sf-head-actions>button,body.ui20 #sf-quick-tools>button{font:600 11px system-ui;color:#e8f3fc;letter-spacing:0;height:35px;padding:0 12px;border-radius:9px;background:var(--u20-glass);border:1px solid var(--u20-line);backdrop-filter:blur(12px)}
+body.ui20 #chart-open{background:#375e7f!important;border-color:#80b9d9!important;color:white!important}
+body.ui20 #sf-quick-tools{display:flex;gap:6px;align-items:center}
+body.ui20 #sf-quick-tools>button{font-size:0!important;line-height:0;width:35px;min-width:35px;padding:0}
+body.ui20 #sf-quick-tools>button::before{display:block;font:17px/34px system-ui;color:#d1e8f8;content:'◈'}
+body.ui20 #asset-open::before{content:'◎'!important}body.ui20 #archive-t17-open::before{content:'▣'!important}
+body.ui20 #launch-open::before{content:'◇'!important}body.ui20 #controls-open::before{content:'⚙'!important}body.ui20 #obs-open::before{content:'⊙'!important}
+body.ui20 .sf-head-actions button:hover{border-color:#c0dff0!important;background:#24475c!important}
+body.ui20 .identity{top:70px;bottom:auto;left:26px;max-width:min(340px,47vw);text-shadow:0 2px 9px #000}
+body.ui20 .identity .eyebrow{font:550 10px system-ui;letter-spacing:.06em;color:#a2d9f8}
+body.ui20 .identity h1{font:600 clamp(18px,2vw,26px)/1.15 system-ui;letter-spacing:-.035em;margin:6px 0 4px}
+body.ui20 .identity p{font:11px/1.5 system-ui;color:#c7d9e5}
+body.ui20 .status-strip{top:151px;left:26px;max-width:330px;color:#b6d4e5;font:10px system-ui;letter-spacing:0;text-shadow:0 2px 8px #000}
+body.ui20 .space-event{left:26px;top:172px;font:10px system-ui}
+body.ui20 .controls-hint{display:none;left:20px;bottom:66px;z-index:11;background:#081a2feb;border:1px solid #8dc3e175;border-radius:12px;padding:15px;width:min(600px,92vw);max-height:42dvh;overflow:auto;pointer-events:auto;color:#d6e7f5;font:11px/1.75 system-ui}
+body.ui20.ui20-help-open .controls-hint{display:block}body.ui20 .controls-hint b{color:#a5dafe}
+body.ui20 #ui-help-open{position:fixed;z-index:9;left:23px;bottom:19px;width:34px;height:34px;border-radius:50%;border:1px solid var(--u20-line);background:var(--u20-glass);color:#e4f5ff;font-size:16px;font-weight:bold}
+body.ui20 .panel{top:auto;right:22px;bottom:86px;width:292px;max-height:min(34dvh,298px);padding:14px 16px;border:1px solid var(--u20-line);border-radius:14px;background:#09182ad8;box-shadow:0 14px 42px #0007;scroll-padding-top:75px;overscroll-behavior:contain;transition:max-height .2s}
+body.ui20 .panel:focus-within,body.ui20 .panel:hover,body.ui20 .panel.ui20-expanded{max-height:min(76dvh,710px);box-shadow:0 18px 54px #000a}
+body.ui20 .panel.collapsed{top:auto;right:22px;bottom:86px;width:220px;max-height:52px;padding:10px 14px}
+body.ui20 .panel-title{position:sticky;top:-14px;z-index:3;background:#101f30fa;margin:-10px 0 0;padding:10px 0 8px}
+body.ui20 .panel-title h2{font:650 12px system-ui;letter-spacing:0;color:#ecf6ff}
+body.ui20 .panel-title button{border-radius:7px;width:28px;height:28px}
+body.ui20 #engineering-workflow-hint{display:none}
+body.ui20 #sf-console-nav{display:flex;position:sticky;top:35px;z-index:2;gap:5px;overflow-x:auto;padding:5px 0 9px;background:#101f30fa;border-bottom:1px solid var(--u20-line)}
+body.ui20 #sf-console-nav button{font:600 10px system-ui;color:#accbdf;padding:7px 8px;border-radius:7px;background:transparent;flex:none}
+body.ui20 #sf-console-nav button[aria-current=true],body.ui20 #sf-console-nav button:hover{background:#2e526b;color:white}
+body.ui20 .section{margin:10px 0 0;padding-top:12px;border-color:#9abbd120}
+body.ui20 .section-title{font:650 10px system-ui;letter-spacing:.03em;color:#b8cddc;margin:0 0 8px}
+body.ui20 .planet-meta{font:11px system-ui;margin:14px 0;gap:8px}
+body.ui20 .panel-note{font:11px/1.48 system-ui;color:#b4c8d7}
+body.ui20 .scan{min-height:39px}body.ui20 .scan-state{color:#a8d9f5}
+body.ui20 .telemetry{bottom:19px;gap:20px;border-radius:12px;padding:9px 16px;background:#071a2cbe;border:1px solid #94c4dd48;box-shadow:0 4px 28px #0006}
+body.ui20 .tele span{font:650 9px system-ui;color:#a6c3d5;letter-spacing:.05em}body.ui20 .tele b{font:550 13px system-ui;color:#edf8ff;margin-top:3px}
+body.ui20 #fps-tele{display:none}
+body.ui20 .reticle{opacity:.56;transform:translate(-50%,-50%) scale(.7)}
+body.ui20 .waypoint-label{font:600 11px system-ui;color:#c8efff;top:calc(50% + 27px);text-shadow:0 2px 7px #000}
+body.ui20 #walk-context{bottom:88px!important;max-width:580px;color:#e5f4ff!important;font:600 11px system-ui!important;letter-spacing:0!important;text-shadow:0 2px 7px #000!important}
+body.ui20 #toast{top:188px;left:24px;border-left-color:#a4d8fa;border-radius:8px;font:11px/1.6 system-ui}
+body.ui20 .science-action{font:600 11px system-ui;border-radius:8px;letter-spacing:0;background:#1f405667;border-color:#80aac367;color:#d7efff}
+body.ui20 .science-action:hover{background:#355c7c}
+body.ui20 .modal-backdrop,body.ui20 .obs-backdrop{background:#020a13d9}
+body.ui20 .chart-panel,body.ui20 .obs-window,body.ui20 .outpost-window,body.ui20 .field-window{border-radius:17px;border-color:#9ac3dc51;background:#102033}
+body.ui20 button:focus-visible,body.ui20 input:focus-visible,body.ui20 select:focus-visible{outline:2px solid #9ddcff;outline-offset:3px}
+body.ui20 #ui20-vehicle-frame{display:none;position:fixed;inset:0;z-index:2;pointer-events:none}
+body.ui20 #ui20-vehicle-frame svg{width:100%;height:100%;display:block}
+body.ui20[data-sf-view=ship-cockpit] #ui20-vehicle-frame,body.ui20[data-sf-view=truck-cab] #ui20-vehicle-frame{display:block}
+body.ui20 #ui20-vehicle-frame .ship-structure,body.ui20 #ui20-vehicle-frame .truck-structure{display:none}
+body.ui20[data-sf-view=ship-cockpit] #ui20-vehicle-frame .ship-structure{display:block}
+body.ui20[data-sf-view=truck-cab] #ui20-vehicle-frame .truck-structure{display:block}
+body.ui20[data-sf-view=truck-cab] .identity{display:none}
+body.ui20[data-sf-view=ship-cockpit] .panel:not(:hover):not(:focus-within),body.ui20[data-sf-view=truck-cab] .panel:not(:hover):not(:focus-within){max-height:168px}
+@media(max-width:980px){body.ui20 #sf-quick-tools{position:absolute;top:43px;right:0;padding:7px;border-radius:10px;background:#071828f0;border:1px solid var(--u20-line)}body.ui20:not(.ui20-tools-open) #sf-quick-tools{display:none}body.ui20 .sf-head-actions{max-width:76%}body.ui20 .panel{max-height:29dvh}}
+@media(max-width:650px){body.ui20 .masthead{top:10px;left:12px;right:12px}body.ui20 .wordmark{font-size:13px}body.ui20 .sf-head-actions{max-width:76%}body.ui20 .sf-head-actions>button{padding:0 9px}body.ui20 .identity{top:56px;left:15px;max-width:69vw}body.ui20 .identity h1{font-size:17px}body.ui20 .identity p{display:none}body.ui20 .status-strip{top:110px;left:15px;max-width:72vw;font-size:9px}body.ui20 .panel{left:auto;right:10px;bottom:98px;width:min(246px,63vw);max-height:25dvh;padding:10px 12px}body.ui20 .panel.collapsed{left:auto;right:10px;bottom:98px;width:185px}body.ui20 .panel:focus-within,body.ui20 .panel:hover{max-height:53dvh}body.ui20 .panel-title{top:-10px}body.ui20 .panel .planet-meta{display:grid}body.ui20 .panel .flight-line{display:flex}body.ui20 #ui-help-open{left:11px;bottom:12px}body.ui20 .telemetry{bottom:12px;gap:9px;padding:8px 10px;max-width:calc(100vw - 92px)}body.ui20 .tele span{font-size:8px}body.ui20 .tele b{font-size:10px}body.ui20 .tele:nth-child(4){display:none}body.ui20 .controls-hint{bottom:54px}body.ui20 .mobile-controls{bottom:calc(24dvh + 85px)}body.ui20 .reticle{top:42%}body.ui20 .waypoint-label{top:calc(42% + 27px)}body.ui20 #walk-context{bottom:78px!important;font-size:10px!important;max-width:70vw}}
+@media(prefers-reduced-motion:reduce){body.ui20 .panel{transition:none}}
+
+/* The responsive tools menu must have real text labels on touch, not mystery glyphs. */
+@media(min-width:981px){body.ui20 #ui-tools-toggle{display:none}}
+@media(max-width:980px){
+ body.ui20 #sf-quick-tools{flex-direction:column;align-items:stretch;min-width:205px;box-shadow:0 15px 45px #000a}
+ body.ui20 #sf-quick-tools>button{width:100%;height:39px;text-align:left;padding:0 12px;white-space:normal;font:600 11px system-ui!important;line-height:1.3!important}
+ body.ui20 #sf-quick-tools>button::before{display:none!important}
+}
+
 </style>
 </head>
-<body>
+<body class="ui20">
   <canvas id="universe" aria-label="Real-time three-dimensional starfield, spacecraft and procedural planets"></canvas>
   <div class="vignette" aria-hidden="true"></div>
+<div id="ui20-vehicle-frame" aria-hidden="true"><svg viewBox="0 0 1440 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+ <defs><linearGradient id="ui20-dark" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#263c4c"/><stop offset=".52" stop-color="#091724"/><stop offset="1" stop-color="#030912"/></linearGradient><linearGradient id="ui20-panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2d4251"/><stop offset=".5" stop-color="#101e2c"/><stop offset="1" stop-color="#050b15"/></linearGradient></defs>
+ <g class="ship-structure">
+  <path d="M0 0H1440V31L1330 80H110L0 31Z" fill="url(#ui20-dark)" stroke="#5e879b" stroke-width="2"/>
+  <path d="M0 0H88L179 610L107 720L0 748Z M1440 0H1352L1261 610L1333 720L1440 748Z" fill="url(#ui20-panel)" stroke="#53788e" stroke-width="3"/>
+  <path d="M88 0L185 624 M1352 0L1255 624" fill="none" stroke="#8aafc0" stroke-opacity=".45" stroke-width="5"/>
+  <path d="M110 65L188 625 M1330 65L1252 625" fill="none" stroke="#080f1c" stroke-width="20"/>
+  <path d="M0 714L257 745L337 700H1103L1183 745L1440 714V900H0Z" fill="url(#ui20-dark)" stroke="#66839a" stroke-width="3"/>
+  <path d="M310 766L385 713H1055L1130 766L1089 836H351Z" fill="#071725" stroke="#7a9eac" stroke-width="2"/>
+  <path d="M347 797H1093 M410 725H1030" fill="none" stroke="#75b7d7" stroke-opacity=".50" stroke-width="2"/>
+  <path d="M0 818L285 787L315 900H0Z M1440 818L1155 787L1125 900H1440Z" fill="#0a1827" stroke="#345267" stroke-width="2"/>
+ </g>
+ <g class="truck-structure">
+  <path d="M0 0H1440V46L1292 73H148L0 46Z" fill="url(#ui20-panel)" stroke="#91adbb" stroke-width="3"/>
+  <path d="M0 0H120L172 644L113 735L0 766Z M1440 0H1320L1268 644L1327 735L1440 766Z" fill="url(#ui20-panel)" stroke="#688ba0" stroke-width="3"/>
+  <path d="M120 0L173 641 M1320 0L1267 641" stroke="#c1dce7" stroke-opacity=".55" stroke-width="4"/>
+  <path d="M0 756L205 744L338 694H1102L1235 744L1440 756V900H0Z" fill="url(#ui20-dark)" stroke="#6d8ea0" stroke-width="3"/>
+  <path d="M320 776L400 704H1040L1120 776L1090 875H350Z" fill="#101f2e" stroke="#567589" stroke-width="2"/>
+  <path d="M367 805H1073 M403 736H1037" stroke="#6ca6c7" stroke-width="2" opacity=".6"/>
+ </g>
+</svg></div>
   <header class="masthead">
     <a class="wordmark" href="index.html" aria-label="Starfall free flight"><span class="starlogo">✦</span><span>STARFALL</span><small>EXPEDITION / WALKABLE WORLDS</small></a>
-    <div style="display:flex;gap:8px;align-items:center"><button class="science-action" id="asset-open" type="button" aria-haspopup="dialog">ASSET MANAGER ◈</button><button class="science-action" id="archive-t17-open" type="button" aria-haspopup="dialog">SAVE / RESTORE ▣</button><button class="science-action" id="launch-open" type="button">ROCKET LAB ◇</button><button class="science-action" id="controls-open" type="button" aria-haspopup="dialog">CONTROLS ⚙</button><button class="science-action" id="obs-open" type="button">OBSERVATORY ◈</button><button class="top-link" id="chart-open" type="button">STAR CHART <span>↗</span></button></div>
+    <div class="sf-head-actions"><button id="ui-console-open" type="button" aria-controls="panel" aria-expanded="false">Mission console</button><button id="ui-tools-toggle" type="button" aria-controls="sf-quick-tools" aria-expanded="false" title="More tools">Tools</button><div id="sf-quick-tools"><button class="science-action" id="asset-open" type="button" aria-haspopup="dialog">ASSET MANAGER ◈</button><button class="science-action" id="archive-t17-open" type="button" aria-haspopup="dialog">SAVE / RESTORE ▣</button><button class="science-action" id="launch-open" type="button">ROCKET LAB ◇</button><button class="science-action" id="controls-open" type="button" aria-haspopup="dialog">CONTROLS ⚙</button><button class="science-action" id="obs-open" type="button">OBSERVATORY ◈</button></div><button class="top-link" id="chart-open" type="button">Navigate <span>↗</span></button></div>
   </header>
   <div id="archive-t17-banner" role="alert" hidden style="position:fixed;bottom:12px;left:12px;z-index:150;max-width:min(480px,92vw);background:#3a211d;color:#ffdfce;border:2px solid #e6a084;border-radius:8px;padding:9px;font:12px/1.5 system-ui;box-shadow:0 5px 18px #0008">SAVE WARNING · Browser storage unavailable. Your expedition may not survive closing this tab. Open SAVE / RESTORE to export a backup.</div>
   <section class="identity" aria-label="Current destination">
@@ -218,9 +311,10 @@
     <div><b>SCROLL</b> CAMERA DISTANCE <span>·</span> <b>V</b> COCKPIT <span>·</span> <b>F</b> CENTRE <span>·</span> <b>T</b> TIME SPEED <span>·</span> <b>L</b> FLOODLIGHTS</div><div><b>WASD</b> WALK / DRIVE <span>·</span> <b>WALK INTO RAMP</b> BOARD SHIP <span>·</span> <b>X NEAR TRUCK</b> DRIVE · SCIENCE ROVER AUTONOMOUS <span>·</span> <b>SHIFT</b> SPRINT</div>
     <div id="control-live-hint" class="context-hint" aria-live="off">SHIP · W / S thrust / brake · A / D turn · MOUSE Y NORMAL · CONTROLS ⚙ TO CUSTOMIZE</div><div class="context-hint">Every visible twinkle is a real destination. Click a star in space to plot a course, or search the galaxy chart.</div><div class="context-hint">Asteroid belts, nebulae, comets, shattered worlds and pulsars. After touchdown, explore immediately on foot. Walk into the rear ship ramp to board. Press X beside the truck to drive; the science rover is program-only.</div>
   </section>
+  <button id="ui-help-open" type="button" aria-expanded="false" aria-controls="control-live-hint" title="View controls and keybindings">?</button>
   <aside class="panel" id="panel" aria-label="Reconnaissance and flight information">
     <div class="panel-title"><h2>RECONNAISSANCE</h2><button id="panel-toggle" aria-label="Collapse reconnaissance panel" aria-expanded="true">−</button></div><p class="panel-note" id="engineering-workflow-hint"><strong>ENGINEERING ROUTE:</strong> BUILD (Outposts / Rocket Lab) → OPERATE (Rovers / Satellites) → MONITOR (Survey / Mission Photos) → RESEARCH (Vehicle Workbench). Everything remains optional.</p>
-    <div id="panel-body">
+    <nav id="sf-console-nav" aria-label="Mission console sections"></nav><div id="panel-body">
       <dl class="planet-meta"><dt>System</dt><dd id="system-name">Kepler-742</dd><dt>Classification</dt><dd id="planet-type">Temperate</dd><dt>Gravity</dt><dd id="planet-gravity">0.8 g</dd><dt>Atmosphere</dt><dd id="planet-atmosphere">Thin, O₂, N₂</dd><dt>Sidereal day</dt><dd id="day-length">—</dd></dl>
       <div class="section" id="biome-section"><div class="section-title">LOCAL BIOME <strong id="biome-label">—</strong></div><p class="panel-note" id="biome-description">Approach a solid world to survey the surface</p></div>
       <div class="section"><div class="section-title">SURFACE SCANS <strong id="scan-count">0 / 3</strong></div>
@@ -1553,9 +1647,9 @@ class Renderer{
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',1);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
   gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
-  const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);
+  if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
-  if(state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
+  if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
   for(const probe of (state.extraRovers||[]).slice(0,15)){if(V.len(V.sub(probe.position,viewer))>2600)continue;const right=V.norm(V.cross(probe.forward,probe.up));this.renderMesh(p,this.rover,M.basis(right,probe.up,probe.forward,V.sub(probe.position,origin)));}
   for(const sat of (state.satellites||[]).slice(0,48)){if(V.len(V.sub(sat.position,viewer))>85000)continue;const up=V.norm(sat.up||[0,1,0]),front=V.norm(V.sub([0,0,1],V.mul(up,V.dot([0,0,1],up))));const right=V.norm(V.cross(front,up));this.renderMesh(p,this.satellite,M.basis(right,up,front,V.sub(sat.position,origin)));}
   for(const rocket of (state.rockets||[]).slice(0,3)){if(V.len(V.sub(rocket.position,viewer))>7000)continue;const up=V.norm(rocket.up),right=V.norm(V.cross([1,0,0],up)),front=V.norm(V.cross(right,up));this.renderMesh(p,this.rocket,M.basis(right,up,front,V.sub(rocket.position,origin)));}
@@ -1652,7 +1746,7 @@ class Renderer{
    const eye=camera.eye,target=V.add(eye,V.mul(forward,500)),pose={eye,target,forward,right,up:V.norm(V.cross(right,forward))};
    const altitude=Math.max(0,V.len(V.sub(eye,body.position))-body.radius);
    this.render({...base,camera:pose,nearest:body,altitude,position:eye,viewerPosition:eye,
-     weather:null,interior:null,avatarBase:null,avatarWalking:false,avatarDelta:0,headlights:false,
+     weather:null,interior:null,avatarBase:null,avatarWalking:false,avatarDelta:0,headlights:false,hidePlayerShip:false,hidePlayerTruck:false,
      shipPosition:base.shipPosition,shipForward:base.shipForward||forward,shipUp:base.shipUp||up,
      infrastructure:base.infrastructure||[],ruins:base.ruins||[],ecology:base.ecology||[]});
    const pixels=new Uint8Array(size*size*4);
@@ -5246,7 +5340,7 @@ addEventListener('keydown',ev=>{
    if(entrance){window.StarfallInteriorsUI?.interact();return;}
    if(enterTruck())return;window.StarfallInteriorsUI?.interact();return;}
  if(['Digit1','Digit2','Digit3'].includes(code))startScan(Number(code.slice(-1))-1);
- if(code==='KeyV'&&!eva){camMode=(camMode+1)%2;camEye=null;showToast(camMode?'Cockpit camera':'Chase camera');}
+ if(code==='KeyV'&&(!eva||truckOccupied)){camMode=(camMode+1)%2;camEye=null;showToast(camMode?(truckOccupied?'Truck cab camera':'Ship cockpit camera'):'Chase camera');}
  if(code==='KeyF'){orbitYaw=0;orbitPitch=0;showToast(truckOccupied?'Camera centred behind truck.':eva?'Camera centred behind astronaut.':'Camera centred behind spacecraft.');}
  if(code==='KeyG'&&!eva)pointTowardWaypoint();if(code==='KeyM')openChart();
  if(code==='KeyT'){timeScale=timeScale===1?10:timeScale===10?100:1;showToast('Orbital simulation speed '+timeScale+'×');}
@@ -5469,6 +5563,21 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
 function cameraState(dt){
  const radial=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0],groundMix=V.clamp((300-altitude)/260,0,1);
  if(truckOccupied){
+  // UI20: V toggles an actual first-person truck cab, not a fake HUD
+  // camera offset above the chase vehicle. All truck dynamics stay unchanged.
+  if(camMode===1){
+   const truck=truckWorldState(),cabUp=truck?.up||radial;
+   if(truck){
+    const tangent=V.norm(V.sub(truck.forward,V.mul(cabUp,V.dot(truck.forward,cabUp))));
+    const cabRight=V.norm(V.cross(tangent,cabUp));
+    const yawLook=V.rot(tangent,cabUp,orbitYaw);
+    const pitchLook=V.rot(yawLook,cabRight,orbitPitch);
+    const desired=V.add(truck.position,V.add(V.mul(cabUp,1.85),V.mul(tangent,1.75)));
+    camEye=[...desired];
+    const viewForward=V.norm(pitchLook),right=V.norm(V.cross(viewForward,cabUp)),viewUp=V.norm(V.cross(right,viewForward));
+    return{eye:desired,target:V.add(desired,V.mul(viewForward,120)),forward:viewForward,right,up:viewUp};
+   }
+  }
   const tangent=V.norm(V.sub(truckForwardVec,V.mul(radial,V.dot(truckForwardVec,radial))));
   const rightR=V.norm(V.cross(tangent,radial));
   const orbitDirection=V.rot(V.rot(tangent,radial,orbitYaw),rightR,orbitPitch*.28);
@@ -5527,6 +5636,8 @@ function cameraState(dt){
  return{eye:camEye,target:aim,forward:viewForward,right,up:viewUp};
 }
 function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;
+ // Paint-only vehicle identity for UI20 cockpit frames (6 Hz bounded).
+ document.body.dataset.sfView=truckOccupied?(camMode===1?'truck-cab':'truck-chase'):eva?'eva':camMode===1?'ship-cockpit':'ship-chase';
  const hint=$('control-live-hint');if(hint){const codes=controls.settings.bindings;const short=k=>String(k||'—').replace(/^Key/,'').replace(/^Digit/,'').replace(/^Arrow/,'ARROW ').replace('ShiftLeft','SHIFT').replace('Space','SPACE');
   const mode=interiorState?'RUIN INTERIOR':truckOccupied?'TRUCK':eva?'EVA':landed?'LANDED SHIP':'SHIP';const word=mode==='SHIP'?'thrust / brake':mode==='LANDED SHIP'?'drive / reverse':'forward / reverse';
   const text=mode+' · '+short(codes.thrust)+' / '+short(codes.brake)+' '+word+' · '+short(codes.turnLeft)+' / '+short(codes.turnRight)+' turn'+(truckOccupied&&controls.settings.roverSteerInvert?' (INVERTED)':'')+' · MOUSE Y '+(controls.settings.lookInvertY?'INVERTED':'NORMAL')+(controls.settings.flightPitchInvert&&mode==='SHIP'?' · FLIGHT PITCH INVERTED':'')+' · CONTROLS ⚙ TO CUSTOMIZE';if(hint.textContent!==text)hint.textContent=text;
@@ -5550,7 +5661,7 @@ function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=w
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
   const portraitBase=eva&&!interiorState&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(truckOccupied?3.4:0.25)+rampLift+(eva&&!truckOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
-  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{tier:site.tier,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
+  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,hidePlayerShip:camMode===1&&!eva&&!truckOccupied,hidePlayerTruck:camMode===1&&truckOccupied,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{tier:site.tier,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
  if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
   window.StarfallAssetUI7A1?.tick();if(window.StarfallAssetUI7A1?.hasWorldSelection&&now-lastAssetHighlightAt>160){lastAssetHighlightAt=now;window.StarfallAssetUI7A1.syncHighlight({...camera,fov:renderer.fov},canvas,assetPickCandidates());}refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
@@ -10201,6 +10312,78 @@ for(const b of $('outpost').querySelectorAll('[data-outpost-tab]'))b.addEventLis
  if(b.dataset.outpostTab==='comms'){selection();inspectOnly();}
 });
 root.StarfallRFAnalyzerUI19={inspect,refresh:inspectOnly,selection};
+})(window);
+</script><script>
+/* STARFALL UI20 — contextual navigation without a second game state.
+ * Native buttons, IDs, physics and original modal ownership remain untouched.
+ */
+(function(root){'use strict';
+ const $=id=>document.getElementById(id),panel=$('panel'),body=document.body;
+ const consoleButton=$('ui-console-open'),toggle=$('panel-toggle'),help=$('ui-help-open'),tools=$('ui-tools-toggle');
+ if(!panel||!consoleButton||!toggle||!help||!tools)return;
+ const toolTitles={
+  'asset-open':'Asset manager · all installed spacecraft and equipment',
+  'archive-t17-open':'Save and restore expedition',
+  'launch-open':'Rocket lab',
+  'controls-open':'Control settings and remapping',
+  'obs-open':'Observatory and astronomy',
+  'chart-open':'Open star chart to navigate'
+ };
+ for(const [id,label] of Object.entries(toolTitles)){const button=$(id);if(button)button.title=label;}
+ const openPanel=()=>{
+  if(panel.classList.contains('collapsed'))toggle.click();
+  panel.classList.add('ui20-expanded');
+  consoleButton.setAttribute('aria-expanded','true');
+ };
+ const closeTools=()=>{body.classList.remove('ui20-tools-open');tools.setAttribute('aria-expanded','false');};
+ const openTools=()=>{body.classList.toggle('ui20-tools-open');tools.setAttribute('aria-expanded',String(body.classList.contains('ui20-tools-open')));};
+ consoleButton.addEventListener('click',()=>{
+  if(panel.classList.contains('collapsed')||!panel.classList.contains('ui20-expanded'))openPanel();
+  else{panel.classList.remove('ui20-expanded');consoleButton.setAttribute('aria-expanded','false');}
+ });
+ toggle.addEventListener('click',()=>{
+  if(panel.classList.contains('collapsed')){panel.classList.remove('ui20-expanded');consoleButton.setAttribute('aria-expanded','false');}
+ });
+ tools.addEventListener('click',openTools);
+ $('sf-quick-tools')?.addEventListener('click',e=>{if(e.target.closest('button'))closeTools();});
+ help.addEventListener('click',()=>{
+  body.classList.toggle('ui20-help-open');
+  help.setAttribute('aria-expanded',String(body.classList.contains('ui20-help-open')));
+ });
+ // T16 originally prepended a dense full asset card to the always-on
+ // reconnaissance surface. Keep every live source/selector and test contract,
+ // but put the SAME live card after the collapsible flight computer instead.
+ const liveCard=$('panel-body')?.querySelector(':scope > .op16-card');
+ const flightComputer=$('fc-extra');
+ if(liveCard&&flightComputer)flightComputer.after(liveCard);
+ const nav=$('sf-console-nav');
+ const targets=[['Overview','#panel-body .planet-meta'],['Survey','#biome-section'],['Systems','#fc-extra'],['Explore','#survey-open'],['Science','#field-open']];
+ for(const [i,[name,selector]] of targets.entries()){
+  const button=document.createElement('button');button.type='button';button.textContent=name;
+  button.setAttribute('aria-current',i===0?'true':'false');
+  button.addEventListener('click',()=>{
+   const target=document.querySelector(selector);if(!target)return;
+   openPanel();
+   target.scrollIntoView({block:'start',behavior:'instant'});
+   for(const b of nav.querySelectorAll('button'))b.setAttribute('aria-current',String(b===button));
+  });
+  nav.appendChild(button);
+ }
+ const restore=()=>{for(const b of nav.querySelectorAll('button'))b.setAttribute('aria-current',String(b===nav.firstElementChild));};
+ panel.addEventListener('scroll',()=>{if(panel.scrollTop<=8)restore();},{passive:true});
+ document.addEventListener('pointerdown',e=>{
+  if(!e.target.closest('.sf-head-actions'))closeTools();
+ });
+ document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if(body.classList.contains('ui20-help-open')){body.classList.remove('ui20-help-open');help.setAttribute('aria-expanded','false');}
+  closeTools();panel.classList.remove('ui20-expanded');consoleButton.setAttribute('aria-expanded','false');
+ });
+ // First cockpit viewport defaults to the original chase camera, including
+ // remapped keyboard controls. The existing V key remains the only viewpoint switch.
+ // Only the game loop, not this module, supplies vehicle/camera state.
+ body.classList.add('ui20');
+ root.StarfallContextUI20={openPanel,closeTools};
 })(window);
 </script>
 </body>

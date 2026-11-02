@@ -553,9 +553,9 @@ class Renderer{
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',1);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
   gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
-  const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);
+  if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
-  if(state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
+  if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
   for(const probe of (state.extraRovers||[]).slice(0,15)){if(V.len(V.sub(probe.position,viewer))>2600)continue;const right=V.norm(V.cross(probe.forward,probe.up));this.renderMesh(p,this.rover,M.basis(right,probe.up,probe.forward,V.sub(probe.position,origin)));}
   for(const sat of (state.satellites||[]).slice(0,48)){if(V.len(V.sub(sat.position,viewer))>85000)continue;const up=V.norm(sat.up||[0,1,0]),front=V.norm(V.sub([0,0,1],V.mul(up,V.dot([0,0,1],up))));const right=V.norm(V.cross(front,up));this.renderMesh(p,this.satellite,M.basis(right,up,front,V.sub(sat.position,origin)));}
   for(const rocket of (state.rockets||[]).slice(0,3)){if(V.len(V.sub(rocket.position,viewer))>7000)continue;const up=V.norm(rocket.up),right=V.norm(V.cross([1,0,0],up)),front=V.norm(V.cross(right,up));this.renderMesh(p,this.rocket,M.basis(right,up,front,V.sub(rocket.position,origin)));}
@@ -652,7 +652,7 @@ class Renderer{
    const eye=camera.eye,target=V.add(eye,V.mul(forward,500)),pose={eye,target,forward,right,up:V.norm(V.cross(right,forward))};
    const altitude=Math.max(0,V.len(V.sub(eye,body.position))-body.radius);
    this.render({...base,camera:pose,nearest:body,altitude,position:eye,viewerPosition:eye,
-     weather:null,interior:null,avatarBase:null,avatarWalking:false,avatarDelta:0,headlights:false,
+     weather:null,interior:null,avatarBase:null,avatarWalking:false,avatarDelta:0,headlights:false,hidePlayerShip:false,hidePlayerTruck:false,
      shipPosition:base.shipPosition,shipForward:base.shipForward||forward,shipUp:base.shipUp||up,
      infrastructure:base.infrastructure||[],ruins:base.ruins||[],ecology:base.ecology||[]});
    const pixels=new Uint8Array(size*size*4);
