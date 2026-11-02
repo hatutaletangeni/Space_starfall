@@ -142,7 +142,7 @@ function sceneRockets(){return store.launches.filter(x=>['ascent','coast'].inclu
  const direction=V.norm(V.add(V.mul(u,f.vx),V.mul(tang,f.vy)));
  return[{position:world,up:V.len(direction)>.1?direction:V.norm(V.add(V.mul(u,f.x/r),V.mul(tang,f.y/r))),stage:f.stageIndex+1}];});}
 function sceneSatellites(){return store.satellites.slice(-48).flatMap(s=>{const b=RT.galaxy.byId.get(s.bodyId);if(!b)return[];try{const q=E?E.satellitePosition(s,b,RT.time,P.SCENE_METERS_PER_UNIT):X.orbit(s,b,RT.time,P.SCENE_METERS_PER_UNIT);return[{position:q.position,up:s.axis}];}catch(_){return[];}});}
-function sceneRovers(){const body=RT.nearest;if(!RT.landed||!body)return[];return store.rovers.filter(r=>r.bodyId===body.id).slice(-15).map(r=>{const d=worldPosition(body,r.local,1.8),up=d.up,side=V.norm(V.cross(up,[1,0,0])),front=V.norm(V.cross(side,up));return{position:d.position,up,forward:front};});}
+function sceneRovers(){const body=RT.nearest;if(!RT.landed||!body)return[];return store.rovers.filter(r=>r.bodyId===body.id&&(!r.roverT06||['READY','TRAVERSING','SCIENCE','SAFE_STOP','RECOVERY'].includes(r.roverT06.state))).slice(-15).map(r=>{const d=worldPosition(body,r.local,1.8),up=d.up,side=V.norm(V.cross(up,[1,0,0])),front=V.norm(V.cross(side,up));return{position:d.position,up,forward:front};});}
 function activeMission(){return store.launches.find(m=>m.id===$('launch-7b-active').value);}
 function refreshFlightPanel(){const pick=$('launch-7b-active'),previous=pick.value;
  const live=store.launches.slice().reverse().filter(m=>['ascent','coast'].includes(m.phase)&&m.flight);
