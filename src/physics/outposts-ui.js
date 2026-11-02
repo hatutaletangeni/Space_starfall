@@ -63,6 +63,53 @@ function sendData(){const id=$('outpost-lab').value,lab=store.items.find(x=>x.id
  if(!powered(lab.id,lab.bodyId))throw Error('Lab has no electrical power: connect a battery or solar array');const link=linkFor(lab);if(!link.connected)throw Error('Radio unavailable: '+link.reason);
  const journal=root.StarfallScienceUI?.journal||[],recs=journal.filter(x=>x.bodyId===lab.bodyId&&!store.receipts.some(r=>r.labId===lab.id&&r.observationId===x.id)&&!queue.some(q=>q.labId===lab.id&&q.obs.id===x.id));
  if(!recs.length)throw Error('No new measurements from this body; collect field data first');for(const obs of recs.slice(0,20)){if(queue.length>=120)break;queue.push({labId:lab.id,obs:O.copy(obs),deliverAt:RT.time+Math.max(.05,link.delayS)});}dirty=true;persist();show('Queued '+Math.min(recs.length,20)+' observation(s) · '+link.via+' · '+fmt(link.delayS,5)+' s one-way');}
+function radioTargets(body){
+ const options=[];if(!body)return options;
+ const ship=RT.engineeringAssetPoses()?.shipPose;
+ if(RT.outpostContext()?.landed&&ship?.bodyId===body.id)options.push({id:'starfall-ship',label:'Landed ship radio'});
+ for(const rover of root.StarfallLaunchUI?.store?.rovers||[])if(rover.bodyId===body.id)options.push({id:rover.id,label:'Deployed rover '+rover.id.slice(-8)});
+ for(const sat of root.StarfallLaunchUI?.store?.satellites||[])if(sat.bodyId===body.id)options.push({id:sat.id,label:'Orbital '+sat.id.slice(-8)});
+ for(const item of store.items)if(item.bodyId===body.id&&item.kind==='antenna')options.push({id:item.id,label:'Surface antenna '+item.id.slice(-8)});
+ return options;
+}
+function radioPosition(id,body){
+ const V=O.V,spin=body.spinAngle||0,axis=body.spinAxis||[0,1,0],unit=root.StarfallPhysics.SCENE_METERS_PER_UNIT;
+ const pose=id==='starfall-ship'?RT.engineeringAssetPoses()?.shipPose:null;
+ const rover=root.StarfallLaunchUI?.store?.rovers.find(x=>x.id===id);
+ const tower=store.items.find(x=>x.id===id&&x.bodyId===body.id);
+ const sat=root.StarfallLaunchUI?.store?.satellites.find(x=>x.id===id);
+ if(sat)return root.StarfallLaunch.orbit(sat,body,RT.time,unit).position;
+ const local=pose?.local||rover?.local||tower?.local;
+ if(!local)return null;
+ return V.add(body.position,V.mul(O.rotate(local,axis,spin),body.radius+(tower?.height||5)+4));
+}
+function refreshRadioHardware(body){
+ const hw=root.StarfallAntennaT04,picker=$('outpost-radio-device'),target=$('outpost-radio-target'),mode=$('outpost-radio-mode'),detail=$('outpost-radio-diagnostic');
+ if(!hw){detail.textContent='T04 hardware adapter not loaded';return;}
+ const prev=picker.value,items=store.items.filter(x=>x.kind==='antenna'&&x.bodyId===body?.id);
+ picker.replaceChildren();for(const item of items){const opt=document.createElement('option');opt.value=item.id;opt.textContent=item.id;picker.append(opt);}
+ if(items.some(x=>x.id===prev))picker.value=prev;
+ const item=items.find(x=>x.id===picker.value);
+ const oldTarget=target.value;target.replaceChildren();
+ for(const row of radioTargets(body)){const op=document.createElement('option');op.value=row.id;op.textContent=row.label;target.append(op);}
+ const cfg=item?hw.repair(item.radioT04):null;
+ if([...target.options].some(x=>x.value===oldTarget))target.value=oldTarget;
+ else if(cfg?.targetId&&[...target.options].some(x=>x.value===cfg.targetId))target.value=cfg.targetId;
+ if(cfg)mode.value=cfg.mode;
+ const packets=root.StarfallCommsT03?.transport?.packets||[];
+ const report=item?hw.diagnostics(item,body,powerReports.get(body.id),packets,O.rotate,RT.time):null;
+ detail.textContent=!report?'No placed surface antenna on this world.':[
+  'T04 ANTENNA '+report.id+' / '+(report.powered?'ONLINE':'OFFLINE '+report.fault),
+  'MODE '+report.mode.toUpperCase()+(report.targetId?' · target '+report.targetId:' · omnidirectional legacy default'),
+  'POWER '+fmt(report.actualLoadW,1)+' W on bus '+(report.busId||'NO BUS')+' · '+fmt(report.voltageV,0)+' V · tracking motor '+fmt(report.trackingW,0)+' W',
+  'TX '+report.txPowerW+' W / RX '+report.rxPowerW+' W · RATED '+report.bandwidthBps+' bit/s · range '+fmt(report.rangeScene,0)+' scene units',
+  'HEALTH '+fmt(report.health*100,0)+'% · THERMAL '+fmt(report.temperatureK,1)+' K',
+  'BUFFER '+fmt(report.bufferUsedBytes,0)+' / '+fmt(report.bufferCapacityBytes,0)+' bytes · '+report.packetsAwaitingACK+' packet(s) awaiting ACK',
+  'CONTACT '+(report.lastContactS===null?'NONE':('T+'+fmt(report.lastContactS,1)+' s · '+report.lastPeerId)),
+  'RECENT PACKETS '+(report.queuedPacketIds.slice(-4).join(', ')||'NONE')
+ ].join('\\n');
+}
+function selectedRadio(){const i=store.items.find(x=>x.id===$('outpost-radio-device').value);if(i?.kind!=='antenna')throw Error('Select an existing surface antenna');return i;}
 function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT.outpostContext(),bodyId=ctx.body?.id||null,all=bodyId?store.items.filter(x=>x.bodyId===bodyId):[];
  const options=(el,list,placeholder)=>{const old=el.value;el.replaceChildren();if(placeholder){const p=document.createElement('option');p.value='';p.textContent=placeholder;el.append(p);}for(const item of list){const p=document.createElement('option');p.value=item.id;p.textContent=item.kind.toUpperCase()+' / '+item.id.slice(-8);el.append(p);}if([...el.options].some(x=>x.value===old))el.value=old;};
  options($('outpost-node-a'),all,'A: select module');options($('outpost-node-b'),all,'B: select module');options($('outpost-lab'),all.filter(x=>x.kind==='lab'),'Select laboratory');
@@ -87,6 +134,7 @@ function refresh(){$('outpost-enforce-radio').checked=radioEnforced;const ctx=RT
  const labs=all.filter(x=>x.kind==='lab');const lab=labs.find(x=>x.id===$('outpost-lab').value),readings=lab?store.receipts.filter(r=>r.labId===lab.id):[];
  $('outpost-data').textContent=readings.length?readings.slice(-35).map(r=>r.instrument+' '+fmt(r.value,3)+' '+r.unit+' ±'+fmt(r.uncertainty,2)+' · measured '+fmt(r.timeS)+'s · received '+fmt(r.receivedAtS)+'s').join('\n'):'No received measurements. A powered lab needs a radio connection and actual instrument readings.';
  if(lab){const l=linkFor(lab);$('outpost-radio').textContent=(l.connected?'ONLINE':'OFFLINE')+' · '+(l.via||l.reason)+' · '+fmt(l.delayS,5)+' s one-way';}else $('outpost-radio').textContent='Choose a laboratory for radio status';
+ refreshRadioHardware(ctx.body);
  const r=$('outpost-relays');r.replaceChildren();for(const item of store.relays.filter(x=>x.bodyId===bodyId)){const opt=document.createElement('div');opt.className='field-entry';opt.textContent=item.id+' · altitude '+fmt(item.altitude)+' scene units · analytic orbit '+fmt(item.periodS)+'s';r.append(opt);}
  try{const key=placementKey(),p=lastPlacement?.key===key?lastPlacement:selection();p.key=key;lastPlacement=p;$('outpost-placement').textContent='VALID LOCATION · '+fmt(p.check.slopeDeg,1)+'° slope · '+fmt(p.check.height,2)+' scene-units elevation';$('outpost-placement').style.color='#a7d4b7';}catch(e){lastPlacement=null;$('outpost-placement').textContent='INVALID LOCATION · '+e.message;$('outpost-placement').style.color='#ffb19a';}
 }
@@ -101,6 +149,29 @@ $('outpost-toggle-power').onclick=wrapped(()=>{const id=$('outpost-node-a').valu
 $('outpost-disconnect').onclick=wrapped(()=>{if(!store.unlink($('outpost-node-a').value,$('outpost-node-b').value))throw Error('Cable not found');dirty=true;persist();show('Cable disconnected.');});
 $('outpost-launch-relay').onclick=wrapped(()=>{const ctx=RT.outpostContext();if(!ctx.landed||!ctx.eva)throw Error('Deploy a relay while exploring the surface');const relay=store.addRelay(ctx.body);dirty=true;persist();show('Simulated relay deployed: '+relay.id+' · analytic orbit (no cinematic rocket launch)');});
 $('outpost-send').onclick=wrapped(sendData);
+$('outpost-radio-device').onchange=()=>refresh();
+$('outpost-radio-mode').onchange=()=>{};$('outpost-radio-target').onchange=()=>{};
+$('outpost-radio-apply').onclick=wrapped(()=>{
+ const item=selectedRadio();if(!root.StarfallAntennaT04)throw Error('T04 radio model missing');
+ store.configureRadio(item.id,{mode:$('outpost-radio-mode').value,targetId:$('outpost-radio-target').value});dirty=true;persist();
+ show('Radio '+item.id+' now '+item.radioT04.mode.toUpperCase()+'; moving tracking consumes 35 additional modeled watts.');
+});
+$('outpost-radio-aim').onclick=wrapped(()=>{
+ const item=selectedRadio(),body=RT.outpostContext()?.body,targetId=$('outpost-radio-target').value;
+ if(!body||!targetId||targetId===item.id)throw Error('Choose another physical target on this body');
+ const origin=root.StarfallAntennaT04.position(item,body,O.rotate),aim=radioPosition(targetId,body);
+ if(!aim)throw Error('Physical target location is unavailable');
+ const direction=O.V.norm(O.rotate(O.V.sub(aim,origin),body.spinAxis||[0,1,0],-(body.spinAngle||0)));
+ store.configureRadio(item.id,{mode:'fixed',targetId,boresightLocal:direction});
+ dirty=true;persist();show('Dish mechanically aimed at '+targetId+' (body-fixed pointing, no automatic tracking).');
+});
+$('outpost-radio-reset').onclick=wrapped(()=>{
+ const i=selectedRadio();store.configureRadio(i.id,{mode:'omni',radioEnabled:true,targetId:''});dirty=true;persist();show('Radio reset: legacy-compatible omnidirectional mode enabled.');
+});
+$('outpost-radio-power').onclick=wrapped(()=>{
+ const i=selectedRadio(),enabled=!root.StarfallAntennaT04.repair(i.radioT04).radioEnabled;
+ store.configureRadio(i.id,{radioEnabled:enabled});dirty=true;persist();show('Transceiver '+(enabled?'enabled':'disabled')+' · DC module remains separately switched.');
+});
 $('outpost-enforce-radio').onchange=()=>{radioEnforced=$('outpost-enforce-radio').checked;dirty=true;persist();show(radioEnforced?'Radio enforcement ON for new remote rover commands':'Assisted radio mode restored');};
 $('outpost-export').onclick=wrapped(()=>{const file=new Blob([JSON.stringify(store.serialize(),null,2)],{type:'application/json'}),url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download='starfall-outposts-'+store.seed+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Infrastructure JSON exported');});
 $('outpost-export-receipts').onclick=wrapped(()=>{const rows=['observationId,labId,bodyId,instrument,value,unit,uncertainty,measurementTimeS,receivedAtS'];for(const x of store.receipts){const escape=v=>'"'+String(v??'').replaceAll('"','""')+'"';rows.push([x.observationId,x.labId,x.bodyId,x.instrument,x.value,x.unit,x.uncertainty,x.timeS,x.receivedAtS].map(escape).join(','));}const url=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='starfall-lab-receipts.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);show('Laboratory receipts exported');});
