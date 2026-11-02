@@ -411,9 +411,10 @@
  <div class="obs-window survey-window"><div class="obs-head"><div><span class="obs-badge">STARFALL / SURFACE SURVEY · 6G</span><h2 id="survey-title">Planetary Survey Map</h2></div><button id="survey-close" class="science-action" type="button">✕ Close</button></div>
  <p id="survey-world" class="field-note">Land on a solid world to view the local map.</p>
  <div class="survey-toolbar"><label for="survey-mode">Terrain <select id="survey-mode"><option value="biome">Biomes</option><option value="relief">Topography</option></select></label><label for="survey-range">Scale <select id="survey-range"><option value="180">180 units</option><option value="350" selected>350 units</option><option value="700">700 units</option><option value="1200">1,200 units</option></select></label><label><input type="checkbox" id="survey-fog" checked> Explored terrain only</label><label><input type="checkbox" id="survey-follow" checked> Follow explorer</label><button class="science-action" id="survey-recenter" type="button">RECENTER</button></div>
+ <div class="survey-toolbar" id="survey-t14-tools"><label for="survey-t14-filter">Evidence layer <select id="survey-t14-filter"><option value="all">All verified markers</option><option value="mission">Ship / rover / waypoints</option><option value="measurement">Received measurements</option><option value="orbital">Received orbital observations</option><option value="photo">Downlinked camera images</option><option value="ruin">Mapped / investigated ruins</option><option value="ecology">Observed ecology</option><option value="outpost">Outpost assets</option><option value="relay">Receiver / relay antennas</option><option value="rover">Rover observations</option><option value="pending">Pending jobs with known coordinates</option></select></label><label><input type="checkbox" id="survey-t14-show-details" checked> Scientific evidence details</label><button type="button" class="science-action" id="survey-t14-refresh">REFRESH RECEIVED EVIDENCE</button></div><pre class="survey-warning" id="survey-t14-summary" aria-live="polite">Only local visits and received instrument or photo evidence reveal coordinates. Seeded values are models, not ground truth.</pre>
  <div class="survey-body"><div class="survey-canvas-shell"><canvas id="survey-canvas" width="640" height="520" aria-label="North-up local planet map. Select a map marker or click terrain to measure distance and bearing."></canvas><span class="survey-compass">N ↑ &nbsp; E →</span></div>
   <div class="survey-side"><pre id="survey-inspect" role="status" aria-live="polite">Select a location for terrain, bearing and distance.</pre><div><h3>Known locations</h3><div id="survey-markers" class="survey-markers"></div></div></div></div>
- <p class="survey-legend">● EXPLORER &nbsp; ◇ SHIP &nbsp; ▣ ROVER &nbsp; ■ OUTPOST &nbsp; ✦ SURVEYED RUIN &nbsp; △ MAPPED ANOMALY &nbsp; ○ SAVED WAYPOINT</p>
+ <p class="survey-legend">◎ RECEIVED SENSOR &nbsp; ◉ DOWNLINKED PHOTO &nbsp; ▣ ORBITAL &nbsp; ♧ ECOLOGY &nbsp; ● EXPLORER &nbsp; ◇ SHIP &nbsp; ▣ ROVER &nbsp; ■ OUTPOST &nbsp; ✦ SURVEYED RUIN &nbsp; △ MAPPED ANOMALY &nbsp; ○ SAVED WAYPOINT</p>
  <div class="obs-tools"><button id="survey-waypoint-add" class="science-action" type="button">MARK SELECTED COORDINATE</button><button id="survey-waypoint-remove" class="science-action" type="button">REMOVE SELECTED WAYPOINT</button><button id="survey-open-notebook" class="science-action" type="button">OPEN EXPEDITION NOTEBOOK</button></div>
  <p id="survey-status" class="survey-warning" role="status" aria-live="polite"></p><p class="survey-warning">North-up planet-fixed projection: local surface distances are arc lengths in scene units. Fog is recorded as approximate traveled coverage, not a satellite image. Terrain colors and relief derive from Starfall's existing seeded ground function; mapped signals are not proof of alien origins. This map does not replace the interstellar star chart.</p>
  </div>
@@ -1873,6 +1874,107 @@ root.StarfallFieldScience={hash,rand,profile,localTruth,sample,journal,csv,INSTR
 })(globalThis);
 
 </script><script>
+/* STARFALL T14 — trusted sensor evidence and shared survey geography.
+ * Pure adapter, NOT a second science archive. Root owners: robotics4 Journal,
+ * Launch7 rover, 7C satellite, Imaging7F photos, Survey6G coverage, Ruins/Ecology.
+ * Seeded simulation is never presented as real laboratory truth.
+ */
+(function(root){'use strict';
+const finite=Number.isFinite,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const unit=(a)=>{if(!Array.isArray(a)||a.length!==3||!a.every(finite))throw Error('T14 invalid body-fixed location');const n=Math.hypot(...a);if(Math.abs(n-1)>.025)throw Error('T14 invalid body-fixed unit direction');return a.map(x=>x/n);};
+const safeId=s=>typeof s==='string'&&s.length>0&&s.length<=170&&/^[\w.:\-]+$/.test(s);
+const SENSORS=Object.freeze({
+ spectrometer:{family:'geology',requires:'science-suite',envelope:'Solid surface; calibrated reflected-spectrum estimate'},
+ thermometer:{family:'environment',requires:'thermometer',envelope:'Solid surface or low-altitude atmosphere'},
+ barometer:{family:'environment',requires:'barometer',envelope:'Atmospheric pressure; airless vacuum correctly yields zero'},
+ magnetometer:{family:'geophysics',requires:'magnetometer',envelope:'Planetary magnetic field, local interferers may reduce quality'},
+ radar:{family:'geophysics',requires:'radar',envelope:'Terrain-ground-ranging and depth approximation, ground proximity'},
+ seismometer:{family:'geophysics',requires:'seismometer',envelope:'Surface-contact sensor; airborne use is prohibited'},
+ sampler:{family:'sample',requires:'contact-sampler',envelope:'Ground contact and local regolith extraction'},
+ bioassay:{family:'ecology',requires:'bioassay',envelope:'Model biosignature index only; NEVER proof of life'}
+});
+function sensorSpecs(instruments){const s={};for(const [k,v] of Object.entries(instruments||{}))if(SENSORS[k]){
+ if(!finite(v.powerW)||v.powerW<0||!finite(v.seconds)||v.seconds<=0||!finite(v.uncertainty)||v.uncertainty<=0||
+ !finite(v.resolution)||v.resolution<=0||!finite(v.maxAltitudeM)||v.maxAltitudeM<0)throw Error('T14 invalid rated instrument '+k);
+ s[k]={...SENSORS[k],name:v.name,parameter:v.quantity,unit:v.unit,
+   powerW:v.powerW,acquisitionS:v.seconds,energyJ:v.powerW*v.seconds,
+   resolution:v.resolution,uncertainty:v.uncertainty,maxAltitudeM:v.maxAltitudeM};
+ }return s;}
+function quality({calibrated=true,temperatureK=290,weather=0,health=1}={}){
+ if(!finite(temperatureK)||!finite(weather)||!finite(health))throw Error('T14 invalid sensor health/temperature/weather');
+ let penalty=calibrated?1:2.5,flags=[];
+ if(!calibrated)flags.push('UNCALIBRATED');
+ if(health<.75){penalty*=1+clamp((.75-health)*3,0,2.5);flags.push('DEGRADED_HARDWARE');}
+ if(temperatureK>325||temperatureK<210){penalty*=1+clamp(Math.abs(temperatureK-290)/80,0,2.5);flags.push('THERMAL_DRIFT');}
+ if(weather>.6){penalty*=1+clamp(weather,0,1);flags.push('WEATHER_SCATTER');}
+ return{uncertaintyMultiplier:penalty,confidenceModel:clamp(1/penalty,0,1),flags,
+  explanation:'relative modeled instrument quality, not probability of scientific truth'};
+}
+function annotateObservation(ob,{spec,sourceAssetId,calibrated=ob?.calibrated!==false,temperatureK=290,weather=0,health=1,dataBytes=256}={}){
+ if(!ob||!safeId(ob.id)||!safeId(ob.bodyId)||!finite(ob.value)||!finite(ob.timeS)||ob.timeS<0)throw Error('T14 invalid source observation');
+ const local=unit(ob.location);
+ if(!spec||!finite(spec.uncertainty)||spec.uncertainty<=0||!finite(spec.powerW))throw Error('T14 instrument spec missing');
+ const q=quality({calibrated,temperatureK,weather,health});
+ const base=finite(ob.uncertainty)&&ob.uncertainty>=0?ob.uncertainty:spec.uncertainty;
+ return{...ob,location:local,sourceAssetId:safeId(sourceAssetId)?sourceAssetId:(safeId(ob.sourceAssetId)?ob.sourceAssetId:null),
+  t14:{schema:1,source:'seeded simulation',model:ob.model||'procedural estimate',instrument:ob.instrument,
+   acquisitionS:spec.acquisitionS??spec.seconds,powerW:spec.powerW,energyJ:spec.energyJ??spec.powerW*spec.seconds,
+   dataBytes:clamp(Math.floor(dataBytes),64,65536),resolution:spec.resolution,
+   effectiveUncertainty:base*q.uncertaintyMultiplier,
+   confidenceModel:q.confidenceModel,qualityFlags:q.flags,
+   calibration:calibrated?'LEGACY_BASELINE':'UNCALIBRATED',
+   qualityNote:q.explanation}};
+}
+function validateEvidence(ob){
+ if(!ob||!safeId(ob.id)||!safeId(ob.bodyId)||!finite(ob.timeS)||ob.timeS<0||
+ !finite(ob.value)||!finite(ob.uncertainty)||ob.uncertainty<0)return false;
+ try{unit(ob.location);}catch(_){return false;}
+ if(ob.t14&&(ob.t14.schema!==1||!finite(ob.t14.effectiveUncertainty)||ob.t14.effectiveUncertainty<0))return false;
+ return true;
+}
+function latLon(local){const p=unit(local);return{lat:Math.asin(clamp(p[1],-1,1))*180/Math.PI,
+ lon:Math.atan2(p[2],p[0])*180/Math.PI};}
+function marker(o,type,label,extra={}){return{id:o.id,bodyId:o.bodyId,local:unit(o.location||o.local),type,label,...extra};}
+function evidenceLayers({bodyId,journal=[],photos=[],ruins=[],ecology=[],satellites=[],outposts=[],pending=[]}={}){
+ if(!safeId(bodyId))return[];
+ const seen=new Set(),res=[];
+ const push=m=>{if(!m||m.bodyId!==bodyId||!safeId(m.id)||seen.has(m.id))return;
+  try{m.local=unit(m.local);}catch(_){return;}
+  seen.add(m.id);res.push(m);};
+ for(const o of journal)if(o?.bodyId===bodyId&&validateEvidence(o)){
+   const type=o.kind==='orbital-observation'?'orbital':'measurement';
+   push(marker(o,type,(o.instrument||'Instrument')+' / '+o.id.slice(-12),
+    {evidenceId:o.id,sourceId:o.probeId||o.satelliteId||o.sourceAssetId||'legacy-on-foot',
+     value:o.value,unit:o.unit||'',quality:o.t14?.qualityFlags?.join(', ')||o.quality||'MODEL',timeS:o.timeS}));
+ }
+ for(const p of photos)if(p?.bodyId===bodyId&&p.status==='downlinked'&&p.receivedAtS!==null&&safeId(p.id)){
+  // Actual camera optics were rendered and bytes downlinked. No inferred photo from numeric 7C camera.
+  // Camera position is WORLD position, so without source's body-fixed direction use photo.local only.
+  const dir=p.local||p.bodyFixedLocal||p.captureLocal;
+  if(dir)push(marker({id:p.id,bodyId,location:dir},'photo','Received image '+p.id.slice(-13),{
+    photoId:p.id,sourceId:p.sourceAssetId,timeS:p.timeS,quality:'ACTUAL WEBGL IMAGE DOWNLINKED'}));
+ }
+ for(const r of ruins)if(r?.bodyId===bodyId&&r.level>=1&&r.siteSnapshot?.local)
+  push(marker({id:r.id,bodyId,local:r.siteSnapshot.local},'ruin',r.level>=2?'Examined ruin':'Surveyed ruin',{evidenceId:r.id,quality:'PROCEDURAL ARCHAEOLOGY'}));
+ for(const e of ecology)if(e?.bodyId===bodyId&&(e.level>=1||e.stage>=1||e.observedAtS!==undefined)&&e.local)
+  push(marker({id:e.id,bodyId,local:e.local},'ecology','Observed ecosystem candidate',{evidenceId:e.id,quality:'SEEDED MODEL EVIDENCE'}));
+ for(const x of outposts)if(x?.bodyId===bodyId&&x?.local&&x.kind==='antenna')
+  push(marker(x,'relay','Outpost receiver '+x.id.slice(-10),{sourceId:x.id}));
+ for(const x of pending)if(x?.bodyId===bodyId&&x.local&&x.requestedAtS!==undefined)
+  push(marker(x,'pending','Pending surveyed command',{sourceId:x.assetId}));
+ return res;
+}
+function filterMarkers(markers,filter='all'){const accepted=['all','measurement','orbital','photo','ruin','ecology','outpost','relay','pending','mission','rover'];if(!accepted.includes(filter))throw Error('T14 invalid map filter');
+ if(filter==='all')return markers.slice();
+ if(filter==='mission')return markers.filter(x=>['ship','rover','explorer','waypoint'].includes(x.type));
+ if(filter==='rover')return markers.filter(x=>x.type==='rover'||x.type==='measurement'&&x.sourceId?.includes('rover')||x.type==='measurement'&&x.sourceId?.startsWith('probe-'));
+ return markers.filter(x=>x.type===filter);
+}
+const API={sensorSpecs,SENSORS,quality,annotateObservation,validateEvidence,latLon,evidenceLayers,filterMarkers,unit};
+root.StarfallScienceT14=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
 /* STARFALL 4B — bounded 6 wheel traction/slope model; not full rigidbody suspension. */
 (function(root){'use strict';
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),norm=a=>{const n=Math.hypot(...a);return n>1e-10?a.map(v=>v/n):[0,1,0];};
@@ -2372,7 +2474,12 @@ function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive
    if(r.batteryJ<g.safeReserveJ+60000){if(T)T.fault(r,time,'Insufficient energy reserve for sample');else r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'POWER','Insufficient energy reserve for sample');break;}
    try{const obs=science.sample({body,seed,local:r.local,altitudeM:.6,instrument:op.value,simTime:time,nonce:(r.records?.length||0),energyAvailableJ:r.batteryJ-g.safeReserveJ});if(!Array.isArray(r.records))r.records=[];
    if(r.records.length>=100||g.queuedObservations.length>=120){if(T)T.fault(r,time,'Onboard science archive full; export/downlink before collecting more');else r.status='safe-stop';break;}
-   const record={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};
+   const rawRecord={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};
+   const record=root.StarfallScienceT14?.annotateObservation(rawRecord,{
+     spec:root.StarfallScienceT14.sensorSpecs(science.INSTRUMENTS)[op.value],
+     sourceAssetId:r.id,calibrated:obs.calibrated!==false,
+     temperatureK:r.ground7d?.temperatureK||290,health:r.roverT06?.health??1,
+     dataBytes:256})||rawRecord;
    if(op.value==='sampler'&&root.StarfallScienceCustodyT10){
      // This is a physically collected, model-derived 150 g regolith plug,
      // NOT a numeric observation converted into a sample after downlink.
@@ -5159,7 +5266,12 @@ function acquireFieldReading(instrument,nonce=0,fromRover=false){const data=scie
  const point=fromRover?roverLocal:data.local,alt=fromRover?.6:data.altitudeM;
  const result=StarfallFieldScience.sample({body:data.body,seed:GALAXY_SEED,local:point,altitudeM:alt,instrument,simTime,nonce,energyAvailableJ:fromRover&&st.powerEnabled?st.energyJ:Infinity});
  const surfacePoint=point||[0,1,0],biome=BIOMES.classify(data.body,surfacePoint,groundHeight(surfacePoint,data.body),Starfall3D.field(surfacePoint,data.body.seed));
- const observation=Object.freeze({...result,...(fromRover?{sourceAssetId:vehicleStore.get('rover').definition.id,probeId:vehicleStore.get('rover').definition.id}:{}),biome:biome.name,biomeModel:'seeded environmental classification; not measured'});
+ const rawObservation={...result,...(fromRover?{sourceAssetId:vehicleStore.get('rover').definition.id,probeId:vehicleStore.get('rover').definition.id}:{}),biome:biome.name,biomeModel:'seeded environmental classification; not measured'};
+ const detailed=window.StarfallScienceT14?.annotateObservation(rawObservation,{
+   spec:window.StarfallScienceT14.sensorSpecs(StarfallFieldScience.INSTRUMENTS)[instrument],
+   sourceAssetId:fromRover?vehicleStore.get('rover').definition.id:null,
+   calibrated:true,temperatureK:fromRover?st.temperatureK:290,health:fromRover?st.health:1});
+ const observation=Object.freeze(detailed||rawObservation);
  if(fromRover&&st.powerEnabled){vehicleStore.update('rover',{...st,energyJ:st.energyJ-result.powerJ});persistVehicles();}
  return observation;
 }
@@ -5697,6 +5809,7 @@ function tick(dt){
 function ingestOrbital(obs){if(!obs||obs.kind!=='orbital-observation'||!S.journal||!Number.isFinite(obs.value)||!Array.isArray(obs.location)||!obs.satelliteId||!obs.bodyId)return false;
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
 function ingestRover(obs){if(!obs||!obs.probeId||!obs.bodyId||!Array.isArray(obs.location)||!Number.isFinite(obs.value))return false;
+ if(obs.t14&&!root.StarfallScienceT14?.validateEvidence(obs))return false;
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
 function ingestShip(obs){
  if(!obs||obs.sourceAssetId!=='starfall-ship'||obs.kind!=='measurement'||
@@ -6425,9 +6538,16 @@ function markers(p){if(!p)return[];const found=[],ids=new Set();const push=(m)=>
  for(const r of ruins)if(r.bodyId===p.bodyId&&r.level>=1&&r.siteSnapshot?.local)push({id:r.id,bodyId:r.bodyId,local:r.siteSnapshot.local,label:r.level>=2?'Investigated ancient structure':'Mapped archaeological signal',type:'ruin'});
  for(const r of(root.StarfallExpeditionUI?.records||[]))if(r.bodyId===p.bodyId&&r.stage>=1){const known=ids.has(r.id);if(!known)push({id:r.id,bodyId:r.bodyId,local:r.local,label:r.stage>=2?(r.category==='geological'?'Investigated geological site':'Investigated ancient site'):'Mapped '+r.category+' signal',type:r.category==='archaeological'?'ruin':'anomaly'});}
  for(const w of waypoints)if(w.bodyId===p.bodyId)push({...w,type:'waypoint'});
- return found;
+ const evidence=root.StarfallScienceT14?.evidenceLayers({bodyId:p.bodyId,
+  journal:root.StarfallScienceUI?.journal||[],
+  photos:root.StarfallImagingUI7F?.store?.photos||[],
+  ruins:root.StarfallRuinsUI?.records||[],
+  ecology:root.StarfallEcologyUI?.records||[],
+  outposts:root.StarfallOutpostUI?.store?.items||[]})||[];
+ for(const m of evidence)push(m);
+ return root.StarfallScienceT14?.filterMarkers(found,$('survey-t14-filter').value)||found;
 }
-const ICONS={explorer:['●','#ffde94'],ship:['◇','#d4e8f3'],rover:['▣','#91d5d5'],outpost:['■','#b4d4a2'],ruin:['✦','#ebae8b'],anomaly:['△','#b5a9f6'],waypoint:['○','#f2c26d']};
+const ICONS={explorer:['●','#ffde94'],ship:['◇','#d4e8f3'],rover:['▣','#91d5d5'],outpost:['■','#b4d4a2'],ruin:['✦','#ebae8b'],anomaly:['△','#b5a9f6'],waypoint:['○','#f2c26d'],measurement:['◎','#7bd9ff'],orbital:['▧','#e5c69b'],photo:['◉','#caeeb8'],ecology:['♧','#99deb3'],relay:['⌁','#80c2e1'],pending:['◌','#cfbb99']};
 function bgCacheKey(p,w,h){const b=T.descriptorForDirection(p.body,center);return[p.bodyId,b.key,Math.round(range()),$('survey-mode').value,$('survey-fog').checked,coverage[p.bodyId]?.length||0,w,h,Math.round(M.toLocal(center,p.local,p.body.radius).distance/12)].join(':');}
 function rasterize(p,w,h){const off=document.createElement('canvas');off.width=100;off.height=82;const c=off.getContext('2d'),im=c.createImageData(off.width,off.height),data=im.data,heights=new Float32Array(off.width*off.height),points=new Array(heights.length),radius=Math.min(w,h)/2-23,scale=radius/range(),visited=new Set(coverage[p.bodyId]||[]);
  for(let y=0;y<off.height;y++)for(let x=0;x<off.width;x++){
@@ -6451,7 +6571,7 @@ function legendList(p){const box=$('survey-markers');box.replaceChildren();const
 }
 function inspect(p){if(!selected){$('survey-inspect').textContent='Select a map marker or click the surface for distance and bearing.';return;}
  const local=selected.local,here=M.arc(p.local,local,p.body.radius),hdg=M.bearing(p.local,local),scene=GL.sampleTerrain(p.body,local),label=selected.label||'Selected coordinate';
- $('survey-inspect').textContent=[label,'Range: '+fmt(here)+' scene units','Bearing: '+fmt(hdg,0)+'° (0° true north)','Terrain: '+(scene.biome||scene.material),'Elevation: '+fmt(scene.height)+' scene units','Position: '+local.map(x=>fmt(x,5)).join(' / '),selected.type==='waypoint'?'Saved personal waypoint':'Select MARK to save this coordinate'].join('\n');
+ $('survey-inspect').textContent=[label,'Range: '+fmt(here)+' scene units','Bearing: '+fmt(hdg,0)+'° (0° true north)','Terrain: '+(scene.biome||scene.material),'Elevation: '+fmt(scene.height)+' scene units','Position: '+local.map(x=>fmt(x,5)).join(' / '),selected.evidenceId?'Evidence '+selected.evidenceId+(selected.sourceId?' / source '+selected.sourceId:'')+(selected.quality?' / '+selected.quality:''):'',selected.photoId?'Actual downlinked photo '+selected.photoId:'',root.StarfallScienceT14?'Latitude '+fmt(root.StarfallScienceT14.latLon(local).lat,5)+'° · longitude '+fmt(root.StarfallScienceT14.latLon(local).lon,5)+'°':'',selected.type==='waypoint'?'Saved personal waypoint':'Select MARK to save this coordinate'].join('\n');
 }
 function draw(){if(!isOpen())return;const p=current();if(!p){$('survey-world').textContent='Land on a solid planet or moon before opening a surface map.';ctx.fillStyle='#09141c';ctx.fillRect(0,0,canvas.width,canvas.height);$('survey-markers').textContent='Map unavailable in space.';return;}
  resetCenter(p);const w=canvas.width,h=canvas.height,cache=bgCacheKey(p,w,h);if(rasterKey!==cache||!raster){raster=rasterize(p,w,h);rasterKey=cache;}
@@ -6460,6 +6580,8 @@ function draw(){if(!isOpen())return;const p=current();if(!p){$('survey-world').t
  ctx.strokeStyle='#d0be9960';for(const f of [.25,.5,.75]){ctx.beginPath();ctx.arc(w/2,h/2,mapRadius*f,0,2*Math.PI);ctx.stroke();}
  ctx.beginPath();ctx.moveTo(w/2,16);ctx.lineTo(w/2,h-16);ctx.moveTo(w/2-60,h/2);ctx.lineTo(w/2+60,h/2);ctx.stroke();
  ctx.font='13px Consolas,monospace';ctx.textAlign='center';ctx.textBaseline='middle';knownMarkers=markers(p);const visible=knownMarkers.filter(m=>M.markerProjection(center,m.local,p.body.radius,range(),w,h).inside);
+ const evidenceCount=knownMarkers.filter(x=>['measurement','orbital','photo','ecology'].includes(x.type)).length;
+ $('survey-t14-summary').textContent='Visible '+evidenceCount+' received evidence markers on '+p.bodyId+' · '+knownMarkers.length+' selected-layer markers total. Photo markers require real DOWNLINKED 7F bytes; orbital markers require received T07 records. Body-fixed locations · model uncertainty; no fabricated science from world selection. Pending image jobs: '+(root.StarfallImagingUI7F?.store?.jobs||[]).filter(x=>x.assetId).length+'.';
  // Save waypoint selection is drawn with a hollow reticle, but never recorded as surveyed terrain.
  for(const m of visible){const proj=M.markerProjection(center,m.local,p.body.radius,range(),w,h),[glyph,color]=ICONS[m.type]||['•','#ddd'];ctx.fillStyle='#031018';ctx.beginPath();ctx.arc(proj.px,proj.py,11,0,Math.PI*2);ctx.fill();ctx.fillStyle=color;ctx.fillText(glyph,proj.px,proj.py);if(selected?.id===m.id){ctx.strokeStyle='#ffe1a9';ctx.beginPath();ctx.arc(proj.px,proj.py,14,0,Math.PI*2);ctx.stroke();}}
  if(selected&&!visible.some(x=>x.id===selected.id)&&selected.local){const proj=M.markerProjection(center,selected.local,p.body.radius,range(),w,h);if(proj.inside){ctx.strokeStyle='#eabf7f';ctx.strokeRect(proj.px-7,proj.py-7,14,14);}}
@@ -6476,7 +6598,9 @@ function addWaypoint(){const p=current();if(!p||!selected?.local||selected.bodyI
  if(waypoints.length>=75){status('75 waypoint limit reached. Remove an older waypoint.');return;}const id='wp-'+(Date.now()%1e11).toString(36)+'-'+Math.floor(Math.random()*1e5).toString(36),waypoint={id,bodyId:p.bodyId,local:[...selected.local],label:'Waypoint '+(waypoints.filter(x=>x.bodyId===p.bodyId).length+1)};waypoints.push(waypoint);dirty=true;save();selected={...waypoint,type:'waypoint'};status('Waypoint saved at planet-fixed coordinates.');draw();}
 function removeWaypoint(){if(selected?.type!=='waypoint'){status('Select a saved waypoint to remove.');return;}waypoints=waypoints.filter(w=>w.id!==selected.id);selected=null;dirty=true;save();status('Waypoint removed.');draw();}
 $('survey-open').addEventListener('click',open);$('survey-close').addEventListener('click',()=>{$('survey-panel').hidden=true;save();});$('survey-panel').addEventListener('click',e=>{if(e.target===$('survey-panel'))$('survey-panel').hidden=true;});$('survey-panel').addEventListener('keydown',e=>{if(e.key==='Escape'){$('survey-panel').hidden=true;e.stopPropagation();}});
-for(const id of['survey-mode','survey-range','survey-fog'])$(id).addEventListener('change',()=>{rasterKey='';draw();});$('survey-follow').addEventListener('change',draw);$('survey-recenter').onclick=()=>{const p=current();if(p){center=[...p.local];rasterKey='';draw();}};
+$('survey-t14-filter').addEventListener('change',()=>{selected=null;draw();});$('survey-t14-refresh').onclick=draw;
+ $('survey-t14-show-details').onchange=draw;
+ for(const id of['survey-mode','survey-range','survey-fog'])$(id).addEventListener('change',()=>{rasterKey='';draw();});$('survey-follow').addEventListener('change',draw);$('survey-recenter').onclick=()=>{const p=current();if(p){center=[...p.local];rasterKey='';draw();}};
 canvas.addEventListener('click',clickCanvas);$('survey-waypoint-add').onclick=addWaypoint;$('survey-waypoint-remove').onclick=removeWaypoint;$('survey-open-notebook').onclick=()=>{$('survey-panel').hidden=true;$('discovery-open').click();};
 addEventListener('pagehide',save);
 // Passive visited-region recording: no alteration of flight, rover or physics step functions.
@@ -7713,7 +7837,8 @@ function poseFor(s,mode,timeS=RT.time){
   if(!(geo.altitudeM>25000))throw Error('Orbital camera below minimum imaging altitude');
   const up=V.norm(geo.relative),orbital=V.norm(V.cross(Math.abs(up[1])>.95?[1,0,0]:[0,1,0],up));
   const f=mode==='nadir'?V.mul(up,-1):mode==='oblique'?V.norm(V.add(V.mul(up,-.78),V.mul(orbital,.63))):V.norm(V.add(V.mul(up,-1),V.mul(orbital,.12)));
-  return{body,eye:geo.position,forward:f,up:orbital,altitudeM:geo.altitudeM,headingDeg:null};
+  return{body,eye:geo.position,forward:f,up:orbital,altitudeM:geo.altitudeM,headingDeg:null,
+   captureLocal:V.norm(V.rot(up,body.spinAxis||[0,1,0],-(body.spinAngle||0)))};
  }
  const state=s.local?s.roverLocal:s.rover;
  if(!state?.local)throw Error('Rover position unavailable');
@@ -7725,6 +7850,7 @@ function poseFor(s,mode,timeS=RT.time){
  const eye=V.add(body.position,V.mul(radial,body.radius+height+3.3));
  if(mode==='left')forward=rotForward(forward,radial,-1.1);
  if(mode==='right')forward=rotForward(forward,radial,1.1);
+ let targetRuinId=null;
  if(mode==='target'){
   const localHere=RT.nearest?.id===body.id;
   const saved=(root.SF.load()?.archaeology6c?.records||[]).filter(x=>x.bodyId===body.id&&x.siteSnapshot?.local)
@@ -7733,8 +7859,9 @@ function poseFor(s,mode,timeS=RT.time){
   const targets=localHere?root.StarfallRuinsUI?.scene?.()||saved:saved;
   const near=targets.find(x=>x.position&&V.len(V.sub(x.position,eye))<1300);
   if(!near)throw Error('No visible ruins within camera range for TARGET; use FORWARD instead');
-  forward=V.norm(V.sub(near.position,eye));}
- return{body,eye,forward,up:radial,altitudeM:3.3,headingDeg:s.local?null:(state.heading||0)*180/Math.PI};
+  forward=V.norm(V.sub(near.position,eye));targetRuinId=near.id;}
+ return{body,eye,forward,up:radial,altitudeM:3.3,headingDeg:s.local?null:(state.heading||0)*180/Math.PI,
+  captureLocal:[...state.local],targetRuinId};
 }
 function linkFor(s){
  if(s.type==='rover'){
@@ -7801,7 +7928,7 @@ async function perform(job,s){
   const thumbnail=await thumbnailFor(shot.image);await imagePut(nextId,shot.image,thumbnail);thumbs.set(nextId,thumbnail);
   let photo;try{photo=store.put({sourceType:s.type,sourceAssetId:s.assetId,sourceName:s.label,bodyId:s.bodyId,systemId:pose.body.systemId,
     mode:job.mode,resolution:job.resolution,width:shot.width,height:shot.height,timeS:captureAt,position:pose.eye.slice(),camera:shot.camera,sceneSnapshotVersion:shot.sceneSnapshotVersion||null,renderSource:shot.renderSource||'STARFALL_7F',cameraJobId:job.id,t07JobId:job.t07JobId||null,
-    altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,bytes:shot.bytes,mime:shot.mime,caption,
+    altitudeM:pose.altitudeM,headingDeg:pose.headingDeg,captureLocal:pose.captureLocal,targetRuinId:pose.targetRuinId||null,bytes:shot.bytes,mime:shot.mime,caption,
     observationRefs:job.t07JobId?(()=>{const o=root.StarfallSatelliteOps7C?.ensure?.(s.sat);return[...(o?.storage||[]),...(o?.received||[])].filter(x=>x.t07JobId===job.t07JobId).map(x=>x.id);})():(root.StarfallScienceUI?.journal||[]).filter(x=>x.bodyId===s.bodyId).slice(-5).map(x=>x.id)});
   }catch(e){await imageRemove(nextId);throw e;}
   consumeEnergy(s,shotEnergy);store.finishJob(job.id);store.queueDownlink(photo.id);persist();
