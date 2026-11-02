@@ -3,7 +3,7 @@
  * and future operational jobs. No camera pixels, fake satellites or extra power.
  */
 (function(root){'use strict';
-const SCHEMA=1,STEP_S=5,MAX_STEPS=12,MAX_BACKLOG_S=86400,MAX_JOBS=96,MAX_EVENTS=160;
+const SCHEMA=1,STEP_S=5,MAX_STEPS=12,MAX_BACKLOG_S=86400,MAX_JOBS=96,MAX_EVENTS=160,MAX_RECEIPTS=4000;
 const TYPES=Object.freeze(['ASSET_EVENT','POWER_STATE_CHANGED','DATA_JOB_PROGRESSED','COMMAND_DELIVERED','OBSERVATION_RECEIVED','PHOTO_RECEIVED','FAULT']);
 const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const cleanId=x=>typeof x==='string'&&/^[A-Za-z0-9_:.-]{1,130}$/.test(x);
@@ -18,7 +18,7 @@ class Clock{
   if(saved&&saved.schema===SCHEMA&&saved.seed===seed&&valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS+1e-7){
    if(valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS){this.lastSimulatedS=saved.lastSimulatedS;}
    this.events=bounded(saved.events,MAX_EVENTS).filter(e=>cleanId(e?.id)&&TYPES.includes(e.type)&&valid(e.atS));
-   this.receipts=bounded(saved.receipts,MAX_EVENTS).filter(cleanId);
+   this.receipts=bounded(saved.receipts,MAX_RECEIPTS).filter(cleanId);
    const used=new Set();this.jobs=bounded(saved.jobs,MAX_JOBS).filter(j=>{
     if(!cleanId(j?.id)||used.has(j.id)||!cleanId(j.assetId)||!cleanId(j.kind)||!valid(j.createdAtS)||!valid(j.eligibleAtS)||!valid(j.lastIntegratedS))return false;
     used.add(j.id);return ['QUEUED','WAITING','PAUSED','AWAITING_REVIEW','DONE','FAULT'].includes(j.status);
@@ -30,10 +30,9 @@ class Clock{
  record(type,id,atS,detail={}){
   if(!TYPES.includes(type)||!cleanId(id)||!valid(atS))throw Error('Invalid T01 event');
   if(this.receipts.includes(id))return false;
-  // Event receipt is durable and event emission is exactly-once per stable event ID.
+  // No silent eviction: an explicit archive/export must free older receipts.
+  if(this.events.length>=MAX_EVENTS||this.receipts.length>=MAX_RECEIPTS)throw Error('Mission receipt ledger full: export and explicitly archive completed events');
   this.receipts.push(id);this.events.push({id,type,atS,detail:clone(detail)});
-  if(this.events.length>MAX_EVENTS)this.events.shift();
-  if(this.receipts.length>MAX_EVENTS)this.receipts.shift();
   return true;
  }
  queue({id,assetId,kind,createdAtS,eligibleAtS=createdAtS,expiresAtS=null,priority=5,workUnits=0}){
@@ -63,7 +62,7 @@ class Clock{
    try{if(this.handler)this.handler(start,next,seconds);}catch(e){
     this.events=previousEvents;this.receipts=previousReceipts;
     this.fault={id:'fault-'+this.seed+'-'+Math.floor(next/STEP_S),reason:String(e.message||e).slice(0,180),targetS:next};
-    this.record('FAULT',this.fault.id,start,{reason:this.fault.reason});
+    try{this.record('FAULT',this.fault.id,start,{reason:this.fault.reason});}catch(_){/* Fault remains visible when receipt archive is full. */}
     return{status:'FAULT',lastSimulatedS:this.lastSimulatedS,remainingS:targetS-this.lastSimulatedS,steps};
    }
    this.lastSimulatedS=next;steps++;this.stepsExecuted++;
@@ -78,6 +77,8 @@ class Clock{
   return{status:targetS-this.lastSimulatedS>=STEP_S?'CATCHING_UP':'CURRENT',lastSimulatedS:this.lastSimulatedS,remainingS:Math.max(0,targetS-this.lastSimulatedS),steps};
  }
  acknowledgeBacklog(){if(!this.fault) return false;this.fault=null;return true;}
+ archiveEvents(){const archive=clone({schema:SCHEMA,seed:this.seed,throughS:this.lastSimulatedS,events:this.events,receipts:this.receipts});this.events=[];this.receipts=[];return archive;}
+ archiveCompletedJobs(){const done=this.jobs.filter(j=>['DONE','FAULT'].includes(j.status));this.jobs=this.jobs.filter(j=>!['DONE','FAULT'].includes(j.status));return clone(done);}
  getAssetStatus(id,owner=null){
   if(!cleanId(id))return null;
   const jobs=this.jobs.filter(j=>j.assetId===id).map(clone);
@@ -86,7 +87,7 @@ class Clock{
  }
  serialize(){return clone({schema:SCHEMA,seed:this.seed,lastSimulatedS:this.lastSimulatedS,jobs:this.jobs,events:this.events,receipts:this.receipts,fault:this.fault});}
 }
-const API={SCHEMA,STEP_S,MAX_STEPS,MAX_BACKLOG_S,TYPES,Clock};
+const API={SCHEMA,STEP_S,MAX_STEPS,MAX_BACKLOG_S,MAX_RECEIPTS,TYPES,Clock};
 root.StarfallMissionOperations=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof window!=='undefined'?window:globalThis);
