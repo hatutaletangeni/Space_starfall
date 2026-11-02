@@ -478,7 +478,7 @@
 <div class="launch-7b-section" aria-label="Individual stage assembly"><h3>STAGE-BY-STAGE ASSEMBLY</h3><p class="launch-copy">Independent tank counts and engines. All modules are included in total wet mass. Changes affect real integrated flight.</p>
 <div class="launch-fields" id="launch-7b-stage-fields"><label>Stage 2 tanks<input id="launch-7b-tank2" type="number" min="1" max="16" value="3"></label><label>Stage 2 engine<select id="launch-7b-engine2"><option value="aether">Aether vacuum bell</option><option value="atlas">Atlas sea-level engine</option><option value="cluster">Tri-engine cluster</option></select></label><label>Stage 3 tanks<input id="launch-7b-tank3" type="number" min="1" max="16" value="2"></label><label>Stage 3 engine<select id="launch-7b-engine3"><option value="aether">Aether vacuum bell</option><option value="atlas">Atlas sea-level engine</option><option value="cluster">Tri-engine cluster</option></select></label></div>
 <div class="launch-fields"><label>Flight mode<select id="launch-7b-build-mode"><option value="assisted">Assisted (physical autopilot)</option><option value="manual">Manual flight</option></select></label><label>Target orbital altitude (km)<input type="number" min="50" max="1000" id="launch-7b-target" value="180"></label></div></div>
-<div id="launch-calculations" class="launch-output" aria-live="polite">Choose a launch pad to calculate the trajectory.</div><div class="launch-actions"><button id="launch-ignite">ASSEMBLE & LAUNCH</button><button id="launch-refresh">REFRESH MISSION DATA</button><button id="launch-export">EXPORT TELEMETRY</button></div>
+<section aria-label="T11 launch infrastructure" class="launch-output"><div class="launch-actions"><button id="launch-t11-commission" type="button">COMMISSION PAD / 90 W</button><button id="launch-t11-legacy" type="button">LEGACY PAD MODE</button></div><pre id="launch-t11-pad-status" aria-live="polite">Select an existing foundation.</pre><pre id="launch-t11-manifest" aria-live="polite">Payload inventory is not yet armed.</pre></section><div id="launch-calculations" class="launch-output" aria-live="polite">Choose a launch pad to calculate the trajectory.</div><div class="launch-actions"><button id="launch-ignite">ASSEMBLE & LAUNCH</button><button id="launch-refresh">REFRESH MISSION DATA</button><button id="launch-export">EXPORT TELEMETRY</button></div>
 <h3>7A / Shared Engineering Core</h3>
 <label class="launch-copy"><input id="launch-7a-shared" type="checkbox" checked> Enable shared asset accounting and wired truck charging</label>
 <p class="launch-copy">Shared mode protects energy transfers. Classic compatibility mode preserves older behavior while you test migrated saves. The authoritative vehicle, outpost and launch physics remain in their existing systems until subsequent releases.</p>
@@ -2048,7 +2048,7 @@ class Store{
  constructor(seed,saved){this.seed=seed;this.launches=[];this.satellites=[];this.rovers=[];this.serial=0;this.restore(saved);}
  restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;this.serial=clamp(Number(saved.serial)||0,0,1e8);this.launches=(Array.isArray(saved.launches)?saved.launches:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.startS));this.satellites=(Array.isArray(saved.satellites)?saved.satellites:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.altitudeM)&&x.altitudeM>0&&Number.isFinite(x.mu)&&x.mu>0&&Array.isArray(x.axis));this.rovers=(Array.isArray(saved.rovers)?saved.rovers:[]).filter(x=>x?.id&&x.bodyId&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)).map(x=>({...x,local:norm(x.local),commands:Array.isArray(x.commands)?x.commands.slice(0,24):[],heading:Number.isFinite(x.heading)?x.heading:0}));}
  serialize(){return safe({schema:1,seed:this.seed,serial:this.serial,launches:this.launches,satellites:this.satellites,rovers:this.rovers});}
- launch({body,foundation,design,time,destinationBody=null,destinationSystem=null,landingLocal=null,unit=1000}){
+ launch({body,foundation,design,time,destinationBody=null,destinationSystem=null,landingLocal=null,unit=1000,padContext=null}){
   if(!body?.id||!body.landable||foundation?.kind!=='foundation'||foundation.bodyId!==body.id)throw Error('Select an actual surface foundation as launch pad');
   if(!Number.isFinite(time)||time<0)throw Error('Invalid mission time');
   if(this.launches.length>=MAX_INVENTORY.launches)throw Error('Launch archive full: export/backup your save before removing completed missions; no records were deleted');
@@ -2062,9 +2062,11 @@ class Store{
   const atm=body.atmosphere;
   const rho0=Number.isFinite(atm?.densityKgM3)?atm.densityKgM3:(atm?1.05:0);
   const flight=root.StarfallRocketFlight7B.init(profile,{radiusM,mu,rho0,scaleHeightM:8000,areaM2:14},{mode:design?.mode||'assisted',targetAltitudeM:design?.targetAltitudeM||180000});
+  if(root.StarfallPadT11)root.StarfallPadT11.validateLaunch({pad:foundation,body,launchStore:this,design,destinationBody,destinationSystem,landingLocal,...(padContext||{})});
   const id='launch-'+this.seed+'-'+(++this.serial);
   const mission={id,padId:foundation.id,bodyId:body.id,systemId:body.systemId,destinationSnapshot:destinationBody?{...safe(destinationBody),moons:[],sites:[],parentOrbit:destinationBody.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(destinationBody.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null}:null,
    local:norm(foundation.local),launchUp:rotate(norm(foundation.local),body.spinAxis||[0,1,0],body.spinAngle||0),startS:time,phase:'ascent',elapsedS:0,ascentS:profile.burnTimeS+45,altitudeM:flight.targetAltitudeM,profile,flight,velocityMS:0,trajectoryAltitudeM:0,stage:0,payload:profile.payload,destinationBodyId:destinationBody?.id||body.id,destinationSystemId:destinationSystem?.id||body.systemId,landingTargetLocal:landingLocal?norm(landingLocal):null,transferS:0,lastUpdateS:time,completedAtS:null};
+  if(root.StarfallPadT11)mission.payloadT11=root.StarfallPadT11.manifest({mission,design,profile,body,destinationBody,destinationSystem,landingLocal});
   this.launches.push(mission);return safe(mission);
  }
  control(id,op,value){const m=this.launches.find(v=>v.id===id);if(!m?.flight||!['ascent','coast'].includes(m.phase))throw Error('No active rocket to command');const F=root.StarfallRocketFlight7B;
@@ -2107,10 +2109,11 @@ class Store{
     m.phase='deployed';m.completedAtS=hw.deliveredAtS;
     events.push({id:m.id,kind:'deployed',message:'Destination terrain verified; capsule soft landing '+decision.estimatedTouchdownMS+' m/s; rover deployed at '+hw.landSiteId});
    }
-  }return events;}
+  }if(root.StarfallPadT11)for(const m of this.launches)root.StarfallPadT11.observe(m,time);return events;}
  deploy(m,time,byId){const body=byId(m.destinationBodyId)||m.destinationSnapshot;if(!body){m.phase='failed';m.failure='Destination body and saved snapshot unavailable';return false;}
   const kind=m.payload==='rover'?'rovers':'satellites';if(this[kind].length>=MAX_INVENTORY[kind]){m.phase='failed';m.failure='Payload inventory cap reached during deployment; existing assets preserved';return false;}
   if(this[kind].some(x=>x.launchId===m.id)){m.phase='failed';m.failure='Duplicate payload from this launch prevented';return false;}
+  if(root.StarfallPadT11){const check=root.StarfallPadT11.canDeploy(m);if(!check.ok){m.phase='failed';m.failure=check.reason;return false;}}
   if(m.payload==='rover'){
    const T=root.StarfallRoverT06;
    let site=null,landing=null;
@@ -2129,6 +2132,7 @@ class Store{
    this.rovers.push(rover);
   }
   else{const mu=Math.max(1,(body.gravity*G0)*Math.pow(body.radius*1000,2));this.satellites.push({id:'sat-'+m.id,launchId:m.id,bodyId:body.id,systemId:body.systemId,kind:m.payload,altitudeM:m.altitudeM,epochS:time,phase:0,axis:norm(m.launchUp||m.local),mu,inertial2d:m.flight?{x:m.flight.x,y:m.flight.y,vx:m.flight.vx,vy:m.flight.vy,mu:m.profile.mu,epochS:time,launchUp:m.launchUp||norm(m.local)}:undefined,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},powerJ:5e6,radioRangeScene:180000});}
+  if(root.StarfallPadT11)root.StarfallPadT11.release(m,this[kind][this[kind].length-1],time);
   if(m.phase!=='entry'){m.phase='deployed';m.completedAtS=time;}return true;}
  command(id,text){const r=this.rovers.find(x=>x.id===id);if(!r)throw Error('Rover not found');const cmd=validateScript(text);r.commands=cmd;r.index=0;r.remaining=0;r.status=cmd.length?'running':'parked';return r;}
  queueProgram(id,text,time,link){const r=this.rovers.find(x=>x.id===id);if(!r)throw Error('Rover not found');if(!root.StarfallGroundOps7D)throw Error('7D ground operations unavailable');const program=validateScript(text);return root.StarfallGroundOps7D.uplink(r,program,time,link);}
@@ -2145,6 +2149,122 @@ class Store{
   }if(r.index>=r.commands.length&&r.status==='running')r.status='complete';}}
 }
 root.StarfallLaunch={G0,ENGINES,PAYLOADS,MAX_INVENTORY,build,orbit,validateScript,moveOnSphere,Store};
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
+/* STARFALL T11 — Launch pad commissioning and payload custody.
+ * Additive to the 7B force-integrated ascent and T06 rover landing envelope.
+ * An old Foundation remains a functioning LEGACY launch pad until commissioned.
+ * Units: scene distance for ground clearance, SI kg/W/J/s for hardware.
+ */
+(function(root){'use strict';
+const CONTROL_W=90,MIN_CLEARANCE_SCENE=12;
+const finite=Number.isFinite,copy=x=>JSON.parse(JSON.stringify(x));
+const norm=v=>{if(!Array.isArray(v)||v.length!==3||!v.every(finite)||Math.hypot(...v)<.5)throw Error('Invalid body-fixed launch/landing coordinates');const l=Math.hypot(...v);return v.map(x=>x/l);};
+const legacy=()=>({schema:1,mode:'legacy',commissionedAtS:null});
+function repair(x){
+ if(!x||x.schema!==1||x.mode!=='commissioned')return legacy();
+ return{schema:1,mode:'commissioned',commissionedAtS:finite(x.commissionedAtS)?Math.max(0,x.commissionedAtS):0};
+}
+function requiredWatts(pad){return pad?.kind==='foundation'&&repair(pad.padT11).mode==='commissioned'?CONTROL_W:0;}
+function configure(pad,mode,simS=0,launchStore=null){
+ if(pad?.kind!=='foundation'||!pad.id)throw Error('Select an existing Foundation launch pad');
+ if(!['commissioned','legacy'].includes(mode)||!finite(simS)||simS<0)throw Error('Invalid launch pad configuration');
+ if(launchStore?.launches?.some(m=>m.padId===pad.id&&['ascent','coast'].includes(m.phase)))throw Error('Cannot reconfigure a pad during active powered/coasting flight');
+ pad.padT11=mode==='commissioned'?{schema:1,mode,commissionedAtS:simS}:legacy();
+ return repair(pad.padT11);
+}
+function inspect({pad,body,launchStore=null,outposts=null,powerReport=null,heightAt=null}={}){
+ const reasons=[],config=repair(pad?.padT11),commissioned=config.mode==='commissioned';
+ if(pad?.kind!=='foundation'||!pad.id||pad.bodyId!==body?.id||!body?.landable)reasons.push('Select a real Foundation on the current solid body');
+ if(pad?.enabled===false||!(pad?.condition>.02))reasons.push('Foundation disabled or damaged');
+ const busy=!!launchStore?.launches?.some(m=>m.padId===pad?.id&&['ascent','coast'].includes(m.phase));
+ if(busy)reasons.push('Launch pad occupied by active rocket');
+ let clearanceScene=null,slopeDeg=null;
+ if(!reasons.includes('Select a real Foundation on the current solid body')&&commissioned){
+  try{
+   const local=norm(pad.local),O=root.StarfallOutposts;
+   if(outposts?.items&&O){
+    for(const x of outposts.items){
+     if(x.id===pad.id||x.bodyId!==body.id)continue;
+     const gap=O.arc(local,norm(x.local),body.radius)-(O.SPECS[x.kind]?.radius||3);
+     if(gap<MIN_CLEARANCE_SCENE){reasons.push('Launch hazard: '+x.kind+' '+x.id+' within rocket clearance');break;}
+    }
+   }
+   if(typeof heightAt!=='function')reasons.push('Terrain clearance needs a stable surface sampler');
+   else if(O){
+    const p=O.placement({kind:'foundation',body,local,heightAt,structures:[],protectedAreas:[],slopeMax:.28});
+    slopeDeg=p.slopeDeg;clearanceScene=MIN_CLEARANCE_SCENE;
+   }else reasons.push('Terrain/placement service unavailable');
+  }catch(e){reasons.push('Unsafe pad geometry: '+e.message);}
+  const group=outposts?.connectedGroups?.(body.id)?.find(g=>g.some(x=>x.id===pad.id));
+  const row=powerReport?.byId?.[pad.id];
+  const sources=(group||[]).filter(x=>x.id!==pad.id&&x.enabled!==false&&x.condition>.02&&['battery','solar'].includes(x.kind));
+  const liveSources=sources.filter(x=>x.kind==='battery'?x.energyJ>CONTROL_W*2:(powerReport?.byId?.[x.id]?.generatedW||0)>CONTROL_W);
+  if(!group||!sources.length)reasons.push('Commissioned pad needs wired solar/battery source');
+  if(!row||row.power!==true||!(row.loadW>=CONTROL_W-.01)||!liveSources.length)reasons.push('Pad controls not served '+CONTROL_W+' W by active electrical bus');
+ }
+ return{padId:pad?.id||null,mode:config.mode,ready:reasons.length===0,busy,powerW:requiredWatts(pad),slopeDeg,clearanceScene,reasons};
+}
+function validateDestination({design,body,destinationBody,destinationSystem,landingLocal}){
+ if(!root.StarfallLaunch?.PAYLOADS?.[design?.payload])throw Error('Unsupported payload interface');
+ if(design.payload!=='rover')return{kind:'LOCAL_ORBIT',destinationBodyId:body.id,destinationSystemId:body.systemId,siteLocal:null};
+ if(!destinationBody?.landable||!destinationSystem?.id||destinationBody.systemId!==destinationSystem.id)throw Error('Choose a real solid rover destination in the selected star system');
+ if(destinationBody.systemId===body.systemId&&destinationBody.id!==body.id)
+  throw Error('T11: Same-system cross-planet transfer has no verified propulsion/trajectory; select the launch world or a different-star fictional carrier destination');
+ if(!root.StarfallRoverT06)throw Error('T06 landing-envelope service required before sending a rover');
+ return{kind:destinationBody.systemId===body.systemId?'LOCAL_ROVER_CAPSULE':'FICTIONAL_INTERSTELLAR_CARRIER',
+  destinationBodyId:destinationBody.id,destinationSystemId:destinationSystem.id,
+  siteLocal:landingLocal?norm(landingLocal):null};
+}
+function validateLaunch(opts){
+ const report=inspect(opts);
+ if(!report.ready)throw Error('Pad preflight: '+report.reasons.join('; '));
+ return validateDestination(opts);
+}
+function manifest({mission,design,profile,body,destinationBody,destinationSystem,landingLocal}){
+ const route=validateDestination({design,body,destinationBody,destinationSystem,landingLocal});
+ if(!mission?.id||!finite(profile?.payloadKg)||profile.payloadKg<=0)throw Error('Invalid rocket payload/mass manifest');
+ return{schema:1,id:'payload-'+mission.id,launchId:mission.id,kind:design.payload,
+   massKg:profile.payloadKg,retentionKg:210,attached:true,status:'IN_PAYLOAD',
+   route:route.kind,originBodyId:body.id,destinationBodyId:route.destinationBodyId,
+   destinationSystemId:route.destinationSystemId,siteLocal:route.siteLocal,
+   releasedAtS:null,assetId:null,history:[{phase:'IN_PAYLOAD',timeS:mission.startS}]};
+}
+function record(m,phase,time){
+ const p=m?.payloadT11;if(!p||typeof phase!=='string'||!finite(time))return;
+ if(p.status===phase)return;
+ p.status=phase;
+ if(!Array.isArray(p.history))p.history=[];
+ if(p.history.length<96)p.history.push({phase,timeS:time});
+ else p.historyOverflow=true; // retain the existing log; do not erase previous entries
+}
+function observe(m,time){
+ if(!m?.payloadT11)return;
+ const phase=m.phase==='ascent'?'ASCENT':m.phase==='coast'?'COAST':
+  m.phase==='orbit'?'ORBIT':m.phase==='transfer'?'TRANSFER':
+  m.phase==='entry'?'ENTRY':m.phase==='descent'?'DESCENT':
+  m.phase==='deployed'?'DEPLOYED':m.phase==='failed'?'FAILED':null;
+ if(phase)record(m,phase,time);
+}
+function canDeploy(m){
+ if(!m?.payloadT11)return{ok:true}; // old launch saves keep legacy delivery
+ const f=m.flight,orbits=m.orbitalElements;
+ if(!f||f.phase!=='orbit'||orbits?.stable!==true)return{ok:false,reason:'Payload release requires a force-integrated stable orbit'};
+ if(m.payloadT11.attached!==true||m.payloadT11.assetId)return{ok:false,reason:'Payload already separated'};
+ if(m.payloadT11.route==='FICTIONAL_INTERSTELLAR_CARRIER'&&m.phase!=='transfer')return{ok:false,reason:'Interstellar carrier has not reached transfer phase'};
+ return{ok:true};
+}
+function release(m,asset,time){
+ const p=m?.payloadT11;if(!p)return;
+ if(!asset?.id||asset.launchId!==m.id)throw Error('Payload custody must reference the deployed asset of its launch');
+ p.attached=false;p.assetId=asset.id;p.releasedAtS=time;
+ asset.payloadT11={schema:1,manifestId:p.id,launchId:m.id,originBodyId:p.originBodyId,
+  destinationBodyId:p.destinationBodyId,route:p.route};
+ record(m,m.payload==='rover'?'ENTRY':'DEPLOYED',time);
+}
+root.StarfallPadT11={CONTROL_W,MIN_CLEARANCE_SCENE,repair,configure,requiredWatts,inspect,validateDestination,validateLaunch,manifest,observe,canDeploy,release};
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallPadT11;
 })(typeof window!=='undefined'?window:globalThis);
 
 </script><script>
@@ -3309,7 +3429,7 @@ function placement({kind,body,local,heightAt,structures=[],protectedAreas=[],slo
  for(const p of protectedAreas){if(p?.local&&arc(d,p.local,radius)<spec.radius+(p.radius||0)+1)throw Error('Construction would block a vehicle or its boarding ramp');}
  return{local:d,height:h,slopeDeg:slope*180/PI};
 }
-function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||typeof item.id!=='string'||typeof item.bodyId!=='string')return null;try{return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,energyJ:clamp(Number(item.energyJ)||0,0,SPECS[item.kind].capacityJ),temperatureK:clamp(Number(item.temperatureK)||290,2,1500),condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),enabled:item.enabled!==false,radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,habT09:item.kind==='hab'&&root.StarfallHabitatT09?root.StarfallHabitatT09.ensure({kind:'hab',habT09:item.habT09},Number(item.habT09?.lastS)||0):undefined,t10:['lab','storage'].includes(item.kind)&&item.t10?.schema===1?copy(item.t10):undefined,bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string').slice(0,120):[]};}catch(_){return null;}}
+function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||typeof item.id!=='string'||typeof item.bodyId!=='string')return null;try{return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,energyJ:clamp(Number(item.energyJ)||0,0,SPECS[item.kind].capacityJ),temperatureK:clamp(Number(item.temperatureK)||290,2,1500),condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),enabled:item.enabled!==false,radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,habT09:item.kind==='hab'&&root.StarfallHabitatT09?root.StarfallHabitatT09.ensure({kind:'hab',habT09:item.habT09},Number(item.habT09?.lastS)||0):undefined,t10:['lab','storage'].includes(item.kind)&&item.t10?.schema===1?copy(item.t10):undefined,padT11:item.kind==='foundation'&&root.StarfallPadT11?root.StarfallPadT11.repair(item.padT11):undefined,bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string').slice(0,120):[]};}catch(_){return null;}}
 function intersectsSphere(a,b,centre,r){const d=V.sub(b,a),f=V.sub(centre,a),den=V.dot(d,d);if(den<1e-16)return false;const t=clamp(V.dot(f,d)/den,0,1);return V.len(V.sub(V.add(a,V.mul(d,t)),centre))<r;}
 function radioLink(a,b,occluders=[],rangeScene=Infinity,metresPerSceneUnit=1){const dist=V.len(V.sub(b,a));if(!Number.isFinite(dist)||dist>rangeScene||dist<0) return{connected:false,reason:'Out of radio range',delayS:0,quality:0};for(const oc of occluders){if(oc?.radius>0&&intersectsSphere(a,b,oc.position,oc.radius))return{connected:false,reason:'Body blocks line-of-sight',delayS:0,quality:0};}
  return{connected:true,reason:'Line of sight',delayS:dist*metresPerSceneUnit/C,quality:clamp(1-dist/Math.max(1,rangeScene),0,1),distanceScene:dist};}
@@ -3420,7 +3540,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
     fault:available?'':'Equipment disabled or failed',power:false,servedW:0,sourceWatts:{}};
   }
   for(const x of priority){
-   const baseNeed=root.StarfallAntennaT04?root.StarfallAntennaT04.loadW(x.item,x.spec.watts):x.spec.watts;const need=Math.max(0,baseNeed||0),r=report.byId[x.item.id];r.generatedW=x.generatedW;
+   const baseNeed=x.item.kind==='foundation'&&root.StarfallPadT11?root.StarfallPadT11.requiredWatts(x.item):(root.StarfallAntennaT04?root.StarfallAntennaT04.loadW(x.item,x.spec.watts):x.spec.watts);const need=Math.max(0,baseNeed||0),r=report.byId[x.item.id];r.generatedW=x.generatedW;
    if((servedW+need)*factor>availableW+1e-7){
     r.shedW=need;r.fault=availableW<1?'NO_SUPPLY: no illuminated source or charged battery':'BROWNOUT: available power / 48V 500A bus limit';
     report.shed.push(x.item.id);bus.shedIds.push(x.item.id);
@@ -6071,10 +6191,40 @@ function preflight(){try{const pr=profile();$('launch-calculations').textContent
   (pr.valid?'DESIGN CHECK · '+pr.problem:'WARNING · '+pr.problem)+'\nReal launch may fail. Acceleration, drag, fuel exhaustion, trajectory and stable orbit are force-integrated.';
  $('launch-ignite').disabled=!pr||!$('launch-pad').value;
  }catch(e){$('launch-calculations').textContent='PRE-FLIGHT: '+e.message;$('launch-ignite').disabled=true;}}
+function padReadinessT11(){
+ const T=root.StarfallPadT11,os=root.StarfallOutpostUI?.store,ctx=RT.outpostContext();
+ const pad=os?.items.find(x=>x.id===$('launch-pad').value);
+ const report=T.inspect({pad,body:ctx.body,launchStore:store,outposts:os,
+  powerReport:root.StarfallOutpostUI?.powerReports.get(ctx.bodyId),
+  heightAt:ctx.body?.landable?(v=>Starfall3D.groundHeight(v,ctx.body)):null});
+ $('launch-t11-pad-status').textContent='T11 PAD '+(pad?.id||'NONE')+' · '+report.mode.toUpperCase()+
+  ' · CONTROL LOAD '+report.powerW+' W · '+(report.ready?'READY':report.reasons.join(' / '))+
+  (report.slopeDeg===null?'':' · TERRAIN SLOPE '+format(report.slopeDeg,2)+'°');
+ const choice=chosenDesign(),target=RT.galaxy.byId.get($('launch-destination').value),
+  system=RT.galaxy.byId.get($('launch-system').value);
+ try{
+  const route=T.validateDestination({design:choice,body:ctx.body||RT.nearest,destinationBody:target,destinationSystem:system});
+  const p=profile(),payload=X.PAYLOADS[choice.payload];
+  $('launch-t11-manifest').textContent='PAYLOAD '+payload.label+' · '+payload.massKg+' kg · RETENTION 210 kg'+
+    ' · ROUTE '+route.kind+' · TARGET '+route.destinationBodyId+
+    '\\nRequires actual stable 7B orbit before separation. '+(choice.payload==='rover'?'Destination site from T06 survey; capsule descent has bounded envelope.':'Satellite uses launch-inherited orbital state.');
+ }catch(e){$('launch-t11-manifest').textContent='PAYLOAD PREFLIGHT: '+e.message;}
+ $('launch-t11-commission').disabled=!pad||report.busy||report.mode==='commissioned';
+ $('launch-t11-legacy').disabled=!pad||report.busy||report.mode==='legacy';
+ return report;
+}
+function configurePadT11(mode){
+ try{
+  const os=root.StarfallOutpostUI?.store,pad=os?.items.find(x=>x.id===$('launch-pad').value);
+  root.StarfallPadT11.configure(pad,mode,RT.time,store);
+  root.StarfallOutpostUI.persist();
+  refresh();status('Pad '+pad.id+' now '+mode.toUpperCase()+'. '+(mode==='commissioned'?'Requires wired 90 W control bus and safe terrain clearance.':'Legacy saved-game launch compatibility is restored.'));
+ }catch(e){status(e.message,true);}
+}
 function status(s,bad=false){msg=s;$('launch-status').textContent=s;$('launch-status').style.color=bad?'#ffaaa0':'#f4ce95';}
 function open(){padOptions();systemOptions();refresh();$('launch-dialog').hidden=false;}
 function close(){$('launch-dialog').hidden=true;document.activeElement?.blur?.();}
-function refresh(){padOptions();preflight();refreshRegistry();$('launch-7a-shared').checked=registry?.enabled!==false;const assetPicker=$('launch-7a-asset'),oldAsset=assetPicker.value;assetPicker.replaceChildren();for(const item of [...(registry?.assets?.values()||[])].slice(0,240)){const option=document.createElement('option');option.value=item.id;option.textContent=item.type.toUpperCase()+' · '+item.id;assetPicker.append(option);}if([...assetPicker.options].some(x=>x.value===oldAsset))assetPicker.value=oldAsset;showAsset();const sourcePicker=$('launch-charge-source'),previous=sourcePicker.value,ctx=RT.outpostContext(),list=root.StarfallOutpostUI?.store?.items.filter(x=>x.kind==='battery'&&x.bodyId===ctx.bodyId)||[];
+function refresh(){padOptions();preflight();const padT11=padReadinessT11();if(!padT11.ready)$('launch-ignite').disabled=true;refreshRegistry();$('launch-7a-shared').checked=registry?.enabled!==false;const assetPicker=$('launch-7a-asset'),oldAsset=assetPicker.value;assetPicker.replaceChildren();for(const item of [...(registry?.assets?.values()||[])].slice(0,240)){const option=document.createElement('option');option.value=item.id;option.textContent=item.type.toUpperCase()+' · '+item.id;assetPicker.append(option);}if([...assetPicker.options].some(x=>x.value===oldAsset))assetPicker.value=oldAsset;showAsset();const sourcePicker=$('launch-charge-source'),previous=sourcePicker.value,ctx=RT.outpostContext(),list=root.StarfallOutpostUI?.store?.items.filter(x=>x.kind==='battery'&&x.bodyId===ctx.bodyId)||[];
  sourcePicker.replaceChildren();for(const item of list){const op=document.createElement('option');op.value=item.id;op.textContent=item.id.slice(-16)+' · '+format(item.energyJ/3.6e6,2)+' kWh';sourcePicker.append(op);}if(list.some(x=>x.id===previous))sourcePicker.value=previous;
  if(!list.length){const op=document.createElement('option');op.value='';op.textContent='Build and wire a solar array + battery';sourcePicker.append(op);}
  const launches=store.launches.slice(-12).reverse(),sats=store.satellites.slice(-12).reverse();refreshFlightPanel();
@@ -6167,7 +6317,9 @@ function launch(){const ctx=RT.outpostContext();if(!ctx.landed||!ctx.body?.landa
  if(chosen.payload==='rover'&&!site)throw Error('Resolve the destination touchdown site before ignition');
  const m=store.launch({body:ctx.body,foundation:pad,design:chosen,time:RT.time,
   destinationBody:chosen.payload==='rover'?dst:null,destinationSystem:chosen.payload==='rover'?sys:null,
-  landingLocal:chosen.payload==='rover'?site.site.local:null,unit:P.SCENE_METERS_PER_UNIT});persist();return m;}
+  landingLocal:chosen.payload==='rover'?site.site.local:null,unit:P.SCENE_METERS_PER_UNIT,
+  padContext:{outposts:root.StarfallOutpostUI?.store,powerReport:root.StarfallOutpostUI?.powerReports.get(ctx.bodyId),
+   heightAt:v=>Starfall3D.groundHeight(v,ctx.body)}});persist();return m;}
 function worldPosition(body,local,extra){const u=V.norm(V.rot(local,body.spinAxis||[0,1,0],body.spinAngle||0));return{up:u,position:V.add(body.position,V.mul(u,body.radius+(Starfall3D.groundHeight(local,body)||0)+extra))};}
 function sceneRockets(){return store.launches.filter(x=>['ascent','coast'].includes(x.phase)&&x.flight).slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];
  const d=worldPosition(body,m.local,0),u=m.launchUp||d.up,pole=Math.abs(u[1])>.95?[1,0,0]:[0,1,0],tang=V.norm(V.cross(u,pole)),f=m.flight,r=Math.hypot(f.x,f.y);
@@ -6198,6 +6350,8 @@ function tick(dt,scale){const now=RT.time,events=store.update(now,id=>RT.galaxy.
   if(os&&!os.relays.some(x=>x.id===sat.id)){const body=RT.galaxy.byId.get(sat.bodyId);if(body){const period=X.orbit(sat,body,RT.time,P.SCENE_METERS_PER_UNIT).periodS;os.relays.push({id:sat.id,bodyId:sat.bodyId,altitude:sat.altitudeM/P.SCENE_METERS_PER_UNIT,phase:0,periodS:period,axis:sat.axis,rangeScene:180000,bandwidthBps:1000000,enabled:true});root.StarfallOutpostUI.persist();}}
  }status(events.map(e=>e.message).join(' · '));persist();}
  root.StarfallSatelliteOpsUI?.tick(now);if(performance.now()-lastRefresh>1000){lastRefresh=performance.now();if(registry&&performance.now()-lastAssetSave>8000){lastAssetSave=performance.now();refreshRegistry(true);}if(!$('launch-dialog').hidden)refresh();if(store.launches.some(x=>['ascent','coast','transfer'].includes(x.phase))||store.rovers.some(x=>x.status==='running'||x.ground7d?.pending?.length||x.ground7d?.queuedObservations?.length))persist();}}
+$('launch-t11-commission').onclick=()=>configurePadT11('commissioned');
+$('launch-t11-legacy').onclick=()=>configurePadT11('legacy');
 $('launch-open').addEventListener('click',open);$('launch-close').addEventListener('click',close);$('launch-dialog').addEventListener('click',ev=>{if(ev.target===$('launch-dialog'))close();});
 $('launch-system').onchange=()=>{refreshDestinations();preflight();};$('launch-system-search').addEventListener('input',systemOptions);
 for(const id of ['launch-payload','launch-engine','launch-tanks','launch-stages','launch-boosters','launch-pad','launch-7b-tank2','launch-7b-engine2','launch-7b-tank3','launch-7b-engine3','launch-7b-build-mode','launch-7b-target'])$(id).addEventListener('change',preflight);
