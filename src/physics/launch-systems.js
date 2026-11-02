@@ -122,7 +122,7 @@ class Store{
      else events.push({id:m.id,kind:'failed',message:'Payload deployment failed: '+m.failure});
     }else m.phase=m.flight.phase==='coast'||m.flight.phase==='awaiting-stage'?'coast':'ascent';
    }else if(m.phase==='transfer'&&time-m.transferStartS>=m.transferS){if(this.deploy(m,time,byId))events.push({id:m.id,kind:'entry',message:'Fictional interstellar carrier arrival; powered capsule entry still required'});else events.push({id:m.id,kind:'failed',message:'Payload delivery failed: '+m.failure});}
-  }else if(m.phase==='entry'&&root.StarfallRoverT06&&time-m.entryAtS>=12){
+   else if(m.phase==='entry'&&root.StarfallRoverT06&&time-m.entryAtS>=12){
     const r=this.rovers.find(x=>x.launchId===m.id);if(r){m.phase='descent';m.descentAtS=m.entryAtS+12;
       r.status='descent';root.StarfallRoverT06.hardware(r).state='DESCENT';
       events.push({id:m.id,kind:'descent',message:'Rover capsule entry envelope reached; descending to independently validated destination site'});}
