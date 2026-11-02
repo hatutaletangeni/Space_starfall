@@ -30,7 +30,7 @@ function configure(item,{mode,targetId='',boresightLocal,radioEnabled}){
  if(radioEnabled!==undefined)next.radioEnabled=!!radioEnabled;
  item.radioT04=next;return deep(next);
 }
-function loadW(item,specWatts=BASE_W){if(item?.kind!=='antenna')return specWatts;const c=repair(item.radioT04);return specWatts+(c.radioEnabled&&c.mode==='tracking'?TRACK_W:0);}
+function loadW(item,specWatts=BASE_W){if(item?.kind!=='antenna')return specWatts;const c=repair(item.radioT04);return c.radioEnabled?specWatts+(c.mode==='tracking'?TRACK_W:0):12;}
 function position(item,body,rotate){
  const radial=rotate(item.local,body.spinAxis||[0,1,0],body.spinAngle||0);
  return V.add(body.position,V.mul(radial,body.radius+Math.max(8,item.height||0)));
