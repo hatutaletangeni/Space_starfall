@@ -58,7 +58,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
     fault:available?'':'Equipment disabled or failed',power:false,servedW:0,sourceWatts:{}};
   }
   for(const x of priority){
-   const need=Math.max(0,x.spec.watts||0),r=report.byId[x.item.id];r.generatedW=x.generatedW;
+   const need=Math.max(0,root.StarfallAntennaT04?.loadW(x.item,x.spec.watts)||x.spec.watts||0),r=report.byId[x.item.id];r.generatedW=x.generatedW;
    if((servedW+need)*factor>availableW+1e-7){
     r.shedW=need;r.fault=availableW<1?'NO_SUPPLY: no illuminated source or charged battery':'BROWNOUT: available power / 48V 500A bus limit';
     report.shed.push(x.item.id);bus.shedIds.push(x.item.id);
@@ -93,7 +93,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
    r.sourceIds=r.power?[...bus.sourceIds]:[];r.voltageV=r.power?bus.voltageV:0;r.currentA=r.loadW/VOLTS;r.batteryJ=item.energyJ||0;
    if(r.power&&r.sourceIds.length&&grossW>0){for(const id of r.sourceIds){const share=(sourceContributions.get(id)||0)/grossW;r.sourceWatts[id]=+(r.loadW*share).toFixed(5);}}
    if(live.has(item.id)){
-    const ambient=160,heat=r.power?(spec.watts||0)*.08:0,k=.00005;
+    const ambient=160,heat=r.power?r.loadW*.08:0,k=.00005;
     const steady=ambient+heat/Math.max(1,k*50000);
     item.temperatureK=clamp(steady+(item.temperatureK-steady)*Math.exp(-k*dt),2,1500);
    }
