@@ -2943,10 +2943,10 @@ const R=8.314462618,BASE_W=680,SCHEMA=1;
 const C=Object.freeze({schema:SCHEMA,volumeM3:80,referenceK:293.15,pressureKPa:101.325,
  oxygenTargetKPa:21,oxygenMinKPa:16,oxygenMaxKPa:27,carbonAlarmKPa:.8,
  totalMinKPa:70,totalMaxKPa:120,tempMinK:280,tempMaxK:307,
- absoluteMinK:150,absoluteMaxK:390,thermalCapacityJK:750000,
- thermalLeakWPerK:35,heatW:380,coolW:280,lifeSupportW:BASE_W,
+ absoluteMinK:150,absoluteMaxK:390,thermalCapacityJK:250000,
+ thermalLeakWPerK:5,heatW:380,coolW:280,lifeSupportW:BASE_W,
  normalLeakS:8e-7,maxLeakS:.012,crewO2MolS:.0003,crewCO2MolS:.00026,
- crewWaterLS:.00004,maxOxygenMolS:.0035,maxInertMolS:.0035,
+ crewWaterLS:.00004,maxOxygenMolS:.75,maxInertMolS:2.7,
  maxScrubMolS:.003,airlockCycleS:15,
  roverServiceMaxW:2500,roverServiceDistanceScene:24,
  maxChunkS:86400,backupMaximumJ:0,alertHistory:20});
@@ -2956,8 +2956,8 @@ function gasMoles(kPa,K,V=C.volumeM3){return kPa*1000*V/(R*K);}
 function defaults(now=0){
  const n=gasMoles(C.pressureKPa,C.referenceK),o2=gasMoles(C.oxygenTargetKPa,C.referenceK);
  return{schema:SCHEMA,enabled:false,mode:'STANDBY',lastS:now,seal:1,volumeM3:C.volumeM3,
-  oxygenMol:o2,inertMol:n-o2,carbonMol:0.0003*n,oxygenTankMol:900,
-  inertTankMol:700,scrubberCapacityMol:350,filteredAirMol:0,waterL:200,
+  oxygenMol:o2,inertMol:n-o2,carbonMol:0.0003*n,oxygenTankMol:1050,
+  inertTankMol:3500,scrubberCapacityMol:350,filteredAirMol:0,waterL:200,
   tempK:C.referenceK,occupants:0,airlock:'CLOSED',airlockUntilS:null,
   airlockRequested:'',backupJ:0,heatLossW:0,thermalLoadW:0,
   powerW:0,integratedSupplyW:0,leakRateS:C.normalLeakS,
