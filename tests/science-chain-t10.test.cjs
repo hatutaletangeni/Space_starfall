@@ -52,7 +52,7 @@ const reset=new O.Store(742,store.serialize());
 assert.equal(reset.items.find(x=>x.id===station.id).t10.analysis.length,1);
 const first={id:'legacy-observation-1',instrument:'thermometer',bodyId:body.id,location:local,value:2,
   unit:'K',uncertainty:.3,timeS:10,quality:'model-derived'},report={delayS:.1};
-for(let n=0;n<400;n++){const o={...first,id:'legacy-observation-'+(n+1)};store.addReceipt(station,o,31+n,report);}
+store.receipts=Array.from({length:400},(_,n)=>({id:'legacy-receipt-'+n,labId:'historic-lab',observationId:'legacy-observation-'+n,bodyId:body.id}));
 assert.equal(store.receipts.length,400);
 assert.throws(()=>store.addReceipt(station,{...first,id:'overflow'},500,report),/full/);
 assert.equal(store.receipts.length,400,'no shift drops oldest earned evidence');
