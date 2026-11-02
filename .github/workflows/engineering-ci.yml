@@ -71,6 +71,7 @@ jobs:
           python tests/ship-service-t13-browser.py
           python tests/science-evidence-t14-browser.py
           python tests/equipment-t15-browser.py
+          python tests/operations-t16-browser.py
           python tests/orbital-bus-t07-browser.py
           python tests/interplanetary-t08-browser.py
           python tests/science-chain-t10-browser.py

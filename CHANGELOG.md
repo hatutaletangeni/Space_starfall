@@ -1,3 +1,13 @@
+# STARFALL T16 — Operational Telemetry, Four-Stage Command Truth and Discoverable Owner Actions (2026-11-02)
+
+- Added a lightweight, source-derived **OPERATIONS / ACTUAL STATUS** card to existing Reconnaissance, Rocket Lab, Satellite Operations, Outposts, Mission Photos, Field Lab, Workbench, Asset Manager and Research Bench. Kept original dark-blue/vibrant science branding, all UI IDs and existing controls.
+- Native equipment records supply actual selected asset and recorded parent, body and system IDs, real battery Joules, modeled watts, onboard storage, last source tick, LOS route/quality, current T03 packet bytes, ACK, real image downlink state and conservative power/fault recovery suggestions.
+- Clear four stages: **READY → COMMAND SENT/IN PROGRESS → ACTUAL COMPLETION/RESULT → RECOVERABLE FAILURE**. Packet RECEIVED/in-flight is **not** ACKED; an image is not viewable until actual 7F downlink receipt. Unobserved route/remote time displays **NOT RECORDED**, not made-up delay.
+- Source-backed log derived only from existing T03, 7F, T15, T01 and T10 owners, with asset, severity and mission filters. No new persistent event database, duplicate sample, radio node or save state.
+- Existing actions remain exclusively implemented by existing modules: Workbench, 7C, camera gallery, Outposts, Rocket Lab. The real STOP ROVER control is highlighted but retains its original route-dependent handler, ship ramp/EVA walking and truck X unchanged.
+- Source-context modal cards refresh on open. Keyboard Tab focus is confined to visible existing modals and restored to the original launcher when possible, without remapping or blocking Escape/gameplay controls; updates remain throttled and avoid high-cost orbital pass prediction.
+- Added source-truth Node regression, genuine `file://` Chromium UI browser smoke, standalone deterministic build and release caveats. See `docs/OPERATIONS-UX-T16.md`.
+
 # STARFALL T15 — Asset Manager and Real Machine Configuration (2026-11-02)
 
 - Add **source-owned T15 service provenance/backup** linked to the original `StarfallVehicles` ship and rover definitions; Workbench replacement validates genuine installed part deltas, parked service, original asset identity and predicted mass/energy state before committing the actual vehicle. Preserves pre-T15 saves.
