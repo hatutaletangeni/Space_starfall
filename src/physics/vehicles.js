@@ -33,6 +33,7 @@ const component=(id,type,massKg,extra={})=>Object.freeze({id,type,massKg,...extr
  component('wheels-grippy','wheels',315,{count:6,radiusM:.74,traction:.91}),
  component('suspension-bogie','suspension',180,{travelM:.35,maxLoadKg:2600}),
  component('avionics-ship','avionics',170,{powerW:900}),
+  component('avionics-ship-long','avionics',225,{powerW:1450,radioRangeScene:85,radioBandwidthBps:192000,radioTxPowerW:95}),
  component('avionics-rover','avionics',39,{powerW:190}),
  component('science-suite-ship','instrument',90,{powerW:600}),
  component('science-suite-rover','instrument',45,{powerW:280}),
