@@ -54,6 +54,10 @@ with sync_playwright() as p:
     groundDirection:[0,1,0],forward:[0,0,1],up:[0,1,0],landed:true}});
    return SF.load();
   }""")
+  page.evaluate("""s=>{
+   window.__STARFALL_IMPORT_PENDING=true;
+   localStorage.setItem('starfall_save',JSON.stringify(s));
+  }""",saved)
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallContextUI20&&document.body.dataset.sfView)",timeout=50000)
   page.wait_for_function("StarfallRuntime.landed&&StarfallRuntime.eva",timeout=12000)
