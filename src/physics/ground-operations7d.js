@@ -21,6 +21,16 @@ function uplink(r,program,time,link){const g=migrate(r);if(!Array.isArray(progra
  const record={id,commands:program.map(x=>({...x})),queuedAtS:time,deliverAtS:validLink?time+Math.max(.001,Number(link.delayS)||0):null,status:validLink?'IN_TRANSIT':'AWAITING_LINK'};
  g.pending.push(record);event(g,time,'QUEUED',validLink?'Program uplink in transit':'Awaiting an available radio link');return record;}
 function stop(r,time,link){return uplink(r,[{op:'STOP'}],time,link);}
+function acceptPacket(r,program,time,packetId){
+ const g=migrate(r);if(!Array.isArray(program)||program.length>24||!packetId)throw Error('Invalid physically received command packet');
+ if(!Array.isArray(g.acceptedPackets))g.acceptedPackets=[];
+ if(g.acceptedPackets.includes(packetId))return false;
+ r.commands=program.map(x=>({...x}));r.index=0;r.remaining=0;
+ g.remainingM=0;g.remainingS=0;r.status=program.length?'running':'parked';g.mode=program.length?'DRIVING':'IDLE';
+ g.acceptedPackets.push(packetId);if(g.acceptedPackets.length>500)g.acceptedPackets=g.acceptedPackets.slice(-500);
+ event(g,time,'UPLINK','Packet '+packetId+' accepted by powered rover transceiver');
+ return true;
+}
 function useLink(g,time,link){g.lastLink={atS:time,connected:!!link?.connected,reason:link?.reason||'No receiver',delayS:Math.max(0,Number(link?.delayS)||0)};return g.lastLink;}
 function deliver(r,g,time,link){for(const q of g.pending){if(q.status==='AWAITING_LINK'&&link?.connected){q.status='IN_TRANSIT';q.deliverAtS=time+Math.max(.001,Number(link.delayS)||0);}
   if(q.status==='IN_TRANSIT'&&q.deliverAtS<=time){q.status='DELIVERED';r.commands=q.commands.map(x=>({...x}));r.index=0;r.remaining=0;g.remainingM=0;g.remainingS=0;r.status=q.commands.length?'running':'parked';g.mode=q.commands.length?'DRIVING':'IDLE';event(g,time,'UPLINK','Onboard program accepted');}}
@@ -37,8 +47,8 @@ function terrainStep(r,body,distanceM,height,unitScale=1000){const G=root.Starfa
  const before=heights(r.local),after=heights(next),grade=Math.atan2(Math.abs(after-before),Math.max(.1,distanceM));if(grade>0.48)return{ok:false,reason:'Terrain gradient exceeds 25.6° safe operating limit',data};
  return{ok:true,next,data,energyJ:Math.max(0,distanceM)*(245+Math.max(0,after-before)*115+data.slip*160),speedMS:Math.min(1.65,Math.max(.25,data.speedSceneS))};}
 /* Caller supplies the same seeded height function and actual world-body snapshot used for local navigation. */
-function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive}={}){const r=rover,g=migrate(r);if(!Number.isFinite(time))return g;
- const start=g.lastTickS===null?time:g.lastTickS,elapsed=clamp(time-start,0,15);g.lastTickS=time;r.lastS=time;useLink(g,time,link);deliver(r,g,time,link);const received=downlink(r,g,time,link);if(received.length&&onReceive)for(const obs of received)onReceive(obs,r);
+function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive,transportActive=false}={}){const r=rover,g=migrate(r);if(!Number.isFinite(time))return g;
+ const start=g.lastTickS===null?time:g.lastTickS,elapsed=clamp(time-start,0,15);g.lastTickS=time;r.lastS=time;useLink(g,time,link);if(!transportActive)deliver(r,g,time,link);const received=transportActive?[]:downlink(r,g,time,link);if(received.length&&onReceive)for(const obs of received)onReceive(obs,r);
  if(r.status!=='running'||!r.commands.length||elapsed<=0)return g;
  let budget=elapsed,cycles=0;while(budget>1e-7&&cycles++<48&&r.index<r.commands.length){const op=r.commands[r.index];
   if(op.op==='STOP'){r.status='parked';g.mode='SAFE_STOP';r.index=r.commands.length;event(g,time,'STOP','Program stopped safely');break;}
@@ -64,5 +74,5 @@ function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive
 function recover({truckLocal,roverLocal,radiusScene,truckEnergyJ,body,height,limitScene=55,unitScale=1000}){if(!Array.isArray(truckLocal)||!Array.isArray(roverLocal)||!body)throw Error('Truck/rover positions unavailable');const distance=arcMeters(truckLocal,roverLocal,radiusScene);if(distance>limitScene)throw Error('Winch cable limit: '+distance.toFixed(1)+' > '+limitScene+' scene units');if(distance<3)throw Error('Truck and rover already close enough');
  const n=Math.max(3,Math.ceil(distance/5));if(typeof height!=='function')throw Error('Terrain unavailable for winch safety check');const h1=height(truckLocal,body),h2=height(roverLocal,body);for(let i=1;i<n;i++){const a=i/n,dir=norm(truckLocal.map((x,j)=>x*(1-a)+roverLocal[j]*a)),h=height(dir,body),line=h1*(1-a)+h2*a;if(!Number.isFinite(h)||h>line+1.6)throw Error('Winch cable obstructed by ridge');}
  const pullScene=Math.max(0,distance-13),loadKg=1200,workJ=Math.max(50000,pullScene*unitScale*.15*loadKg*9.81*.12);if(truckEnergyJ<workJ+30000)throw Error('Truck lacks sufficient reserve for a safe pull');return{distanceBefore:distance,pullScene,workJ,remainingJ:truckEnergyJ-workJ};}
-const API={migrate,uplink,stop,tick,terrainStep,advance,arcMeters,recover};root.StarfallGroundOps7D=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+const API={migrate,uplink,stop,acceptPacket,tick,terrainStep,advance,arcMeters,recover};root.StarfallGroundOps7D=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof window!=='undefined'?window:globalThis);
