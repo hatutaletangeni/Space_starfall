@@ -36,6 +36,22 @@ function geometry(site){
  return Object.freeze({positions:p,normals:n,colors:c,indices:idx,
   triangles:idx.length/3,model:'enclosed tunnel mesh; matching LW02 planar cross-section collision'});
 }
-const API=Object.freeze({geometry});root.StarfallCaveMeshLW02=API;
+function entranceGeometry(site){
+ const p=[],n=[],c=[],idx=[],width=Math.max(2,site.widthScene),height=4.4,
+ rock=site.kind.includes('ice')?[.47,.59,.67]:site.kind.includes('lava')?[.31,.28,.26]:[.43,.39,.34];
+ function tri(a,b,d,color){const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[d[0]-a[0],d[1]-a[1],d[2]-a[2]],
+ w=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.max(1e-9,Math.hypot(...w)),
+ k=p.length/3;for(const q of [a,b,d]){p.push(...q);n.push(...w.map(x=>x/len));c.push(...color);}idx.push(k,k+1,k+2);}
+ function quad(a,b,d,e,color){tri(a,b,d,color);tri(a,d,e,color);}
+ // Rock portal around a black recessed mouth, with a real thickness.
+ quad([-width-1,0,0],[-width+1,0,0],[-width+1,height,0],[-width-1,height,0],rock);
+ quad([width-1,0,0],[width+1,0,0],[width+1,height,0],[width-1,height,0],rock);
+ quad([-width+1,height-1,0],[width-1,height-1,0],[width-1,height,0],[-width+1,height,0],rock);
+ quad([-width+1,.1,.14],[width-1,.1,.14],[width-1,height-1,.14],[-width+1,height-1,.14],[.016,.020,.024]);
+ quad([-width-1,0,0],[-width-1,0,1],[-width-1,height,1],[-width-1,height,0],rock);
+ quad([width+1,0,1],[width+1,0,0],[width+1,height,0],[width+1,height,1],rock);
+ return Object.freeze({positions:p,normals:n,colors:c,indices:idx});
+}
+const API=Object.freeze({geometry,entranceGeometry});root.StarfallCaveMeshLW02=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
