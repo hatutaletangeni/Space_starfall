@@ -1610,7 +1610,21 @@ for(const [x,z] of [[-5.8,8.5],[5.8,8.5],[-2.8,14.6],[2.8,14.6]]){quad([x,-1.05,
 quad([-2.7,-1.5,13.0],[2.7,-1.5,13.0],[3.15,-7.35,29.0],[-3.15,-7.35,29.0],edge);
 quad([-2.9,-1.53,13.0],[-2.7,-1.53,13.0],[-3.15,-7.34,29.0],[-3.4,-7.34,29.0],accent);
 quad([2.7,-1.53,13.0],[2.9,-1.53,13.0],[3.4,-7.34,29.0],[3.15,-7.34,29.0],accent);
-// underside details
+// 8B dedicated external vehicle hangar. Truck is 11.1 wide and cannot fit
+ // through the 6.3-wide crew ramp. This widened starboard rack is additive.
+ // No solid rear wall: a real independent 14.5-wide drive-on ramp is visible.
+ box(9.25,-1.5,-4.0,23.75,-1.15,19.0,panel); // driveable flat cargo deck
+ box(9.25,11.35,-4.0,23.75,11.85,19.0,hull); // weather canopy
+ box(9.0,-1.5,-4.0,9.25,11.8,19.0,edge); // left protective rail/wall
+ box(23.75,-1.5,-4.0,24,11.8,19.0,edge); // right side
+ box(9.25,-1.5,-4.0,23.75,11.85,-3.6,dark); // forward structural bulkhead
+ for(const x of [9.25,23.75]){box(x-.2,-1.5,17.5,x+.2,11.35,19.0,accent);}
+ quad([9.25,-1.20,19],[23.75,-1.20,19],[23.75,-7.25,39],[9.25,-7.25,39],edge);
+ quad([9.05,-1.18,19],[9.25,-1.18,19],[9.25,-7.23,39],[9.05,-7.23,39],accent);
+ quad([23.75,-1.18,19],[23.95,-1.18,19],[23.95,-7.23,39],[23.75,-7.23,39],accent);
+ // Four visible load anchors, kept separate from the older crew boarding ramp.
+ for(const x of [10.4,22.6])for(const z of [-1.6,14.4])box(x-.45,-.94,z-.4,x+.45,-.6,z+.4,accent);
+ // underside details
 box(-1.8,-2.0,-2.5,1.8,-1.35,5.8,panel);box(-.75,-2.2,6.0,.75,-1.5,12.2,panel);
 return makeMesh(gl,p,n,c,idx);} 
 function makeRover(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.73,.73,.68],dark=[.14,.16,.18],accent=[.86,.59,.32],glass=[.18,.35,.42];
@@ -5800,10 +5814,10 @@ const DEFAULTS=Object.freeze({
  thrust:'KeyW',brake:'KeyS',turnLeft:'KeyA',turnRight:'KeyD',pitchUp:'ArrowUp',pitchDown:'ArrowDown',
  rollLeft:'KeyQ',rollRight:'KeyE',ascend:'Space',descend:'KeyC',boost:'ShiftLeft',
  recenter:'KeyF',chart:'KeyM',align:'KeyG',time:'KeyT',lights:'KeyL',camera:'KeyV',terrain:'KeyH',
- scan1:'Digit1',scan2:'Digit2',scan3:'Digit3',reset:'KeyR',interact:'KeyX'
+ scan1:'Digit1',scan2:'Digit2',scan3:'Digit3',reset:'KeyR',interact:'KeyX',cargo:'KeyB'
 });
 const OPTIONS=Object.freeze({lookInvertX:false,lookInvertY:false,flightPitchInvert:false,roverSteerInvert:false,lookSensitivity:1});
-const LABELS=Object.freeze({thrust:'Forward / thrust',brake:'Reverse / brake',turnLeft:'Turn left',turnRight:'Turn right',pitchUp:'Flight nose up',pitchDown:'Flight nose down',rollLeft:'Roll left',rollRight:'Roll right',ascend:'Ascend / launch',descend:'Descend',boost:'Boost / sprint',recenter:'Centre camera',chart:'Star chart',align:'Align to target',time:'Time acceleration',lights:'Lights',camera:'Ship camera',terrain:'Terrain diagnostics',scan1:'Quick scan 1',scan2:'Quick scan 2',scan3:'Quick scan 3',reset:'Orbit reset (with Shift)',interact:'Interact / inspect relic'});
+const LABELS=Object.freeze({thrust:'Forward / thrust',brake:'Reverse / brake',turnLeft:'Turn left',turnRight:'Turn right',pitchUp:'Flight nose up',pitchDown:'Flight nose down',rollLeft:'Roll left',rollRight:'Roll right',ascend:'Ascend / launch',descend:'Descend',boost:'Boost / sprint',recenter:'Centre camera',chart:'Star chart',align:'Align to target',time:'Time acceleration',lights:'Lights',camera:'Ship camera',terrain:'Terrain diagnostics',scan1:'Quick scan 1',scan2:'Quick scan 2',scan3:'Quick scan 3',reset:'Orbit reset (with Shift)',interact:'Interact / inspect relic',cargo:'Secure / release cargo tie-downs'});
 const BLOCKED=/^(?:Escape|Tab|Enter|Backspace|CapsLock|NumLock|ScrollLock|Pause|PrintScreen|MetaLeft|MetaRight|AltLeft|AltRight|ControlLeft|ControlRight|F\d{1,2})$/;
 const allowed=code=>typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Space|Arrow(?:Left|Right|Up|Down)|Shift(?:Left|Right)|Comma|Period|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Slash|Backslash|Backquote|Numpad[0-9])$/.test(code)&&!BLOCKED.test(code);
 const plainObject=v=>v&&typeof v==='object'&&!Array.isArray(v);
@@ -6199,6 +6213,52 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallMater
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8B — geometry-audited external vehicle cargo module.
+ * Pure logic. Geometry is scene units, NEVER claimed to be SI meters.
+ * A different, narrower central ramp remains reserved for crew boarding.
+ */
+(function(root){'use strict';
+const WIDTH=14.5, HEIGHT=12.7, LENGTH=23.0;
+const BAY=Object.freeze({centerX:16.5, minX:9.25,maxX:23.75,frontZ:-4,rearZ:19,rampEndZ:39,
+ floorY:-1.2,rampEndY:-7.25,vehicleWidth:11.1,vehicleHeight:8.85,vehicleLength:14.8,
+ maxCargoMassKg:3500,maxCargoVolumeM3:155,clearanceMargin:0.65});
+function finite(n){return typeof n==='number'&&Number.isFinite(n);}
+function safePose(p){return p&&finite(p.x)&&finite(p.z)&&finite(p.y)&&Math.abs(p.x)<1e5&&Math.abs(p.z)<1e5;}
+function fit(a){
+ const g=a||{},reasons=[];
+ if(!(finite(g.massKg)&&g.massKg>=0&&g.massKg<=BAY.maxCargoMassKg))reasons.push('CARGO MASS EXCEEDS RATED MOUNT');
+ if(!(finite(g.volumeM3)&&g.volumeM3>=0&&g.volumeM3<=BAY.maxCargoVolumeM3))reasons.push('CARGO VOLUME EXCEEDS MOUNT');
+ if(BAY.vehicleWidth+2*BAY.clearanceMargin>WIDTH)reasons.push('TRUCK TOO WIDE');
+ if(BAY.vehicleHeight+BAY.clearanceMargin>HEIGHT)reasons.push('TRUCK TOO TALL');
+ if(BAY.vehicleLength+2*BAY.clearanceMargin>LENGTH)reasons.push('TRUCK TOO LONG');
+ return {ok:reasons.length===0,reasons,geometry:BAY};
+}
+function height(z){
+ const t=Math.max(0,Math.min(1,(z-BAY.rearZ)/(BAY.rampEndZ-BAY.rearZ)));
+ return BAY.floorY+(BAY.rampEndY-BAY.floorY)*t;
+}
+function corridor(pos){
+ if(!safePose(pos))return false;
+ return pos.x>=BAY.minX+BAY.vehicleWidth/2&&pos.x<=BAY.maxX-BAY.vehicleWidth/2;
+}
+function canApproach(pos,headingZ){return corridor(pos)&&pos.z>=BAY.rampEndZ-2&&pos.z<=BAY.rampEndZ+8&&headingZ<-.65;}
+function advance(pos,driveScene,ready=true){
+ if(!ready||!safePose(pos)||!finite(driveScene)||Math.abs(driveScene)>4)throw Error('Invalid vehicle ramp movement');
+ const x=pos.x;
+ if(!corridor(pos))throw Error('Truck clearance outside cargo ramp');
+ const z=Math.max(BAY.frontZ+BAY.vehicleLength/2,Math.min(BAY.rampEndZ+3,pos.z-driveScene));
+ const y=height(z);
+ return{x,z,y,inside:z<=BAY.rearZ-BAY.vehicleLength/2,atGround:z>=BAY.rampEndZ};
+}
+function snapshot(x){if(!x)return {schema:1,mode:'secured',pose:{x:BAY.centerX,z:5.7,y:BAY.floorY},counter:0};
+ if(x.schema!==1||!['secured','ramp','ground'].includes(x.mode)||!safePose(x.pose)||!Number.isInteger(x.counter)||x.counter<0)throw Error('Invalid 8B cargo save state');
+ return{schema:1,mode:x.mode,pose:{x:x.pose.x,y:x.pose.y,z:x.pose.z},counter:x.counter};
+}
+root.StarfallCargo8B=Object.freeze({BAY,fit,height,corridor,canApproach,advance,snapshot});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallCargo8B;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* Update 8A: one authoritative, serializable physical inventory and custody ledger.
  * No renderer, DOM, or localStorage dependencies. Ship loading geometry is Update 8B.
  */
@@ -6294,6 +6354,8 @@ const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
 const session=SF.load(),saved=session.flightGalaxy;
 const physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
+const BAY8B=StarfallCargo8B;let cargo8b=BAY8B.snapshot(saved?.shipCargo8b);
+if(physical8a.get(START_TRUCK)?.location.kind==='surface'&&cargo8b.mode==='secured')cargo8b.mode='ground';
 const materials8a=StarfallMaterials8A.create(session.materials8a);
 let shipDockT13=StarfallShipT13.repair(saved?.shipDockT13);
 localServiceT12=StarfallFieldServiceT12.createService(saved?.truckPose?.fieldServiceT12);
@@ -6485,7 +6547,51 @@ function roverWorldState(){
  const height=groundHeight(roverLocal,roverBody);
  return{body:roverBody,position:V.add(roverBody.position,V.mul(radial,roverBody.radius+height+ROVER_CLEARANCE)),forward:roverForwardVec||evaForward,up:radial};
 }
+function shipCargoWorld8B(){
+ const ship=shipWorldState(),right=V.norm(V.cross(ship.forward,ship.up)),p=cargo8b.pose;
+ return {body:ship.body,position:V.add(ship.position,V.add(V.mul(right,p.x),V.add(V.mul(ship.up,p.y),V.mul(ship.forward,-p.z)))),forward:ship.forward,up:ship.up};
+}
+function cargoRelative8B(world){
+ const ship=shipWorldState(),rel=V.sub(world,ship.position);
+ return {x:V.dot(rel,V.norm(V.cross(ship.forward,ship.up))),z:-V.dot(rel,ship.forward),y:V.dot(rel,ship.up)};
+}
+function cargoSurfaceLocal8B(world){
+ const body=shipBody||nearest,rad=V.norm(V.sub(world,body.position));
+ return V.rot(rad,body.spinAxis||[0,1,0],-(body.spinAngle||0));
+}
+function cargoRampReady8B(){
+ if(!landed||!shipBody||shipBody!==nearest)return false;
+ const prior=cargo8b.pose;
+ cargo8b.pose={x:BAY8B.BAY.centerX,z:BAY8B.BAY.rampEndZ,y:BAY8B.height(BAY8B.BAY.rampEndZ)};
+ const tip=shipCargoWorld8B().position;cargo8b.pose=prior;
+ const local=cargoSurfaceLocal8B(tip);
+ return Math.abs(V.len(V.sub(tip,nearest.position))-nearest.radius-groundHeight(local,nearest))<3.25;
+}
+function cargoInteract8B(){
+ if(!landed||!eva||truckOccupied||!shipBody||shipBody!==nearest||rampTransition)return false;
+ const ship=shipWorldState(),access=V.add(ship.position,V.add(V.mul(V.norm(V.cross(ship.forward,ship.up)),BAY8B.BAY.centerX),V.mul(ship.forward,-27)));
+ if(V.len(V.sub(pos,access))>35)return false;
+ if(!cargoRampReady8B()){showToast('8B · CARGO RAMP TERRAIN BLOCKED — reland on flatter ground');return true;}
+ const a=physical8a.get(START_TRUCK);
+ if(cargo8b.mode==='secured'&&a?.location.kind==='ship'){
+  cargo8b.mode='ramp';cargo8b.pose={x:BAY8B.BAY.centerX,z:11.2,y:BAY8B.height(11.2)};cargo8b.counter++;
+  truckBody=shipBody;truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);truckForwardVec=[...shipForwardVec];
+  physical8a.move(START_TRUCK,{kind:'surface',bodyId:shipBody.id,local:truckLocal},'8b-release:'+cargo8b.counter,{expected:a.location});
+  showToast('8B · Cargo tie-downs released. Approach truck, X to enter, S to reverse down wide ramp.');saveFlight();return true;
+ }
+ if(cargo8b.mode==='ramp'&&cargo8b.pose.z<=11.6&&a?.location.kind==='surface'){
+  if(!BAY8B.fit(a).ok){showToast('8B · TRUCK EXCEEDS CARGO BAY CAPACITY');return true;}
+  cargo8b.counter++;
+  physical8a.move(START_TRUCK,{kind:'ship',slot:'starboard-hangar'},'8b-lock:'+cargo8b.counter,
+   {expected:a.location,maxMassKg:BAY8B.BAY.maxCargoMassKg,maxVolumeM3:BAY8B.BAY.maxCargoVolumeM3});
+  cargo8b.mode='secured';cargo8b.pose={x:BAY8B.BAY.centerX,z:5.7,y:BAY8B.BAY.floorY};
+  truckBody=null;truckLocal=null;roverExitMove=null;
+  showToast('8B · TRUCK SECURED · tie-downs locked · flight mass updated');saveFlight();return true;
+ }
+ showToast('8B · Park truck completely on cargo deck, exit X, then press B near loading ramp.');return true;
+}
 function truckWorldState(){
+ if((cargo8b.mode==='secured'&&physical8a.get(START_TRUCK)?.location.kind==='ship')||cargo8b.mode==='ramp')return shipCargoWorld8B();
  if(!(truckBody&&truckLocal))return null;
  const axis=truckBody.spinAxis||[0,1,0],radial=V.norm(V.rot(truckLocal,axis,truckBody.spinAngle||0));
  return{body:truckBody,position:V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(truckLocal,truckBody)+TRUCK_CLEARANCE)),forward:truckForwardVec,up:radial};
@@ -6507,11 +6613,13 @@ function placeRoverNearShip(){
   if(a.location.kind==='ship'){const local=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,front,right);
    physical8a.move(id,{kind:'surface',bodyId:shipBody.id,local},'initial-deploy:'+id,{expected:a.location});return local;}
   return a.location.kind==='surface'&&a.location.bodyId===shipBody.id?a.location.local:null;};
- const r=deploy(START_ROVER,-9.5,10.5),t=deploy(START_TRUCK,-14,-18);
+ const r=deploy(START_ROVER,-9.5,10.5);
+ const t=physical8a.get(START_TRUCK)?.location;
+ const surface=t?.kind==='surface'&&t.bodyId===shipBody.id?t.local:null;
  roverBody=r?shipBody:null;roverLocal=r?[...r]:null;
  if(r){const rf=physical8a.get(START_ROVER)?.state?.forward;roverForwardVec=Array.isArray(rf)&&rf.length===3?V.norm(rf):V.norm(shipForwardVec||forward);}
- truckBody=t?shipBody:null;truckLocal=t?[...t]:null;
- if(t){const st=physical8a.get(START_TRUCK)?.state;
+ truckBody=surface?shipBody:null;truckLocal=surface?[...surface]:null;
+ if(surface){const st=physical8a.get(START_TRUCK)?.state;
   truckForwardVec=Array.isArray(st?.forward)&&st.forward.length===3?V.norm(st.forward):[...shipForwardVec];
   if(Number.isFinite(st?.batteryJ))truckBatteryJ=V.clamp(st.batteryJ,0,44e6);}
 }
@@ -6684,6 +6792,7 @@ addEventListener('keydown',ev=>{
  const mapped=controls.press(ev.code);if(!mapped)return;
  if(ev.repeat)return;
  if(code==='KeyX'&&truckOccupied){exitTruck();return;}
+ if(code==='KeyB'&&eva){if(cargoInteract8B())return;}
  if(code==='KeyX'&&eva){if(interiorState){window.StarfallInteriorsUI?.interact();return;}const ctx=outpostContext(),A=window.StarfallArchaeology,R=window.StarfallRuinsUI;
    const entrance=ctx.body&&ctx.local&&A&&R?.visibleSites?.find(site=>site.bodyId===ctx.bodyId&&A.arc(site.local,ctx.local,ctx.body.radius)<30&&R.records.some(r=>r.id===site.id&&r.level>=2));
    if(entrance){window.StarfallInteriorsUI?.interact();return;}
@@ -6763,7 +6872,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -6831,9 +6940,29 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
     interiorState.at=(interiorState.kind==='cave'?window.StarfallGeologyLW02.move:StarfallInteriors.move)(interiorState.layout,interiorState.at,{x:V.dot(horizontal,basis.right)*rate,z:V.dot(horizontal,basis.forward)*rate});
    }
    const place=interiorWorld(interiorState.at);evaLocal=place.local;pos=place.position;up=place.up;vertical=0;vel=[0,0,0];return;
-  }
-  if(truckOccupied){
-   if(yaw)truckForwardVec=V.norm(V.rot(truckForwardVec,radial,yaw*dt*1.13));
+  } 
+   if(truckOccupied&&cargo8b.mode==='ramp'){
+    const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+    if(drive&&truckBatteryJ>0){
+     const next=BAY8B.advance(cargo8b.pose,drive*dt*7.5);
+     cargo8b.pose={x:next.x,y:next.y,z:next.z};
+     truckBatteryJ=Math.max(0,truckBatteryJ-dt*2200);
+     truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);
+     if(next.atGround&&drive<0){cargo8b.mode='ground';showToast('8B · TRUCK EXITED THE LOADING RAMP · independent surface driving');}
+    }
+    truckForwardVec=[...shipForwardVec];
+    const where=truckWorldState();pos=[...where.position];up=where.up;evaForward=[...where.forward];
+    vertical=0;vel=[0,0,0];return;
+   }
+   if(truckOccupied&&cargo8b.mode==='ground'&&shipBody===nearest&&cargoRampReady8B()){
+    const rel=cargoRelative8B(truckWorldState().position),heading=-V.dot(truckForwardVec,shipForwardVec);
+    if(BAY8B.canApproach(rel,heading)&&(keys.has('KeyW')||keys.has('ArrowUp'))){
+     cargo8b.mode='ramp';cargo8b.pose={x:rel.x,z:BAY8B.BAY.rampEndZ,y:BAY8B.height(BAY8B.BAY.rampEndZ)};
+     showToast('8B · WIDE RAMP · Drive forward, park inside, exit X, secure with B');return;
+    }
+   }
+   if(truckOccupied){
+    if(yaw)truckForwardVec=V.norm(V.rot(truckForwardVec,radial,yaw*dt*1.13));
    truckForwardVec=V.norm(V.sub(truckForwardVec,V.mul(radial,V.dot(radial,truckForwardVec))));if(V.len(truckForwardVec)<.05)truckForwardVec=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
    const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
    if(drive&&truckBatteryJ>0){
@@ -6890,7 +7019,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   vertical=0;vel=[0,0,0];return;}
   shipIdleElapsed=keys.has('KeyS')?shipIdleElapsed+dt:0;
   if(shipIdleElapsed>.52&&hatchCooldown<=0){exitShip();vertical=0;vel=[0,0,0];return;}
-  if(keys.has('Space')){if(shipDockT13.state!=='UNDOCKED'){showToast('T13 · UNDOCK SERVICE CABLE BEFORE TAKEOFF');vertical=0;vel=[0,0,0];return;}landingCapture=null;landed=false;groundLocal=null;eva=false;evaLocal=null;shipBody=null;truckOccupied=false;vel=V.add(V.mul(radial,38),V.mul(forward,14));pos=V.add(pos,V.mul(radial,5));showToast('Liftoff · atmospheric ascent');}else{
+  if(keys.has('Space')){if(cargo8b.mode==='ramp'){showToast('8B · CARGO RAMP OCCUPIED · secure truck or unload before launch');vertical=0;vel=[0,0,0];return;}if(shipDockT13.state!=='UNDOCKED'){showToast('T13 · UNDOCK SERVICE CABLE BEFORE TAKEOFF');vertical=0;vel=[0,0,0];return;}landingCapture=null;landed=false;groundLocal=null;eva=false;evaLocal=null;shipBody=null;truckOccupied=false;vel=V.add(V.mul(radial,38),V.mul(forward,14));pos=V.add(pos,V.mul(radial,5));showToast('Liftoff · atmospheric ascent');}else{
   if(yaw)forward=V.norm(V.rot(forward,radial,yaw*dt*1.65));forward=V.norm(V.sub(forward,V.mul(radial,V.dot(radial,forward))));up=radial;const desired=(keys.has('KeyW')?34:0)-(keys.has('KeyS')?15:0),speed=V.dot(vel,forward);
   vel=V.mul(forward,speed+(desired-speed)*Math.min(1,dt*2));const nextPos=V.add(pos,V.mul(vel,dt)),ns=surfaceData(nearest,nextPos);groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
    pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));vertical=0;warp=false;return;}}
@@ -7347,7 +7476,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,physical8a,materials8a,shipCargoMass8A,captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
+window.StarfallRuntime={galaxy,vehicleStore,physical8a,materials8a,shipCargoMass8A,get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
  return renderer.captureScience({eye,forward,up},body,{size,caption,wide});},assetPickView(){return{camera:lastPickingCamera?{...lastPickingCamera,fov:renderer.fov}:null,candidates:assetPickCandidates()};},engineeringAssetPoses(){return{
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
@@ -12063,7 +12192,7 @@ for(const [label,id] of [['Mission Photos','imaging7f-open'],['Field Journal','d
 // Help is self-contained so it does not require a server, fetch, or external dependencies.
 const guide=[
  ['Start Here','Getting started','Open Star Chart (M) or select a real star in the sky. Select a destination, align with G, then use Shift+W to warp where allowed. Approach a planet manually and descend through its atmosphere; touchdown begins EVA. Walk onto the ship rear ramp to board again.','Navigation target and a flight-capable ship','If warp is unavailable, check mode, distance, destination and alignment.'],
- ['Controls','Ship, EVA and truck','W/S control forward motion and braking, A/D steer on the surface, mouse drag steers or looks depending on button, scroll adjusts camera distance, V changes camera, T cycles time rate, L controls lights. The four-wheel truck uses X for deliberate entry and exit; the six-wheel science rover is not rideable. Open Control Settings for remapping/inversion.','Appropriate active mode','If directions feel reversed, adjust inversion in Control Settings. Remapped keys take precedence over these defaults.'],
+ ['Controls','Ship, EVA and truck','W/S control forward motion and braking, A/D steer on the surface, mouse drag steers or looks depending on button, scroll adjusts camera distance, V changes camera, T cycles time rate, L controls lights. The four-wheel truck uses X for deliberate entry and exit; B opens/locks ship vehicle cargo tie-downs near the wide starboard ramp. To unload, release with B, enter the truck with X and reverse down the wide ramp with S. To load, drive forward up the wide ramp, park, exit X and secure B; launch is blocked while cargo is partway on the ramp. the six-wheel science rover is not rideable. Open Control Settings for remapping/inversion.','Appropriate active mode','If directions feel reversed, adjust inversion in Control Settings. Remapped keys take precedence over these defaults.'],
  ['Navigation','Stars, maps and warp','Every twinkling star is an actual deterministic star system. Use the Star Chart for interstellar destinations and the Planetary Survey Map for surface waypoints and measured areas. Distant planetary details load only as needed.','A selected valid destination','Align the craft and verify warp restrictions if travel does not start.'],
  ['Exploration','Surface science and ruins','After landing, open Explore for survey scans, instruments, planetary map, anomalies, ecology and ruins. Scientific instruments have range, operating conditions and uncertainty. Ruin interiors are accessible only where generated and physically reachable.','A nearby world or surface','A barren planet may lack biology; a ruin may not have an enterable interior.'],
  ['Engineering','Vehicles and electric power','Open Engineer to inspect ship and vehicle systems, use the Engineering Workbench, design rockets, and construct outposts. Power flows only through valid connected sources and loads in engineering simulation. Solar panels depend on illumination and eclipses.','Compatible hardware and safe operating state','No power: inspect wiring, switch state, sunlight, battery charge, component faults and connector limits.'],
@@ -12134,7 +12263,7 @@ const btn=document.createElement('button');btn.type='button';btn.className='ui21
 const shell=document.createElement('div');shell.className='modal-backdrop';shell.hidden=true;shell.id='physical8a-dialog';
 const pane=document.createElement('section');pane.className='chart-panel';pane.setAttribute('role','dialog');pane.setAttribute('aria-modal','true');pane.setAttribute('aria-label','Physical cargo inventory');
 const heading=document.createElement('h2');heading.textContent='Cargo & Inventory';
-const note=document.createElement('p');note.textContent='Every vehicle has one saved ID and one custody location. Physical loading, tool inventory and cargo geometry arrive in subsequent stages.';
+const note=document.createElement('p');note.textContent='Every vehicle has one saved ID and one custody location. Update 8B: ship starboard vehicle hangar uses the separate wide ramp and remappable B tie-down action. Material processing is not yet active.';
 const status=document.createElement('div');status.style.cssText='white-space:pre-wrap;line-height:1.8;font:12px monospace;max-height:55vh;overflow:auto';
 const close=document.createElement('button');close.type='button';close.textContent='Close';close.style.cssText='margin-top:18px;padding:12px 20px;border:1px solid #ecbb7a;background:#121c25';
 const redraw=()=>{const a=runtime()?.physical8a?.list()||[];
@@ -12149,7 +12278,10 @@ const redraw=()=>{const a=runtime()?.physical8a?.list()||[];
  const binsText='\n\nCONTAINERS ('+bins.length+')\n'+(bins.length?bins.map(c=>{
   const u=model.used(c.id);return c.id+' · '+u.massKg.toFixed(2)+'/'+c.maxMassKg+' kg · '+u.volumeM3.toFixed(3)+'/'+c.maxVolumeM3+' m³';
  }).join('\n'):'No material storage commissioned yet.');
- status.textContent=heading+(vehicleText||'No vehicle data')+stockText+binsText;};
+ const bay=runtime()?.cargo8b,attached=runtime()?.shipCargoMass8A?.()||0;
+ status.textContent='8B VEHICLE RACK · '+(bay?.mode||'UNAVAILABLE').toUpperCase()+
+  ' · ONBOARD DRY CARGO '+attached.toFixed(0)+' kg\n'+heading+
+  (vehicleText||'No vehicle data')+stockText+binsText;};
 const shut=()=>{shell.hidden=true;btn.focus();};
 btn.addEventListener('click',()=>{redraw();shell.hidden=false;close.focus();});
 close.addEventListener('click',shut);shell.addEventListener('click',e=>{if(e.target===shell)shut();});

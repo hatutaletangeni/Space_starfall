@@ -1,8 +1,8 @@
-name: Update 8A inventory, standalone and compatibility
+name: Update 8A-8B physical cargo integration
 on:
   push:
     branches:
-      - feature/update-8a-physical-inventory
+      - feature/update-8b-physical-cargo
   workflow_dispatch:
 permissions:
   contents: write
@@ -24,9 +24,11 @@ jobs:
           node --check src/physics/physical-inventory8a.js
           node --check src/physics/material-ledger8a.js
           node --check src/physics/physical-inventory-ui8a.js
+          node --check src/physics/cargo-bay8b.js
           node --check src/flight.js
           node tests/update8a.test.cjs
           node tests/material-ledger8a.test.cjs
+          node tests/cargo-bay8b.test.cjs
       - name: Rebuild source-synchronized standalone
         run: |
           python tools/build-standalone.py
@@ -37,12 +39,12 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add PLAY-STARFALL.html
-            git commit -m "8A: synchronize offline standalone with physical inventory"
-            git push origin HEAD:feature/update-8a-physical-inventory
+            git commit -m "8B: synchronize offline standalone with physical inventory"
+            git push origin HEAD:feature/update-8b-physical-cargo
           fi
       - name: Archive standalone validation artifact
         uses: actions/upload-artifact@v4
         with:
-          name: starfall-8a-standalone
+          name: starfall-8b-standalone
           path: PLAY-STARFALL.html
           if-no-files-found: error

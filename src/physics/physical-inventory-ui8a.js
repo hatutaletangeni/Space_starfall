@@ -6,7 +6,7 @@ const btn=document.createElement('button');btn.type='button';btn.className='ui21
 const shell=document.createElement('div');shell.className='modal-backdrop';shell.hidden=true;shell.id='physical8a-dialog';
 const pane=document.createElement('section');pane.className='chart-panel';pane.setAttribute('role','dialog');pane.setAttribute('aria-modal','true');pane.setAttribute('aria-label','Physical cargo inventory');
 const heading=document.createElement('h2');heading.textContent='Cargo & Inventory';
-const note=document.createElement('p');note.textContent='Every vehicle has one saved ID and one custody location. Physical loading, tool inventory and cargo geometry arrive in subsequent stages.';
+const note=document.createElement('p');note.textContent='Every vehicle has one saved ID and one custody location. Update 8B: ship starboard vehicle hangar uses the separate wide ramp and remappable B tie-down action. Material processing is not yet active.';
 const status=document.createElement('div');status.style.cssText='white-space:pre-wrap;line-height:1.8;font:12px monospace;max-height:55vh;overflow:auto';
 const close=document.createElement('button');close.type='button';close.textContent='Close';close.style.cssText='margin-top:18px;padding:12px 20px;border:1px solid #ecbb7a;background:#121c25';
 const redraw=()=>{const a=runtime()?.physical8a?.list()||[];
@@ -21,7 +21,10 @@ const redraw=()=>{const a=runtime()?.physical8a?.list()||[];
  const binsText='\n\nCONTAINERS ('+bins.length+')\n'+(bins.length?bins.map(c=>{
   const u=model.used(c.id);return c.id+' · '+u.massKg.toFixed(2)+'/'+c.maxMassKg+' kg · '+u.volumeM3.toFixed(3)+'/'+c.maxVolumeM3+' m³';
  }).join('\n'):'No material storage commissioned yet.');
- status.textContent=heading+(vehicleText||'No vehicle data')+stockText+binsText;};
+ const bay=runtime()?.cargo8b,attached=runtime()?.shipCargoMass8A?.()||0;
+ status.textContent='8B VEHICLE RACK · '+(bay?.mode||'UNAVAILABLE').toUpperCase()+
+  ' · ONBOARD DRY CARGO '+attached.toFixed(0)+' kg\n'+heading+
+  (vehicleText||'No vehicle data')+stockText+binsText;};
 const shut=()=>{shell.hidden=true;btn.focus();};
 btn.addEventListener('click',()=>{redraw();shell.hidden=false;close.focus();});
 close.addEventListener('click',shut);shell.addEventListener('click',e=>{if(e.target===shell)shut();});
