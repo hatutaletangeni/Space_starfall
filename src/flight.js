@@ -1071,6 +1071,17 @@ function industrialInstall8E(kitLotId,front=24,right=0){
  if(!Number.isFinite(front)||!Number.isFinite(right)||Math.hypot(front,right)>73)
   throw Error('Industrial position exceeds ship umbilical');
  const local=outpostOffset(front,right),holder=StarfallMining8D.SHIP;
+ // Reuse legacy outpost footprint protection; an industrial plant must never clip
+ // into an existing hab, solar farm, storage node or launch pad.
+ const outpostItems=window.StarfallOutpostUI?.store?.items||[];
+ for(const other of outpostItems){
+  if(other.bodyId!==c.bodyId)continue;
+  const size=window.StarfallOutposts?.SPECS?.[other.kind]?.radius||8;
+  const k=StarfallIndustrialSite8E.KITS[materials8a.inventory(holder).find(l=>l.id===kitLotId)?.materialId];
+  if(k&&Math.acos(Math.max(-1,Math.min(1,local.reduce((a,v,i)=>a+v*other.local[i],0))))*
+       c.body.radius < k.radiusScene+size+2)
+   throw Error('Industrial site overlaps an existing outpost structure');
+ }
  const quote=StarfallIndustrialSite8E.quote({materials:materials8a.snapshot(),physical:physical8a.serialize(),
   shipContainerId:holder,kitLotId,bodyId:c.bodyId,bodyRadius:c.body.radius,local,
   shipLocal,operatorLocal:evaLocal});
