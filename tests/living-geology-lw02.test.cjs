@@ -20,6 +20,7 @@ for(const site of sites){
  assert.ok(g.triangles>200&&g.triangles<6000);
  assert.equal(g.positions.length,g.normals.length);assert.equal(g.colors.length,g.positions.length);
  assert.equal(g.positions.length/3,g.indices.length);
+ assert.equal(g.positions[1],geology.center(site,0).y,'rendered cave floor must share collision floor height');
  assert.ok(g.positions.every(Number.isFinite)&&g.normals.every(Number.isFinite));
  assert.ok(entrance.indices.length>10);
  assert.deepEqual(mesh.geometry(site),g);
@@ -43,5 +44,10 @@ const color=[.4,.42,.39];
 assert.deepEqual(geology.strataTint(first,[0,1,0],70,.4,color,{material:'ice'}),color);
 assert.deepEqual(geology.strataTint(first,[0,1,0],70,.4,color,{material:'water'}),color);
 assert.ok(geology.strataTint(first,[0,1,0],70,.4,color,{material:'rock'}).every(v=>v>=0&&v<=1));
+const elevated={...first,id:'test-exposed-rock-ridge'};
+global.Starfall3D={groundHeight:d=>d[0]>.05?42:0};
+const anchored=geology.sites(elevated,732);
+assert.ok(anchored.length>0&&anchored.every(site=>site.local[0]>.05),'cave mouths must prefer actual elevated terrain');
+delete global.Starfall3D;
 assert.deepEqual(galaxy.systems.map(s=>s.id),initialIDs);
 console.log('LW02 cave mesh/collision, deterministic geological seed, unchanged worlds and 2368 systems PASS',first.id);
