@@ -30,6 +30,8 @@ jobs:
           node --check src/physics/modular-ship8e.js
           node --check src/physics/ship-walk8e.js
           node --check src/physics/modular-ship-ui8e.js
+          node --check src/physics/life-support8e.js
+          node --check src/physics/power.js
           node --check src/engine.js
           node --check src/controls/input.js
           node --check src/flight.js
@@ -38,6 +40,7 @@ jobs:
           node tests/cargo-bay8b.test.cjs
           node tests/planetary-resources8c.test.cjs
           node tests/modular-ship8e.test.cjs
+          node tests/life-support8e.test.cjs
       - name: Rebuild source-synchronized standalone
         run: |
           python tools/build-standalone.py
