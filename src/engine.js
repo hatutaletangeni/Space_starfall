@@ -404,7 +404,7 @@ class Renderer{
   for(const sys of systems){const delta=V.sub(sys.position,eye),distance=V.len(delta);const near=distance<sys.maxOrbit+sys.star.radius*22;
    if(!near)continue;
    for(const belt of sys.belts){if(Math.abs(distance-belt.radius)>belt.radius*.9+220000)continue;const a=belt.phase+this.galaxy.time*Math.PI*2/belt.period,cos=Math.cos(a),sin=Math.sin(a);
-    for(const rock of belt.rocks){const x=rock[0]*cos-rock[2]*sin,z=rock[0]*sin+rock[2]*cos;add([sys.position[0]+x,sys.position[1]+rock[1],sys.position[2]+z],Math.max(55,belt.radius*.0018)*rock[3],[.55,.51,.49],.50);}
+    for(const rock of belt.rocks){const x=rock[0]*cos-rock[2]*sin,z=rock[0]*sin+rock[2]*cos;const position=[sys.position[0]+x,sys.position[1]+rock[1],sys.position[2]+z];if(V.len(V.sub(position,eye))>18000)add(position,Math.max(55,belt.radius*.0018)*rock[3],[.55,.51,.49],.50);}
    }
    for(const neb of sys.nebulae){if(distance>sys.star.radius*45)continue;for(const point of neb.cloud){add(V.add(sys.position,point.slice(0,3)),point[3],neb.color,point[4]);}}
    for(const comet of sys.comets){const dir=comet.tail,scale=Math.max(3000,sys.star.radius*.22);add(comet.position,scale*.27,[.80,.94,1],.98);
