@@ -39,9 +39,20 @@ function geothermalRows(profile){
  return [entry('Geothermal site candidates',summary||'None','Seeded model, not mapped or confirmed'),
    entry('Geothermal interpretation','Pressure-driven cycles; local vents must be surveyed','Analytical model, not verified eruption animation')];
 }
+function livingGeologyRows(profile){
+ const geo=root.StarfallGeologyLW02,engine=root.Starfall3D;
+ if(profile?.kind==='star'||!selected?.landable||!geo)return[];
+ const sites=geo.sites(selected,RT.galaxy.seed),dir=sites[0]?.local||[0,1,0];
+ const height=engine?.groundHeight?engine.groundHeight(dir,selected):0;
+ const regional=geo.landform(selected,dir,height,engine?.field?.(dir,selected.seed)??.5);
+ return [entry('Subsurface candidate passages',sites.length+' · '+sites.map(x=>x.kind).join(' / '),
+   'Deterministic candidates; entrances require surface approach'),
+   entry('Regional landform',regional?.kind||'Unknown',regional?.cause||'Procedural geological prior'),
+   entry('Terrain compatibility','Original heights unchanged','Preserves all existing saves, structures and landing sites')];
+}
 function rows(profile){if(!profile)return [];
  if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
- return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
+ return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...livingGeologyRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
 function getProfile(){RT.galaxy.observerPosition=RT.scenePosition;return selected?P.scienceProfile(RT.galaxy,selected):null;}
 function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galaxy.byId.get(focus.systemId):RT.galaxy.byId.get(focus.systemId);
  if(sys?.dormant)RT.galaxy.activate(sys);
@@ -65,6 +76,18 @@ function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChi
    button.textContent='PLOT GEO '+(i+1)+' · '+site.kind+' · '+lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';
    button.title='Set a normal flight waypoint to this seeded modeled vent; no teleport';
    button.onclick=()=>{try{RT.plotSurfaceWaypoint(selected.id,site.direction,site.kind+' vent '+(i+1));}
+    catch(error){$('obs-caution').textContent=error.message;}};
+   list.append(button);
+  });
+ }
+ if(selected?.landable&&root.StarfallGeologyLW02&&RT.plotSurfaceWaypoint){
+  const caves=root.StarfallGeologyLW02.sites(selected,RT.galaxy.seed);
+  caves.forEach((site,i)=>{
+   const button=document.createElement('button');button.type='button';button.className='site';
+   const lat=Math.asin(site.local[1])*180/Math.PI,lon=Math.atan2(site.local[2],site.local[0])*180/Math.PI;
+   button.textContent='PLOT CAVE '+(i+1)+' · '+site.kind+' · '+lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';
+   button.title='Normal flight waypoint to a deterministic cave entrance. Walk there in EVA and press X.';
+   button.onclick=()=>{try{RT.plotSurfaceWaypoint(selected.id,site.local,site.kind+' cave '+(i+1));}
     catch(error){$('obs-caution').textContent=error.message;}};
    list.append(button);
   });
