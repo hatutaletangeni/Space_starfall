@@ -1203,7 +1203,7 @@ function evaluateLighting(body,sys,galaxy,position){
  }
  // A distant system contributes no light to the current system. Ambient is deliberately
  // nearly zero: the sun, moonlight, and the ship floodlight provide the actual illumination.
- const nightGlow=.008;const color=sys.star.tint||[1,1,1];
+ const nightGlow=.008;const color=root.StarfallStellarSpectraCW02?.displayColor(sys.star)||sys.star.tint||[1,1,1];
  let bounceDirection=V.len(moon)>.0001?V.norm(moon):[0,1,0];
  moonColor=moonPower>.0001?V.mul(moonColor,1/moonPower):[.8,.83,.9];
  // Lunar eclipse: a moon's parent can block the star. A ray-sphere intersection in
@@ -1668,8 +1668,8 @@ class Renderer{
   // Massive suns use a separate far-space projection. Their coordinates are relative
   // to the camera so Float32 matrices retain local precision in billion-unit sectors.
   this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*renderH;if(pixels<1.5)continue;
-   p=this.p.sun;gl.useProgram(p);this.setMat(p,'uViewProj',sunVP);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uTime',this.galaxy.time);const model=M.scaleTranslate(rel,sys.star.radius);this.renderMesh(p,this.sunSphere,model);
-   p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
+   p=this.p.sun;gl.useProgram(p);this.setMat(p,'uViewProj',sunVP);this.setVec(p,'uTint',root.StarfallStellarSpectraCW02?.displayColor(sys.star)||sys.star.tint);this.setFloat(p,'uTime',this.galaxy.time);const model=M.scaleTranslate(rel,sys.star.radius);this.renderMesh(p,this.sunSphere,model);
+   p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',root.StarfallStellarSpectraCW02?.displayColor(sys.star)||sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
   }
   gl.enable(gl.DEPTH_TEST);gl.depthMask(true);
   p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',0);
@@ -1936,6 +1936,52 @@ function scienceProfile(galaxy,body){if(!body)return null;const system=body.kind
 class SimulationClock{constructor(t=0){this.set(t);}set(t){if(!Number.isFinite(t))throw Error('Time must be finite');this.seconds=t;return this.seconds;}advance(dt,scale=1){if(!Number.isFinite(dt)||dt<0||!Number.isFinite(scale)||scale<0)throw Error('Invalid timestep');return this.set(this.seconds+dt*scale);}at(){return this.seconds;}}
 const API={G,SIGMA,AU,MSUN,LSUN,G0,TAU,SCENE_METERS_PER_UNIT:UNIT,vec,hash,random01,starProfile,bodyProfile,scienceProfile,solveE,keplerState,stateToElements,orbitalObservables,equilibriumTemperature,SimulationClock,sceneToMeters:x=>x*UNIT,metersToScene:x=>x/UNIT};
 root.StarfallPhysics=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
+/* CW-02 — purely derived stellar spectrum and appearance; no celestial mutation.
+ * Planck-law band fractions approximated by numerical integration over wavelength.
+ * Stefan–Boltzmann bolometric flux F=L/(4*pi*r^2) from EXISTING StarfallPhysics.
+ * Stellar compositions are CW01 seeded priors, never observations.
+ */
+(function(root){'use strict';
+const H=6.62607015e-34,C=299792458,K=1.380649e-23,PI=Math.PI,SCHEMA=1;
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const bands=Object.freeze({ultraviolet:[100e-9,400e-9],visible:[380e-9,780e-9],infrared:[780e-9,100e-6]});
+function planck(lambda,T){if(!(lambda>0&&T>0))return 0;const x=H*C/(lambda*K*T);if(x>700)return 0;return 2*H*C*C/(lambda**5*Math.expm1(x));}
+function integrate(T,min,max,n=128){let s=0;const h=(max-min)/n;for(let i=0;i<=n;i++){const x=min+i*h;s+=(i===0||i===n?1:i%2?4:2)*planck(x,T);}return s*h/3;}
+function xyzApprox(T){ // CIE-like analytic color matching functions, approximate, not spectrometer-grade.
+ let X=0,Y=0,Z=0;for(let nm=380;nm<=780;nm+=5){const nmf=nm,lam=nm*1e-9,B=planck(lam,T);
+ const g=(mu,lo,hi)=>Math.exp(-.5*((nmf-mu)/(nmf<mu?lo:hi))**2);
+ X+=B*(1.056*g(599.8,37.9,31.0)+.362*g(442,16,26.7)-.065*g(501.1,20.4,26.2));
+ Y+=B*(.821*g(568.8,46.9,40.5)+.286*g(530.9,16.3,31.1));
+ Z+=B*(1.217*g(437,11.8,36)+.681*g(459,26,13.8));}
+ const R=3.2406*X-1.5372*Y-.4986*Z,G=-.9689*X+1.8758*Y+.0415*Z,B=.0557*X-.204*Y+1.057*Z;
+ const rgb=[Math.max(0,R),Math.max(0,G),Math.max(0,B)],m=Math.max(...rgb,1e-30);
+ // Relative display tint, NOT a calibrated emitted-light measurement.
+ return Object.freeze(rgb.map(v=>clamp(Math.pow(v/m,1/2.2),0,1)));
+}
+const cache=new Map(),MAX_CACHE=1024;
+function profile(star,existingPhysics){if(!star?.id)throw Error('Missing star ID');
+ const key=star.id+':'+star.type+':'+star.radius;
+ if(!existingPhysics&&cache.has(key))return cache.get(key);
+ const physics=existingPhysics||root.StarfallPhysics;
+ if(!physics?.starProfile)throw Error('StarfallPhysics.starProfile unavailable');
+ const p=physics.starProfile(star),T=p.effectiveTemperatureK;
+ if(!(Number.isFinite(T)&&T>0&&Number.isFinite(p.luminosityW)&&p.luminosityW>0))throw Error('Invalid stellar physics');
+ const composition=root.StarfallCompositionCW01?.starFor(star);
+ const integrateTotal=integrate(T,100e-9,100e-6,256);
+ const fractions=Object.freeze(Object.fromEntries(Object.entries(bands).map(([key,[lo,hi]])=>[key,clamp(integrate(T,lo,hi)/integrateTotal,0,1)])));
+ const result=Object.freeze({schema:SCHEMA,starId:star.id,temperatureK:T,luminosityW:p.luminosityW,
+  displayRGB:xyzApprox(T),radiationBandFractions:fractions,composition:composition||null,
+  provenance:'Planck spectrum approximation from existing CW01/physics stellar profile',
+  uncertainties:'Stellar temperature and effective radius are procedural approximations; no extinction or absorption lines modeled'});
+ if(!existingPhysics){if(cache.size>=MAX_CACHE)cache.delete(cache.keys().next().value);cache.set(key,result);}return result;
+}
+function stellarFluxWm2(star,distanceM,physics){if(!(Number.isFinite(distanceM)&&distanceM>0))throw Error('Invalid stellar distance');const p=profile(star,physics);return p.luminosityW/(4*PI*distanceM**2);}
+const API=Object.freeze({SCHEMA_VERSION:SCHEMA,planck,integrate,profile,stellarFluxWm2,displayColor:star=>profile(star).displayRGB});
+root.StarfallStellarSpectraCW02=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
 
 </script><script>
