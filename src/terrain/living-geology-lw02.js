@@ -69,7 +69,16 @@ function landform(body,dir,height,field=.5){
  else if(t==='Ocean')kind=h>55?'coastal-cliff':'sedimentary-lowland',cause='marine weathering and deposition';
  return Object.freeze({kind,cause,heightScene:h,regionalPrior:noise,classification:'interpretation of unchanged legacy heightfield; not new tectonic deformation'});
 }
-const API=Object.freeze({sites,center,width,caveLayout,canStand,move,landform,arc});
+function strataTint(body,dir,height,field,base,biome){
+ if(!body?.landable||!Array.isArray(base)||['water','ice','soil'].includes(biome?.material))return base;
+ const type=body.type;if(!['Rocky','Desert','Volcanic','Temperate','Lush','Ocean'].includes(type))return base;
+ const horizon=Math.sin(height*.22+(field||0)*17),erosion=Math.sin(height*.053+dir[0]*29+dir[2]*13);
+ const mix=clamp(.12+.08*horizon+.06*erosion,0,.26);
+ const mineral=type==='Volcanic'?[.33,.28,.24]:type==='Desert'?[.61,.44,.30]:
+  type==='Rocky'?[.43,.43,.40]:[.52,.48,.39];
+ return Object.freeze(base.map((x,i)=>clamp(x*(1-mix)+mineral[i]*mix)));
+}
+const API=Object.freeze({sites,center,width,caveLayout,canStand,move,landform,strataTint,arc});
 root.StarfallGeologyLW02=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
