@@ -21,7 +21,7 @@ assert.equal(machine.massKg,initial);assert.equal(machine.state.station,'machine
 assert.ok(machine.state.tools.includes('cnc'));assert.equal(machine.location.bodyId,'world');
 assert.equal(installed.list().filter(a=>a.id===opts.id).length,1);
 assert.throws(()=>Installer.commission({...opts,assets:made.assets,materials:made.materials}),/already commissioned/);
-assert.throws(()=>Installer.commission({...opts,energyReceipt:{...opts.energyReceipt,usedJ:0}}),/energy/);
+assert.throws(()=>Installer.commission({...opts,energyReceipt:{...opts.energyReceipt,usedJ:0}}),/electrical work/);
 assert.throws(()=>Installer.commission({...opts,local:[1,0,0]}),/range/);
 assert.throws(()=>Installer.commission({...opts,existingStructures:[{bodyId:'world',local}]}),/overlap/);
 const bad=Stock.create(stock.snapshot()); // Grade below certification must fail.
