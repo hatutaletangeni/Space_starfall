@@ -21,6 +21,11 @@ assert.equal(Physical.create(output.physical).get('machine8f:1').state.station,'
 const afterMass=Materials.create(output.materials).inventory().reduce((a,x)=>a+x.massKg,0)+output.physical.assets.reduce((a,x)=>a+x.massKg,0);
 assert.ok(Math.abs(afterMass-beforeMass)<1e-8);
 assert.equal(Installation.install({...args,materials:output.materials,physical:output.physical}).duplicate,true);
+const reserved=Materials.create(args.materials);reserved.registerContainer({id:'other-hold',ownerId:'remote',maxMassKg:1000,maxVolumeM3:2});
+reserved.reserve('reserved-kit','kit-1','other-hold',10);
+assert.throws(()=>Installation.install({...args,materials:reserved.snapshot()}),/reserved for a different operation/);
+assert.throws(()=>Installation.install({...args,operationId:'install8f:2',assetId:'machine8f:2',
+ materials:output.materials,physical:output.physical}),/must be onboard/);
 function denied(patch,matcher){assert.throws(()=>Installation.install({...args,...patch}),matcher);}
 denied({energyReceipt:null},/energy not paid/);
 denied({operatorNear:false},/Board/);
