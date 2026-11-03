@@ -2156,6 +2156,8 @@ function sources(body,seed=742){
   const gasMassFraction=(magmatic?.01:cryogenic?.12:.025)*(.5+rnd(k+':gas'));
   const conduitFailureStrengthPa=(magmatic?2.6e5:1.0e5)*(.7+1.5*rnd(k+':strength'));
   const volatileInventoryKg=(4e6+3e7*rnd(k+':reservoir'))*fluidPrior;
+  const reservoirTemperatureK=magmatic?(1080+290*rnd(k+':temperature')):cryogenic?(165+90*rnd(k+':temperature')):(310+65*rnd(k+':temperature'));
+  const volatileSpecies=magmatic?'CO2/SO2':cryogenic?'H2O/NH3':'H2O';
   const reservoirCapacityKg=(magmatic?1.4e8:volatileInventoryKg)*(0.65+0.6*rnd(k+':capacity'));
   const initialReservoirKg=reservoirCapacityKg*(0.48+0.48*rnd(k+':initial'));
   const rechargeKgPerCycle=reservoirCapacityKg*(magmatic?.008:cryogenic?.012:hydro?.038:0);
@@ -2177,7 +2179,8 @@ function sources(body,seed=742){
   out.push(Object.freeze({schema:1,id:body.id+':geothermal:'+i,bodyId:body.id,kind,
    direction:Object.freeze([cos*Math.cos(lon),Math.sin(lat),cos*Math.sin(lon)]),
    thermalFluxWm2:thermalWm2,radiogenicHeatWm2,tidalHeatWm2,hotspotHeatWm2,
-   conduitPermeability,conduitFailureStrengthPa,gasMassFraction,volatileInventoryKg,magmaViscosityPaS,
+   conduitPermeability,conduitFailureStrengthPa,gasMassFraction,reservoirTemperatureK,volatileSpecies,
+   volatileInventoryKg,magmaViscosityPaS,
    reservoirCapacityKg,initialReservoirKg,rechargeKgPerCycle,
    conduitDepthM:220+2400*rnd(k+':depth'),ventRadiusM:4+36*rnd(k+':width'),
    cycleS,durationS,epochOffsetS:Math.floor(cycleS*rnd(k+':phase')),
@@ -2195,7 +2198,8 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  const isCryo=site.kind==='cryovolcano',gasFluid=!isMagma&&site.volatileInventoryKg>0;
  const overpressurePa=site.thermalFluxWm2*(isMagma?3e7:8e6)*(0.35+0.65*(1-dt/cycle))*(1+Math.min(.5,(site.gasMassFraction||0)*3))/Math.sqrt(Math.max(.12,site.conduitPermeability||1));
  const thresholdPa=ambientPa+(site.conduitFailureStrengthPa|| (isMagma?7e5:gasFluid?1.5e5:5e4));
- const canErupt=site.thermalFluxWm2>0&&overpressurePa>thresholdPa&&(isMagma||site.volatileInventoryKg>0);
+ const liquidReservoirPossible=!['geyser','mud-pot'].includes(site.kind)||(site.reservoirTemperatureK>=273.16&&site.reservoirTemperatureK<647.1&&overpressurePa>=611.657);
+ const canErupt=site.thermalFluxWm2>0&&overpressurePa>thresholdPa&&liquidReservoirPossible&&(isMagma||site.volatileInventoryKg>0);
  const capacity=site.reservoirCapacityKg||site.volatileInventoryKg||0;
  const initial=Math.min(capacity,site.initialReservoirKg??capacity);
  const recharge=Math.max(0,site.rechargeKgPerCycle||0);
@@ -2219,7 +2223,8 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
   pressurePa:ambientPa+overpressurePa,ambientPressurePa:ambientPa,thresholdPa,
   massFlowKgS,exitVelocityMS:estimatedExitVelocityMS,plumeHeightM,
   heatFluxWm2:site.thermalFluxWm2,reservoirCapacityKg:capacity,reservoirRemainingKg,dischargedThisCycleKg,
-  rechargeKgPerCycle:recharge,ashMassFlowKgS:isMagma&&['explosive-volcano','caldera-eruption','cinder-cone'].includes(site.kind)?massFlowKgS*(site.kind==='caldera-eruption'?.6:.3):0,
+  rechargeKgPerCycle:recharge,volatileSpecies:site.volatileSpecies,sourceTemperatureK:site.reservoirTemperatureK,
+  ashMassFlowKgS:isMagma&&['explosive-volcano','caldera-eruption','cinder-cone'].includes(site.kind)?massFlowKgS*(site.kind==='caldera-eruption'?.6:.3):0,
   lavaMassFlowKgS:isMagma?massFlowKgS*(site.kind==='explosive-volcano'?.2:site.kind==='caldera-eruption'?.15:site.kind==='cinder-cone'?.7:.8):0,
   vaporMassFlowKgS:!isMagma?massFlowKgS:0,
   model:'finite reservoir with periodic discharge analytical proxy; not CFD'});
@@ -2483,7 +2488,7 @@ function profile(body,seed=742){if(!body||!body.id)throw Error('Missing body');c
  const baseK=(ice?155:volcanic?450:temperate?282:245)+70*(rand(k+':temp')-.5);
  return Object.freeze({bodyId:body.id,seed,model:'seeded approximation / not measured',silicateFraction:silicate,ironFraction:iron,waterIcePotential:water,temperatureK:baseK,pressurePa:pressure,magneticFieldNT:mag,iceDepthM:Math.max(0,(ice?1:water*.4)*rand(k+':depth')*60),seismicLevelMMs:(volcanic?.12:.015)*rand(k+':seismic'),biosignatureIndex:clamp((body.life&&body.kind!=='moon'&&temperate&&baseK>=235&&baseK<=335&&pressure>=1800? .35+.42*rand(k+':potential-organic'): .015+.055*rand(k+':abiotic-organics')),0,1),volatileFraction:clamp(1-iron-silicate,0,1)});}
 function localTruth(body,seed,local,simTime=0){const p=profile(body,seed),vec=Array.isArray(local)?local:[0,1,0],lat=clamp(vec[1],-1,1),lon=Math.atan2(vec[2],vec[0]);const patch=rand(seed+':'+body.id+':patch:'+Math.floor(lat*38)+':'+Math.floor(lon*38)),diurnal=Math.sin(simTime*Math.PI*2/Math.max(30,body.spinPeriod||500)+lon);
- const geo=root.StarfallGeothermalLW01?.local(body,vec,simTime,seed,p.pressurePa,Math.max(.25,(body.gravity||1)*9.80665));const geothermalK=geo?.thermalExposure?Math.min(90,geo.thermalExposure*90):0;const geothermalSeismic=geo?.thermalExposure?geo.thermalExposure*.14:0;
+ const geo=root.StarfallGeothermalLW01?.local(body,vec,simTime,seed,p.pressurePa,Math.max(.25,(body.gravity||1)*9.80665));const geothermalK=geo?.thermalExposure?Math.min(90,(geo.radiativeHeatFluxWm2||0)/30+geo.thermalExposure*8):0;const geothermalSeismic=geo?.thermalExposure?geo.thermalExposure*.14:0;
  return{...p,temperatureK:p.temperatureK+12*diurnal*Math.cos(lat)+10*(patch-.5)+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5),silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
 function sample({body,seed=742,local=[0,1,0],altitudeM=0,instrument,simTime=0,energyAvailableJ=Infinity,calibrated=true,nonce=0}){
  const spec=INSTRUMENTS[instrument];if(!spec)throw Error('Unknown instrument');if(!body?.landable)throw Error('Requires a solid planetary surface');if(!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite))throw Error('Invalid local position');
