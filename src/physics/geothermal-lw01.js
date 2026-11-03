@@ -85,7 +85,7 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  // When supply is smaller than demand a site periodically depletes but can emit
  // again only after bounded replenishment, not create material spontaneously.
  const availableAtStart=cycleNumber===0?initial:
-  Math.max(0,Math.min(capacity,Math.max(recharge,initial+cycleNumber*(recharge-maxDischarge))));
+  Math.max(0,Math.min(capacity,Math.max(recharge,initial+cycleNumber*(recharge-(canErupt?maxDischarge:0)))));
  const dischargeBudgetKg=canErupt?Math.min(maxDischarge,availableAtStart):0;
  const consumedFraction=active?phase-Math.sin(TAU*phase)/TAU:1;
  const dischargedThisCycleKg=dischargeBudgetKg*consumedFraction;
