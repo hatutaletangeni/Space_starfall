@@ -19,7 +19,7 @@ function geometry(site){
   quad([a.x-w0,a.y,z0],[b.x-w1,b.y,z1],[b.x+w1,b.y,z1],[a.x+w0,a.y,z0],floor);
   for(let k=0;k<facets;k++){const t0=Math.PI*(1-k/facets),t1=Math.PI*(1-(k+1)/facets),
    m=.85+.13*Math.sin(i*.83+k*1.27+site.seed*.00001),color=rock.map(v=>v*m);
-   quad(roof(a,z0,w0,t0),roof(b,z1,w1,t0),roof(b,z1,w1,t1),roof(a,z0,w0,t1),color);}
+   quad(roof(a,z0,w0,t1),roof(b,z1,w1,t1),roof(b,z1,w1,t0),roof(a,z0,w0,t0),color);}
  }
  // Enclosed terminal wall and seeded crystals, stalagmites and sediment.
  const end=G.center(site,site.lengthScene),w=G.width(site,site.lengthScene);
