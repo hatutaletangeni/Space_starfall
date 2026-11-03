@@ -32,4 +32,18 @@ assert.ok(W.exposure(pulsar,farOrbit,1e5,742).ionizationIndex>=0);
 assert.equal(JSON.stringify([system.position,system.star,system.phenomenon,system.nebulae,system.belts]),old);
 assert.throws(()=>W.remnant(src,-1));
 assert.throws(()=>W.flare(src,-1));
-console.log('LW06 real seed 742: 2368 stars, source-linked remnant expansion, pulse propagation and unchanged catalog PASS');
+const Power=require('../src/physics/power.js');
+const stats={kind:'ship',maxSolarW:20000,solarAreaM2:35,solarEfficiency:.22,
+ generatorW:0,batteryCapacityJ:100000,maxDischargeW:20000,maxChargeW:20000,
+ chargeEfficiency:1,dischargeEfficiency:1,avionicsW:200,instrumentsW:50,pumpW:80,
+ radiatorAreaM2:8,emissivity:.75,enginePowerW:0};
+const st={energyJ:80000,temperatureK:290,loads:{avionics:true,lights:false,instruments:true,radiator:true,drive:false}};
+const light={luminosityW:3.83e26,distanceM:1.496e11,incidence:1,transmission:1,occluded:false,ambientK:210};
+const fullSun=Power.generation(stats,light),stormSun=Power.generation(stats,{...light,transmission:.35});
+assert.ok(fullSun.solarW>stormSun.solarW);
+const idle=Power.step(stats,st,10,{...light,luminosityW:0},{lightsW:0,protectionW:0});
+const shield=Power.step(stats,st,10,{...light,luminosityW:0},{lightsW:0,protectionW:400});
+assert.equal(shield.draws.avionics-idle.draws.avionics,400);
+assert.ok(shield.state.energyJ<idle.state.energyJ,'shield watts must debit real ship battery even when lights are disabled');
+assert.equal(st.energyJ,80000,'energy owner must remain unmodified by pure budget evaluation');
+console.log('LW06 real seed 742: 2368 stars, source-linked remnant expansion, pulse propagation, real protective power debit PASS');
