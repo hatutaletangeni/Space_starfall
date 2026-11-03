@@ -34,7 +34,7 @@ assert.equal(completed.materials.lots.find(l=>l.materialId==='hydrogen').contain
 assert.equal(completed.materials.lots.find(l=>l.materialId==='oxygen').containerId,'oxygen-tank');
 assert.equal(Plant.create(completed.operations).process({...args,materials:completed.materials}).duplicate,true);
 const bad=(patch,matcher)=>assert.throws(()=>Plant.create().process({...args,...patch}),matcher);
-bad({energyReceipt:null},/energy/);
+bad({energyReceipt:null},/power debit/);
 bad({station:{...station,installed:false}},/plant/);
 bad({assetState:{schema:1,assets:assetState.assets.slice(0,1)}},/vessel/);
 bad({materials:{...materials,lots:[]}},/reagent/);
