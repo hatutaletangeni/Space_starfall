@@ -486,6 +486,21 @@ function makeInfrastructureMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
  if(kind==='solar'){box(-.27,.6,-.25,.27,2.3,.25,metal);for(const side of [-1,1]){const x=side*3;box(x-2.9,2.3,-2.2,x+2.9,2.53,2.2,solar);for(let k=-2;k<=2;k++)box(x+k*.83-.02,2.51,-2.19,x+k*.83+.02,2.6,2.19,metal);} }
  if(kind==='antenna'){box(-.4,.6,-.4,.4,9,.4,metal);for(const y of [3.5,6.5]){box(-2,y,-.15,2,y+.15,.15,metal);box(-.15,y,-2,.15,y+.15,2,metal);}box(-.75,9,-.75,.75,10.1,.75,cyan);}
  if(kind==='connector'){box(-.9,.65,-.9,.9,1.5,.9,metal);box(-.6,1.5,-.6,.6,1.8,.6,gold);}
+ if(kind==='industrial_plant'){
+   box(-3.5,.6,-2.8,3.5,1.05,2.8,metal);
+   box(-2.7,1.05,-2.1,2.7,4.0,2.1,white);
+   box(-3.0,2.3,-2.35,3.0,3.05,-2.1,dark);
+   for(const x of [-1.7,0,1.7])box(x-.35,2.4,-2.39,x+.35,2.82,-2.34,cyan);
+   box(1.9,4,-1.5,2.7,8.0,-.8,metal);
+   box(-3.4,1.3,2.1,-2.7,3.7,2.8,gold);
+ }
+ if(kind==='industrial_vessel'){
+   box(-2.8,.6,-2.8,2.8,.95,2.8,metal);
+   for(const x of [-1.4,1.4]){box(x-.9,.95,-1.2,x+.9,5.5,1.2,white);
+     box(x-1,5.4,-1.3,x+1,5.9,1.3,metal);
+     box(x-.25,3,-1.31,x+.25,3.45,-1.27,cyan);}
+   box(-2.1,5.9,-.5,2.1,6.3,.5,gold);
+ }
  return makeMesh(gl,pp,nn,cc,ix);
 }
 function createExplorerMesh(gl){
@@ -525,7 +540,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
