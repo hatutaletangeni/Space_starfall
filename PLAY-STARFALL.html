@@ -1064,10 +1064,18 @@ function sites(body,seed=742){
  const key=String(seed)+':'+body.id+':LW02';if(cache.has(key))return cache.get(key);
  const names=CLASSES[body.type],out=[],count=body.type==='Volcanic'?3:body.type==='Ice'?2:2;
  for(let i=0;i<count;i++){
-  const k=key+':'+i,lat=(rnd(k+':lat')-.5)*2.25,lon=rnd(k+':lon')*TAU,cos=Math.cos(lat);
+  const k=key+':'+i,ground=root.Starfall3D?.groundHeight;
+  let selected=null,selectedHeight=-Infinity;
+  for(let attempt=0;attempt<48;attempt++){
+   const lat=(rnd(k+':lat:'+attempt)-.5)*2.25,lon=rnd(k+':lon:'+attempt)*TAU,cos=Math.cos(lat);
+   const candidate=[cos*Math.cos(lon),Math.sin(lat),cos*Math.sin(lon)],height=ground?ground(candidate,body):10;
+   if(height>selectedHeight){selected=candidate;selectedHeight=height;}
+   if(height>8){selected=candidate;selectedHeight=height;break;}
+  }
+  if(body.type==='Ocean'&&selectedHeight<3)continue;
   const kind=names[i%names.length],lengthScene=28+Math.round(22*rnd(k+':length')),widthScene=2.6+2*rnd(k+':width');
   out.push(Object.freeze({schema:1,id:'cave-'+hash(k).toString(36),bodyId:body.id,
-   kind,local:Object.freeze([cos*Math.cos(lon),Math.sin(lat),cos*Math.sin(lon)]),
+   kind,local:Object.freeze(selected),
    seed:hash(k+':path'),lengthScene,widthScene,depthScene:6+5*rnd(k+':depth'),
    provenance:'seeded geological candidate; passage shape is procedural, not measured',uncertainty:'high'}));
  }
