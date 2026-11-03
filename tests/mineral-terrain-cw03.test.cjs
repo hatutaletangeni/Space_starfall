@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict');
+global.StarfallCompositionCW01=require('../src/physics/celestial-composition-cw01.js');
+const G=require('../src/terrain/geology-cw03.js');
+const B=require('../src/terrain/biomes.js');
+const body={id:'star-0-p2',seed:8123,kind:'planet',type:'Rocky',landable:true};
+const d=[.3,.8,.52],a=G.lithology(body,d,32,.4);
+assert.deepEqual(a,G.lithology(body,d,32,.4));
+assert.ok(a.modeledIronFraction>=0&&a.modeledIronFraction<=1);
+const original=B.color(body,d,22,.6);
+assert.deepEqual(original,B.color(body,d,22,.6));
+assert.ok(original.every(n=>Number.isFinite(n)&&n>=0&&n<=1));
+assert.deepEqual(G.tint({...body,landable:false},d,22,.6,[.2,.3,.4]),[.2,.3,.4]);
+assert.deepEqual(G.tint({...body,type:'Ice'},d,22,.6,[.2,.3,.4]),[.2,.3,.4]);
+console.log('CW03 deterministic lithology/biome tint and no-landable passthrough PASS');
