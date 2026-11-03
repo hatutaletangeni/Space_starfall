@@ -28,6 +28,7 @@ jobs:
           node tests/refinery8e.test.cjs
           node tests/industrial-chemistry8e.test.cjs
           node tests/factory8f.test.cjs
+          node tests/industry-crosschain8e-8f.test.cjs
           node tests/industry-models.test.cjs
       - name: Build offline standalone from actual source
         run: |
