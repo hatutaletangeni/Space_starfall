@@ -1,9 +1,10 @@
-name: CW01-CW02 standalone build and checks
+name: CW01-CW03 standalone build and checks
 on:
   push:
     branches:
       - feature/cw01-celestial-composition
       - feature/cw02-stellar-spectra
+      - feature/cw03-mineral-terrain
   workflow_dispatch:
 permissions:
   contents: write
@@ -23,6 +24,8 @@ jobs:
           node tests/composition-cw01.test.cjs
           node --check src/physics/stellar-spectra-cw02.js
           node tests/stellar-spectra-cw02.test.cjs
+          node --check src/terrain/geology-cw03.js
+          node tests/mineral-terrain-cw03.test.cjs
       - name: Build bundled offline game
         run: python3 tools/build-standalone.py
       - name: Verify single-file parity
@@ -33,6 +36,6 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add PLAY-STARFALL.html
-            git commit -m "build(CW01-CW02): synchronize standalone offline HTML"
+            git commit -m "build(CW01-CW03): synchronize standalone offline HTML"
             git push
           fi
