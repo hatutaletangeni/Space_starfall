@@ -332,7 +332,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -588,10 +588,10 @@ class Renderer{
    for(const body of sys.bodies){const rel=V.sub(body.position,origin),dist=V.len(rel),facing=V.dot(V.norm(rel),cam.forward),angular=body.radius/Math.max(1,dist-body.radius),pixels=angular*renderH;
     if(dist>1600000||facing<-.26&&dist>body.radius*1.8||pixels<1.55){this.culledBodies++;continue;}
     const lod=pixels>180?2:pixels>30?1:0;
-    const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340; if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
+    const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340;const caveOcclusion=state.interior?.kind==='cave'&&body===near;if(!nearPatch&&!caveOcclusion)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
    }
   }
-  if(this.patchPlanet&&alt<340){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
+  if(this.patchPlanet&&alt<340&&state.interior?.kind!=='cave'){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
     for(const tile of this.activeTerrain){this.renderMesh(p,tile.ground,model);if(tile.props)this.renderMesh(p,tile.props,model);}
   }
   // Rings are actual tilted annular triangle meshes, not decorative orbit lines.
@@ -665,7 +665,14 @@ class Renderer{
   // Draw the active ruin interior in the same 3D scene. The camera, avatar and
   // corridor layout are all site-local; no extra rendering surface or scene load.
   if(state.interior){
-   const item=state.interior,mesh=this.interiorMeshes.get(item.tier);
+   const item=state.interior;
+    let mesh=item.kind==='cave'?this.caveMeshes.get(item.siteId):this.interiorMeshes.get(item.tier);
+    if(item.kind==='cave'&&!mesh&&root.StarfallCaveMeshLW02){
+      const g=root.StarfallCaveMeshLW02.geometry(item.site);mesh=makeMesh(gl,g.positions,g.normals,g.colors,g.indices);
+      this.caveMeshes.set(item.siteId,mesh);
+      while(this.caveMeshes.size>8){const oldest=this.caveMeshes.keys().next().value;
+       this.freeMesh(this.caveMeshes.get(oldest));this.caveMeshes.delete(oldest);}
+    }
    if(mesh&&item.position){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',1.6);
     const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u)))),r=V.norm(V.cross(f,u));this.renderMesh(p,mesh,M.basis(r,u,f,V.sub(item.position,origin)));
    }
