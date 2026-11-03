@@ -1042,6 +1042,151 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
 
 </script><script>
+/* STARFALL LW02 — deterministic geology interpretation and finite 3D cave networks.
+ * Read-only surface data: NEVER modifies authoritative groundHeight, seed, or saves.
+ * Cave site IDs and paths are stable in planet-fixed coordinates.
+ */
+(function(root){'use strict';
+const TAU=Math.PI*2,clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+function rnd(s){let x=hash(s);x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);return((x^(x>>>16))>>>0)/4294967296;}
+function norm(v){let l=Math.hypot(...v);if(!(l>1e-10))throw Error('Invalid geological direction');return v.map(x=>x/l);}
+function arc(a,b,radius){const u=norm(a),v=norm(b);return Math.acos(clamp(u.reduce((s,x,i)=>s+x*v[i],0),-1,1))*radius;}
+const CLASSES=Object.freeze({
+ Rocky:['impact-fracture','fault-scarp'],Desert:['impact-fracture','solution-cave'],
+ Ice:['ice-crevasse','cryogenic-fracture'],Temperate:['solution-cave','fault-fracture'],
+ Ocean:['solution-cave','sea-cliff'],Volcanic:['lava-tube','fissure-cave'],
+ Lush:['solution-cave','weathered-cavern'],Shattered:[], 'Gas Giant':[]
+});
+const cache=new Map();
+function sites(body,seed=742){
+ if(!body?.id||!body.landable||!CLASSES[body.type]?.length)return Object.freeze([]);
+ const key=String(seed)+':'+body.id+':LW02';if(cache.has(key))return cache.get(key);
+ const names=CLASSES[body.type],out=[],count=body.type==='Volcanic'?3:body.type==='Ice'?2:2;
+ for(let i=0;i<count;i++){
+  const k=key+':'+i,lat=(rnd(k+':lat')-.5)*2.25,lon=rnd(k+':lon')*TAU,cos=Math.cos(lat);
+  const kind=names[i%names.length],lengthScene=28+Math.round(22*rnd(k+':length')),widthScene=2.6+2*rnd(k+':width');
+  out.push(Object.freeze({schema:1,id:'cave-'+hash(k).toString(36),bodyId:body.id,
+   kind,local:Object.freeze([cos*Math.cos(lon),Math.sin(lat),cos*Math.sin(lon)]),
+   seed:hash(k+':path'),lengthScene,widthScene,depthScene:6+5*rnd(k+':depth'),
+   provenance:'seeded geological candidate; passage shape is procedural, not measured',uncertainty:'high'}));
+ }
+ const frozen=Object.freeze(out);if(cache.size>96)cache.delete(cache.keys().next().value);cache.set(key,frozen);return frozen;
+}
+function center(site,z){const t=clamp(z/Math.max(1,site.lengthScene));
+ return {x:Math.sin(t*TAU*1.25+(site.seed%100)*.01)*2.2*t, y:-site.depthScene*Math.sin(Math.PI*.5*t), z};}
+function width(site,z){const t=clamp(z/site.lengthScene);return site.widthScene*(.88+.12*Math.sin(t*6.28+site.seed));}
+function caveLayout(site){
+ if(!site||typeof site.id!=='string'||!site.id.startsWith('cave-'))throw Error('Invalid cave site');
+ const samples=48,points=[];for(let i=0;i<=samples;i++){const z=i*site.lengthScene/samples,at=center(site,z);points.push(Object.freeze({...at,width:width(site,z)}));}
+ return Object.freeze({kind:'cave',siteId:site.id,bodyId:site.bodyId,rooms:[],passages:[],points:Object.freeze(points),
+  length:site.lengthScene,width:site.widthScene,floorY:0,roofY:8,entry:Object.freeze({x:center(site,2).x,z:2}),exit:Object.freeze({x:center(site,1).x,z:1}),
+  floorHeightAt:z=>center(site,z).y,model:'finite enclosed tunnel with analytical planar-wall collision and visual vertical floor descent'});
+}
+function canStand(layout,x,z,margin=.7){
+ if(!layout?.points||!Number.isFinite(x)||!Number.isFinite(z)||z<.5||z>layout.length-1)return false;
+ const dummy={lengthScene:layout.length,widthScene:layout.width,seed:0};
+ // Interpolate the actual authored centerline rather than a generic sine.
+ const points=layout.points,step=layout.length/(points.length-1),i=Math.min(points.length-2,Math.max(0,Math.floor(z/step))),t=z/step-i;
+ const cx=points[i].x+(points[i+1].x-points[i].x)*t;
+ const w=points[i].width+(points[i+1].width-points[i].width)*t;
+ return Math.abs(x-cx)<w-margin;
+}
+function move(layout,at,delta){
+ const dx=Number(delta?.x),dz=Number(delta?.z);if(!Number.isFinite(dx)||!Number.isFinite(dz))throw Error('Invalid cave movement');
+ const factor=Math.min(1,6/Math.max(1e-12,Math.hypot(dx,dz)));let x=at.x,z=at.z;
+ if(canStand(layout,x+dx*factor,z))x+=dx*factor;
+ if(canStand(layout,x,z+dz*factor))z+=dz*factor;
+ return Object.freeze({x,z});
+}
+function landform(body,dir,height,field=.5){
+ if(!body?.id||!dir)return null;
+ const d=norm(dir),lat=Math.abs(d[1]),h=Math.max(0,height),t=body.type,noise=rnd(body.id+':'+body.seed+':lw02:'+d.map(x=>Math.round(x*120)).join('/'));
+ const tectonic=t==='Rocky'||t==='Temperate'||t==='Desert'||t==='Lush',volcanic=t==='Volcanic',glacial=t==='Ice'||(lat>.65&&t==='Temperate');
+ let kind='weathered-upland',cause='weathering and uplift';
+ if(volcanic)kind=h>50?'volcanic-ridge':'basaltic-plain',cause='geothermal upwelling and volcanic deposits';
+ else if(glacial)kind=h>35?'glacial-arete':'glacial-valley',cause='ice erosion and frost weathering';
+ else if(tectonic&&h>65)kind='compressional-ridge',cause='modeled crustal compression and differential erosion';
+ else if(tectonic&&h>32&&noise>.54)kind='fault-scarp',cause='modeled differential block uplift';
+ else if(t==='Desert'&&h<25)kind='alluvial-fan',cause='slope-fed sediment transport under intermittent runoff';
+ else if(t==='Rocky'&&noise>.80)kind='impact-uplift',cause='impact excavation and rebound';
+ else if(t==='Ocean')kind=h>55?'coastal-cliff':'sedimentary-lowland',cause='marine weathering and deposition';
+ return Object.freeze({kind,cause,heightScene:h,regionalPrior:noise,classification:'interpretation of unchanged legacy heightfield; not new tectonic deformation'});
+}
+function strataTint(body,dir,height,field,base,biome){
+ if(!body?.landable||!Array.isArray(base)||['water','ice','soil'].includes(biome?.material))return base;
+ const type=body.type;if(!['Rocky','Desert','Volcanic','Temperate','Lush','Ocean'].includes(type))return base;
+ const horizon=Math.sin(height*.22+(field||0)*17),erosion=Math.sin(height*.053+dir[0]*29+dir[2]*13);
+ const mix=clamp(.12+.08*horizon+.06*erosion,0,.26);
+ const mineral=type==='Volcanic'?[.33,.28,.24]:type==='Desert'?[.61,.44,.30]:
+  type==='Rocky'?[.43,.43,.40]:[.52,.48,.39];
+ return Object.freeze(base.map((x,i)=>clamp(x*(1-mix)+mineral[i]*mix)));
+}
+const API=Object.freeze({sites,center,width,caveLayout,canStand,move,landform,strataTint,arc});
+root.StarfallGeologyLW02=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
+/* STARFALL LW02: bounded triangulated interior cavern mesh.
+ * Geometry and collision sample the same StarfallGeologyLW02 path.
+ */
+(function(root){'use strict';
+function geometry(site){
+ const G=root.StarfallGeologyLW02;if(!G)throw Error('Cave geology not loaded');
+ const p=[],n=[],c=[],idx=[],steps=48,facets=12;
+ const frozen=site.kind.includes('ice')||site.kind.includes('cryogenic');
+ const volcanic=site.kind.includes('lava')||site.kind.includes('fissure');
+ const rock=frozen?[.29,.46,.60]:volcanic?[.26,.23,.23]:[.39,.36,.32],floor=rock.map(x=>x*.75);
+ function triangle(a,b,d,color){const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[d[0]-a[0],d[1]-a[1],d[2]-a[2]];
+  const w=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],l=Math.max(1e-12,Math.hypot(...w)),normal=w.map(x=>x/l),q=p.length/3;
+  for(const pt of [a,b,d]){p.push(...pt);n.push(...normal);c.push(...color);}idx.push(q,q+1,q+2);}
+ function quad(a,b,d,e,color){triangle(a,b,d,color);triangle(a,d,e,color);}
+ function roof(o,z,width,t){return[o.x+width*Math.cos(t),o.y+Math.sin(t)*Math.min(5.3,width*1.7),z];}
+ for(let i=0;i<steps;i++){
+  const z0=site.lengthScene*i/steps,z1=site.lengthScene*(i+1)/steps,
+   a=G.center(site,z0),b=G.center(site,z1),w0=G.width(site,z0),w1=G.width(site,z1);
+  quad([a.x-w0,a.y,z0],[b.x-w1,b.y,z1],[b.x+w1,b.y,z1],[a.x+w0,a.y,z0],floor);
+  for(let k=0;k<facets;k++){const t0=Math.PI*(1-k/facets),t1=Math.PI*(1-(k+1)/facets),
+   m=.85+.13*Math.sin(i*.83+k*1.27+site.seed*.00001),color=rock.map(v=>v*m);
+   quad(roof(a,z0,w0,t0),roof(b,z1,w1,t0),roof(b,z1,w1,t1),roof(a,z0,w0,t1),color);}
+ }
+ // Enclosed terminal wall and seeded crystals, stalagmites and sediment.
+ const end=G.center(site,site.lengthScene),w=G.width(site,site.lengthScene);
+ for(let k=0;k<facets;k++){
+  const a=Math.PI*(1-k/facets),b=Math.PI*(1-(k+1)/facets);
+  triangle([end.x,end.y,site.lengthScene],roof(end,site.lengthScene,w,a),roof(end,site.lengthScene,w,b),rock);
+ }
+ for(let j=1;j<=12;j++){
+  const z=j*site.lengthScene/14,o=G.center(site,z),w=G.width(site,z),
+   x=o.x+w*(j%2?-.62:.62),height=.35+(j%5)*.24,col=frozen?[.58,.73,.84]:volcanic?[.49,.34,.27]:[.56,.53,.40];
+  triangle([x-.24,o.y,z-.2],[x+.24,o.y,z+.2],[x+.1,o.y+height,z],col);
+  triangle([x+.24,o.y,z-.2],[x-.24,o.y,z+.2],[x+.1,o.y+height,z],col);
+ }
+ return Object.freeze({positions:p,normals:n,colors:c,indices:idx,
+  triangles:idx.length/3,model:'enclosed tunnel mesh; matching LW02 planar cross-section collision'});
+}
+function entranceGeometry(site){
+ const p=[],n=[],c=[],idx=[],width=Math.max(2,site.widthScene),height=4.4,
+ rock=site.kind.includes('ice')?[.47,.59,.67]:site.kind.includes('lava')?[.31,.28,.26]:[.43,.39,.34];
+ function tri(a,b,d,color){const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[d[0]-a[0],d[1]-a[1],d[2]-a[2]],
+ w=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.max(1e-9,Math.hypot(...w)),
+ k=p.length/3;for(const q of [a,b,d]){p.push(...q);n.push(...w.map(x=>x/len));c.push(...color);}idx.push(k,k+1,k+2);}
+ function quad(a,b,d,e,color){tri(a,b,d,color);tri(a,d,e,color);}
+ // Rock portal around a black recessed mouth, with a real thickness.
+ quad([-width-1,0,0],[-width+1,0,0],[-width+1,height,0],[-width-1,height,0],rock);
+ quad([width-1,0,0],[width+1,0,0],[width+1,height,0],[width-1,height,0],rock);
+ quad([-width+1,height-1,0],[width-1,height-1,0],[width-1,height,0],[-width+1,height,0],rock);
+ quad([-width+1,.1,.14],[width-1,.1,.14],[width-1,height-1,.14],[-width+1,height-1,.14],[.016,.020,.024]);
+ quad([-width-1,0,0],[-width-1,0,1],[-width-1,height,1],[-width-1,height,0],rock);
+ quad([width+1,0,1],[width+1,0,0],[width+1,height,0],[width+1,height,1],rock);
+ return Object.freeze({positions:p,normals:n,colors:c,indices:idx});
+}
+const API=Object.freeze({geometry,entranceGeometry});root.StarfallCaveMeshLW02=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
 /* STARFALL 6B — Deterministic, planet-fixed biome classification.
    Science-constrained PROCEDURAL APPROXIMATION: no inference of confirmed life.
    Never modifies the authoritative collision height, orbit, or persistent IDs.
@@ -1115,7 +1260,7 @@ function classify(body,dir,height,fieldValue,precomputed){const d=normalized(dir
 function color(body,dir,height,fieldValue,precomputed){const sample=precomputed||classify(body,dir,height,fieldValue),palette=PAL[sample.name];if(!palette)return[.4,.4,.4];
  const t=clamp(.25+.55*sample.sub+.21*fieldValue+.1*Math.min(height/110,1)),latitude=sample.latitude;
  const mixed=palette[0].map((x,i)=>mix(x,palette[1][i],t));const frost=Math.max(0,(latitude-.91)*9)*(body.type==='Volcanic'||body.type==='Desert'?0:1);
- const visual=mixed.map((x,i)=>clamp(mix(x,[.78,.84,.88][i],frost)));return root.StarfallGeologyCW03?.tint(body,dir,height,fieldValue,visual,sample)||visual;
+ const visual=mixed.map((x,i)=>clamp(mix(x,[.78,.84,.88][i],frost)));const mineral=root.StarfallGeologyCW03?.tint(body,dir,height,fieldValue,visual,sample)||visual;return root.StarfallGeologyLW02?.strataTint(body,dir,height,fieldValue,mineral,sample)||mineral;
 }
 function descriptor(body,dir,height=0,fieldValue=.5){return classify(body,dir,height,fieldValue);}
 function decoration(biome,r){if(biome.material==='water')return'none';const x=r();if(x<.09)return'rock';switch(biome.feature){case'flora':return biome.lifePotential?(x>.16?'flora':'rock'):'rock';case'fungal':return biome.lifePotential?(x>.15?'fungal':'rock'):'rock';case'scrub':return biome.lifePotential?(x>.19?'scrub':'rock'):'rock';case'crystal':return x>.30?'crystal':'rock';case'ice':return x>.25?'ice':'rock';case'column':return x>.42?'column':'rock';case'vent':return x>.38?'vent':'rock';case'dune':return x>.52?'dune':'rock';case'sediment':return x>.62?'sediment':'rock';default:return'rock';}}
@@ -1504,7 +1649,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -1760,11 +1905,31 @@ class Renderer{
    for(const body of sys.bodies){const rel=V.sub(body.position,origin),dist=V.len(rel),facing=V.dot(V.norm(rel),cam.forward),angular=body.radius/Math.max(1,dist-body.radius),pixels=angular*renderH;
     if(dist>1600000||facing<-.26&&dist>body.radius*1.8||pixels<1.55){this.culledBodies++;continue;}
     const lod=pixels>180?2:pixels>30?1:0;
-    const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340; if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
+    const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340;const caveOcclusion=state.interior?.kind==='cave'&&body===near;if(!nearPatch&&!caveOcclusion)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
    }
   }
-  if(this.patchPlanet&&alt<340){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
+  if(this.patchPlanet&&alt<340&&state.interior?.kind!=='cave'){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
     for(const tile of this.activeTerrain){this.renderMesh(p,tile.ground,model);if(tile.props)this.renderMesh(p,tile.props,model);}
+  }
+  // LW02: render surface-anchored 3D cave mouths, without altering original terrain.
+  if(near?.landable&&state.interior?.kind!=='cave'&&root.StarfallGeologyLW02&&root.StarfallCaveMeshLW02&&root.StarfallInteriors){
+   const geology=root.StarfallGeologyLW02,spin=near.spinAngle||0,axis=near.spinAxis||[0,1,0];
+   for(const cave of geology.sites(near,this.galaxy.seed)){
+    const up=V.norm(V.rot(cave.local,axis,spin)),point=V.add(near.position,V.mul(up,near.radius+groundHeight(cave.local,near)+.2)),
+     relative=V.sub(point,origin);
+    if(V.len(relative)>550||V.dot(V.norm(relative),cam.forward)<-.4)continue;
+    let mesh=this.caveEntranceMeshes.get(cave.id);
+    if(!mesh){const g=root.StarfallCaveMeshLW02.entranceGeometry(cave);
+     mesh=makeMesh(gl,g.positions,g.normals,g.colors,g.indices);this.caveEntranceMeshes.set(cave.id,mesh);
+     while(this.caveEntranceMeshes.size>12){const first=this.caveEntranceMeshes.keys().next().value;
+      this.freeMesh(this.caveEntranceMeshes.get(first));this.caveEntranceMeshes.delete(first);}
+    }
+    const basis=root.StarfallInteriors.basis(cave.local),forward=V.norm(V.rot(V.mul(basis.forward,-1),axis,spin)),
+      right=V.norm(V.cross(forward,up));
+    p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);
+    this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+    this.renderMesh(p,mesh,M.basis(right,up,forward,relative));
+   }
   }
   // Rings are actual tilted annular triangle meshes, not decorative orbit lines.
   gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
@@ -1837,7 +2002,14 @@ class Renderer{
   // Draw the active ruin interior in the same 3D scene. The camera, avatar and
   // corridor layout are all site-local; no extra rendering surface or scene load.
   if(state.interior){
-   const item=state.interior,mesh=this.interiorMeshes.get(item.tier);
+   const item=state.interior;
+    let mesh=item.kind==='cave'?this.caveMeshes.get(item.siteId):this.interiorMeshes.get(item.tier);
+    if(item.kind==='cave'&&!mesh&&root.StarfallCaveMeshLW02){
+      const g=root.StarfallCaveMeshLW02.geometry(item.site);mesh=makeMesh(gl,g.positions,g.normals,g.colors,g.indices);
+      this.caveMeshes.set(item.siteId,mesh);
+      while(this.caveMeshes.size>8){const oldest=this.caveMeshes.keys().next().value;
+       this.freeMesh(this.caveMeshes.get(oldest));this.caveMeshes.delete(oldest);}
+    }
    if(mesh&&item.position){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',1.6);
     const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u)))),r=V.norm(V.cross(f,u));this.renderMesh(p,mesh,M.basis(r,u,f,V.sub(item.position,origin)));
    }
@@ -5566,7 +5738,7 @@ physicsClock.set(simTime);
 // Body-fixed site coordinates preserve placement through orbit and axial spin.
 function interiorWorld(at){const state=interiorState;if(!state)return null;
  const body=galaxy.byId.get(state.site.bodyId),local=StarfallInteriors.direction(state.site.local,state.basis,at.x,at.z,body.radius),axis=body.spinAxis||[0,1,0],upWorld=V.norm(V.rot(local,axis,body.spinAngle||0));
- return{body,local,up:upWorld,position:V.add(body.position,V.mul(upWorld,body.radius+state.site.height+state.layout.floorY+EVA_HEIGHT))};
+ return{body,local,up:upWorld,position:V.add(body.position,V.mul(upWorld,body.radius+state.site.height+state.layout.floorY+(state.kind==='cave'?state.layout.floorHeightAt(at.z):0)+EVA_HEIGHT))};
 }
 function enterInterior(site){
  if(interiorState)throw Error('Already inside a ruin.');
@@ -5581,6 +5753,22 @@ function enterInterior(site){
  const initial=interiorWorld(interiorState.at);evaLocal=initial.local;pos=initial.position;up=initial.up;
  evaForward=V.rot(basis.forward,nearest.spinAxis||[0,1,0],nearest.spinAngle||0);camEye=null;orbitYaw=0;orbitPitch=0;vel=[0,0,0];
  showToast('ANCIENT INTERIOR · X inspect relics · ESC exit');return interiorState;
+}
+function enterCave(requested){
+ const GEO=window.StarfallGeologyLW02;
+ if(!GEO||!requested?.id||interiorState||!landed||!eva||truckOccupied||rampTransition||!nearest?.landable)throw Error('Approach a cave on foot in EVA.');
+ const site=GEO.sites(nearest,GALAXY_SEED).find(x=>x.id===requested.id);
+ if(!site)throw Error('Cave belongs to another world.');
+ const local=evaLocal||V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+ if(GEO.arc(local,site.local,nearest.radius)>7)throw Error('Walk within 7 scene units of the cave entrance.');
+ const anchored={...site,height:groundHeight(site.local,nearest)},layout=GEO.caveLayout(site),
+  basis=StarfallInteriors.basis(site.local);
+ interiorState={kind:'cave',site:anchored,layout,basis,at:{...layout.entry}};
+ const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;
+ evaForward=V.rot(basis.forward,nearest.spinAxis||[0,1,0],nearest.spinAngle||0);
+ camEye=null;orbitYaw=0;orbitPitch=0;vel=[0,0,0];
+ showToast('CAVE ENTRANCE · W/S walk · A/D turn · ESC surface exit');
+ return interiorState;
 }
 function leaveInterior(){if(!interiorState)return false;const site=interiorState.site,body=nearest,b=interiorState.basis;
  // Safe exit onto deterministic original terrain, not through generated walls.
@@ -5798,6 +5986,9 @@ addEventListener('keydown',ev=>{
  if(code==='KeyX'&&eva){const ctx=outpostContext(),A=window.StarfallArchaeology,R=window.StarfallRuinsUI;
    const entrance=ctx.body&&ctx.local&&A&&R?.visibleSites?.find(site=>site.bodyId===ctx.bodyId&&A.arc(site.local,ctx.local,ctx.body.radius)<30&&R.records.some(r=>r.id===site.id&&r.level>=2));
    if(entrance){window.StarfallInteriorsUI?.interact();return;}
+   const GEO=window.StarfallGeologyLW02,cave=!interiorState&&GEO&&ctx.body?.landable&&ctx.local?
+    GEO.sites(ctx.body,GALAXY_SEED).find(site=>GEO.arc(site.local,ctx.local,ctx.body.radius)<7):null;
+   if(cave){enterCave(cave);window.StarfallInteriorsUI?.refresh();return;}
    if(enterTruck())return;window.StarfallInteriorsUI?.interact();return;}
  if(['Digit1','Digit2','Digit3'].includes(code))startScan(Number(code.slice(-1))-1);
  if(code==='KeyV'&&(!eva||truckOccupied)){camMode=(camMode+1)%2;camEye=null;showToast(camMode?(truckOccupied?'Truck cab camera':'Ship cockpit camera'):'Chase camera');}
@@ -5865,7 +6056,7 @@ canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
 document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
-function stage(alt,body){if(interiorState)return 'RUIN INTERIOR';if(truckOccupied)return 'SURFACE TRUCK';if(eva)return 'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
+function stage(alt,body){if(interiorState)return interiorState.kind==='cave'?'SUBTERRANEAN CAVE':'RUIN INTERIOR';if(truckOccupied)return 'SURFACE TRUCK';if(eva)return 'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
 function saveFlight(){const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
@@ -5931,7 +6122,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
    const walk=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
    if(walk){const basis=interiorState.basis,axis=nearest.spinAxis||[0,1,0],f=V.rot(evaForward,axis,-(nearest.spinAngle||0)),horizontal=V.norm(V.sub(f,V.mul(interiorState.site.local,V.dot(f,interiorState.site.local)))),rate=dt*(keys.has('ShiftLeft')?6.2:3.5)*walk;
-    interiorState.at=StarfallInteriors.move(interiorState.layout,interiorState.at,{x:V.dot(horizontal,basis.right)*rate,z:V.dot(horizontal,basis.forward)*rate});
+    interiorState.at=(interiorState.kind==='cave'?window.StarfallGeologyLW02.move:StarfallInteriors.move)(interiorState.layout,interiorState.at,{x:V.dot(horizontal,basis.right)*rate,z:V.dot(horizontal,basis.forward)*rate});
    }
    const place=interiorWorld(interiorState.at);evaLocal=place.local;pos=place.position;up=place.up;vertical=0;vel=[0,0,0];return;
   }
@@ -6099,7 +6290,7 @@ function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;
  // Paint-only vehicle identity for UI20 cockpit frames (6 Hz bounded).
  document.body.dataset.sfView=truckOccupied?(camMode===1?'truck-cab':'truck-chase'):eva?'eva':camMode===1?'ship-cockpit':'ship-chase';
  const hint=$('control-live-hint');if(hint){const codes=controls.settings.bindings;const short=k=>String(k||'—').replace(/^Key/,'').replace(/^Digit/,'').replace(/^Arrow/,'ARROW ').replace('ShiftLeft','SHIFT').replace('Space','SPACE');
-  const mode=interiorState?'RUIN INTERIOR':truckOccupied?'TRUCK':eva?'EVA':landed?'LANDED SHIP':'SHIP';const word=mode==='SHIP'?'thrust / brake':mode==='LANDED SHIP'?'drive / reverse':'forward / reverse';
+  const mode=interiorState?(interiorState.kind==='cave'?'CAVE':'RUIN INTERIOR'):truckOccupied?'TRUCK':eva?'EVA':landed?'LANDED SHIP':'SHIP';const word=mode==='SHIP'?'thrust / brake':mode==='LANDED SHIP'?'drive / reverse':'forward / reverse';
   const text=mode+' · '+short(codes.thrust)+' / '+short(codes.brake)+' '+word+' · '+short(codes.turnLeft)+' / '+short(codes.turnRight)+' turn'+(truckOccupied&&controls.settings.roverSteerInvert?' (INVERTED)':'')+' · MOUSE Y '+(controls.settings.lookInvertY?'INVERTED':'NORMAL')+(controls.settings.flightPitchInvert&&mode==='SHIP'?' · FLIGHT PITCH INVERTED':'')+' · CONTROLS ⚙ TO CUSTOMIZE';if(hint.textContent!==text)hint.textContent=text;
  }
 const body=nearest||target,phase=solarWarning?'STELLAR CORONA':stage(altitude,body);$('phase-top').textContent='EXPEDITION / '+phase;$('flight-state').textContent=phase;$('mode-text').textContent=truckOccupied?'TRUCK':eva?'EVA':solarWarning?'CORONA':warp?'WARP':landed?'SURFACE':altitude<650?'ATMOSPHERE':altitude<2500?'ORBIT':'FREE FLIGHT';
@@ -6121,7 +6312,7 @@ function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=w
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
   const portraitBase=eva&&!interiorState&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(truckOccupied?3.4:0.25)+rampLift+(eva&&!truckOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
-  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,hidePlayerShip:camMode===1&&!eva&&!truckOccupied,hidePlayerTruck:camMode===1&&truckOccupied,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{tier:site.tier,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
+  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,hidePlayerShip:camMode===1&&!eva&&!truckOccupied,hidePlayerTruck:camMode===1&&truckOccupied,lightPosition:eva?pos:ship.position,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{kind:interiorState.kind||'ruin',siteId:site.id,tier:site.tier,site,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
  if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
   window.StarfallAssetUI7A1?.tick();if(window.StarfallAssetUI7A1?.hasWorldSelection&&now-lastAssetHighlightAt>160){lastAssetHighlightAt=now;window.StarfallAssetUI7A1.syncHighlight({...camera,fov:renderer.fov},canvas,assetPickCandidates());}refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
@@ -6403,7 +6594,7 @@ window.StarfallRuntime={galaxy,vehicleStore,captureScienceImage({body,eye,forwar
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
  roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,systemId:roverBody.systemId,local:roverLocal}:null,
  truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,batteryJ:truckBatteryJ}:null
-};},enterInterior,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
+};},enterInterior,enterCave,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
  const body=galaxy.byId.get(bodyId);
  if(!body?.landable||!Array.isArray(direction)||direction.length!==3||!direction.every(Number.isFinite))throw Error('Invalid geological surface waypoint');
  const directionUnit=V.norm(direction);if(V.len(directionUnit)<.99)throw Error('Invalid waypoint direction');
@@ -6496,9 +6687,20 @@ function geothermalRows(profile){
  return [entry('Geothermal site candidates',summary||'None','Seeded model, not mapped or confirmed'),
    entry('Geothermal interpretation','Pressure-driven cycles; local vents must be surveyed','Analytical model, not verified eruption animation')];
 }
+function livingGeologyRows(profile){
+ const geo=root.StarfallGeologyLW02,engine=root.Starfall3D;
+ if(profile?.kind==='star'||!selected?.landable||!geo)return[];
+ const sites=geo.sites(selected,RT.galaxy.seed),dir=sites[0]?.local||[0,1,0];
+ const height=engine?.groundHeight?engine.groundHeight(dir,selected):0;
+ const regional=geo.landform(selected,dir,height,engine?.field?.(dir,selected.seed)??.5);
+ return [entry('Subsurface candidate passages',sites.length+' · '+sites.map(x=>x.kind).join(' / '),
+   'Deterministic candidates; entrances require surface approach'),
+   entry('Regional landform',regional?.kind||'Unknown',regional?.cause||'Procedural geological prior'),
+   entry('Terrain compatibility','Original heights unchanged','Preserves all existing saves, structures and landing sites')];
+}
 function rows(profile){if(!profile)return [];
  if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
- return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
+ return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...livingGeologyRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
 function getProfile(){RT.galaxy.observerPosition=RT.scenePosition;return selected?P.scienceProfile(RT.galaxy,selected):null;}
 function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galaxy.byId.get(focus.systemId):RT.galaxy.byId.get(focus.systemId);
  if(sys?.dormant)RT.galaxy.activate(sys);
@@ -6522,6 +6724,18 @@ function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChi
    button.textContent='PLOT GEO '+(i+1)+' · '+site.kind+' · '+lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';
    button.title='Set a normal flight waypoint to this seeded modeled vent; no teleport';
    button.onclick=()=>{try{RT.plotSurfaceWaypoint(selected.id,site.direction,site.kind+' vent '+(i+1));}
+    catch(error){$('obs-caution').textContent=error.message;}};
+   list.append(button);
+  });
+ }
+ if(selected?.landable&&root.StarfallGeologyLW02&&RT.plotSurfaceWaypoint){
+  const caves=root.StarfallGeologyLW02.sites(selected,RT.galaxy.seed);
+  caves.forEach((site,i)=>{
+   const button=document.createElement('button');button.type='button';button.className='site';
+   const lat=Math.asin(site.local[1])*180/Math.PI,lon=Math.atan2(site.local[2],site.local[0])*180/Math.PI;
+   button.textContent='PLOT CAVE '+(i+1)+' · '+site.kind+' · '+lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';
+   button.title='Normal flight waypoint to a deterministic cave entrance. Walk there in EVA and press X.';
+   button.onclick=()=>{try{RT.plotSurfaceWaypoint(selected.id,site.local,site.kind+' cave '+(i+1));}
     catch(error){$('obs-caution').textContent=error.message;}};
    list.append(button);
   });
@@ -7316,24 +7530,32 @@ const I=root.StarfallInteriors,A=root.StarfallArchaeology,RT=root.StarfallRuntim
 if(!I||!RT||!R)throw Error('Ruin interior runtime unavailable');
 const $=id=>document.getElementById(id),saveKey='interiors6f';let records=I.validateRecords(SF.load()?.[saveKey]?.records);
 function save(){SF.save({[saveKey]:{schema:1,records:records.slice(-240)}});}
-function interact(){try{if(RT.interiorState){const s=RT.interiorState,near=I.nearestArtifact(s.layout,s.at,4.4);if(!near)throw Error('Move closer to a relic before inspecting it.');const record={siteId:s.site.id,bodyId:s.site.bodyId,tier:s.site.tier,artifactId:near.id,label:near.label,timeS:RT.time};const valid=I.validateRecords([record]);if(!valid.length)throw Error('Invalid observation');const key=r=>r.bodyId+':'+r.siteId+':'+r.artifactId;const prev=records.findIndex(r=>key(r)===key(valid[0]));if(prev<0)records.push(valid[0]);else records[prev]=valid[0];records=records.slice(-240);save();SF.recordDiscovery({id:'interior-'+key(valid[0]),name:'Studied '+near.label,type:'archaeological evidence',planet:RT.nearest.name,detail:'In-situ visual inspection; technology and provenance remain fictional in-game hypotheses.'});status('Recorded '+near.label+' in the archaeological journal.');refresh();return;}
- const ctx=RT.outpostContext();if(!ctx.landed||!ctx.eva)throw Error('Exit the spacecraft and approach an ancient site.');const candidate=R.visibleSites.find(s=>A.arc(s.local,ctx.local,ctx.body.radius)<30&&R.records.some(r=>r.id===s.id&&r.level>=2));if(!candidate)throw Error('Field-examine an ancient ruin, then approach within 30 units.');RT.enterInterior(candidate);status('Entered '+A.TIERS[candidate.tier].name+'. Walk with W/S and turn with A/D; drag to look. X inspects nearby relics.');refresh();
+function interact(){try{if(RT.interiorState){const s=RT.interiorState;if(s.kind==='cave'){status('Inside '+s.site.kind+'. Ceiling, floor and walls share the cave collision layout; ESC returns to the surface.');return;}const near=I.nearestArtifact(s.layout,s.at,4.4);if(!near)throw Error('Move closer to a relic before inspecting it.');const record={siteId:s.site.id,bodyId:s.site.bodyId,tier:s.site.tier,artifactId:near.id,label:near.label,timeS:RT.time};const valid=I.validateRecords([record]);if(!valid.length)throw Error('Invalid observation');const key=r=>r.bodyId+':'+r.siteId+':'+r.artifactId;const prev=records.findIndex(r=>key(r)===key(valid[0]));if(prev<0)records.push(valid[0]);else records[prev]=valid[0];records=records.slice(-240);save();SF.recordDiscovery({id:'interior-'+key(valid[0]),name:'Studied '+near.label,type:'archaeological evidence',planet:RT.nearest.name,detail:'In-situ visual inspection; technology and provenance remain fictional in-game hypotheses.'});status('Recorded '+near.label+' in the archaeological journal.');refresh();return;}
+ const ctx=RT.outpostContext();if(!ctx.landed||!ctx.eva)throw Error('Exit the spacecraft and explore on foot.');
+ const G=root.StarfallGeologyLW02,entrance=G&&ctx.body?.landable&&ctx.local?G.sites(ctx.body,RT.galaxy.seed).find(x=>G.arc(x.local,ctx.local,ctx.body.radius)<7):null;
+ if(entrance){RT.enterCave(entrance);status('Entered '+entrance.kind+'. Walk with W/S, rotate with A/D and use ESC to exit.');refresh();return;}const candidate=R.visibleSites.find(s=>A.arc(s.local,ctx.local,ctx.body.radius)<30&&R.records.some(r=>r.id===s.id&&r.level>=2));if(!candidate)throw Error('Field-examine an ancient ruin, then approach within 30 units.');RT.enterInterior(candidate);status('Entered '+A.TIERS[candidate.tier].name+'. Walk with W/S and turn with A/D; drag to look. X inspects nearby relics.');refresh();
  }catch(e){status(e.message,true);}}
 function exit(){if(!RT.interiorState)return;RT.leaveInterior();status('Returned outside the ruin.');refresh();}
 function status(t,error=false){const s=$('interior-status');s.textContent=t;s.style.color=error?'#ffb6a2':'#ecd69d';}
 function refresh(){const s=RT.interiorState,ctx=RT.outpostContext(),near=(!s&&ctx.body&&ctx.local)?R.visibleSites.find(x=>A.arc(x.local,ctx.local,ctx.body.radius)<34):null;
  const label=$('interior-state'),enter=$('interior-enter'),leave=$('interior-exit'),inspect=$('interior-inspect');
- if(s){const a=I.nearestArtifact(s.layout,s.at,4.4),done=records.filter(x=>x.siteId===s.site.id&&x.bodyId===s.site.bodyId).length;label.textContent='INSIDE '+A.TIERS[s.site.tier].name.toUpperCase()+' · '+done+'/'+s.layout.artifacts.length+' relics logged · '+s.layout.hazard+'. '+(a?'Nearby: '+a.label+'.':'Explore chambers to find relics.');}
- else{label.textContent=near?'Ruin entrance nearby — '+A.TIERS[near.tier].name+'. Survey and field-examine before entry.':'Approach a field-examined ruin while in EVA to explore its interior.';}
- enter.hidden=!!s;leave.hidden=!s;inspect.hidden=!s;
+ if(s?.kind==='cave'){label.textContent='CAVE · '+s.site.kind.toUpperCase()+' · '+s.at.z.toFixed(1)+' / '+s.layout.length.toFixed(1)+' units explored. W/S move · A/D rotate · ESC exit. Geological prior, not surveyed.';}
+ else if(s){const a=I.nearestArtifact(s.layout,s.at,4.4),done=records.filter(x=>x.siteId===s.site.id&&x.bodyId===s.site.bodyId).length;label.textContent='INSIDE '+A.TIERS[s.site.tier].name.toUpperCase()+' · '+done+'/'+s.layout.artifacts.length+' relics logged · '+s.layout.hazard+'. '+(a?'Nearby: '+a.label+'.':'Explore chambers to find relics.');}
+ else{const G=root.StarfallGeologyLW02,entrance=G&&ctx.landed&&ctx.eva&&ctx.local&&ctx.body?G.sites(ctx.body,RT.galaxy.seed).find(x=>G.arc(x.local,ctx.local,ctx.body.radius)<7):null;
+ label.textContent=entrance?'CAVE ENTRANCE · '+entrance.kind+' · walk inside with X or use ENTER.':near?'Ruin entrance nearby — '+A.TIERS[near.tier].name+'. Survey and field-examine before entry.':'Find a cave mouth on foot or approach a surveyed ruin to enter.';}
+ enter.hidden=!!s;leave.hidden=!s;inspect.hidden=!s||s.kind==='cave';
  $('interior-records').textContent=records.length?'ARCHIVE / '+records.length+' artifact observations\n'+records.slice(-9).reverse().map(x=>x.label+' · '+x.bodyId+' · '+x.siteId).join('\n'):'No relic observations yet.';
 }
 function exportData(){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify({schema:1,records,limitations:'fictional seeded ruins; artifacts are visual observations, not physical sample analysis'},null,2)],{type:'application/json'}));a.download='starfall-interior-archaeology.json';a.href=u;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);}
 $('interior-open').onclick=()=>{$('interior-panel').hidden=false;refresh();};$('interior-close').onclick=()=>{if($('interior-panel').contains(document.activeElement))document.activeElement.blur();$('interior-panel').hidden=true;};$('interior-panel').addEventListener('click',e=>{if(e.target===$('interior-panel'))$('interior-panel').hidden=true;});
 $('interior-enter').onclick=()=>{if($('interior-panel').contains(document.activeElement))document.activeElement.blur();$('interior-panel').hidden=true;interact();};$('interior-exit').onclick=()=>{exit();};$('interior-inspect').onclick=interact;$('interior-export').onclick=exportData;
 $('interior-panel').addEventListener('keydown',e=>{if(e.key==='Escape'){if($('interior-panel').contains(document.activeElement))document.activeElement.blur();$('interior-panel').hidden=true;if(RT.interiorState)RT.leaveInterior();e.stopPropagation();}});
-let last=-Infinity;function tick(){const now=performance.now();if(now-last<250)return;last=now;const s=RT.interiorState,hint=$('interior-hint');if(s){const relic=I.nearestArtifact(s.layout,s.at,4.4);hint.hidden=false;hint.textContent='RUIN INTERIOR · W/S WALK · A/D TURN · MOUSE LOOK · '+String(root.StarfallInput?.settings?.bindings?.interact||'KeyX').replace(/^Key/,'')+' '+(relic?'EXAMINE '+relic.label.toUpperCase():'INSPECT')+' · ESC EXIT · JOURNAL IN RECON PANEL';}
- else{const c=RT.outpostContext(),near=c.landed&&c.eva&&c.body&&c.local?R.visibleSites.find(x=>A.arc(x.local,c.local,c.body.radius)<28&&R.records.some(r=>r.id===x.id&&r.level>=2)):null;hint.hidden=!near;if(near)hint.textContent='RUIN ENTRANCE · '+String(root.StarfallInput?.settings?.bindings?.interact||'KeyX').replace(/^Key/,'')+' ENTER · EXPLORABLE CHAMBERS';}
+let last=-Infinity;function tick(){const now=performance.now();if(now-last<250)return;last=now;const s=RT.interiorState,hint=$('interior-hint');if(s?.kind==='cave'){hint.hidden=false;hint.textContent='CAVE TUNNEL · W/S MOVE · A/D TURN · MOUSE LOOK · ESC SURFACE EXIT';}
+ else if(s){const relic=I.nearestArtifact(s.layout,s.at,4.4);hint.hidden=false;hint.textContent='RUIN INTERIOR · W/S WALK · A/D TURN · MOUSE LOOK · '+String(root.StarfallInput?.settings?.bindings?.interact||'KeyX').replace(/^Key/,'')+' '+(relic?'EXAMINE '+relic.label.toUpperCase():'INSPECT')+' · ESC EXIT · JOURNAL IN RECON PANEL';}
+ else{const c=RT.outpostContext(),G=root.StarfallGeologyLW02,cave=G&&c.landed&&c.eva&&c.body&&c.local?G.sites(c.body,RT.galaxy.seed).find(x=>G.arc(x.local,c.local,c.body.radius)<7):null;
+ const near=c.landed&&c.eva&&c.body&&c.local?R.visibleSites.find(x=>A.arc(x.local,c.local,c.body.radius)<28&&R.records.some(r=>r.id===x.id&&r.level>=2)):null;
+ hint.hidden=!near&&!cave;if(cave)hint.textContent='CAVE MOUTH · X ENTER · '+cave.kind.toUpperCase();
+ else if(near)hint.textContent='RUIN ENTRANCE · '+String(root.StarfallInput?.settings?.bindings?.interact||'KeyX').replace(/^Key/,'')+' ENTER · EXPLORABLE CHAMBERS';}
  if(!$('interior-panel').hidden)refresh();}
 addEventListener('pagehide',save);
 root.StarfallInteriorsUI={tick,interact,exit,refresh,get records(){return records.map(x=>({...x}));}};
