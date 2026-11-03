@@ -15,7 +15,7 @@ function safeSave(value,seed){
   if(f.position!==undefined&&(!Array.isArray(f.position)||f.position.length!==3||!f.position.every(x=>finite(x)&&Math.abs(x)<1e15)))throw Error('Invalid world position');
   if(f.groundDirection!==undefined&&f.groundDirection!==null&&(!Array.isArray(f.groundDirection)||f.groundDirection.length!==3||!f.groundDirection.every(finite)))throw Error('Invalid surface attachment');
  }
- for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5','engineering7A','launch7','research7e','imaging7f','robotics4','flightGalaxy','launchPlan,'refinery8e','transformations8e'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
+ for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5','engineering7A','launch7','research7e','imaging7f','robotics4','flightGalaxy','launchPlan','refinery8e','transformations8e'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
  if(value.launch7){
   const L=value.launch7;
   if(L.schema!==undefined&&L.schema!==1)throw Error('Unsupported rocket inventory schema: import cancelled');
