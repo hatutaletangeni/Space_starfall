@@ -406,7 +406,7 @@ class Renderer{
    // authoritative surface; no fake solid tiles or collision height changes.
    if(e.lavaMassFlowKgS>0&&values.length<1500){
     const flowReach=Math.min(24,2+Math.sqrt(e.lavaMassFlowKgS)*.045);
-    const cooled=e.intensity>0?.38:.2;
+    const cooled=e.intensity>0 ? .38 : .2;
     for(let j=1;j<=24;j++){
      const fraction=j/24,angle=site.epochOffsetS*.011+j*.035;
      const tangent=V.norm(V.add(V.mul(right,Math.cos(angle)),V.mul(fwd,Math.sin(angle))));
