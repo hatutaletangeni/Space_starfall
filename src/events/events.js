@@ -17,6 +17,7 @@ const TYPES=Object.freeze({
  seismic:{name:'Seismic tremor',instrument:'seismometer',tint:[.55,.44,.36],visibility:.09,solar:0,scope:'regional',desc:'Small ground motion signal; no structural damage.'},
  volcanic:{name:'Volcanic ash plume',instrument:'seismometer',tint:[.48,.23,.17],visibility:.64,solar:.65,scope:'regional',desc:'Ash and hot-gas column estimated for volcanic terrain.'},
  cryo:{name:'Cryovolcanic plume',instrument:'radar',tint:[.54,.71,.79],visibility:.48,solar:.44,scope:'regional',desc:'Estimated volatile-ice plume. No permanent surface modification.'},
+ hydrothermal:{name:'Hydrothermal discharge',instrument:'thermometer',tint:[.68,.80,.84],visibility:.22,solar:.08,scope:'regional',desc:'Geothermal water or steam vent active from an identified reservoir.'},
  electrical:{name:'Atmospheric electrical activity',instrument:'barometer',tint:[.30,.35,.59],visibility:.25,solar:.19,scope:'global',desc:'Transient atmospheric discharge signature; no electric damage.'}
 });
 const SLOT=720;
@@ -38,7 +39,24 @@ function timeline(body,seed=742,window=0){const valid=candidates(body,seed);if(!
  const lat=(FS.rand(key+':lat')-.5)*1.7,lon=(FS.rand(key+':lon')*2-1)*Math.PI,cl=Math.cos(lat),anchor=[cl*Math.cos(lon),Math.sin(lat),cl*Math.sin(lon)];
  return Object.freeze({id:'event-'+FS.hash(key).toString(36),bodyId:body.id,kind,startS:start,endS:end,anchor,extentScene:240+FS.rand(key+':extent')*620,seed,window});
 }
+function geothermalEvent(body,local,time,seed=742){
+ const Geo=root.StarfallGeothermalLW01;if(!Geo||!body?.landable||!Array.isArray(local)||!Number.isFinite(time)||time<0)return null;
+ const p=FS.profile(body,seed),near=Geo.local(body,local,time,seed,p.pressurePa,Math.max(.25,(body.gravity||1)*9.80665));
+ if(!near?.state?.active||near.thermalExposure<.01)return null;
+ const {site,state,rangeScene}=near,sourceType=site.kind;
+ const type=sourceType==='cryovolcano'?'cryo':sourceType.includes('volcano')||sourceType.includes('eruption')||sourceType==='cinder-cone'?'volcanic':'hydrothermal';
+ const spec=TYPES[type],n=Math.floor((time+site.epochOffsetS)/site.cycleS),start=n*site.cycleS-site.epochOffsetS;
+ const intensity=near.thermalExposure;
+ return Object.freeze({id:'lw01-'+FS.hash(site.id+':cycle:'+n).toString(36),bodyId:body.id,kind:type,
+  sourceId:site.id,sourceProcess:sourceType,startS:start,endS:start+site.durationS,anchor:site.direction,
+  extentScene:rangeScene,seed,window:Math.floor(time/SLOT),name:spec.name+' ('+sourceType+')',
+  description:'Vent pressure '+Math.round(state.pressurePa)+' Pa; mass discharge '+state.massFlowKgS.toFixed(1)+' kg/s (model)',
+  instrument:spec.instrument,intensity,spatial:Math.max(0,1-near.distanceScene/rangeScene),scope:'regional',
+  visibility:clamp(1-spec.visibility*intensity,.12,1),solarFactor:clamp(1-spec.solar*intensity,.12,1),
+  tint:spec.tint,phase:clamp((time-start)/site.durationS)});
+}
 function evaluate(body,local,time,seed=742){if(!body?.landable||!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite)||!Number.isFinite(time)||time<0)return null;
+ const geothermal=geothermalEvent(body,local,time,seed);if(geothermal)return geothermal;
  const window=Math.floor(time/SLOT);let best=null;
  for(let i=Math.max(0,window-1);i<=window;i++){
   const e=timeline(body,seed,i);if(!e||time<e.startS||time>e.endS)continue;
@@ -66,6 +84,6 @@ function sanitize(records){if(!Array.isArray(records))return[];const ids=new Set
   ids.add(rec.id);out.push({id:rec.id,bodyId:rec.bodyId,kind:rec.kind,timeS:rec.timeS,local:norm(rec.local),intensity:rec.intensity,measurementIds:Array.isArray(rec.measurementIds)?rec.measurementIds.filter(x=>typeof x==='string'&&x.length<160).slice(0,8):[],note:typeof rec.note==='string'?rec.note.slice(0,1000):''});if(out.length>=250)out.shift();}
  return out;
 }
-root.StarfallEvents={TYPES,SLOT,candidates,timeline,evaluate,skyTransmission,sanitize,arc:ARC};
+root.StarfallEvents={TYPES,SLOT,candidates,timeline,geothermalEvent,evaluate,skyTransmission,sanitize,arc:ARC};
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallEvents;
 })(globalThis);
