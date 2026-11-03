@@ -6219,7 +6219,8 @@ function asset(a){if(!a||!validId(a.id)||!validId(a.type)||!number(a.massKg)||!n
  provenance:validId(a.provenance)?a.provenance:'legacy_import',
  components:Array.isArray(a.components)?clone(a.components).slice(0,120):[],state:a.state&&typeof a.state==='object'?clone(a.state):{}};}
 function create(saved,legacy={}){
- const input=saved&&saved.schema===1&&Array.isArray(saved.assets)?saved.assets:null;
+ if(saved!=null&&(!saved||saved.schema!==1||!Array.isArray(saved.assets)))throw Error('Unsupported physical inventory save; restore backup rather than create duplicate vehicles');
+ const input=saved?saved.assets:null;
  const assets=new Map(), transfers=new Map();
  const insert=a=>{const v=asset(a);if(assets.has(v.id))throw Error('Duplicate physical asset ID: '+v.id);assets.set(v.id,v);};
  if(input){for(const a of input)insert(a);
@@ -6236,7 +6237,7 @@ function create(saved,legacy={}){
  function get(id){const a=assets.get(id);return a?clone(a):null;}
  function move(id,to,transferId,requirements={}){
   if(!validId(transferId))throw Error('A unique transfer ID is required');
-  const prior=transfers.get(transferId);if(prior){if(prior.assetId!==id)throw Error('Transfer ID already used for another asset');return clone(prior);}
+  const prior=transfers.get(transferId);if(prior){if(prior.assetId!==id||JSON.stringify(prior.destination)!==JSON.stringify(location(to)))throw Error('Transfer ID already used for different asset or destination');return clone(prior);}
   const a=assets.get(id);if(!a)throw Error('Unknown physical asset');
   const destination=location(to),original=clone(a.location);
   if(requirements.expected&&JSON.stringify(location(requirements.expected))!==JSON.stringify(original))throw Error('Custody changed; transfer rejected');
