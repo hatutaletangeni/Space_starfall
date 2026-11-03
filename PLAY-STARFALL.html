@@ -2245,7 +2245,13 @@ function local(body,direction,timeS,seed=742,pressurePa=101325,gravityMS2=9.8066
   const dot=clamp(d[0]*site.direction[0]+d[1]*site.direction[1]+d[2]*site.direction[2],-1,1);
   const distanceScene=Math.acos(dot)*r;
   const state=pulse(site,timeS,pressurePa,gravityMS2),rangeScene=Math.max(.008,site.ventRadiusM/1000)*15;
-  if(distanceScene<rangeScene&&(!best||distanceScene<best.distanceScene))best=Object.freeze({site,state,distanceScene,rangeScene,thermalExposure:state.intensity*clamp(1-distanceScene/rangeScene)});
+  if(distanceScene<rangeScene&&(!best||distanceScene<best.distanceScene)){
+   const weight=clamp(1-distanceScene/rangeScene),exposure=state.intensity*weight;
+   const sourceTemp=Math.max(0,site.reservoirTemperatureK||280);
+   const radiative=Math.max(0,5.670374419e-8*(sourceTemp**4-280**4))*exposure*weight;
+   best=Object.freeze({site,state,distanceScene,rangeScene,thermalExposure:exposure,
+     radiativeHeatFluxWm2:radiative,hazard:exposure>.20&&radiative>1000?'thermal danger':exposure>.03?'active vent proximity':'low'});
+  }
  }return best;
 }
 const API=Object.freeze({sources,pulse,local});
