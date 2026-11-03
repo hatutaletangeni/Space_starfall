@@ -1706,6 +1706,44 @@ class Renderer{
   }
   gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(list),gl.DYNAMIC_DRAW);this.effectCount=list.length/8;this.effectsRendered=this.effectCount;
  }
+ renderWeather(state,eye,vp,renderHeight){
+  const w=state.weather,W=root.StarfallMeteorologyLW03,body=state.nearest;
+  if(!W||!w||!body?.landable||state.interior||state.altitude>170)return;
+  if(!(w.precipitationKgM2S>0||w.regime==='dust'||w.regime==='CO2-frost'))return;
+  const center=state.viewerPosition||state.position,up=V.norm(V.sub(center,body.position)),
+   right=V.norm(V.cross(Math.abs(up[1])>.93?[0,0,1]:[0,1,0],up)),forward=V.norm(V.cross(up,right));
+  const count=w.regime==='dust'?110:Math.min(150,Math.ceil(22+w.precipitationKgM2S*18000)),verts=[];
+  const snow=w.regime==='snow'||w.regime==='CO2-frost',dust=w.regime==='dust',methane=w.sourceSpecies==='CH4';
+  const color=dust?[.64,.48,.31]:snow?[.80,.87,.93]:methane?[.60,.73,.86]:[.65,.77,.89];
+  const t=this.galaxy.time,wind=w.windMS*.012;
+  for(let i=0;i<count;i++){
+   const seed=(i*1664525+1013904223)>>>0,rand=x=>((Math.imul(seed^(x*1013904223),2654435761)>>>0)/4294967296);
+   const x=(rand(1)-.5)*95+Math.sin(t*.05+i)*wind;
+   const z=(rand(2)-.5)*95+Math.cos(t*.05+i*.32)*wind;
+   const fall=dust?1.0:snow?1.4:8,cy=((rand(3)*35-t*fall)%35+35)%35-5;
+   const pos=V.add(center,V.add(V.mul(right,x),V.add(V.mul(forward,z),V.mul(up,cy))));
+   const radial=V.norm(V.sub(pos,body.position)),base=body.radius+groundHeight(V.rot(radial,body.spinAxis||[0,1,0],-(body.spinAngle||0)),body);
+   if(V.len(V.sub(pos,body.position))<base+.3)continue;
+   const rel=V.sub(pos,eye);
+   if(V.dot(rel,state.camera.forward)<-3||V.len(rel)>150)continue;
+   verts.push(rel[0],rel[1],rel[2],dust?1.2:snow?.55:.22,color[0],color[1],color[2],dust?.26:.53);
+  }
+  // An illuminated flash is permitted only when charged, condensate-driven
+  // convection is present. No atmospheric lightning in vacuum.
+  if(w.charge>.22&&Math.floor(t/19)%9===0){
+   const base=V.add(center,V.add(V.mul(forward,48),V.mul(up,20)));
+   for(let j=0;j<18;j++){
+    const rel=V.sub(V.add(base,V.add(V.mul(up,-j*1.2),V.mul(right,Math.sin(j*2.8)*.7))),eye);
+    verts.push(rel[0],rel[1],rel[2],.7,.86,.91,1,.65*w.charge);
+   }
+  }
+  if(!verts.length)return;
+  const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderHeight*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
+  gl.depthMask(true);
+ }
  renderGeothermal(body,eye,vp,h){
   const G=root.StarfallGeothermalLW01;if(!G||!body?.landable)return;
   const values=[],pressure=root.StarfallFieldScience?.profile(body,this.galaxy.seed).pressurePa??0,
@@ -1942,9 +1980,9 @@ class Renderer{
   gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
   for(const obj of rendered){if(!obj.geometry.atmo||obj.dist<obj.body.radius+150||obj.dist>obj.body.radius+11000)continue;
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',.9);this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
-   if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',1);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
+   if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
-  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
   if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
@@ -2307,6 +2345,105 @@ function optical(body,seed=742){if(!body?.id)throw Error('Missing atmosphere bod
 }
 const API=Object.freeze({optical});
 root.StarfallAtmosphereCW05=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
+/* STARFALL LW03: bounded deterministic climate columns and advected storm cells.
+ * No runtime global clocks, world mutation or per-frame random weather.
+ * SI estimates are plausible physical priors, not a solved GCM or calibrated forecast.
+ */
+(function(root){'use strict';
+const PI=Math.PI,TAU=PI*2,R=8.314462618,STEFAN=5.670374419e-8;
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const masses=Object.freeze({N2:.0280134,O2:.031998,CO2:.04401,H2O:.018015,CH4:.01604,NH3:.017031,H2:.002016,He:.004003,SO2:.064066,Ar:.03995});
+const LIMIT=128,cache=new Map(),STEP=1200;
+function base(body,seed=742){
+ if(!body?.id)throw Error('Requires existing body');
+ const key=seed+':'+body.id;
+ if(cache.has(key))return cache.get(key);
+ const fs=root.StarfallFieldScience?.profile(body,seed);
+ const comp=root.StarfallCompositionCW01?.bodyFor(body,seed);
+ const gases=comp?.atmosphereMoleFractions||{},p=fs?.pressurePa||0;
+ const gasTotal=Object.values(gases).reduce((a,b)=>a+b,0);
+ const vacuum=p<200||gasTotal<1e-7;
+ const molar=vacuum?null:Object.entries(gases).reduce((s,[k,f])=>s+f*(masses[k]||.029),0)/gasTotal;
+ const T=Math.max(25,fs?.temperatureK||250),g=Math.max(.12,(body.gravity||.4)*9.80665);
+ const scaleHeightM=vacuum?0:R*T/(molar*g),densityKgM3=vacuum?0:p*molar/(R*T);
+ const profile=Object.freeze({bodyId:body.id,seed,pressurePa:vacuum?0:p,
+  temperatureK:T,gravityMS2:g,molarMassKgMol:molar,scaleHeightM,densityKgM3,
+  mixture:Object.freeze({...gases}),vacuum,
+  model:'CW01 atmospheric inventory and field-science pressure, approximate hydrostatic column',uncertainty:'high'});
+ if(cache.size>=LIMIT)cache.delete(cache.keys().next().value);cache.set(key,profile);return profile;
+}
+function reservoir(body,climate){
+ const g=climate.mixture,t=climate.temperatureK;
+ const water=(g.H2O||0)>1e-5||['Ocean','Lush','Temperate'].includes(body.type);
+ if(water&&t>210&&t<375)return 'H2O';
+ if((g.CH4||0)>.002&&t>=65&&t<135)return 'CH4';
+ if((g.NH3||0)>.002&&t>=145&&t<260)return 'NH3';
+ if((g.CO2||0)>.15&&t<220)return 'CO2';
+ return null;
+}
+function saturation(species,T){
+ // Clausius-Clapeyron fit around species reference boiling point; bounded vapor pressure.
+ const properties={H2O:[373.15,101325,40650],CH4:[111.66,101325,8190],
+  NH3:[239.82,101325,23000],CO2:[194.7,101325,16500]};
+ if(!properties[species]||!Number.isFinite(T)||T<=0)return 0;
+ const [boiling,p0,L]=properties[species];
+ return clamp(p0*Math.exp(clamp(-L/R*(1/T-1/boiling),-60,30)),.00001,1e9);
+}
+function cell(body,dir,timeS=0,seed=742){
+ if(!Number.isFinite(timeS)||timeS<0||!Array.isArray(dir)||dir.length!==3)throw Error('Invalid weather sampling');
+ const climate=base(body,seed);if(climate.vacuum)return Object.freeze({bodyId:body.id,regime:'vacuum',vacuum:true,
+  temperatureK:climate.temperatureK,pressurePa:0,densityKgM3:0,scaleHeightM:0,
+  windMS:0,windDirection:Object.freeze([0,0,0]),cloudFraction:0,precipitationKgM2S:0,
+  sourceSpecies:null,humidityFraction:0,visibility:1,solarFactor:1,charge:0,stormId:null});
+ const d=dir.map(v=>v/(Math.hypot(...dir)||1)),lat=Math.asin(clamp(d[1],-1,1)),lon=Math.atan2(d[2],d[0]);
+ const rotation=TAU/Math.max(60,body.spinPeriod||50000),tick=Math.floor(timeS/STEP);
+ // Phase-advection is continuous, but storm topology remains seeded and stable.
+ const zonal=.000065*Math.sign(Math.cos(lat)||1)*(1+.6*Math.sin(2*lat)),u=lon-zonal*timeS;
+ const hash=root.StarfallFieldScience?.rand||((x)=>.5),h=hash(seed+':'+body.id+':lw03:'+Math.floor((u+PI)*6)+':'+Math.floor((lat+PI/2)*6));
+ const season=2*PI*timeS/Math.max(90000,body.orbitPeriod||800000);
+ const day=2*PI*timeS/Math.max(120,body.spinPeriod||45000)+lon;
+ const T=clamp(climate.temperatureK+10*Math.cos(lat)*Math.cos(day)+14*Math.sin(lat+season)*Math.cos(lat)+12*(h-.5),35,900);
+ const vapor=reservoir(body,climate),inventory=vapor==='H2O'?
+  Math.max(climate.mixture.H2O||0,['Ocean','Lush'].includes(body.type)?.045:.008):
+  vapor?climate.mixture[vapor]||0:0;
+ const partial=climate.pressurePa*inventory,sat=vapor?saturation(vapor,T):0;
+ const relativeHumidity=vapor?clamp(partial/Math.max(1,sat),0,2):0;
+ const stormSeed=hash(seed+':'+body.id+':lw03:storm:'+Math.floor((u+PI)*2)+':'+Math.floor((lat+PI/2)*3));
+ const moisture=clamp(inventory*12,0,1),lift=clamp(.35+.35*Math.cos(2*lat)+.3*stormSeed,0,1);
+ const cloud=vapor?clamp((relativeHumidity-.58)*.7+moisture*.35+lift*.13,0,.94):0;
+ const condensableColumnKgM2=climate.pressurePa*inventory/climate.gravityMS2;
+ const precip=vapor&&relativeHumidity>.75?Math.min(condensableColumnKgM2/STEP*.012,
+  Math.max(0,relativeHumidity-.75)*cloud*.004):0;
+ const coriolis=2*rotation*Math.sin(lat),gradient=11*Math.sin(lat*2+u*.8);
+ const wind=clamp(3+Math.abs(gradient)+4*stormSeed+Math.abs(coriolis)*80000,0,140);
+ const direction=Object.freeze([-Math.sin(u),0,Math.cos(u)]),dust=body.type==='Desert'||body.type==='Volcanic';
+ let regime='clear';
+ if(precip>1e-8)regime=vapor==='H2O'?(T<272?'snow':wind>22?'rainstorm':'rain'):
+   vapor==='CH4'?'methane-rain':vapor==='NH3'?'ammonia-condensation':'CO2-frost';
+ else if(cloud>.15)regime=vapor==='CH4'?'methane-cloud':vapor==='NH3'?'ammonia-cloud':'cloud';
+ else if(dust&&wind>13&&climate.densityKgM3>.02)regime='dust';
+ else if((climate.mixture.CO2||0)>.6&&climate.pressurePa>1.5e5)regime='CO2-haze';
+ const rotating=Math.abs(rotation)>1e-5,latitudeCoriolis=Math.abs(Math.sin(lat))>.18;
+ const warmWater=body.type==='Ocean'&&vapor==='H2O'&&T>299;
+ if(warmWater&&rotating&&latitudeCoriolis&&cloud>.45&&wind>20)regime='cyclone';
+ const charged=(regime==='rainstorm'||regime==='cyclone')&&cloud>.33&&precip>.000003;
+ const charge=charged?clamp((cloud-.30)*wind/30,0,1):0;
+ const visibility=clamp(1-cloud*.33-(dust&&regime==='dust'?.45:0)-(precip>0?.23:0),.15,1);
+ const solarFactor=clamp(1-cloud*.62-(regime==='dust'?.33:0),.12,1);
+ const durationKey=Math.floor((timeS)/STEP);
+ return Object.freeze({bodyId:body.id,vacuum:false,temperatureK:T,pressurePa:climate.pressurePa,
+  densityKgM3:climate.densityKgM3,scaleHeightM:climate.scaleHeightM,molarMassKgMol:climate.molarMassKgMol,
+  windMS:wind,windDirection:direction,cloudFraction:cloud,precipitationKgM2S:precip,
+  sourceSpecies:vapor,humidityFraction:clamp(relativeHumidity,0,1),charge,
+  regime,visibility,solarFactor,stormId:regime==='clear'?null:body.id+':weather:'+durationKey,
+  inventoryPrior:inventory,condensableColumnKgM2,phaseNote:'coarse column; latent heat and local energy closure approximate',
+  provenance:'CW01 gas mixture, field-science T/P, deterministic large-scale advection'});
+}
+const API=Object.freeze({STEP,base,cell,saturation,reservoir});root.StarfallMeteorologyLW03=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
 
@@ -2688,7 +2825,8 @@ function profile(body,seed=742){if(!body||!body.id)throw Error('Missing body');c
  return Object.freeze({bodyId:body.id,seed,model:'seeded approximation / not measured',silicateFraction:silicate,ironFraction:iron,waterIcePotential:water,temperatureK:baseK,pressurePa:pressure,magneticFieldNT:mag,iceDepthM:Math.max(0,(ice?1:water*.4)*rand(k+':depth')*60),seismicLevelMMs:(volcanic?.12:.015)*rand(k+':seismic'),biosignatureIndex:clamp((body.life&&body.kind!=='moon'&&temperate&&baseK>=235&&baseK<=335&&pressure>=1800? .35+.42*rand(k+':potential-organic'): .015+.055*rand(k+':abiotic-organics')),0,1),volatileFraction:clamp(1-iron-silicate,0,1)});}
 function localTruth(body,seed,local,simTime=0){const p=profile(body,seed),vec=Array.isArray(local)?local:[0,1,0],lat=clamp(vec[1],-1,1),lon=Math.atan2(vec[2],vec[0]);const patch=rand(seed+':'+body.id+':patch:'+Math.floor(lat*38)+':'+Math.floor(lon*38)),diurnal=Math.sin(simTime*Math.PI*2/Math.max(30,body.spinPeriod||500)+lon);
  const geo=root.StarfallGeothermalLW01?.local(body,vec,simTime,seed,p.pressurePa,Math.max(.25,(body.gravity||1)*9.80665));const geothermalK=geo?.thermalExposure?Math.min(90,(geo.radiativeHeatFluxWm2||0)/30+geo.thermalExposure*8):0;const geothermalSeismic=geo?.thermalExposure?geo.thermalExposure*.14:0;
- return{...p,temperatureK:p.temperatureK+12*diurnal*Math.cos(lat)+10*(patch-.5)+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5),silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
+ const weather=root.StarfallMeteorologyLW03?.cell(body,vec,simTime,seed);const ambientK=weather&&!weather.vacuum?weather.temperatureK:p.temperatureK+12*diurnal*Math.cos(lat)+10*(patch-.5);
+ return{...p,temperatureK:ambientK+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5),silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
 function sample({body,seed=742,local=[0,1,0],altitudeM=0,instrument,simTime=0,energyAvailableJ=Infinity,calibrated=true,nonce=0}){
  const spec=INSTRUMENTS[instrument];if(!spec)throw Error('Unknown instrument');if(!body?.landable)throw Error('Requires a solid planetary surface');if(!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite))throw Error('Invalid local position');
  if(!Number.isFinite(altitudeM)||altitudeM<0||altitudeM>spec.maxAltitudeM)throw Error(spec.name+' out of range: maximum '+spec.maxAltitudeM+' m');
@@ -5511,6 +5649,8 @@ const norm=ST.normalize;
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const ARC=(a,b,r)=>Math.acos(clamp(dot(norm(a),norm(b)),-1,1))*r;
 const TYPES=Object.freeze({
+ rain:{name:'Rain or condensate',instrument:'thermometer',tint:[.46,.60,.75],visibility:.42,solar:.44,scope:'regional',desc:'Condensate rainfall from available atmospheric inventory.'},
+ cloud:{name:'Condensation cloud',instrument:'barometer',tint:[.64,.70,.75],visibility:.23,solar:.27,scope:'regional',desc:'Cloud layer from modeled humidity and advection.'},
  dust:{name:'Dust storm',instrument:'barometer',tint:[.62,.40,.24],visibility:.77,solar:.72,scope:'global',desc:'Airborne particulate load may reduce visibility and sunlight.'},
  snow:{name:'Ice crystal squall',instrument:'thermometer',tint:[.65,.79,.91],visibility:.58,solar:.58,scope:'global',desc:'Wind-driven icy particulate simulation.'},
  aurora:{name:'Polar aurora',instrument:'magnetometer',tint:[.16,.60,.47],visibility:.04,solar:0,scope:'polar',desc:'Upper-atmosphere emission estimated from magnetic conditions.'},
@@ -5525,12 +5665,12 @@ const SLOT=720;
 function candidates(body,seed=742){if(!body||!body.landable)return[];
  const p=FS.profile(body,seed),t=String(body.type||'').toLowerCase(),air=p.pressurePa>2500,ice=/ice|frozen|glaci/.test(t),volcanic=/volcan|lava/.test(t),desert=/desert|rocky/.test(t),humid=/temper|ocean|lush/.test(t);
  const out=['meteor','seismic'];
- if(air&&(desert||volcanic))out.push('dust');
- if(air&&ice)out.push('snow');
+ if(!root.StarfallMeteorologyLW03&&air&&(desert||volcanic))out.push('dust');
+ if(!root.StarfallMeteorologyLW03&&air&&ice)out.push('snow');
  if(volcanic)out.push('volcanic');
  if(ice)out.push('cryo');
- if(air&&Math.abs(p.magneticFieldNT)>3200)out.push('aurora');
- if(air&&(humid||volcanic))out.push('electrical');
+ if(!root.StarfallMeteorologyLW03&&air&&Math.abs(p.magneticFieldNT)>3200)out.push('aurora');
+ if(!root.StarfallMeteorologyLW03&&air&&(humid||volcanic))out.push('electrical');
  return out;
 }
 function timeline(body,seed=742,window=0){const valid=candidates(body,seed);if(!valid.length||!Number.isSafeInteger(window)||window<0)return null;
@@ -5539,6 +5679,25 @@ function timeline(body,seed=742,window=0){const valid=candidates(body,seed);if(!
  const kind=valid[Math.floor(FS.rand(key+':kind')*valid.length)],spec=TYPES[kind],duration=240+Math.floor(FS.rand(key+':length')*260),start=window*SLOT+75+Math.floor(FS.rand(key+':offset')*100),end=start+duration;
  const lat=(FS.rand(key+':lat')-.5)*1.7,lon=(FS.rand(key+':lon')*2-1)*Math.PI,cl=Math.cos(lat),anchor=[cl*Math.cos(lon),Math.sin(lat),cl*Math.sin(lon)];
  return Object.freeze({id:'event-'+FS.hash(key).toString(36),bodyId:body.id,kind,startS:start,endS:end,anchor,extentScene:240+FS.rand(key+':extent')*620,seed,window});
+}
+function meteorologicalEvent(body,local,time,seed=742){
+ const W=root.StarfallMeteorologyLW03;if(!W||!body?.landable)return null;
+ const w=W.cell(body,local,time,seed);if(w.vacuum||w.regime==='clear')return null;
+ const kind=w.regime==='dust'?'dust':w.regime==='snow'?'snow':w.charge>.24?'electrical':
+  w.regime==='CO2-haze'?'dust':w.regime==='CO2-frost'?'snow':
+  w.regime==='methane-rain'||w.regime==='ammonia-condensation'||w.regime==='rain'||w.regime==='rainstorm'?'rain':'cloud';
+ const spec=TYPES[kind];if(!spec)return null;
+ const startS=Math.floor(time/W.STEP)*W.STEP,endS=startS+W.STEP;
+ const value=clamp((1-w.visibility)*1.6+w.precipitationKgM2S*60+w.charge*.35,.025,1);
+ return Object.freeze({id:'lw03-'+FS.hash(body.id+':'+w.stormId+':'+kind).toString(36),bodyId:body.id,
+  kind,sourceId:w.stormId,sourceProcess:w.regime,seed,startS,endS,timeS:time,
+  name:w.regime.replace(/-/g,' ').toUpperCase()+' · '+(w.sourceSpecies||'atmospheric'),
+  description:'Modeled '+w.windMS.toFixed(1)+' m/s winds, '+(w.precipitationKgM2S*3600).toFixed(2)+' kg/m²/h precipitation; not measured',
+  instrument:kind==='snow'||kind==='rain'?'thermometer':spec.instrument,
+  intensity:value,spatial:1,phase:clamp((time-startS)/W.STEP),scope:'regional',
+  visibility:w.visibility,solarFactor:w.solarFactor,tint:spec.tint,
+  windMS:w.windMS,charge:w.charge,temperatureK:w.temperatureK,cloudFraction:w.cloudFraction,
+  precipitationKgM2S:w.precipitationKgM2S,sourceSpecies:w.sourceSpecies,regime:w.regime});
 }
 function geothermalEvent(body,local,time,seed=742){
  const Geo=root.StarfallGeothermalLW01;if(!Geo||!body?.landable||!Array.isArray(local)||!Number.isFinite(time)||time<0)return null;
@@ -5558,6 +5717,7 @@ function geothermalEvent(body,local,time,seed=742){
 }
 function evaluate(body,local,time,seed=742){if(!body?.landable||!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite)||!Number.isFinite(time)||time<0)return null;
  const geothermal=geothermalEvent(body,local,time,seed);if(geothermal)return geothermal;
+ const climate=meteorologicalEvent(body,local,time,seed);if(climate)return climate;
  const window=Math.floor(time/SLOT);let best=null;
  for(let i=Math.max(0,window-1);i<=window;i++){
   const e=timeline(body,seed,i);if(!e||time<e.startS||time>e.endS)continue;
@@ -5585,7 +5745,7 @@ function sanitize(records){if(!Array.isArray(records))return[];const ids=new Set
   ids.add(rec.id);out.push({id:rec.id,bodyId:rec.bodyId,kind:rec.kind,timeS:rec.timeS,local:norm(rec.local),intensity:rec.intensity,measurementIds:Array.isArray(rec.measurementIds)?rec.measurementIds.filter(x=>typeof x==='string'&&x.length<160).slice(0,8):[],note:typeof rec.note==='string'?rec.note.slice(0,1000):''});if(out.length>=250)out.shift();}
  return out;
 }
-root.StarfallEvents={TYPES,SLOT,candidates,timeline,geothermalEvent,evaluate,skyTransmission,sanitize,arc:ARC};
+root.StarfallEvents={TYPES,SLOT,candidates,timeline,geothermalEvent,meteorologicalEvent,evaluate,skyTransmission,sanitize,arc:ARC};
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallEvents;
 })(globalThis);
 
@@ -6139,7 +6299,9 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    truckForwardVec=V.norm(V.sub(truckForwardVec,V.mul(radial,V.dot(radial,truckForwardVec))));if(V.len(truckForwardVec)<.05)truckForwardVec=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
    const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
    if(drive&&truckBatteryJ>0){
-    const right=V.norm(V.cross(truckForwardVec,radial)),speed=(keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5;
+    const right=V.norm(V.cross(truckForwardVec,radial)),weather=window.StarfallMeteorologyLW03?.cell(nearest,truckLocal,simTime,GALAXY_SEED),
+      traction=weather?.precipitationKgM2S>0?Math.max(.53,1-weather.precipitationKgM2S*95):weather?.regime==='dust'?.82:1,
+      speed=((keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5)*traction;
     const step=drive*dt*speed,angle=step/Math.max(1,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE);
     const nextDir=V.norm(V.rot(radial,right,-angle));truckForwardVec=V.norm(V.rot(truckForwardVec,right,-angle));
     const nextLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
@@ -6151,7 +6313,8 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
   evaForward=V.norm(V.sub(evaForward,V.mul(radial,V.dot(radial,evaForward))));if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
   const walk=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
-  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7),angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
+  const weather=window.StarfallMeteorologyLW03?.cell(nearest,evaLocal||[0,1,0],simTime,GALAXY_SEED),windResistance=weather?.vacuum?1:Math.max(.52,1-(weather?.windMS||0)/185);
+  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7)*windResistance,angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
    const nextDir=V.norm(V.rot(radial,right,-angle));evaForward=V.norm(V.rot(evaForward,right,-angle));evaLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
    pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT));up=nextDir;
    walkedSinceExit+=Math.abs(step);
@@ -6367,7 +6530,9 @@ function driveRoverToward(dest,dt){if(!roverLocal||!roverBody||roverBody!==neare
  if(!power)return distance;
  const trial=StarfallRoverDynamics.sixWheels({body:roverBody,local:start,forward:V.rot(tangent,roverBody.spinAxis||[0,1,0],-(roverBody.spinAngle||0)),surfaceHeight:d=>groundHeight(d,roverBody),sceneRadius:roverBody.radius,vehicle:config.stats,gravityMS2:Math.max(.05,roverBody.gravity*9.80665),command:1,dt,enabled:true});
  roverPhysicsReport=trial;if(!trial.safe||trial.speedSceneS<=.001)return distance;
- const traveled=Math.min(distance,trial.speedSceneS*Math.max(0,Math.min(dt,.05)));
+ const weather=window.StarfallMeteorologyLW03?.cell(roverBody,roverLocal,simTime,GALAXY_SEED),
+     traction=weather?.precipitationKgM2S>0?Math.max(.45,1-weather.precipitationKgM2S*110):weather?.regime==='dust'?.85:1,
+     traveled=Math.min(distance,trial.speedSceneS*traction*Math.max(0,Math.min(dt,.05)));
  roverLocal=V.norm(V.mix(start,next,traveled/Math.max(distance,1e-6)));
  roverForwardVec=tangent;return Math.max(0,distance-traveled);
 }
@@ -7927,7 +8092,7 @@ function record(){const ctx=context(),ev=current();if(!ctx||!ev)throw Error('No 
  if(!ctx.eva&&!ctx.roverOccupied)throw Error('Exit the spacecraft or use the rover to observe an event.');
  const prev=findRecord(ev);if(prev)return prev;
  const obj={id:ev.id,bodyId:ev.bodyId,kind:ev.kind,timeS:RT.time,local:[...ctx.local],intensity:Math.round(ev.intensity*1e5)/1e5,measurementIds:[],note:''};records.push(obj);if(records.length>250)records.shift();persist();observedId=obj.id;return obj;}
-function linked(rec){const ctx=context();if(!ctx)throw Error('Return to this world to link instrument evidence');const event=rec.id.startsWith('lw01-')?EV.geothermalEvent(ctx.body,rec.local,rec.timeS,RT.galaxy.seed):EV.timeline(ctx.body,RT.galaxy.seed,Math.floor(rec.timeS/EV.SLOT));if(!event||event.id!==rec.id||ctx.body.id!==rec.bodyId)throw Error('This observation belongs to another event or world.');
+function linked(rec){const ctx=context();if(!ctx)throw Error('Return to this world to link instrument evidence');const event=rec.id.startsWith('lw01-')?EV.geothermalEvent(ctx.body,rec.local,rec.timeS,RT.galaxy.seed):rec.id.startsWith('lw03-')?EV.meteorologicalEvent(ctx.body,rec.local,rec.timeS,RT.galaxy.seed):EV.timeline(ctx.body,RT.galaxy.seed,Math.floor(rec.timeS/EV.SLOT));if(!event||event.id!==rec.id||ctx.body.id!==rec.bodyId)throw Error('This observation belongs to another event or world.');
  const instrument=EV.TYPES[rec.kind].instrument,journal=root.StarfallScienceUI?.journal||[];
  const measurements=journal.filter(o=>o.instrument===instrument&&o.bodyId===rec.bodyId&&Number.isFinite(o.timeS)&&o.timeS>=event.startS&&o.timeS<=event.endS+90&&Array.isArray(o.location)&&EV.arc(o.location,rec.local,ctx.body.radius)<=90);
  const newIDs=measurements.map(o=>o.id).filter(id=>!rec.measurementIds.includes(id));if(!newIDs.length)throw Error('No matching '+instrument+' reading within 90 units and the event time window. Use FIELD SCIENCE to take one.');rec.measurementIds=[...new Set([...rec.measurementIds,...newIDs])].slice(-8);persist();return newIDs.length;
@@ -7951,6 +8116,14 @@ function refresh(){const ctx=context(),ev=current(),name=$('events-current'),lis
     (activity.ashMassFlowKgS>0?' · ASH DISCHARGE: solar attenuation nearby':'')+
     (nearest.distanceKm<.4&&activity.active?' · DANGER: ACTIVE HOT VENT — retreat and use instruments from a safe distance':'');
   }
+ }
+ if(ctx&&root.StarfallMeteorologyLW03){
+  const w=root.StarfallMeteorologyLW03.cell(ctx.body,ctx.local,RT.time,RT.galaxy.seed);
+  name.textContent+='\\nCLIMATE · '+w.regime.toUpperCase()+' · '+w.temperatureK.toFixed(1)+' K · '+
+   (w.pressurePa/1000).toFixed(1)+' kPa · WIND '+w.windMS.toFixed(1)+' m/s'+
+   '\\nCLOUD '+Math.round(w.cloudFraction*100)+'% · PRECIP '+(w.precipitationKgM2S*3600).toFixed(2)+
+   ' kg/m²/h · '+(w.sourceSpecies||'no condensable species')+
+   ' · solar transmission '+w.solarFactor.toFixed(2)+' (all modeled).';
  }
  list.replaceChildren();if(!records.length)list.textContent='No environmental observations recorded.';
  for(const r of records.slice(-35).reverse()){const button=document.createElement('button');button.type='button';button.className='events-entry'+(r.id===observedId?' active':'');button.textContent=EV.TYPES[r.kind].name+' · '+r.bodyId+' · '+Math.round(r.intensity*100)+'% · '+r.measurementIds.length+' linked';button.onclick=()=>{observedId=r.id;$('events-notes').value=r.note;for(const b of list.querySelectorAll('button'))b.classList.toggle('active',b===button);};list.append(button);}
