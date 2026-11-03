@@ -564,7 +564,7 @@ class Renderer{
    this.setVec(prog,'uLight',l.sunDir);this.setVec(prog,'uStarColor',l.starColor);this.setFloat(prog,'uStarPower',l.starPower);
    this.setFloat(prog,'uAmbient',l.ambient);this.setVec(prog,'uBounceDir',l.bounceDirection);
    this.setVec(prog,'uBounceColor',l.bounceColor);this.setFloat(prog,'uBouncePower',l.moonPower);
-   this.setVec(prog,'uHeadlampPos',V.sub(lightPos,origin));this.setVec(prog,'uHeadlampDir',state.shipForward);
+   this.setVec(prog,'uHeadlampPos',V.sub(lightPos,origin));this.setVec(prog,'uHeadlampDir',state.headlampForward||state.shipForward);
    this.setFloat(prog,'uHeadlampPower',state.headlights?2.2:0);
    const occ=l.occluder;this.gl.uniform4fv(this.loc(prog,'uOccluder'),occ?[...V.sub(occ.center,origin),occ.radius]:[0,0,0,0]);
   };
@@ -694,6 +694,7 @@ class Renderer{
        this.freeMesh(this.caveMeshes.get(oldest));this.caveMeshes.delete(oldest);}
     }
    if(mesh&&item.position){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',1.6);
+      if(item.kind==='cave'){this.setFloat(p,'uStarPower',0);this.setFloat(p,'uBouncePower',0);this.setFloat(p,'uAmbient',.015);}
     const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u)))),r=V.norm(V.cross(f,u));this.renderMesh(p,mesh,M.basis(r,u,f,V.sub(item.position,origin)));
    }
   }
