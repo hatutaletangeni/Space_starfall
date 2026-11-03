@@ -582,7 +582,9 @@ class Renderer{
    }else stone(base,d,right,front,size,colors);
    propCount++;
   }
-  return{ground,props:idx.length?makeMesh(this.gl,p,n,c,idx):null,propCount,key:tile.key,descriptor:tile};
+  const ocean=root.StarfallWaterMeshLW04?.geometry(body,tile,N,field,groundHeight);
+  const water=ocean?makeMesh(this.gl,ocean.positions,ocean.normals,ocean.colors,ocean.indices):null;
+  return{ground,water,props:idx.length?makeMesh(this.gl,p,n,c,idx):null,propCount,key:tile.key,descriptor:tile};
  }
  updatePatch(planet,position,alt){
   // Old per-frame recentering caused resampling triangles and visible 'breathing'.
