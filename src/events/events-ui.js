@@ -12,7 +12,7 @@ function record(){const ctx=context(),ev=current();if(!ctx||!ev)throw Error('No 
  if(!ctx.eva&&!ctx.roverOccupied)throw Error('Exit the spacecraft or use the rover to observe an event.');
  const prev=findRecord(ev);if(prev)return prev;
  const obj={id:ev.id,bodyId:ev.bodyId,kind:ev.kind,timeS:RT.time,local:[...ctx.local],intensity:Math.round(ev.intensity*1e5)/1e5,measurementIds:[],note:''};records.push(obj);if(records.length>250)records.shift();persist();observedId=obj.id;return obj;}
-function linked(rec){const ctx=context();if(!ctx)throw Error('Return to this world to link instrument evidence');const event=rec.id.startsWith('lw01-')?EV.geothermalEvent(ctx.body,rec.local,rec.timeS,RT.galaxy.seed):EV.timeline(ctx.body,RT.galaxy.seed,Math.floor(rec.timeS/EV.SLOT));if(!event||event.id!==rec.id||ctx.body.id!==rec.bodyId)throw Error('This observation belongs to another event or world.');
+function linked(rec){const ctx=context();if(!ctx)throw Error('Return to this world to link instrument evidence');const event=rec.id.startsWith('lw01-')?EV.geothermalEvent(ctx.body,rec.local,rec.timeS,RT.galaxy.seed):rec.id.startsWith('lw03-')?EV.meteorologicalEvent(ctx.body,rec.local,rec.timeS,RT.galaxy.seed):EV.timeline(ctx.body,RT.galaxy.seed,Math.floor(rec.timeS/EV.SLOT));if(!event||event.id!==rec.id||ctx.body.id!==rec.bodyId)throw Error('This observation belongs to another event or world.');
  const instrument=EV.TYPES[rec.kind].instrument,journal=root.StarfallScienceUI?.journal||[];
  const measurements=journal.filter(o=>o.instrument===instrument&&o.bodyId===rec.bodyId&&Number.isFinite(o.timeS)&&o.timeS>=event.startS&&o.timeS<=event.endS+90&&Array.isArray(o.location)&&EV.arc(o.location,rec.local,ctx.body.radius)<=90);
  const newIDs=measurements.map(o=>o.id).filter(id=>!rec.measurementIds.includes(id));if(!newIDs.length)throw Error('No matching '+instrument+' reading within 90 units and the event time window. Use FIELD SCIENCE to take one.');rec.measurementIds=[...new Set([...rec.measurementIds,...newIDs])].slice(-8);persist();return newIDs.length;
@@ -36,6 +36,14 @@ function refresh(){const ctx=context(),ev=current(),name=$('events-current'),lis
     (activity.ashMassFlowKgS>0?' · ASH DISCHARGE: solar attenuation nearby':'')+
     (nearest.distanceKm<.4&&activity.active?' · DANGER: ACTIVE HOT VENT — retreat and use instruments from a safe distance':'');
   }
+ }
+ if(ctx&&root.StarfallMeteorologyLW03){
+  const w=root.StarfallMeteorologyLW03.cell(ctx.body,ctx.local,RT.time,RT.galaxy.seed);
+  name.textContent+='\\nCLIMATE · '+w.regime.toUpperCase()+' · '+w.temperatureK.toFixed(1)+' K · '+
+   (w.pressurePa/1000).toFixed(1)+' kPa · WIND '+w.windMS.toFixed(1)+' m/s'+
+   '\\nCLOUD '+Math.round(w.cloudFraction*100)+'% · PRECIP '+(w.precipitationKgM2S*3600).toFixed(2)+
+   ' kg/m²/h · '+(w.sourceSpecies||'no condensable species')+
+   ' · solar transmission '+w.solarFactor.toFixed(2)+' (all modeled).';
  }
  list.replaceChildren();if(!records.length)list.textContent='No environmental observations recorded.';
  for(const r of records.slice(-35).reverse()){const button=document.createElement('button');button.type='button';button.className='events-entry'+(r.id===observedId?' active':'');button.textContent=EV.TYPES[r.kind].name+' · '+r.bodyId+' · '+Math.round(r.intensity*100)+'% · '+r.measurementIds.length+' linked';button.onclick=()=>{observedId=r.id;$('events-notes').value=r.note;for(const b of list.querySelectorAll('button'))b.classList.toggle('active',b===button);};list.append(button);}
