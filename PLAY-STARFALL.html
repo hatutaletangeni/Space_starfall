@@ -1053,7 +1053,7 @@ function rnd(s){let x=hash(s);x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(
 function norm(v){let l=Math.hypot(...v);if(!(l>1e-10))throw Error('Invalid geological direction');return v.map(x=>x/l);}
 function arc(a,b,radius){const u=norm(a),v=norm(b);return Math.acos(clamp(u.reduce((s,x,i)=>s+x*v[i],0),-1,1))*radius;}
 const CLASSES=Object.freeze({
- Rocky:['impact-fracture','fault-scarp'],Desert:['impact-fracture','solution-cave'],
+ Rocky:['impact-fracture','fault-scarp'],Desert:['impact-fracture','fault-fracture'],
  Ice:['ice-crevasse','cryogenic-fracture'],Temperate:['solution-cave','fault-fracture'],
  Ocean:['solution-cave','sea-cliff'],Volcanic:['lava-tube','fissure-cave'],
  Lush:['solution-cave','weathered-cavern'],Shattered:[], 'Gas Giant':[]
@@ -1085,7 +1085,6 @@ function caveLayout(site){
 }
 function canStand(layout,x,z,margin=.7){
  if(!layout?.points||!Number.isFinite(x)||!Number.isFinite(z)||z<.5||z>layout.length-1)return false;
- const dummy={lengthScene:layout.length,widthScene:layout.width,seed:0};
  // Interpolate the actual authored centerline rather than a generic sine.
  const points=layout.points,step=layout.length/(points.length-1),i=Math.min(points.length-2,Math.max(0,Math.floor(z/step))),t=z/step-i;
  const cx=points[i].x+(points[i+1].x-points[i].x)*t;
