@@ -1026,10 +1026,10 @@ function refineryAdvance8E(elapsed){
  const c=refineryContext8E(),enabled=c.shipLanded&&c.bodyId===a.bodyId&&c.workshopInstalled&&c.powerEnabled;
  if(!enabled)return;
  try{
-  const ship=vehicleStore.get('ship'),step=refinery8e.step(Math.min(elapsed,1),ship.state.energyJ,true);
+  const ship=vehicleStore.get('ship'),step=refinery8e.step(Math.min(elapsed,10),ship.state.energyJ,true);
   if(step.usedJ>0){
    vehicleStore.update('ship',{...ship.state,energyJ:Math.max(0,ship.state.energyJ-step.usedJ)});
-   refinerySaveSeconds8E+=Math.min(elapsed,1);
+   refinerySaveSeconds8E+=Math.min(elapsed,10);
   }
   if(step.completed){
    const result=refinery8e.commit(materials8a.snapshot(),StarfallTransformation8E.create(transformation8e.snapshot()));
