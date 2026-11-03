@@ -35,7 +35,7 @@ for(const site of Geo.sources(volcanic,742)){
  assert.ok(later.reservoirRemainingKg>=0&&next.reservoirRemainingKg>=0);
  assert.ok(early.dischargedThisCycleKg<=early.reservoirCapacityKg);
  assert.ok(early.massFlowKgS>=0&&Number.isFinite(early.massFlowKgS));
- assert.ok(Math.abs(early.ashMassFlowKgS+early.lavaMassFlowKgS)<=early.massFlowKgS+1e-8);
+ assert.ok(Math.abs(early.ashMassFlowKgS+early.lavaMassFlowKgS+early.vaporMassFlowKgS-early.massFlowKgS)<1e-8);
 }
 const effusive=Geo.sources(volcanic,742).find(x=>x.kind==='effusive-volcano');
 const explosive=Geo.sources(volcanic,742).find(x=>x.kind==='explosive-volcano');
