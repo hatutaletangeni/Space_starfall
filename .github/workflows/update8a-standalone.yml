@@ -79,11 +79,14 @@ jobs:
       - name: Verify real 8E renderer and module UI
         run: |
           python tests/modular-ship8e-browser.py
+          python tests/mining-hauling8d-browser.py
           python tests/modular-ship8e-walk-browser.py
       - name: Upload software-WebGL screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: starfall-8e-ship-real-browser
-          path: artifacts/8e-ship-chromium/
+          name: starfall-8d-mining-real-browser
+          path: |
+            artifacts/8e-ship-chromium/
+            artifacts/8d-mining-chromium/
           if-no-files-found: ignore
