@@ -771,7 +771,7 @@ function updateDebrisHazards(now){
  debrisLastContactS=simTime;
  const ship=vehicleStore.get('ship'),previous=ship?.state;
  if(previous&&Number.isFinite(previous.health)){
-  vehicleStore.update('ship',{...previous,health:Math.max(0,previous.health-Math.min(12,2+V.len(vel)*.015))});
+  vehicleStore.update('ship',{...previous,health:Math.max(0,previous.health-Math.min(.12,.02+V.len(vel)*.00015))});
  }
 }
 function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
