@@ -508,9 +508,9 @@ class Renderer{
   this.meshCache.set(key,cached);while(this.meshCache.size>this.meshBudget){const oldest=this.meshCache.keys().next().value,old=this.meshCache.get(oldest);this.freeMesh(old.world);this.freeMesh(old.atmo);this.freeMesh(old.cloud);this.meshCache.delete(oldest);}return cached;
  }
  ringMesh(body){let mesh=this.ringCache.get(body.id);if(mesh){this.ringCache.delete(body.id);this.ringCache.set(body.id,mesh);return mesh;}
-  const p=[],n=[],c=[],indices=[],segments=128,bands=10,sin=Math.sin(body.ringTilt),cos=Math.cos(body.ringTilt);
-  for(let j=0;j<=bands;j++){const v=j/bands,r=body.radius*(1.33+v*(body.ringWidth-1.33));for(let i=0;i<=segments;i++){const a=i/segments*Math.PI*2,x=Math.cos(a)*r,z=Math.sin(a)*r;p.push(x,-z*sin,z*cos);n.push(0,cos,sin);const stripe=.46+Math.sin(v*52+body.seed)*.14+(j%3)*.045;c.push(stripe*.95,stripe*.82,stripe*.67);}}
-  for(let j=0;j<bands;j++)for(let i=0;i<segments;i++){const a=j*(segments+1)+i,b=a+segments+1;indices.push(a,b,a+1,a+1,b,b+1);}
+  const p=[],n=[],c=[],indices=[],segments=128,bands=44,sin=Math.sin(body.ringTilt),cos=Math.cos(body.ringTilt);
+  for(let j=0;j<=bands;j++){const v=j/bands,r=body.radius*(1.33+v*(body.ringWidth-1.33));for(let i=0;i<=segments;i++){const a=i/segments*Math.PI*2,x=Math.cos(a)*r,z=Math.sin(a)*r;p.push(x,-z*sin,z*cos);n.push(0,cos,sin);const stripe=.37+Math.sin(v*137+body.seed)*.12+(j%5)*.028;const frost=Math.max(0,Math.sin(v*27+body.seed))*.1;c.push((stripe+frost)*.96,(stripe+frost)*.84,(stripe+frost)*.70);}}
+  for(let j=0;j<bands;j++)for(let i=0;i<segments;i++){const v=(j+.5)/bands;if(Math.abs(v-.28)<.018||Math.abs(v-.69)<.012)continue;const a=j*(segments+1)+i,b=a+segments+1;indices.push(a,b,a+1,a+1,b,b+1);}
   mesh=makeMesh(this.gl,p,n,c,indices);this.ringCache.set(body.id,mesh);while(this.ringCache.size>16){const oldest=this.ringCache.keys().next().value;this.freeMesh(this.ringCache.get(oldest));this.ringCache.delete(oldest);}return mesh;
  }
  // The actual stars are separated by >=100 larger-star diameters. The 2,500-point
