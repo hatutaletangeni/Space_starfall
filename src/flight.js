@@ -1054,17 +1054,17 @@ function refineryAdvance8E(elapsed){
   }else if(refinerySaveSeconds8E>=2){saveFlight();refinerySaveSeconds8E=0;}
  }catch(error){console.warn('8E refinery paused:',error);/* Preserve input and paid energy. User can cancel or correct stock. */}
 }
-function industrialConstruction8E(){
+function industrialConstruction8E(front=24,right=0){
  const holder=StarfallMining8D.SHIP;
  return materials8a.inventory(holder).filter(l=>StarfallIndustrialSite8E.KITS[l.materialId]).map(l=>{
   try{return {...StarfallIndustrialSite8E.quote({
    kitLotId:l.id,materials:materials8a.snapshot(),physical:physical8a.serialize(),shipContainerId:holder,
    bodyId:outpostContext().bodyId,bodyRadius:nearest?.radius||1,
-   local:evaLocal||[0,1,0],shipLocal:shipLocal||[0,1,0],operatorLocal:evaLocal||[0,1,0]}),ready:true};}
+   local:outpostOffset(front,right),shipLocal:shipLocal||[0,1,0],operatorLocal:evaLocal||[0,1,0]}),ready:true};}
   catch(e){return {kitLotId:l.id,materialId:l.materialId,ready:false,reason:e.message};}
  });
 }
-function industrialInstall8E(kitLotId,front=52,right=0){
+function industrialInstall8E(kitLotId,front=24,right=0){
  const c=outpostContext(),power=vehicleStore.get('ship');
  if(!c.landed||!c.eva||!c.body?.landable||shipBody!==c.body||!shipLocal||
     !power.state.powerEnabled)throw Error('Exit a landed powered ship before surface facility construction');
