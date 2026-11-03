@@ -1747,6 +1747,31 @@ function makeShipWalkDeck(gl){
  box(8.1,7.4,-34,24,7.8,31,wall);
  return makeMesh(gl,p,n,c,idx);
 }
+/* 8D ship-expedition truck mounted bore/loader visual.
+ * The physical drill is a 8D resource machine (not a spawned pickup).
+ * All geometry is built once and follows the sole real truck's rigid pose. */
+function makeTruckMiningTool(gl){
+ const p=[],n=[],c=[],idx=[];
+ const steel=[.51,.58,.60],dark=[.13,.17,.19],amber=[.89,.55,.18],bit=[.28,.34,.38];
+ function tri(a,b,d,color){const nv=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),i=p.length/3;
+  for(const v of [a,b,d]){p.push(...v);n.push(...nv);c.push(...color);}idx.push(i,i+1,i+2);}
+ function quad(a,b,c,d,color){tri(a,b,c,color);tri(a,c,d,color);}
+ function box(x,y,z,X,Y,Z,color){const a=[x,y,z],b=[X,y,z],c0=[X,Y,z],d=[x,Y,z],e=[x,y,Z],f=[X,y,Z],g=[X,Y,Z],h=[x,Y,Z];
+  quad(a,b,c0,d,color);quad(f,e,h,g,color);quad(e,a,d,h,color);quad(b,f,g,c0,color);quad(d,c0,g,h,color);quad(e,f,b,a,color);}
+ // Outboard mechanical frame bolted to the four-wheel expedition truck.
+ box(-6.6,.45,-3.8,-4.5,2.0,2.1,dark);
+ box(-7.4,.5,-2.6,-6.4,6,-1.6,steel);
+ box(-8.1,4.8,-2.9,-5.8,5.9,-1.2,amber);
+ box(-7.55,-3.8,-2.3,-6.45,4.8,-1.4,steel);
+ box(-7.75,-4.55,-2.55,-6.25,-3.8,-1.2,bit);
+ for(const z of [-2.4,-.2,1.8])box(-8.0,-3.65,z-.16,-6,-3.4,z+.16,amber);
+ // Side-mounted hopper/loading arm, visible only while process is active.
+ box(-5.8,2.0,1,-3.5,3.1,2.6,steel);
+ box(-5.5,3.0,1.25,-4.7,7.1,2.25,dark);
+ box(-5.25,6.75,1,-1.0,7.45,2.5,steel);
+ box(-1.75,6.2,1.15,-.75,7.5,2.35,amber);
+ return makeMesh(gl,p,n,c,idx);
+}
 function makeRover(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.73,.73,.68],dark=[.14,.16,.18],accent=[.86,.59,.32],glass=[.18,.35,.42];
 // Six-wheel science rover with mast and manipulator.
 box(-3.0,1.0,-3.8,3.2,2.6,3.6,hull);box(-1.6,2.35,-2.0,1.4,3.2,1.0,[.58,.58,.54]);tri([0,5.5,-.9],[-.65,3.2,-.9],[.65,3.2,-.9],hull);box(-.32,3.1,-1.2,.32,5.1,-.55,dark);box(-.95,5.0,-1.65,.95,6.1,-.2,[.76,.76,.71]);box(-.55,6.1,-1.2,.55,6.9,-.35,dark);tri([3.0,2.2,.2],[5.3,1.7,.9],[4.0,1.3,1.8],dark);tri([3.0,2.2,.2],[4.0,1.3,1.8],[2.6,1.6,2.6],dark);box(2.35,1.4,2.1,2.95,2.0,3.15,accent);box(-2.45,2.55,-2.9,2.55,2.72,-2.2,glass);box(-1.7,2.55,-2.2,-.55,2.72,-1.2,glass);
@@ -1853,7 +1878,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -2269,7 +2294,11 @@ class Renderer{
     this.renderMesh(p,this.shipWalkDeck,model);
    }else if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
-  if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
+  if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){
+    const tr=V.norm(V.cross(state.truckForward,state.truckUp)),model=M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin));
+    this.renderMesh(p,this.truck,model);
+    if(state.miningRig8D)this.renderMesh(p,this.truckMiningTool8D,model);
+   }
   for(const probe of (state.extraRovers||[]).slice(0,15)){if(V.len(V.sub(probe.position,viewer))>2600)continue;const right=V.norm(V.cross(probe.forward,probe.up));this.renderMesh(p,this.rover,M.basis(right,probe.up,probe.forward,V.sub(probe.position,origin)));}
   for(const sat of (state.satellites||[]).slice(0,48)){if(V.len(V.sub(sat.position,viewer))>85000)continue;const up=V.norm(sat.up||[0,1,0]),front=V.norm(V.sub([0,0,1],V.mul(up,V.dot([0,0,1],up))));const right=V.norm(V.cross(front,up));this.renderMesh(p,this.satellite,M.basis(right,up,front,V.sub(sat.position,origin)));}
   for(const rocket of (state.rockets||[]).slice(0,3)){if(V.len(V.sub(rocket.position,viewer))>7000)continue;const up=V.norm(rocket.up),right=V.norm(V.cross([1,0,0],up)),front=V.norm(V.cross(right,up));this.renderMesh(p,this.rocket,M.basis(right,up,front,V.sub(rocket.position,origin)));}
