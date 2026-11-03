@@ -6,7 +6,7 @@ const btn=document.createElement('button');btn.type='button';btn.className='ui21
 const shell=document.createElement('div');shell.className='modal-backdrop';shell.hidden=true;shell.id='physical8a-dialog';
 const pane=document.createElement('section');pane.className='chart-panel';pane.setAttribute('role','dialog');pane.setAttribute('aria-modal','true');pane.setAttribute('aria-label','Physical cargo inventory');
 const heading=document.createElement('h2');heading.textContent='Cargo & Inventory';
-const note=document.createElement('p');note.textContent='Every vehicle has one saved ID and one custody location. Update 8B: ship starboard vehicle hangar uses the separate wide ramp and remappable B tie-down action. Basic 8E separation and ice-recovery are available under Engineer → Refinery when a landed ship has real mined stock and battery energy.';
+const note=document.createElement('p');note.textContent='Every vehicle has one saved ID and one custody location. Update 8B: ship starboard vehicle hangar uses the separate wide ramp and remappable B tie-down action. Basic 8E separation and ice-recovery are available under Engineer → Refinery when a landed ship has real mined stock and battery energy. 8F wire drawing is available under Engineer → Material Fabrication if certified copper and the required tool are available.';
 const status=document.createElement('div');status.style.cssText='white-space:pre-wrap;line-height:1.8;font:12px monospace;max-height:55vh;overflow:auto';
 const close=document.createElement('button');close.type='button';close.textContent='Close';close.style.cssText='margin-top:18px;padding:12px 20px;border:1px solid #ecbb7a;background:#121c25';
 const redraw=()=>{const a=runtime()?.physical8a?.list()||[];
