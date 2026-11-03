@@ -6638,7 +6638,7 @@ function create(saved,Materials,Resources){
   if(a.type==='DRILL')state.toolCondition=Math.max(0,state.toolCondition-seconds*.0002);
   return{active:true,usedJ,completed:a.elapsedS+1e-8>=a.durationS,progress:a.elapsedS/a.durationS};
  }
- function cancel(){if(!state.active)return false;state.history.push({id:state.active.id,type:state.active.type,status:'CANCELLED',energyJ:state.active.energyJ});state.active=null;return true;}
+ function cancel(){if(!state.active)return false;state.history.push({id:state.active.id,type:state.active.type,status:'CANCELLED',energyJ:state.active.energyJ});if(state.history.length>500)state.history.shift();state.active=null;return true;}
  function commit(materials,resources){
   const a=state.active;
   if(!a||a.elapsedS+1e-6<a.durationS)throw Error('8D machine cycle incomplete');
@@ -6661,6 +6661,7 @@ function create(saved,Materials,Resources){
   }else throw Error('Unknown 8D operation');
   state.history.push({id:a.id,type:a.type,status:'COMMITTED',massKg:a.massKg,
    source:a.type==='DRILL'?a.siteId:a.lotId,destination:a.type==='DRILL'?TRUCK:SHIP,energyJ:a.energyJ});
+  if(state.history.length>500)state.history.shift();
   state.active=null;
   return {materials:nextMaterials,resources:nextResources,operation:clone(state.history[state.history.length-1])};
  }
