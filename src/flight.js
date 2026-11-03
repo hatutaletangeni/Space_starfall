@@ -14,7 +14,7 @@ let landed=false,warp=false,camMode=0,camEye=null,camDistance=70,orbitYaw=0,orbi
 let siteWaypoint=null,scan=null,landingCapture=null,groundLocal=null,headlights=true;
 let interiorState=null;
 let eva=false,evaLocal=null,evaForward=[...forward],shipLocal=null,shipForwardVec=[...forward],shipUpVec=[...up],shipBody=null;
-let swimming=false,swimDepthScene=.3,swimVerticalSceneS=0;
+let swimming=false,swimDepthScene=.01,swimVerticalSceneS=0;
 let roverLocal=null,roverForwardVec=[...forward],roverBody=null,truckOccupied=false;
 let truckLocal=null,truckForwardVec=[...forward],truckBody=null,truckBatteryJ=44e6,truckLights=true,truckCargo=0,winch7d=null,truckChargeReadyAtS=0,localRoverChargeReadyAtS=0,localRoverPortTemperatureK=290,localServiceT12=null;
 let hatchCooldown=0,walkedSinceExit=0,shipExitProgress=0,roverEntryCooldown=0,roverExitMove=null,shipIdleElapsed=0,rampTransition=null,rampLift=0;
@@ -252,7 +252,7 @@ function boardShip(){
  if(!eva||!shipBody||!shipLocal)return;
  const ship=shipWorldState();
  if(V.len(V.sub(pos,ship.position))>EVA_BOARD_DISTANCE){showToast('Move closer to the ship to board.');return;}
- eva=false;swimming=false;swimDepthScene=.3;swimVerticalSceneS=0;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
+ eva=false;swimming=false;swimDepthScene=.01;swimVerticalSceneS=0;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
  hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;showToast('Inside the ship · SPACE launch · hold S to walk back down the ramp');
 }
 function enterTruck(){
@@ -568,11 +568,11 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   if(!water?.hasWater){swimming=false;swimDepthScene=.3;swimVerticalSceneS=0;}
   else if(!swimming){swimming=true;swimDepthScene=-.5;swimVerticalSceneS=0;showToast('ENTERING WATER · W/S swim · Q rise · E dive · L lamp');}
   if(swimming){
-   if(swimDepthScene<.08)swimDepthScene=Math.min(.08,swimDepthScene+dt*.75);
+   if(swimDepthScene<.001)swimDepthScene=Math.min(.001,swimDepthScene+dt*.75);
    else{
     const suit=Hydro.buoyancy(water,.11,105,dt),command=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
-    swimVerticalSceneS=V.clamp((swimVerticalSceneS+suit.netAccelerationMS2*dt/Hydro.SCENE_M+command*dt*.42)*Math.exp(-dt*2.2),-.33,.33);
-    swimDepthScene=V.clamp(swimDepthScene-swimVerticalSceneS*dt,.08,Math.max(.12,water.surfaceHeightScene-.35));
+    swimVerticalSceneS=V.clamp((swimVerticalSceneS+suit.netAccelerationMS2*dt/Hydro.SCENE_M+command*dt*.009)*Math.exp(-dt*2.2),-.015,.015);
+    swimDepthScene=V.clamp(swimDepthScene-swimVerticalSceneS*dt,.001,Math.min(.045,Math.max(.001,water.surfaceHeightScene-.35)));
    }
   }
   const weather=window.StarfallMeteorologyLW03?.cell(nearest,evaLocal||[0,1,0],simTime,GALAXY_SEED),windResistance=weather?.vacuum?1:Math.max(.52,1-(weather?.windMS||0)/185);
