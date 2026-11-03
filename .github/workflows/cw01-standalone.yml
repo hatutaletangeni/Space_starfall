@@ -2,6 +2,7 @@ name: CW01-CW06 standalone build and checks
 on:
   push:
     branches:
+      - main
       - feature/cw01-celestial-composition
       - feature/cw02-stellar-spectra
       - feature/cw03-mineral-terrain
