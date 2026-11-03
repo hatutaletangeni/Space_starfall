@@ -4,9 +4,36 @@ const P=root.StarfallPhysics,RT=root.StarfallRuntime;if(!P||!RT)return;
 const $=id=>document.getElementById(id);let selected=null,items=[],lastInfo=0;
 const fmt=(v,unit='',digits=3)=>Number.isFinite(v)?Number(v).toLocaleString(undefined,{maximumSignificantDigits:digits})+(unit?' '+unit:''):'—';
 const entry=(label,value,quality='Modelled')=>({label,value,quality});
+function compositionRows(profile){
+ const c=profile?.composition;if(!c)return [];
+ const fmtPercent=v=>(100*v).toFixed(1)+'%';
+ const names=Object.entries(c.kind==='star'?c.elementMassFractions:c.bulkComponentMassFractions||{})
+   .filter(([,v])=>Number.isFinite(v)&&v>0.0001).sort((a,b)=>b[1]-a[1]).slice(0,5)
+   .map(([key,v])=>key+' '+fmtPercent(v)).join(' · ');
+ const atm=Object.entries(c.atmosphereMoleFractions||{}).filter(([,v])=>v>0.0001)
+   .sort((a,b)=>b[1]-a[1]).slice(0,4).map(([key,v])=>key+' '+fmtPercent(v)).join(' · ');
+ const rows=[entry('CW composition version','v'+c.schema,'Seeded model — not measured'),
+ entry('Bulk constituents (mass %)',names||'Unknown','Modelled prior; uncertain')];
+ if(c.kind==='star'){
+   rows.push(entry('Stellar metallicity',fmtPercent(c.metallicityMassFraction),'Seeded abundance prior'));
+   const spectrum=selected&&root.StarfallStellarSpectraCW02?.profile(selected);
+   if(spectrum)rows.push(entry('UV / visible / IR model fractions',
+     ['ultraviolet','visible','infrared'].map(k=>k+' '+fmtPercent(spectrum.radiationBandFractions[k])).join(' · '),
+     'Blackbody approximation — not an instrument reading'));
+ }
+ else {
+   rows.push(entry('Atmospheric species (mole %)',atm||'Vacuum / unmodelled','Modeled mixture, not a gas reading'));
+   const optics=selected&&root.StarfallAtmosphereCW05?.optical(selected,RT.galaxy.seed);
+   if(optics?.meanMolarMassKgMol)rows.push(entry('Mean modeled molar mass',fmt(optics.meanMolarMassKgMol*1000,'g/mol'),
+    'Computed from seeded gas mixture; not a pressure measurement'));
+   const phase=profile.volatilePhases;
+   if(phase?.volatiles?.H2O)rows.push(entry('H₂O phase screen',phase.volatiles.H2O.state,'High uncertainty — equilibrium T, legacy pressure'));
+ }
+ return rows;
+}
 function rows(profile){if(!profile)return [];
- if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
- return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
+ if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
+ return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
 function getProfile(){RT.galaxy.observerPosition=RT.scenePosition;return selected?P.scienceProfile(RT.galaxy,selected):null;}
 function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galaxy.byId.get(focus.systemId):RT.galaxy.byId.get(focus.systemId);
  if(sys?.dormant)RT.galaxy.activate(sys);
