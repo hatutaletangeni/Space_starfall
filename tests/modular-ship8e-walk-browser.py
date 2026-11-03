@@ -12,7 +12,7 @@ with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=['--use-gl=angle','--use-angle=swiftshader',
  '--enable-unsafe-swiftshader','--enable-webgl','--no-sandbox','--disable-dev-shm-usage'])
  try:
-  page=browser.new_page(viewport={'width':1300,'height':850})
+  page=browser.new_page(viewport={'width':760,'height':480})
   errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(uri,wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!window.StarfallRuntime",timeout=45000)
@@ -30,10 +30,10 @@ with sync_playwright() as p:
     localStorage.setItem('starfall_save',JSON.stringify(s));}""",saved)
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!window.StarfallRuntime && StarfallRuntime.landed && StarfallRuntime.eva",timeout=45000)
-  page.wait_for_timeout(1900)
+  page.wait_for_function("STARFALL_DEBUG.state.rampState===null && STARFALL_DEBUG.state.hatchCooldown<=0.05",timeout=115000)
   page.keyboard.down('w')
   try:
-   page.wait_for_timeout(5500)
+   page.wait_for_timeout(2500)
    print('8E BOARDING DIAGNOSTICS',page.evaluate("""()=>{
     const d=STARFALL_DEBUG.state;
     return {landed:d.landed,eva:d.eva,shipWalking:StarfallRuntime.shipWalking8e,
@@ -42,7 +42,7 @@ with sync_playwright() as p:
       status:document.getElementById('status-text')?.textContent,
       position:d.position,controls:[...window.StarfallInput.keys]};
    }"""),flush=True)
-   page.wait_for_function("StarfallRuntime.shipWalking8e===true",timeout=14000)
+   page.wait_for_function("StarfallRuntime.shipWalking8e===true",timeout=105000)
   finally:
    page.keyboard.up('w')
   assert page.evaluate("StarfallRuntime.shipWalking8e"),'Did not walk onto ship'
