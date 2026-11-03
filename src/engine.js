@@ -257,7 +257,21 @@ for(const [x,z] of [[-5.8,8.5],[5.8,8.5],[-2.8,14.6],[2.8,14.6]]){quad([x,-1.05,
 quad([-2.7,-1.5,13.0],[2.7,-1.5,13.0],[3.15,-7.35,29.0],[-3.15,-7.35,29.0],edge);
 quad([-2.9,-1.53,13.0],[-2.7,-1.53,13.0],[-3.15,-7.34,29.0],[-3.4,-7.34,29.0],accent);
 quad([2.7,-1.53,13.0],[2.9,-1.53,13.0],[3.4,-7.34,29.0],[3.15,-7.34,29.0],accent);
-// underside details
+// 8B dedicated external vehicle hangar. Truck is 11.1 wide and cannot fit
+ // through the 6.3-wide crew ramp. This widened starboard rack is additive.
+ // No solid rear wall: a real independent 14.5-wide drive-on ramp is visible.
+ box(9.25,-1.5,-4.0,23.75,-1.15,19.0,panel); // driveable flat cargo deck
+ box(9.25,11.35,-4.0,23.75,11.85,19.0,hull); // weather canopy
+ box(9.0,-1.5,-4.0,9.25,11.8,19.0,edge); // left protective rail/wall
+ box(23.75,-1.5,-4.0,24,11.8,19.0,edge); // right side
+ box(9.25,-1.5,-4.0,23.75,11.85,-3.6,dark); // forward structural bulkhead
+ for(const x of [9.25,23.75]){box(x-.2,-1.5,17.5,x+.2,11.35,19.0,accent);}
+ quad([9.25,-1.20,19],[23.75,-1.20,19],[23.75,-7.25,39],[9.25,-7.25,39],edge);
+ quad([9.05,-1.18,19],[9.25,-1.18,19],[9.25,-7.23,39],[9.05,-7.23,39],accent);
+ quad([23.75,-1.18,19],[23.95,-1.18,19],[23.95,-7.23,39],[23.75,-7.23,39],accent);
+ // Four visible load anchors, kept separate from the older crew boarding ramp.
+ for(const x of [10.4,22.6])for(const z of [-1.6,14.4])box(x-.45,-.94,z-.4,x+.45,-.6,z+.4,accent);
+ // underside details
 box(-1.8,-2.0,-2.5,1.8,-1.35,5.8,panel);box(-.75,-2.2,6.0,.75,-1.5,12.2,panel);
 return makeMesh(gl,p,n,c,idx);} 
 function makeRover(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.73,.73,.68],dark=[.14,.16,.18],accent=[.86,.59,.32],glass=[.18,.35,.42];
