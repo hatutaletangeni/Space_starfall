@@ -7,11 +7,11 @@ Status: work in progress, not a completed volcano renderer.
 - Different modeled sources: fissure, effusive, explosive, cryovolcanic, geyser, fumarole.
 - Pressure/recharge cycle, estimated mass flow, magma or vapor flow, and ballistic plume-height model with thermal flux, gravity and ambient pressure inputs.
 - The existing field-science thermometer and seismometer respond near an active vent; previous saved instrument readings remain unchanged.
-- Existing Observatory and planetary-events readouts expose candidate site types, locations relative to current explorer and current modeled activity.
+- Existing Observatory and planetary-events readouts expose candidate site types, locations relative to current explorer and current modeled activity; Observatory provides ordinary flight waypoints to vents.
 
 ## Important incomplete functionality
-- Eruptions do NOT YET have 3D geometry, lava surface transport, ash particle advection or actual deposited mass. Mass flow is an analytical proxy that is not yet charged against a persistent finite reservoir.
-- No new terrain collisions, caves, earthquakes, lava thermal damage, geyser jet collisions or rendered visual effects are implemented in this first slice.
+- Active vents have capped near-field 3D billboard plume particles in the existing renderer, but NOT YET volumetric lava meshes, lava transport, ash advection or deposited mass. Mass flow is an analytical proxy, not yet charged against a persistent finite reservoir.
+- No new terrain collisions, caves, earthquake propagation, lava thermal damage or geyser jet collisions are implemented. Plume visuals are lightweight particle approximations.
 - Atmospheric precipitation and pressure/phase assessment are still legacy approximations. An active geyser candidate is a model prior, not proof of liquid water.
 - Functional fluid, mass-conservation, volcanic cone, hazards and spatial effects are the subsequent LW-01 substeps. Keep branch draft until these and standalone tests are validated.
 
