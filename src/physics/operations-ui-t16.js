@@ -9,7 +9,7 @@ const num=(v,d=1)=>Number.isFinite(v)?v.toLocaleString('en-US',{maximumFractionD
 const clean=x=>String(x??'').slice(0,220);
 const words=(x,fallback='NOT RECORDED')=>x===null||x===undefined||x===''?fallback:String(x);
 const panelIds={main:'panel-body',launch:'launch-dialog',sat:'sat7c-section',outpost:'outpost',
- photos:'imaging7f',field:'field-lab',workbench:'workbench',assets:'asset-manager',research:'research7e'};
+ photos:'imaging7f',field:'field-lab',workbench:'workbench',research:'research7e'};
 const cards=new Map();
 function initCards(){
  for(const [k,id] of Object.entries(panelIds)){
