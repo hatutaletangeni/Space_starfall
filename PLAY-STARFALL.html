@@ -12852,6 +12852,11 @@ function refresh(){
   ' kg (NOT applied to flight until propulsion balance)\n'+
   'SHIP ENERGY '+(Number.isFinite(asset?.state?.energyJ)?(asset.state.energyJ/1e6).toFixed(1)+' MJ':'from existing electrical model')+
   '  ·  SOLAR '+(stats?.solarAreaM2??'—')+' m²  ·  '+surveyed+' GEO SURVEYS  ·  '+stored+' MATERIAL LOTS'+
+  '\nLIFE SUPPORT: '+(runtime?.lifeSupport8e?.alert||'NOT AVAILABLE')+
+  '  ·  O₂ '+(runtime?.lifeSupport8e?.oxygenKg??0).toFixed(1)+' kg'+
+  '  ·  WATER '+(runtime?.lifeSupport8e?.waterKg??0).toFixed(1)+' kg'+
+  '  ·  SCRUBBER '+(runtime?.lifeSupport8e?.scrubberRemainingKg??0).toFixed(1)+' kg'+
+  '  ·  CABIN '+(runtime?.lifeSupport8e?.pressureKPa??0).toFixed(0)+' kPa'+
   '\nWALKABLE DECK: landed → I, then WASD to rooms, X at workstation/bridge. '+ 
   'Upgrades require committed manufactured parts and verified resource consumption; no free installation.';
  listing.replaceChildren();
