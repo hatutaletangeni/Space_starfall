@@ -21,7 +21,18 @@ function selection(){const ctx=RT.outpostContext(),kind=$('outpost-type').value,
  const archae=root.StarfallRuinsUI;if(archae){for(const site of archae.visibleSites){if(site.bodyId===ctx.body.id&&O.arc(local,site.local,ctx.body.radius)<100)area.push({local:site.local,radius:root.StarfallArchaeology.TIERS[site.tier].radius});}}
  const check=O.placement({kind,body:ctx.body,local,heightAt:d=>Starfall3D.groundHeight(d,ctx.body),structures:store.items,protectedAreas:area});return{kind,ctx,local,facing,check,area};}
 function preview(){try{const p=lastPlacement?.key===placementKey()?lastPlacement:selection();previewError='';return renderLoc({kind:p.kind,local:p.local,bodyId:p.ctx.body.id,facing:p.facing});}catch(e){previewError=e.message;return null;}}
-function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[];const list=store.surfaceItems(ctx.body.id,ctx.local,ctx.body.radius,65);const result=list.map(renderLoc).filter(Boolean);if(!$('outpost').hidden&&tab==='build'){const item=preview();if(item){item.preview=true;result.push(item);}}return result;}
+function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[];const list=store.surfaceItems(ctx.body.id,ctx.local,ctx.body.radius,65);const result=list.map(renderLoc).filter(Boolean);
+ // Physical factory assets share the existing body-fixed and near-camera culling.
+ // No second renderer or generic placeholder station is spawned.
+ for(const asset of RT.physical8a.list()){
+  if(asset.type!=='industrial_machine'||asset.location?.kind!=='surface'||
+   asset.location.bodyId!==ctx.body.id||!Array.isArray(asset.location.local)||
+   O.arc(ctx.local,asset.location.local,ctx.body.radius)>65)continue;
+  const pose=renderLoc({kind:'industrial_machine',bodyId:asset.location.bodyId,
+   local:asset.location.local,facing:asset.state?.forward||[0,0,1]});
+  if(pose)result.push(pose);
+ }
+ if(!$('outpost').hidden&&tab==='build'){const item=preview();if(item){item.preview=true;result.push(item);}}return result;}
 function groupFor(id,bodyId){return store.connectedGroups(bodyId).find(g=>g.some(x=>x.id===id))||[];}
 function powered(id,bodyId){const rep=powerReports.get(bodyId);return rep?.byId[id]?.power===true;}
 function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(store.items.map(x=>x.bodyId));for(const bodyId of byBody){const oldSite=store.items.find(x=>x.bodyId===bodyId)?.bodySnapshot;const body=(resolveRemote?resolveRemote({bodyId,bodySnapshot:oldSite},atTime):null)||RT.galaxy.byId.get(bodyId);if(!body||!body.radius)continue;const sys=RT.galaxy.byId.get(body.systemId),star=sys?.star;if(!star)continue;const luminosity=P.starProfile(star).luminosityW;const occluders=(sys.bodies||[]).filter(x=>x.id!==bodyId&&x.radius>0).map(x=>({position:x.position,radius:x.radius}));
