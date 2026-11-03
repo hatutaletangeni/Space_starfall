@@ -64,7 +64,7 @@ function evaluateLighting(body,sys,galaxy,position){
  }
  // A distant system contributes no light to the current system. Ambient is deliberately
  // nearly zero: the sun, moonlight, and the ship floodlight provide the actual illumination.
- const nightGlow=.008;const color=sys.star.tint||[1,1,1];
+ const nightGlow=.008;const color=root.StarfallStellarSpectraCW02?.displayColor(sys.star)||sys.star.tint||[1,1,1];
  let bounceDirection=V.len(moon)>.0001?V.norm(moon):[0,1,0];
  moonColor=moonPower>.0001?V.mul(moonColor,1/moonPower):[.8,.83,.9];
  // Lunar eclipse: a moon's parent can block the star. A ray-sphere intersection in
@@ -502,7 +502,7 @@ class Renderer{
   const lighting=near&&lightingSystem?evaluateLighting(near,lightingSystem,this.galaxy,origin):{sunDir:[-.66,.75,.43],starColor:[1,1,1],starPower:1,moonPower:0,bounceDirection:[0,1,0],bounceColor:[.75,.82,.9],ambient:.008,occluder:null};
   const dayDot=V.dot(radial,lighting.sunDir);this.daylightLabel=near?(dayDot>.15?'DAYLIGHT':dayDot>-.16?'TWILIGHT':lighting.moonPower>.018?'MOONLIT NIGHT':'NIGHT'):'VACUUM';
   const atmo=near&&near.kind!=='moon'&&near.landable?V.clamp((680-alt)/510,0,1):0;
-  const sky=near?.sky||[.13,.27,.38];const daytime=V.clamp((dayDot+.16)/.35,0,1);
+  const optics=near&&near.kind!=='moon'&&near.landable?root.StarfallAtmosphereCW05?.optical(near,this.galaxy.seed):null;const sky=optics&&!optics.vacuum?optics.color:(near?.sky||[.13,.27,.38]);const daytime=V.clamp((dayDot+.16)/.35,0,1);
   const biomeSample=near?.landable&&this.patchCenter&&this.patchPlanet===near?BIOMES.classify(near,this.patchCenter,groundHeight(this.patchCenter,near),field(this.patchCenter,near.seed)):null;
   const biomePalette=biomeSample?BIOMES.PAL[biomeSample.name][0]:sky;
   const fogColor=V.mix(V.mix([.002,.004,.01],sky,atmo*daytime),biomePalette,atmo*daytime*.12);
@@ -529,8 +529,8 @@ class Renderer{
   // Massive suns use a separate far-space projection. Their coordinates are relative
   // to the camera so Float32 matrices retain local precision in billion-unit sectors.
   this.visibleSystems=0;for(const sys of this.galaxy.nearbySystems(origin,2e9)){const rel=V.sub(sys.position,origin),dist=V.len(rel);if(dist>Math.min(2e9,sys.star.radius*110)||V.dot(V.norm(rel),cam.forward)<-.2)continue;const pixels=sys.star.radius/Math.max(dist-sys.star.radius,1)*renderH;if(pixels<1.5)continue;
-   p=this.p.sun;gl.useProgram(p);this.setMat(p,'uViewProj',sunVP);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uTime',this.galaxy.time);const model=M.scaleTranslate(rel,sys.star.radius);this.renderMesh(p,this.sunSphere,model);
-   p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
+   p=this.p.sun;gl.useProgram(p);this.setMat(p,'uViewProj',sunVP);this.setVec(p,'uTint',root.StarfallStellarSpectraCW02?.displayColor(sys.star)||sys.star.tint);this.setFloat(p,'uTime',this.galaxy.time);const model=M.scaleTranslate(rel,sys.star.radius);this.renderMesh(p,this.sunSphere,model);
+   p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',sunVP);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',root.StarfallStellarSpectraCW02?.displayColor(sys.star)||sys.star.tint);this.setFloat(p,'uOpacity',.20);this.renderMesh(p,this.sunHalo,model);this.visibleSystems++;
   }
   gl.enable(gl.DEPTH_TEST);gl.depthMask(true);
   p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',0);

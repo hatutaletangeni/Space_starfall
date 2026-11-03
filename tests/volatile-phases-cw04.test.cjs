@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const V=require('../src/physics/volatile-phases-cw04.js');
+assert.equal(V.phase('H2O',290,101325).state,'liquid-possible');
+assert.equal(V.phase('H2O',300,0).state,'gas-or-vapor');
+assert.equal(V.phase('H2O',120,0).state,'solid-or-sublimating');
+assert.equal(V.phase('CO2',180,101325).state,'solid-or-sublimating');
+assert.equal(V.phase('CH4',105,101325).state,'liquid-possible');
+assert.throws(()=>V.phase('H2O',-1,101325));
+assert.throws(()=>V.phase('fictitious',300,101325));
+const b={id:'star-0-p2',type:'Ice',kind:'planet'};
+const s=V.world(b,{estimatedEquilibriumTemperatureK:190,atmospherePressurePa:800});
+assert.deepEqual(s,V.world(b,{estimatedEquilibriumTemperatureK:190,atmospherePressurePa:800}));
+assert.equal(s.existingVisualOceansUnchanged,true);
+assert.equal(V.world(b).temperatureK,null);
+console.log('CW04 phase gating and safe unknowns PASS');
