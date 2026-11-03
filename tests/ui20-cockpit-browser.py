@@ -40,9 +40,9 @@ with sync_playwright() as p:
   assert page.locator('#mode-text').inner_text()
   page.screenshot(path=str(out/'02-ship-cockpit.png'))
   page.locator('#ui-help-open').click()
-  assert page.locator('.controls-hint').is_visible()
+  assert page.locator('#ui21-manual').is_visible(), 'Help should open the current searchable Field Manual'
   page.keyboard.press('Escape')
-  assert page.locator('.controls-hint').is_hidden()
+  assert page.locator('#ui21-manual').is_hidden(), 'Escape should close the Field Manual'
   page.locator('#ui-console-open').click()
   assert page.locator('#panel').is_visible()
   page.locator('#ui21-navigation button[data-route="Operate"]').click()
