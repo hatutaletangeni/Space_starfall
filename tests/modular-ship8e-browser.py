@@ -31,7 +31,7 @@ with sync_playwright() as p:
   page.locator('#ui21-navigation button[data-route="Engineer"]').click()
   page.locator('button.ui21-link',has_text='Expedition Vessel').click()
   assert page.locator('#ship8e-modules').is_visible()
-  assert 'Integrated vehicle cargo hold' in page.locator('#ship8e-modules').inner_text()
+  assert 'Internal vehicle cargo hold' in page.locator('#ship8e-modules').inner_text()
   assert 'SOLAR' in page.locator('#ship8e-modules').inner_text().upper()
   page.screenshot(path=str(out/'starfall-8e-engineer-modules.png'))
   page.evaluate("""()=>{
