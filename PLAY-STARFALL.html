@@ -1860,7 +1860,7 @@ class Renderer{
   }this.props=makeMesh(this.gl,p,n,c,indices);
  }
  render(state){if(!this.captureSize)this.latestFrameState=state;const renderW=this.captureSize?.width||this.canvas.width,renderH=this.captureSize?.height||this.canvas.height;this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
-  this.updatePatch(near,viewer,alt);this.propsPlanet=null;this.updateCelestial(cam);
+  if(state.interior?.kind!=='cave')this.updatePatch(near,viewer,alt);this.propsPlanet=null;this.updateCelestial(cam);
   const nearSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
   const radial=near?V.norm(V.sub(cam.eye,near.position)):[0,1,0];
   const lightingSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
