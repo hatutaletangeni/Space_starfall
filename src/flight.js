@@ -26,6 +26,7 @@ const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
 const session=SF.load(),saved=session.flightGalaxy;
 const physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
+const materials8a=StarfallMaterials8A.create(session.materials8a);
 let shipDockT13=StarfallShipT13.repair(saved?.shipDockT13);
 localServiceT12=StarfallFieldServiceT12.createService(saved?.truckPose?.fieldServiceT12);
 localRoverChargeReadyAtS=Number.isFinite(saved?.truckPose?.roverChargeReadyAtS)?saved.truckPose.roverChargeReadyAtS:0;
@@ -403,7 +404,7 @@ document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.d
 function rotate(yaw,pitch,roll){const right=V.norm(V.cross(forward,up));if(yaw)forward=V.rot(forward,up,yaw);if(pitch){forward=V.rot(forward,right,pitch);up=V.rot(up,right,pitch);}if(roll)up=V.rot(up,forward,roll);forward=V.norm(forward);up=V.norm(V.sub(up,V.mul(forward,V.dot(forward,up))));}
 function pointTowardWaypoint(){const b=siteWaypoint?.planet||target,way=siteWaypoint?V.add(b.position,V.mul(V.rot(siteWaypoint.dir,b.spinAxis||[0,1,0],b.spinAngle||0),b.radius+180)):b.position,delta=V.sub(way,pos);if(V.len(delta)<30)return;
  let d=V.norm(delta);if(landed){const radial=V.norm(V.sub(pos,nearest.position));d=V.norm(V.sub(d,V.mul(radial,V.dot(d,radial))));if(V.len(d)<.1)return;up=radial;}else{let right=V.norm(V.cross(forward,up));if(V.len(V.cross(right,d))<.01)right=[1,0,0];up=V.norm(V.cross(right,d));}forward=d;showToast('Heading aligned · thrust with W.');}
-const busy=()=>['chart','workbench','field-lab','outpost','observatory','integration-modal','controls-modal','ruin-panel','discovery-panel','survey-panel','interior-panel','ecology-panel','events-panel','sandbox-panel','archive-t17'].some(id=>{const e=$(id);return e&&!e.hidden;});
+const busy=()=>['chart','workbench','field-lab','outpost','observatory','integration-modal','controls-modal','ruin-panel','discovery-panel','survey-panel','interior-panel','ecology-panel','events-panel','sandbox-panel','archive-t17','physical8a-dialog'].some(id=>{const e=$(id);return e&&!e.hidden;});
 function isTyping(target){return !!(target?.closest?.('input,textarea,select,[contenteditable=true]'));}
 addEventListener('keydown',ev=>{
  const code=controls.resolve(ev.code)||ev.code;
@@ -492,7 +493,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal);
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -1076,7 +1077,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,physical8a,captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
+window.StarfallRuntime={galaxy,vehicleStore,physical8a,materials8a,captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
  return renderer.captureScience({eye,forward,up},body,{size,caption,wide});},assetPickView(){return{camera:lastPickingCamera?{...lastPickingCamera,fov:renderer.fov}:null,candidates:assetPickCandidates()};},engineeringAssetPoses(){return{
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
