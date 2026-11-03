@@ -2120,8 +2120,11 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const nrm=v=>{const k=Math.hypot(...v);if(!(k>0&&Number.isFinite(k)))throw Error('Invalid planet-fixed direction');return v.map(x=>x/k)};
 function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0}
 function rnd(s){let x=hash(s);x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);return ((x^(x>>>16))>>>0)/4294967296}
+const sourceCache=new Map(),SOURCE_CACHE_LIMIT=96;
 function sources(body,seed=742){
  if(!body?.id||!body.landable)return Object.freeze([]);
+ const key=seed+':'+body.id+':'+body.type;
+ if(sourceCache.has(key))return sourceCache.get(key);
  const type=body.type,magmatic=['Volcanic','Rocky'].includes(type),cryogenic=type==='Ice',hydro=['Temperate','Ocean','Lush'].includes(type);
  if(!magmatic&&!cryogenic&&!hydro)return Object.freeze([]);
  const out=[],count=type==='Volcanic'?5:cryogenic?3:2;
@@ -2144,7 +2147,10 @@ function sources(body,seed=742){
    conduitDepthM:220+2400*rnd(k+':depth'),ventRadiusM:4+36*rnd(k+':width'),
    cycleS,durationS,epochOffsetS:Math.floor(cycleS*rnd(k+':phase')),
    provenance:'seeded geothermal source prior; not surveyed',uncertainty:'high'}));
- }return Object.freeze(out);
+ }
+ const result=Object.freeze(out);
+ if(sourceCache.size>=SOURCE_CACHE_LIMIT)sourceCache.delete(sourceCache.keys().next().value);
+ sourceCache.set(key,result);return result;
 }
 function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  if(!site||!Number.isFinite(timeS)||timeS<0||!Number.isFinite(ambientPa)||ambientPa<0||!(gravityMS2>0))throw Error('Invalid geothermal state');
