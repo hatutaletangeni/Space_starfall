@@ -6,7 +6,7 @@
 (function(root){'use strict';
 const TRUCK='8d:truck-expedition-001:hopper',SHIP='8d:ship-main:materials';
 const LIMITS=Object.freeze({truckMassKg:800,truckVolumeM3:1.2,shipMassKg:9000,shipVolumeM3:16});
-const DRILL=Object.freeze({kgPerBatch:20,durationS:24,powerW:2400,minimumEnergyJ:57600,volumeM3PerKg:.00058});
+const DRILL=Object.freeze({kitId:'drill-truck-001',kgPerBatch:20,durationS:24,powerW:2400,minimumEnergyJ:57600,volumeM3PerKg:.00058});
 const LOADER=Object.freeze({kgPerBatch:50,durationS:16,powerW:1400,volumeM3PerKg:.00058});
 const clone=v=>JSON.parse(JSON.stringify(v));
 const finite=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
@@ -18,10 +18,10 @@ function prepareContainers(materials){
  return materials;
 }
 function normalize(saved){
- if(saved==null)return{schema:1,sequence:0,active:null,history:[]};
- if(saved.schema!==1||!Number.isSafeInteger(saved.sequence)||saved.sequence<0||!Array.isArray(saved.history)||saved.history.length>500||!saved.history.every(h=>idok(h.id)||idok(h.type))||
+ if(saved==null)return{schema:1,sequence:0,toolCondition:1,active:null,history:[]};
+ if(saved.schema!==1||!Number.isSafeInteger(saved.sequence)||saved.sequence<0||!Array.isArray(saved.history)||saved.history.length>500||!saved.history.every(h=>idok(h.id)&&idok(h.type))||(saved.toolCondition!==undefined&&(!finite(saved.toolCondition)||saved.toolCondition>1))||
   (saved.active!==null&&saved.active!==undefined&&(!idok(saved.active.id)||!['DRILL','LOAD'].includes(saved.active.type)||!finite(saved.active.elapsedS)||!finite(saved.active.energyJ)||!finite(saved.active.durationS))))throw Error('Corrupt 8D mining save — do not reset stock');
- return {schema:1,sequence:saved.sequence,active:saved.active?clone(saved.active):null,history:clone(saved.history)};
+ return {schema:1,sequence:saved.sequence,toolCondition:saved.toolCondition===undefined?1:saved.toolCondition,active:saved.active?clone(saved.active):null,history:clone(saved.history)};
 }
 function create(saved,Materials,Resources){
  let state=normalize(saved);
@@ -29,6 +29,7 @@ function create(saved,Materials,Resources){
  function snapshot(){return clone(state);}
  function startDrill({deposit,surveyed,bodyId,truckBodyId,truckPresent,operatorNear,energyJ,truckIdle=true}){
   if(state.active)throw Error('Finish or cancel the current operation');
+  if(state.toolCondition<.1)throw Error('Drill head worn below safe operating condition; service required');
   if(!deposit||!idok(deposit.id)||deposit.bodyId!==bodyId||truckBodyId!==bodyId||!truckPresent||!operatorNear||!truckIdle)throw Error('Park truck with operator in surveyed solid-body sector');
   if(!surveyed)throw Error('Spectrometer survey required before drilling');
   if(!finite(energyJ)||energyJ<DRILL.minimumEnergyJ)throw Error('Truck battery too low for a drilling batch');
@@ -54,6 +55,7 @@ function create(saved,Materials,Resources){
   if(!enabled)return{active:true,usedJ:0,completed:false,paused:true};
   const remaining=Math.max(0,a.durationS-a.elapsedS),seconds=Math.min(dt,remaining,availableEnergyJ/a.powerW);
   a.elapsedS+=seconds;const usedJ=seconds*a.powerW;a.energyJ+=usedJ;
+  if(a.type==='DRILL')state.toolCondition=Math.max(0,state.toolCondition-seconds*.0002);
   return{active:true,usedJ,completed:a.elapsedS+1e-8>=a.durationS,progress:a.elapsedS/a.durationS};
  }
  function cancel(){if(!state.active)return false;state.history.push({id:state.active.id,type:state.active.type,status:'CANCELLED',energyJ:state.active.energyJ});state.active=null;return true;}
@@ -83,7 +85,7 @@ function create(saved,Materials,Resources){
   return {materials:nextMaterials,resources:nextResources,operation:clone(state.history[state.history.length-1])};
  }
  function receipt(id){return state.history.find(h=>h.id===id)?clone(state.history.find(h=>h.id===id)):null;}
- return Object.freeze({startDrill,startLoad,advance,commit,cancel,snapshot,receipt,get active(){return state.active?clone(state.active):null;}});
+ return Object.freeze({startDrill,startLoad,advance,commit,cancel,snapshot,receipt,get toolCondition(){return state.toolCondition;},get active(){return state.active?clone(state.active):null;}});
 }
 root.StarfallMining8D=Object.freeze({TRUCK,SHIP,LIMITS,DRILL,LOADER,create,prepareContainers});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallMining8D;
