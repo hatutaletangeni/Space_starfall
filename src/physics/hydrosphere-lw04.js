@@ -12,9 +12,9 @@ function material(body,seed=742){
  const chemistry=composition?.majorMaterialMassFractions||{},water=chemistry.H2O||0;
  if(body.type==='Ocean'&&water<.005)return null;
  return Object.freeze({bodyId:body.id,species:'H2O',densityKgM3:body.type==='Ocean'?1025:998,
-  sceneSeaLevel:body.radius,referenceTemperatureK:body.type==='Ocean'?288:282,
+  sceneSeaLevel:body.radius+2.1,seaLevelOffsetScene:2.1,referenceTemperatureK:body.type==='Ocean'?288:282,
   dissolvedSalts:body.type==='Ocean'?.034:0,inventoryPrior:water,
-  provenance:'CW01 water inventory; legacy sea-level height zero (not a computed equilibrium ocean)'});
+  provenance:'CW01 water inventory; sea surface over legacy height-zero ocean terrain, visual offset to preserve existing collision'});
 }
 function wave(body,dir,timeS=0,seed=742,weather){
  if(!Number.isFinite(timeS)||timeS<0||!Array.isArray(dir)||dir.length!==3||!dir.every(Number.isFinite))throw Error('Invalid wave coordinates');
@@ -36,12 +36,12 @@ function sample(body,dir,sceneHeight,timeS=0,seed=742){
  const ground=f===undefined?0:root.Starfall3D.groundHeight(unit,body,f);
  // Ocean masks are defined by the ORIGINAL continuous field, never by a new shoreline generator.
  const valid=f===undefined?sceneHeight<1:ground<1;
- const surface=wave(body,unit,timeS,seed),depthM=Math.max(0,(surface-sceneHeight)*SCENE_M);
+ const surface=sea.seaLevelOffsetScene+wave(body,unit,timeS,seed),depthM=Math.max(0,(surface-sceneHeight)*SCENE_M);
  const rho=sea.densityKgM3,gravity=Math.max(.1,(body.gravity||1)*9.80665);
  return Object.freeze({hasWater:valid,wet:valid&&Math.abs(sceneHeight-surface)<.65,
   submerged:valid&&depthM>0,depthM:valid?depthM:0,surfaceHeightScene:surface,
   densityKgM3:valid?rho:0,pressurePa:valid?rho*gravity*depthM:0,gravityMS2:gravity,
-  waveHeightM:surface*SCENE_M,dragFactor:valid?Math.exp(-Math.min(12,depthM*.025)):1});
+  waveHeightM:(surface-sea.seaLevelOffsetScene)*SCENE_M,dragFactor:valid?Math.exp(-Math.min(12,depthM*.025)):1});
 }
 function buoyancy(state,displacementM3,massKg,dtSeconds){
  if(!state?.hasWater||!Number.isFinite(displacementM3)||displacementM3<0||!(massKg>0)||!Number.isFinite(dtSeconds)||dtSeconds<0)throw Error('Invalid buoyancy inputs');
