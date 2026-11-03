@@ -46,10 +46,8 @@ function ringRock(body,index,timeS){
  a=theta+timeS*TAU/orbitPeriodS;
  const local=[radial*Math.cos(a),inclination,radial*Math.sin(a)],ct=Math.cos(body.ringTilt),st=Math.sin(body.ringTilt);
  const rotated=[local[0],local[1]*ct-local[2]*st,local[1]*st+local[2]*ct];
- const axis=body.spinAxis||[0,1,0],spin=body.spinAngle||0;
- // Same spin owner for body/ring coordinates as the existing ring mesh.
- const len=Math.hypot(...axis)||1,n=axis.map(x=>x/len),c=Math.cos(spin),s=Math.sin(spin),dot=rotated.reduce((a,x,i)=>a+x*n[i],0),cross=[n[1]*rotated[2]-n[2]*rotated[1],n[2]*rotated[0]-n[0]*rotated[2],n[0]*rotated[1]-n[1]*rotated[0]];
- const pos=rotated.map((x,i)=>x*c+cross[i]*s+n[i]*dot*(1-c));
+ // Existing ring annulus is not attached to axial surface spin; keep the same reference plane.
+ const pos=rotated;
  return Object.freeze({id:key,kind:'ring-moonlet',sourceId:body.id,position:pos.map((x,i)=>body.position[i]+x),
   radius:.45+3.7*Math.pow(rnd(key+':size'),2),spin:timeS*(.06+.2*rnd(key+':spin')),axis:[.1,1,.25],
   variant:index%8,estimatedDensityKgM3:550+700*rnd(key+':rho')});
