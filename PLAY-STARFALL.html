@@ -1964,7 +1964,7 @@ function scienceProfile(galaxy,body){if(!body)return null;const system=body.kind
  const illuminatedFraction=(1+vec.dot(fromStar,observer))*.5;
  let eclipseFraction=0;
  if(parent){const d=vec.sub(system.position,body.position),toParent=vec.sub(parent.position,body.position),length=vec.len(d),along=vec.dot(toParent,d)/Math.max(1,length);if(along>0&&along<length){const perpendicular=vec.len(vec.sub(toParent,vec.mul(vec.norm(d),along)));if(perpendicular<parent.radius)eclipseFraction=1;}}
- return{...profile,composition:root.StarfallCompositionCW01?.forBody(body,galaxy)||null,systemName:system?.name,star:stellar.type,starId:stellar.id,estimatedEquilibriumTemperatureK:temp,temperatureUncertaintyK:Math.max(12,temp*.14),illuminatedFraction,approximateEclipse:eclipseFraction>0,geologySignature:body.type==='Volcanic'?'Igneous / volcanic':body.type==='Ice'?'Cryogenic ice':body.type==='Ocean'?'Hydrological':body.type==='Shattered'?'Impact debris':'Mixed silicates',waterEvidence:body.water||'Unknown',lifeEvidence:'Unconfirmed (survey required)',distances:{sceneOrbitRadius:body.orbitRadius,physicalOrbitM:distance*UNIT},classification:'procedural estimate / unmeasured',notes:'Equilibrium temperature assumes uniform heat redistribution, fixed albedo and no greenhouse effect. Moon phase is view-relative; eclipse uses a simplified spherical blocker.'};}
+ return{...profile,composition:root.StarfallCompositionCW01?.forBody(body,galaxy)||null,volatilePhases:root.StarfallVolatilesCW04?.world(body,{...profile,estimatedEquilibriumTemperatureK:temp},root.StarfallCompositionCW01?.forBody(body,galaxy))||null,systemName:system?.name,star:stellar.type,starId:stellar.id,estimatedEquilibriumTemperatureK:temp,temperatureUncertaintyK:Math.max(12,temp*.14),illuminatedFraction,approximateEclipse:eclipseFraction>0,geologySignature:body.type==='Volcanic'?'Igneous / volcanic':body.type==='Ice'?'Cryogenic ice':body.type==='Ocean'?'Hydrological':body.type==='Shattered'?'Impact debris':'Mixed silicates',waterEvidence:body.water||'Unknown',lifeEvidence:'Unconfirmed (survey required)',distances:{sceneOrbitRadius:body.orbitRadius,physicalOrbitM:distance*UNIT},classification:'procedural estimate / unmeasured',notes:'Equilibrium temperature assumes uniform heat redistribution, fixed albedo and no greenhouse effect. Moon phase is view-relative; eclipse uses a simplified spherical blocker.'};}
 class SimulationClock{constructor(t=0){this.set(t);}set(t){if(!Number.isFinite(t))throw Error('Time must be finite');this.seconds=t;return this.seconds;}advance(dt,scale=1){if(!Number.isFinite(dt)||dt<0||!Number.isFinite(scale)||scale<0)throw Error('Invalid timestep');return this.set(this.seconds+dt*scale);}at(){return this.seconds;}}
 const API={G,SIGMA,AU,MSUN,LSUN,G0,TAU,SCENE_METERS_PER_UNIT:UNIT,vec,hash,random01,starProfile,bodyProfile,scienceProfile,solveE,keplerState,stateToElements,orbitalObservables,equilibriumTemperature,SimulationClock,sceneToMeters:x=>x*UNIT,metersToScene:x=>x/UNIT};
 root.StarfallPhysics=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
@@ -2013,6 +2013,43 @@ function profile(star,existingPhysics){if(!star?.id)throw Error('Missing star ID
 function stellarFluxWm2(star,distanceM,physics){if(!(Number.isFinite(distanceM)&&distanceM>0))throw Error('Invalid stellar distance');const p=profile(star,physics);return p.luminosityW/(4*PI*distanceM**2);}
 const API=Object.freeze({SCHEMA_VERSION:SCHEMA,planck,integrate,profile,stellarFluxWm2,displayColor:star=>profile(star).displayRGB});
 root.StarfallStellarSpectraCW02=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
+/* CW04: pressure-temperature screening for volatile stability, read-only.
+ * Approximate phase windows, NOT complete Gibbs free energy / activity models.
+ * Never changes existing water surface, terrain height, or collisions.
+ */
+(function(root){'use strict';
+const TRIPLE=Object.freeze({H2O:{K:273.16,Pa:611.657},CO2:{K:216.58,Pa:518000},CH4:{K:90.69,Pa:11696},N2:{K:63.15,Pa:12500},NH3:{K:195.4,Pa:6060}});
+const BOIL=Object.freeze({H2O:373.15,CO2:194.7,CH4:111.66,N2:77.36,NH3:239.82});
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function phase(species,tempK,pressurePa){if(!TRIPLE[species])throw Error('Unknown volatile');if(!Number.isFinite(tempK)||tempK<=0||!Number.isFinite(pressurePa)||pressurePa<0)throw Error('Invalid thermodynamic state');
+ const triple=TRIPLE[species];
+ // These limits are purposefully conservative; a real vapor-pressure calculation
+ // is required to certify liquid stability at non-reference pressures.
+ let state='undetermined';
+ if(pressurePa<triple.Pa)state=tempK<triple.K?'solid-or-sublimating':'gas-or-vapor';
+ else if(species==='CO2')state=tempK<triple.K?'solid':'undetermined';
+ else if(tempK<triple.K)state='solid';
+ else if(pressurePa>=85000&&pressurePa<=120000&&tempK>triple.K&&tempK<BOIL[species])state='liquid-possible';
+ else if(tempK>BOIL[species]+30)state='gas-or-vapor';
+ return Object.freeze({species,state,temperatureK:tempK,pressurePa,model:'conservative phase-window estimate',uncertainty:'high'});
+}
+function world(body,scienceProfile,composition){if(!body?.id)throw Error('Missing world ID');
+ const c=composition||root.StarfallCompositionCW01?.bodyFor(body,742),p=scienceProfile||{};
+ const temperatureK=Number.isFinite(p.estimatedEquilibriumTemperatureK)?p.estimatedEquilibriumTemperatureK:null;
+ const pressurePa=Number.isFinite(p.atmospherePressurePa)?p.atmospherePressurePa:null;
+ const inventory=c?.majorMaterialMassFractions||{},samples={};
+ if(temperatureK!==null&&pressurePa!==null){for(const species of ['H2O','CO2','CH4','N2','NH3'])samples[species]=phase(species,temperatureK,pressurePa);}
+ return Object.freeze({bodyId:body.id,legacyType:body.type,temperatureK,pressurePa,volatiles:Object.freeze(samples),
+ waterInventoryPrior:inventory.H2O??null,existingVisualOceansUnchanged:true,
+ provenance:'CW04 screened equilibrium temperature and legacy pressure; no local weather or geothermal treatment',
+ uncertainty:'high; surface temperature, vapor pressures and volatile abundance unconfirmed'});
+}
+const API=Object.freeze({TRIPLE,phase,world});
+root.StarfallVolatilesCW04=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
 
