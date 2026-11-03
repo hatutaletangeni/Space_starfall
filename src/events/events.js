@@ -52,7 +52,15 @@ function evaluate(body,local,time,seed=742){if(!body?.landable||!Array.isArray(l
  }
  return best;
 }
-function skyTransmission(body,local,time,seed=742){return evaluate(body,local,time,seed)?.solarFactor??1;}
+function skyTransmission(body,local,time,seed=742){
+ const weather=evaluate(body,local,time,seed)?.solarFactor??1;
+ const geothermal=root.StarfallGeothermalLW01;
+ if(!geothermal||!body?.landable)return weather;
+ const p=FS.profile(body,seed),e=geothermal.local(body,local,time,seed,p.pressurePa,Math.max(.25,(body.gravity||1)*9.80665));
+ const ash=e?.state?.ashMassFlowKgS||0;
+ const attenuation=ash>0?Math.max(.35,1-.48*e.thermalExposure):1;
+ return Math.max(.12,Math.min(1,weather*attenuation));
+}
 function sanitize(records){if(!Array.isArray(records))return[];const ids=new Set(),out=[];
  for(const rec of records.slice(-600)){if(!rec||typeof rec!=='object'||typeof rec.id!=='string'||rec.id.length>90||ids.has(rec.id)||typeof rec.bodyId!=='string'||rec.bodyId.length>150||!TYPES[rec.kind]||!Number.isFinite(rec.timeS)||rec.timeS<0||rec.timeS>=1e13||!Array.isArray(rec.local)||rec.local.length!==3||!rec.local.every(Number.isFinite)||!Number.isFinite(rec.intensity)||rec.intensity<0||rec.intensity>1)continue;
   ids.add(rec.id);out.push({id:rec.id,bodyId:rec.bodyId,kind:rec.kind,timeS:rec.timeS,local:norm(rec.local),intensity:rec.intensity,measurementIds:Array.isArray(rec.measurementIds)?rec.measurementIds.filter(x=>typeof x==='string'&&x.length<160).slice(0,8):[],note:typeof rec.note==='string'?rec.note.slice(0,1000):''});if(out.length>=250)out.shift();}
