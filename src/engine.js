@@ -390,10 +390,15 @@ class Renderer{
    const d=V.norm(V.rot(site.direction,body.spinAxis||[0,1,0],body.spinAngle||0));
    const base=V.add(body.position,V.mul(d,body.radius+groundHeight(site.direction,body)+.2));
    if(V.len(V.sub(base,eye))>2500)continue;
-   const e=G.pulse(site,this.galaxy.time,pressure,gravity);if(!e.active||e.intensity<.03)continue;
+   const e=G.pulse(site,this.galaxy.time,pressure,gravity);
+   if(!e.active||e.intensity<.03){
+    const rel=V.sub(base,eye),color=site.kind==='cryovolcano'?[.54,.63,.74]:[.40,.31,.23];
+    values.push(rel[0],rel[1],rel[2],.85,color[0],color[1],color[2],.35);
+    continue;
+   }
    const height=Math.max(1.5,Math.min(35,e.plumeHeightM/1000*9));
    const c=site.kind==='cryovolcano'?[.7,.85,1]:site.kind==='geyser'?[.73,.85,.94]:
-    site.kind==='fumarole'?[.73,.78,.77]:site.kind==='explosive-volcano'?[.48,.43,.4]:[1,.4,.16];
+    site.kind==='fumarole'?[.73,.78,.77]:site.kind==='mud-pot'?[.50,.44,.35]:site.kind==='explosive-volcano'?[.48,.43,.4]:[1,.4,.16];
    const right=V.norm(V.cross(Math.abs(d[1])>.85?[0,0,1]:[0,1,0],d)),fwd=V.norm(V.cross(d,right));
    for(let i=0;i<25;i++){
     const u=(i+.5)/25,angle=i*2.399963+site.epochOffsetS*.017,spread=(.04+.7*u)*Math.sqrt(u);
