@@ -15,7 +15,7 @@ function safeSave(value,seed){
   if(f.position!==undefined&&(!Array.isArray(f.position)||f.position.length!==3||!f.position.every(x=>finite(x)&&Math.abs(x)<1e15)))throw Error('Invalid world position');
   if(f.groundDirection!==undefined&&f.groundDirection!==null&&(!Array.isArray(f.groundDirection)||f.groundDirection.length!==3||!f.groundDirection.every(finite)))throw Error('Invalid surface attachment');
  }
- for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5','engineering7A','launch7','research7e','imaging7f','robotics4','flightGalaxy','launchPlan'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
+ for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5','engineering7A','launch7','research7e','imaging7f','robotics4','flightGalaxy','launchPlan,'refinery8e','transformations8e'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
  if(value.launch7){
   const L=value.launch7;
   if(L.schema!==undefined&&L.schema!==1)throw Error('Unsupported rocket inventory schema: import cancelled');
@@ -26,6 +26,9 @@ function safeSave(value,seed){
    if(Array.isArray(L[name])&&new Set(L[name].map(x=>x.id)).size!==L[name].length)throw Error('Duplicate '+name+' asset IDs: backup not imported');
   }
  }
+ if(value.refinery8e&&(value.refinery8e.schema!==1||!Number.isSafeInteger(value.refinery8e.serial)||!Array.isArray(value.refinery8e.receipts)||
+   (value.refinery8e.active!==null&&value.refinery8e.active!==undefined&&(typeof value.refinery8e.active!=='object'||!Number.isFinite(value.refinery8e.active.energyJ)))))throw Error('Invalid refinery save data');
+ if(value.transformations8e&&(value.transformations8e.schema!==1||!Array.isArray(value.transformations8e.operations)))throw Error('Invalid refinery transformation receipts');
  if(value.research7e&&(value.research7e.plans!==undefined&&!Array.isArray(value.research7e.plans)||value.research7e.runs!==undefined&&!Array.isArray(value.research7e.runs)))throw Error('Research save records malformed');
  if(value.imaging7f&&(value.imaging7f.photos!==undefined&&!Array.isArray(value.imaging7f.photos)||value.imaging7f.jobs!==undefined&&!Array.isArray(value.imaging7f.jobs)))throw Error('Camera metadata malformed; image data is separate from JSON');
  if(value.outpost5){if(value.outpost5.items!==undefined&&(!Array.isArray(value.outpost5.items)||value.outpost5.items.length>320))throw Error('Invalid/oversized structures');
