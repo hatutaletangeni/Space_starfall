@@ -48,7 +48,12 @@ function create(saved,legacy={}){
  function setSurface(id,bodyId,local,updatedState={}){
   const a=assets.get(id);if(!a||a.location.kind!=='surface'||a.location.bodyId!==bodyId)throw Error('Asset is not on this surface');
   a.location=location({kind:'surface',bodyId,local});
-  for(const [key,value] of Object.entries(updatedState))if((typeof value==='number'&&Number.isFinite(value))||typeof value==='boolean')a.state[key]=value;
+  for(const [key,value] of Object.entries(updatedState)){
+   if((typeof value==='number'&&Number.isFinite(value))||typeof value==='boolean')a.state[key]=value;
+   else if(key==='forward'&&Array.isArray(value)&&value.length===3&&value.every(Number.isFinite)){
+    const n=Math.hypot(...value);if(n>1e-6)a.state.forward=value.map(v=>v/n);
+   }
+  }
   return get(id);
  }
  function serialize(){return {schema:1,assets:[...assets.values()].map(clone),transfers:[...transfers.values()].map(clone)};}
