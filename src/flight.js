@@ -24,7 +24,7 @@ galaxy.physicsOrbits=StarfallOrbitBridge.attach(galaxy);
 const SHIP_CLEARANCE=7.5,EVA_HEIGHT=2.6,EVA_BOARD_DISTANCE=32,ROVER_CLEARANCE=2.1,TRUCK_CLEARANCE=4.2,TRUCK_BOARD_DISTANCE=19;
 const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
 const session=SF.load(),saved=session.flightGalaxy;
-const physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
+let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
 const BAY8B=StarfallCargo8B;let cargo8b=BAY8B.snapshot(saved?.shipCargo8b);
 if(physical8a.get(START_TRUCK)?.location.kind==='surface'&&cargo8b.mode==='secured')cargo8b.mode='ground';
@@ -1056,6 +1056,39 @@ function factoryMachine8F(recipeId){
  if(!installed)throw Error('Install a physical '+r.station+' machine with '+r.tool+' tooling');
  return {id:installed.id,station:r.station,tools:installed.state.tools,installed:true,condition:installed.condition};
 }
+function machineKitQuotes8F(){
+ const holder=StarfallMining8D.SHIP;
+ return materials8a.inventory(holder).filter(l=>StarfallMachineInstall8F.CAPS[l.materialId]).map(l=>{
+  try{return {lotId:l.id,...StarfallMachineInstall8F.quote({lotId:l.id,materials:materials8a.snapshot(),
+   physical:physical8a.serialize(),containerId:holder}),ready:true};}
+  catch(e){return {lotId:l.id,materialId:l.materialId,ready:false,reason:e.message};}
+ });
+}
+function machineInstall8F(lotId){
+ const ctx=refineryContext8E(),holder=StarfallMining8D.SHIP;
+ if(!ctx.operatorNear||!ctx.shipLanded||!ctx.workshopInstalled||!ctx.powerEnabled)
+  throw Error('Approach a landed, powered ship fabrication station');
+ const q=StarfallMachineInstall8F.quote({lotId,materials:materials8a.snapshot(),
+  physical:physical8a.serialize(),containerId:holder});
+ const ship=vehicleStore.get('ship');
+ if(ship.state.energyJ+1e-7<q.workJ)throw Error('Not enough ship battery for mechanical installation');
+ const used=new Set(physical8a.list().map(a=>a.id));
+ const installed=physical8a.serialize().transfers.filter(t=>t.action==='INSTALL').length;
+ let serial=installed+1;while(used.has('machine8f:'+serial))serial++;
+ const op='install8f:'+serial,assetId='machine8f:'+serial;
+ const stage=StarfallMachineInstall8F.install({
+  lotId,materials:materials8a.snapshot(),physical:physical8a.serialize(),
+  containerId:holder,assetId,operationId:op,bodyId:ctx.bodyId,
+  energyReceipt:{operationId:op,sourceId:'ship-main:engineering-battery',usedJ:q.workJ},
+  operatorNear:ctx.operatorNear,workshopInstalled:ctx.workshopInstalled,
+  shipLanded:ctx.shipLanded,shipPowerEnabled:ctx.powerEnabled});
+ const m=StarfallMaterials8A.create(stage.materials),a=StarfallPhysical8A.create(stage.physical);
+ materials8a=m;physical8a=a;
+ vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-q.workJ});
+ saveFlight();
+ showToast('8F · '+q.station+' machine installed from owned kit '+lotId);
+ return stage.receipt;
+}
 function factoryContext8F(){
  const c=refineryContext8E();
  return {...c,active:factory8f.active,receipts:factory8f.receipts};
@@ -1380,7 +1413,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,physical8a,materials8a,get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');

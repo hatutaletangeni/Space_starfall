@@ -46,6 +46,23 @@ function create(saved,legacy={}){
   const record={id:transferId,assetId:id,source:original,destination,status:'COMMITTED'};
   a.location=destination;transfers.set(transferId,record);return clone(record);
  }
+ function install(assetSpec,receipt){
+  if(!receipt||receipt.status!=='COMMITTED'||!validId(receipt.id)||!validId(receipt.assetId)||
+    receipt.assetId!==assetSpec?.id||!number(receipt.massKg)||Math.abs(receipt.massKg-assetSpec.massKg)>1e-7||
+    !validId(receipt.sourceLotId))throw Error('Physical installation requires a verified consumed-kit receipt');
+  const prior=transfers.get(receipt.id);
+  if(prior){if(prior.action!=='INSTALL'||prior.assetId!==assetSpec.id||prior.sourceLotId!==receipt.sourceLotId)
+   throw Error('Installation transaction ID conflict');return clone(prior);}
+  if(assets.has(assetSpec.id))throw Error('Duplicate physical machinery identity');
+  if(assetSpec.type!=='industrial_machine'||assetSpec.location?.kind!=='ship'||
+    assetSpec.location.slot!=='workshop')throw Error('Only compatible physical ship workshop machinery can be installed');
+  if(assetSpec.massKg<=0||assetSpec.volumeM3<=0||assetSpec.condition<=0)throw Error('Invalid installed machine mass, volume or condition');
+  const checked=asset(assetSpec);
+  const record={id:receipt.id,action:'INSTALL',status:'COMMITTED',sourceLotId:receipt.sourceLotId,
+   assetId:checked.id,source:{kind:'material_lot',lotId:receipt.sourceLotId},destination:clone(checked.location),massKg:checked.massKg};
+  assets.set(checked.id,checked);transfers.set(receipt.id,record);
+  return clone(record);
+ }
  function setSurface(id,bodyId,local,updatedState={}){
   const a=assets.get(id);if(!a||a.location.kind!=='surface'||a.location.bodyId!==bodyId)throw Error('Asset is not on this surface');
   a.location=location({kind:'surface',bodyId,local});
@@ -59,7 +76,7 @@ function create(saved,legacy={}){
  }
  function serialize(){return {schema:1,assets:[...assets.values()].map(clone),transfers:[...transfers.values()].map(clone)};}
  function list(){return [...assets.values()].map(clone);}
- return Object.freeze({get,list,move,setSurface,serialize});}
+ return Object.freeze({get,list,move,install,setSurface,serialize});}
 root.StarfallPhysical8A=Object.freeze({create,location});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallPhysical8A;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/update-8e-completion-8f-workshops
+      - feature/update-8f-physical-machine-install-standalone
   pull_request:
     paths:
       - 'src/physics/*8e.js'
@@ -16,18 +17,19 @@ jobs:
   industry-contract-and-standalone:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: JavaScript syntax and industrial contracts
         run: |
           set -eu
-          for path in src/physics/transformation8e.js src/physics/refinery8e.js src/physics/industrial-chemistry8e.js src/physics/industrial-plant8e.js src/physics/manufacturing8f.js src/physics/factory8f.js src/physics/refinery-ui8e.js src/physics/factory-ui8f.js src/flight.js src/ui21.js; do
+          for path in src/physics/transformation8e.js src/physics/refinery8e.js src/physics/industrial-chemistry8e.js src/physics/industrial-plant8e.js src/physics/manufacturing8f.js src/physics/factory8f.js src/physics/physical-inventory8a.js src/physics/machine-install8f.js src/physics/machine-install-ui8f.js src/physics/refinery-ui8e.js src/physics/factory-ui8f.js src/flight.js src/ui21.js; do
             node --check "$path"
           done
           node tests/refinery8e.test.cjs
           node tests/industrial-chemistry8e.test.cjs
           node tests/factory8f.test.cjs
+          node tests/machine-install8f.test.cjs
           node tests/industry-crosschain8e-8f.test.cjs
           node tests/industry-models.test.cjs
       - name: Build offline standalone from actual source
@@ -39,7 +41,7 @@ jobs:
           t=Path('PLAY-STARFALL.html').read_text(encoding='utf-8')
           assert not re.search(r'<script\s+src=',t), 'External scripts remain'
           assert not re.search(r'<link\s+rel="stylesheet"\s+href=',t), 'External styles remain'
-          for name in ('StarfallRefinery8E','StarfallIndustrialChemistry8E','StarfallIndustrialPlant8E','StarfallFactory8F'):
+          for name in ('StarfallRefinery8E','StarfallIndustrialChemistry8E','StarfallIndustrialPlant8E','StarfallFactory8F','StarfallMachineInstall8F','StarfallMachineInstallUI8F'):
               assert name in t, f'Missing in standalone: {name}'
           print('Offline code references verified:',len(t),'characters')
           PY
@@ -49,3 +51,13 @@ jobs:
           name: starfall-8e-8f-standalone-release-candidate
           path: PLAY-STARFALL.html
           retention-days: 14
+      - name: Commit fresh standalone HTML to test branch
+        if: github.event_name == 'push' && github.ref_name == 'feature/update-8f-physical-machine-install-standalone'
+        run: |
+          git config user.name "starfall-ci"
+          git config user.email "starfall-ci@users.noreply.github.com"
+          git add -f PLAY-STARFALL.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build(8F): publish test standalone [skip ci]"
+            git push origin HEAD:feature/update-8f-physical-machine-install-standalone
+          fi
