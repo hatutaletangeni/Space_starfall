@@ -21,6 +21,7 @@ for(const site of sites){
  assert.equal(g.positions.length,g.normals.length);assert.equal(g.colors.length,g.positions.length);
  assert.equal(g.positions.length/3,g.indices.length);
  assert.equal(g.positions[1],geology.center(site,0).y,'rendered cave floor must share collision floor height');
+ assert.ok(g.normals[18]>0,'first left cave wall must face the walkable interior for headlamp lighting');
  assert.ok(g.positions.every(Number.isFinite)&&g.normals.every(Number.isFinite));
  assert.ok(entrance.indices.length>10);
  assert.deepEqual(mesh.geometry(site),g);
