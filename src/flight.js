@@ -496,7 +496,7 @@ addEventListener('keydown',ev=>{
  if(code==='KeyX'&&shipWalking8e){interactShip8E();return;}
  if(code==='KeyB'&&eva){if(cargoInteract8B())return;}
  if(code==='KeyI'&&!eva&&!truckOccupied&&landed){
-  if(shipWalking8e){if(shipWalkAt8e.z>-34){showToast('8E · Return physically to forward bridge to pilot');return;}
+  if(shipWalking8e){if(StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z)!=='bridge'){showToast('8E · Return physically to the command bridge to pilot');return;}
    shipWalking8e=false;camMode=1;showToast('PILOT STATION · flight controls restored');}
   else{shipWalking8e=true;shipWalkAt8e={x:0,z:-40,heading:0};camMode=0;showToast('SHIP INTERIOR · walk to modules; X at stations');}
   camEye=null;saveFlight();return;
