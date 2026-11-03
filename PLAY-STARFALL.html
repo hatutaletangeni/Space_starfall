@@ -7536,6 +7536,21 @@ function linked(rec){const ctx=context();if(!ctx)throw Error('Return to this wor
 }
 function refresh(){const ctx=context(),ev=current(),name=$('events-current'),list=$('events-journal');latest=ev;
  name.textContent=!ctx?'Land on a solid world to monitor environmental activity.':!ev?ctx.body.name+' · environmental monitoring · no active local event':ev.name.toUpperCase()+' · '+ctx.body.name+' · '+Math.round(ev.intensity*100)+'% modeled intensity\n'+ev.description+'\nVisibility factor '+ev.visibility.toFixed(2)+' · solar transmission '+ev.solarFactor.toFixed(2)+' · instrument '+ev.instrument+'\nTime remaining '+Math.max(0,ev.endS-RT.time).toFixed(0)+' simulated seconds';
+ if(ctx&&root.StarfallGeothermalLW01){
+  const geo=root.StarfallGeothermalLW01,sites=geo.sources(ctx.body,RT.galaxy.seed);
+  if(sites.length){
+   const p=root.StarfallFieldScience.profile(ctx.body,RT.galaxy.seed),d=ctx.local;
+   let nearest=null;
+   for(const site of sites){const dot=Math.max(-1,Math.min(1,d[0]*site.direction[0]+d[1]*site.direction[1]+d[2]*site.direction[2]));
+    const distanceKm=Math.acos(dot)*ctx.body.radius;
+    if(!nearest||distanceKm<nearest.distanceKm)nearest={site,distanceKm};
+   }
+   const activity=geo.pulse(nearest.site,RT.time,p.pressurePa,Math.max(.25,(ctx.body.gravity||1)*9.80665));
+   name.textContent+='\\nGEOTHERMAL MODEL: '+sites.length+' candidate vent(s); nearest '+nearest.site.kind+' '+nearest.distanceKm.toFixed(1)+' km away.'+
+    '\\nHeat flux '+nearest.site.thermalFluxWm2.toFixed(2)+' W/m² · '+(activity.active?'ERUPTING':'RECHARGING')+
+    ' · mass flow '+activity.massFlowKgS.toFixed(1)+' kg/s (modeled, not measured).';
+  }
+ }
  list.replaceChildren();if(!records.length)list.textContent='No environmental observations recorded.';
  for(const r of records.slice(-35).reverse()){const button=document.createElement('button');button.type='button';button.className='events-entry'+(r.id===observedId?' active':'');button.textContent=EV.TYPES[r.kind].name+' · '+r.bodyId+' · '+Math.round(r.intensity*100)+'% · '+r.measurementIds.length+' linked';button.onclick=()=>{observedId=r.id;$('events-notes').value=r.note;for(const b of list.querySelectorAll('button'))b.classList.toggle('active',b===button);};list.append(button);}
  if(!observedId&&records.length)observedId=records.at(-1).id;
