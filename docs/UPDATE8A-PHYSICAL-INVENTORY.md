@@ -19,3 +19,12 @@ Run `node tests/update8a.test.cjs`, existing Node suites, `python tools/build-st
 New save: ship + 1 truck + 1 science rover. Land A; verify truck. Drive and leave truck on A; fly to B; verify no truck/rover appears from nothing. Return A; verify original truck at saved location. Reload the page and repeat. Test old save import, 100×, truck enter → exit → walk away, ship ramp and offline standalone.
 
 Rollback: use `main` at the branch point (prior to feature/update-8a-physical-inventory); no production save migrations are deployed by this candidate branch.
+
+
+## 2026-11-03 integration follow-up
+
+Added `src/physics/material-ledger8a.js` — explicit `MaterialLot` and finite `InventoryContainer` models, reservation/commit/cancel operations, capacity and stock validation, and stored transaction IDs. It deliberately starts with **zero freely generated resource stock**. `src/flight.js` stores it under `materials8a`, and Engineer → Cargo & Inventory displays physical vehicles, lot provenance and container usage. Vehicle saved heading is maintained across body revisits. Ship-held vehicle dry mass is included in `shipConfiguredState()` when engineering flight physics is active.
+
+`tests/material-ledger8a.test.cjs` exercises capacity limits, idempotent commit, cancellation, stock conservation and snapshots. The dedicated GitHub workflow `Update 8A inventory, standalone and compatibility` passed on commit `5789c4d2` (run 41629618534), including both 8A Node tests, syntax checks, source/standalone compilation and strict parity. It produced a synchronized `PLAY-STARFALL.html` on this feature branch. Older general CI checks from **pre-rebuild commits** reported expected parity failures because the standalone file had not yet been regenerated; do not confuse those with successful post-build parity.
+
+**Still NOT VERIFIED:** full legacy asset reconciliation; actual GPU planet-A→planet-B→planet-A truck state, actual browser reload; 100× multi-body traversal; physical ramps/winch loading, geometry/cargo volume, starter manifest tooling, fully staged transfer reservations for all vehicle assets. The material ledger is not yet connected to the refinery, machine shop or planet geology. Keep PR #32 in DRAFT and leave `main` unchanged.
