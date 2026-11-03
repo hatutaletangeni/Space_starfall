@@ -5983,7 +5983,7 @@ addEventListener('keydown',ev=>{
  const mapped=controls.press(ev.code);if(!mapped)return;
  if(ev.repeat)return;
  if(code==='KeyX'&&truckOccupied){exitTruck();return;}
- if(code==='KeyX'&&eva){const ctx=outpostContext(),A=window.StarfallArchaeology,R=window.StarfallRuinsUI;
+ if(code==='KeyX'&&eva){if(interiorState){window.StarfallInteriorsUI?.interact();return;}const ctx=outpostContext(),A=window.StarfallArchaeology,R=window.StarfallRuinsUI;
    const entrance=ctx.body&&ctx.local&&A&&R?.visibleSites?.find(site=>site.bodyId===ctx.bodyId&&A.arc(site.local,ctx.local,ctx.body.radius)<30&&R.records.some(r=>r.id===site.id&&r.level>=2));
    if(entrance){window.StarfallInteriorsUI?.interact();return;}
    const GEO=window.StarfallGeologyLW02,cave=!interiorState&&GEO&&ctx.body?.landable&&ctx.local?
