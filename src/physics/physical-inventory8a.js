@@ -54,8 +54,11 @@ function create(saved,legacy={}){
   if(prior){if(prior.action!=='INSTALL'||prior.assetId!==assetSpec.id||prior.sourceLotId!==receipt.sourceLotId)
    throw Error('Installation transaction ID conflict');return clone(prior);}
   if(assets.has(assetSpec.id))throw Error('Duplicate physical machinery identity');
-  if(assetSpec.type!=='industrial_machine'||assetSpec.location?.kind!=='ship'||
-    assetSpec.location.slot!=='workshop')throw Error('Only compatible physical ship workshop machinery can be installed');
+  const shipMachine=assetSpec.type==='industrial_machine'&&assetSpec.location?.kind==='ship'&&
+    assetSpec.location.slot==='workshop';
+  const surfacePlant=['industrial_plant','industrial_vessel'].includes(assetSpec.type)&&
+    assetSpec.location?.kind==='surface'&&validId(assetSpec.location.bodyId);
+  if(!shipMachine&&!surfacePlant)throw Error('Only ship workshop machinery or surface plants/vessels can be installed');
   if(assetSpec.massKg<=0||assetSpec.volumeM3<=0||assetSpec.condition<=0)throw Error('Invalid installed machine mass, volume or condition');
   const checked=asset(assetSpec);
   const record={id:receipt.id,action:'INSTALL',status:'COMMITTED',sourceLotId:receipt.sourceLotId,
