@@ -335,6 +335,65 @@ function makeShip(gl){
  // Cargo hull and flat roof are continuous, no detached cube on the side.
  return makeMesh(gl,p,n,c,idx);
 }
+/* 8E: actual, ship-local, walkable first deck, displayed instead of opaque outer
+ * hull when the pilot leaves the controls. Simple merged geometry; floor-space
+ * collision lives in ship-walk8e.js rather than the GPU. */
+function makeShipWalkDeck(gl){
+ const p=[],n=[],c=[],idx=[];
+ const floor=[.26,.34,.38],wall=[.44,.49,.51],support=[.71,.68,.54],lab=[.16,.34,.43],lights=[.24,.75,.79],dark=[.08,.13,.16];
+ function tri(a,b,d,col){const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),k=p.length/3;for(const v of [a,b,d]){p.push(...v);n.push(...normal);c.push(...col);}idx.push(k,k+1,k+2);}
+ function quad(a,b,d,e,col){tri(a,b,d,col);tri(a,d,e,col);}
+ function box(x,y,z,X,Y,Z,col){
+  const a=[x,y,z],b=[X,y,z],d=[X,Y,z],e=[x,Y,z],f=[x,y,Z],g=[X,y,Z],h=[X,Y,Z],q=[x,Y,Z];
+  quad(a,b,d,e,col);quad(g,f,q,h,col);quad(f,a,e,q,col);quad(b,g,h,d,col);quad(e,d,h,q,col);quad(f,g,b,a,col);
+ }
+ // All rooms are real, bounded, directly connected at the 8E service deck.
+ box(-5.7,-1.5,-59,5.7,-1.15,32,floor);
+ box(-7.8,-1.5,-58,7.8,-1.15,-35,floor); // command bridge
+ for(const [x0,x1,z0,z1] of [[-23.5,-5,-34,-14],[5,23.5,-34,-14],
+   [5,23.5,-14,-1],[-23.5,-5,-12,13],[-23.5,-5,13,31],[5,23.5,-1,22]])
+   box(x0,-1.5,z0,x1,-1.15,z1,floor);
+ // Overhead framing connects every room but retains sightlines.
+ for(const z of [-53,-39,-28,-16,-4,9,21,30]){
+  box(-24,7.0,z-.25,24,7.3,z+.25,support);
+  for(const x of [-23,-5,5,23])box(x-.3,6.7,z-.45,x+.3,7.7,z+.45,lights);
+ }
+ // End bulkheads are solid; side bulkheads have physically open doorways.
+ box(-8,-1.3,-59,8,7.1,-58.4,wall);
+ box(-5.9,-1.3,31.5,5.9,7.1,32,wall);
+ for(const z of [-34,-14,-12,13,22,31]){
+  box(-23.6,-1.3,z-.25,-5.1,5.9,z,wall);
+  box(5.1,-1.3,z-.25,23.6,5.9,z,wall);
+ }
+ // Side pressure-skin ribs; no full opaque wall between central corridor and
+ // rooms, so W/S walking between spaces never teleports or hits invisible doors.
+ for(const x of [-23.6,23.6]){
+  box(x-.35,-1.2,-34,x+.35,6.6,31,wall);
+  for(const z of [-30,-22,-10,2,15,26])box(x-.44,1.1,z,x+.44,4.3,z+3,lab);
+ }
+ // Each room contains purpose-built industrial furniture / workstations.
+ for(const [x,z] of [[-18,-29],[-18,-21],[-18,0],[-18,6],[-18,19],
+   [17,-28],[17,-20],[17,-8],[17,1],[17,15]]){
+  box(x-2,-1.1,z-1.3,x+2,1.2,z+1.3,lab);
+  box(x-1.7,1.2,z-1.15,x+1.7,2.1,z+.4,lights);
+ }
+ // Command flight deck and instrument consoles.
+ box(-5,-1.1,-54,5,.3,-49,dark);
+ for(const x of [-4,0,4]){
+  box(x-1.5,.25,-52.7,x+1.5,1.9,-50.6,lab);
+  box(x-1.25,1.7,-52.65,x+1.25,2.5,-52.3,lights);
+ }
+ // Distinct cargo parking guidance, no boxes inside truck lane.
+ for(let z=-1;z<18;z+=4){
+  box(9.2,-1.1,z,9.8,-.98,z+1,support);
+  box(22.5,-1.1,z,23.1,-.98,z+1,support);
+ }
+ // Pressurized roof ceiling: from inside the player sees a coherent hull.
+ box(-8.1,7.4,-59,8.1,7.8,32,wall);
+ box(-24,7.4,-34,-8.1,7.8,31,wall);
+ box(8.1,7.4,-34,24,7.8,31,wall);
+ return makeMesh(gl,p,n,c,idx);
+}
 function makeRover(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.73,.73,.68],dark=[.14,.16,.18],accent=[.86,.59,.32],glass=[.18,.35,.42];
 // Six-wheel science rover with mast and manipulator.
 box(-3.0,1.0,-3.8,3.2,2.6,3.6,hull);box(-1.6,2.35,-2.0,1.4,3.2,1.0,[.58,.58,.54]);tri([0,5.5,-.9],[-.65,3.2,-.9],[.65,3.2,-.9],hull);box(-.32,3.1,-1.2,.32,5.1,-.55,dark);box(-.95,5.0,-1.65,.95,6.1,-.2,[.76,.76,.71]);box(-.55,6.1,-1.2,.55,6.9,-.35,dark);tri([3.0,2.2,.2],[5.3,1.7,.9],[4.0,1.3,1.8],dark);tri([3.0,2.2,.2],[4.0,1.3,1.8],[2.6,1.6,2.6],dark);box(2.35,1.4,2.1,2.95,2.0,3.15,accent);box(-2.45,2.55,-2.9,2.55,2.72,-2.2,glass);box(-1.7,2.55,-2.2,-.55,2.72,-1.2,glass);
@@ -441,7 +500,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -852,7 +911,10 @@ class Renderer{
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
   gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
-  if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
+  if(state.shipWalkInterior){
+    const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));
+    this.renderMesh(p,this.shipWalkDeck,model);
+   }else if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
   if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
   for(const probe of (state.extraRovers||[]).slice(0,15)){if(V.len(V.sub(probe.position,viewer))>2600)continue;const right=V.norm(V.cross(probe.forward,probe.up));this.renderMesh(p,this.rover,M.basis(right,probe.up,probe.forward,V.sub(probe.position,origin)));}
