@@ -14,6 +14,7 @@ let landed=false,warp=false,camMode=0,camEye=null,camDistance=70,orbitYaw=0,orbi
 let siteWaypoint=null,scan=null,landingCapture=null,groundLocal=null,headlights=true;
 let interiorState=null;
 let eva=false,evaLocal=null,evaForward=[...forward],shipLocal=null,shipForwardVec=[...forward],shipUpVec=[...up],shipBody=null;
+let swimming=false,swimDepthScene=.3,swimVerticalSceneS=0;
 let roverLocal=null,roverForwardVec=[...forward],roverBody=null,truckOccupied=false;
 let truckLocal=null,truckForwardVec=[...forward],truckBody=null,truckBatteryJ=44e6,truckLights=true,truckCargo=0,winch7d=null,truckChargeReadyAtS=0,localRoverChargeReadyAtS=0,localRoverPortTemperatureK=290,localServiceT12=null;
 let hatchCooldown=0,walkedSinceExit=0,shipExitProgress=0,roverEntryCooldown=0,roverExitMove=null,shipIdleElapsed=0,rampTransition=null,rampLift=0;
@@ -561,14 +562,30 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
   evaForward=V.norm(V.sub(evaForward,V.mul(radial,V.dot(radial,evaForward))));if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
   const walk=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+  const Hydro=window.StarfallHydrosphereLW04;
+  const liquidDir=evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+  const water=Hydro?.sample(nearest,liquidDir,groundHeight(liquidDir,nearest),simTime,GALAXY_SEED);
+  if(!water?.hasWater){swimming=false;swimDepthScene=.3;swimVerticalSceneS=0;}
+  else if(!swimming){swimming=true;swimDepthScene=.3;swimVerticalSceneS=0;showToast('SWIMMING · W/S move · Q rise · E dive · L lamp');}
+  if(swimming){
+   const suit=Hydro.buoyancy(water,.11,105,dt),command=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
+   swimVerticalSceneS=V.clamp((swimVerticalSceneS+suit.netAccelerationMS2*dt/Hydro.SCENE_M+command*dt*.42)*Math.exp(-dt*2.2),-.33,.33);
+   swimDepthScene=V.clamp(swimDepthScene-swimVerticalSceneS*dt,.08,Math.max(.12,water.surfaceHeightScene-.35));
+  }
   const weather=window.StarfallMeteorologyLW03?.cell(nearest,evaLocal||[0,1,0],simTime,GALAXY_SEED),windResistance=weather?.vacuum?1:Math.max(.52,1-(weather?.windMS||0)/185);
-  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7)*windResistance,angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
+  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*(swimming?2.4:((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7))*windResistance,angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
    const nextDir=V.norm(V.rot(radial,right,-angle));evaForward=V.norm(V.rot(evaForward,right,-angle));evaLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
-   pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT));up=nextDir;
+   pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+(swimming?water.surfaceHeightScene-swimDepthScene:groundHeight(evaLocal,nearest)+EVA_HEIGHT)));up=nextDir;
    walkedSinceExit+=Math.abs(step);
   }
+  if(swimming){
+   const d=V.norm(V.rot(evaLocal||liquidDir,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
+   const ocean=Hydro.sample(nearest,evaLocal||liquidDir,groundHeight(evaLocal||liquidDir,nearest),simTime,GALAXY_SEED);
+   if(ocean.hasWater){pos=V.add(nearest.position,V.mul(d,nearest.radius+ocean.surfaceHeightScene-swimDepthScene));up=d;}
+   else{swimming=false;swimDepthScene=.3;}
+  }
   // Spatial transitions only. The astronaut physically walks into the rear ramp or rover seat.
-  if(hatchCooldown<=0 && walkedSinceExit>3 && walk>0 && shipBody===nearest){
+  if(!swimming&&hatchCooldown<=0 && walkedSinceExit>3 && walk>0 && shipBody===nearest){
    const ship=shipWorldState(),delta=V.sub(pos,ship.position),ahead=V.dot(delta,ship.forward);
    const right=V.norm(V.cross(ship.forward,ship.up)),side=V.dot(delta,right);
    if(ahead> -29 && ahead < -17 && Math.abs(side)<4.8){
