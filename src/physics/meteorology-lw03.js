@@ -64,7 +64,8 @@ function cell(body,dir,timeS=0,seed=742){
  const stormSeed=hash(seed+':'+body.id+':lw03:storm:'+Math.floor((u+PI)*2)+':'+Math.floor((lat+PI/2)*3));
  const moisture=clamp(inventory*12,0,1),lift=clamp(.35+.35*Math.cos(2*lat)+.3*stormSeed,0,1);
  const cloud=vapor?clamp((relativeHumidity-.58)*.7+moisture*.35+lift*.13,0,.94):0;
- const precip=vapor&&relativeHumidity>.75?Math.min(inventory*climate.pressurePa/STEP*.012,
+ const condensableColumnKgM2=climate.pressurePa*inventory/climate.gravityMS2;
+ const precip=vapor&&relativeHumidity>.75?Math.min(condensableColumnKgM2/STEP*.012,
   Math.max(0,relativeHumidity-.75)*cloud*.004):0;
  const coriolis=2*rotation*Math.sin(lat),gradient=11*Math.sin(lat*2+u*.8);
  const wind=clamp(3+Math.abs(gradient)+4*stormSeed+Math.abs(coriolis)*80000,0,140);
@@ -75,7 +76,10 @@ function cell(body,dir,timeS=0,seed=742){
  else if(cloud>.15)regime=vapor==='CH4'?'methane-cloud':vapor==='NH3'?'ammonia-cloud':'cloud';
  else if(dust&&wind>13&&climate.densityKgM3>.02)regime='dust';
  else if((climate.mixture.CO2||0)>.6&&climate.pressurePa>1.5e5)regime='CO2-haze';
- const charged=regime==='rainstorm'&&cloud>.33&&precip>.000003;
+ const rotating=Math.abs(rotation)>1e-5,latitudeCoriolis=Math.abs(Math.sin(lat))>.18;
+ const warmWater=body.type==='Ocean'&&vapor==='H2O'&&T>299;
+ if(warmWater&&rotating&&latitudeCoriolis&&cloud>.45&&wind>20)regime='cyclone';
+ const charged=(regime==='rainstorm'||regime==='cyclone')&&cloud>.33&&precip>.000003;
  const charge=charged?clamp((cloud-.30)*wind/30,0,1):0;
  const visibility=clamp(1-cloud*.33-(dust&&regime==='dust'?.45:0)-(precip>0?.23:0),.15,1);
  const solarFactor=clamp(1-cloud*.62-(regime==='dust'?.33:0),.12,1);
@@ -85,7 +89,7 @@ function cell(body,dir,timeS=0,seed=742){
   windMS:wind,windDirection:direction,cloudFraction:cloud,precipitationKgM2S:precip,
   sourceSpecies:vapor,humidityFraction:clamp(relativeHumidity,0,1),charge,
   regime,visibility,solarFactor,stormId:regime==='clear'?null:body.id+':weather:'+durationKey,
-  inventoryPrior:inventory,phaseNote:'coarse column; latent heat and local energy closure approximate',
+  inventoryPrior:inventory,condensableColumnKgM2,phaseNote:'coarse column; latent heat and local energy closure approximate',
   provenance:'CW01 gas mixture, field-science T/P, deterministic large-scale advection'});
 }
 const API=Object.freeze({STEP,base,cell,saturation,reservoir});root.StarfallMeteorologyLW03=API;
