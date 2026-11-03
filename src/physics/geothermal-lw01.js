@@ -28,6 +28,8 @@ function sources(body,seed=742){
   const gasMassFraction=(magmatic?.01:cryogenic?.12:.025)*(.5+rnd(k+':gas'));
   const conduitFailureStrengthPa=(magmatic?2.6e5:1.0e5)*(.7+1.5*rnd(k+':strength'));
   const volatileInventoryKg=(4e6+3e7*rnd(k+':reservoir'))*fluidPrior;
+  const reservoirTemperatureK=magmatic?(1080+290*rnd(k+':temperature')):cryogenic?(165+90*rnd(k+':temperature')):(310+65*rnd(k+':temperature'));
+  const volatileSpecies=magmatic?'CO2/SO2':cryogenic?'H2O/NH3':'H2O';
   const reservoirCapacityKg=(magmatic?1.4e8:volatileInventoryKg)*(0.65+0.6*rnd(k+':capacity'));
   const initialReservoirKg=reservoirCapacityKg*(0.48+0.48*rnd(k+':initial'));
   const rechargeKgPerCycle=reservoirCapacityKg*(magmatic?.008:cryogenic?.012:hydro?.038:0);
@@ -49,7 +51,8 @@ function sources(body,seed=742){
   out.push(Object.freeze({schema:1,id:body.id+':geothermal:'+i,bodyId:body.id,kind,
    direction:Object.freeze([cos*Math.cos(lon),Math.sin(lat),cos*Math.sin(lon)]),
    thermalFluxWm2:thermalWm2,radiogenicHeatWm2,tidalHeatWm2,hotspotHeatWm2,
-   conduitPermeability,conduitFailureStrengthPa,gasMassFraction,volatileInventoryKg,magmaViscosityPaS,
+   conduitPermeability,conduitFailureStrengthPa,gasMassFraction,reservoirTemperatureK,volatileSpecies,
+   volatileInventoryKg,magmaViscosityPaS,
    reservoirCapacityKg,initialReservoirKg,rechargeKgPerCycle,
    conduitDepthM:220+2400*rnd(k+':depth'),ventRadiusM:4+36*rnd(k+':width'),
    cycleS,durationS,epochOffsetS:Math.floor(cycleS*rnd(k+':phase')),
@@ -67,7 +70,8 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  const isCryo=site.kind==='cryovolcano',gasFluid=!isMagma&&site.volatileInventoryKg>0;
  const overpressurePa=site.thermalFluxWm2*(isMagma?3e7:8e6)*(0.35+0.65*(1-dt/cycle))*(1+Math.min(.5,(site.gasMassFraction||0)*3))/Math.sqrt(Math.max(.12,site.conduitPermeability||1));
  const thresholdPa=ambientPa+(site.conduitFailureStrengthPa|| (isMagma?7e5:gasFluid?1.5e5:5e4));
- const canErupt=site.thermalFluxWm2>0&&overpressurePa>thresholdPa&&(isMagma||site.volatileInventoryKg>0);
+ const liquidReservoirPossible=!['geyser','mud-pot'].includes(site.kind)||(site.reservoirTemperatureK>=273.16&&site.reservoirTemperatureK<647.1&&overpressurePa>=611.657);
+ const canErupt=site.thermalFluxWm2>0&&overpressurePa>thresholdPa&&liquidReservoirPossible&&(isMagma||site.volatileInventoryKg>0);
  const capacity=site.reservoirCapacityKg||site.volatileInventoryKg||0;
  const initial=Math.min(capacity,site.initialReservoirKg??capacity);
  const recharge=Math.max(0,site.rechargeKgPerCycle||0);
@@ -91,7 +95,8 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
   pressurePa:ambientPa+overpressurePa,ambientPressurePa:ambientPa,thresholdPa,
   massFlowKgS,exitVelocityMS:estimatedExitVelocityMS,plumeHeightM,
   heatFluxWm2:site.thermalFluxWm2,reservoirCapacityKg:capacity,reservoirRemainingKg,dischargedThisCycleKg,
-  rechargeKgPerCycle:recharge,ashMassFlowKgS:isMagma&&['explosive-volcano','caldera-eruption','cinder-cone'].includes(site.kind)?massFlowKgS*(site.kind==='caldera-eruption'?.6:.3):0,
+  rechargeKgPerCycle:recharge,volatileSpecies:site.volatileSpecies,sourceTemperatureK:site.reservoirTemperatureK,
+  ashMassFlowKgS:isMagma&&['explosive-volcano','caldera-eruption','cinder-cone'].includes(site.kind)?massFlowKgS*(site.kind==='caldera-eruption'?.6:.3):0,
   lavaMassFlowKgS:isMagma?massFlowKgS*(site.kind==='explosive-volcano'?.2:site.kind==='caldera-eruption'?.15:site.kind==='cinder-cone'?.7:.8):0,
   vaporMassFlowKgS:!isMagma?massFlowKgS:0,
   model:'finite reservoir with periodic discharge analytical proxy; not CFD'});
