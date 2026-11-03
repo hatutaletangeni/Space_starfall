@@ -24,7 +24,7 @@ function sources(body,seed=742){
   const reservoirCapacityKg=(magmatic?1.4e8:volatileInventoryKg)*(0.65+0.6*rnd(k+':capacity'));
   const initialReservoirKg=reservoirCapacityKg*(0.48+0.48*rnd(k+':initial'));
   const rechargeKgPerCycle=reservoirCapacityKg*(magmatic?.008:cryogenic?.012:hydro?.038:0);
-  const magmaViscosityPaS=magmatic?Math.pow(10,1.7+4.4*rnd(k+':viscosity')):0;
+  let magmaViscosityPaS=magmatic?Math.pow(10,1.7+4.4*rnd(k+':viscosity')):0;
   let kind;
   if(cryogenic)kind='cryovolcano';
   else if(hydro){const t=rnd(k+':style');kind=t<.53?'geyser':t<.78?'mud-pot':'fumarole';}
@@ -35,8 +35,10 @@ function sources(body,seed=742){
   else if(type==='Volcanic'&&i===4)kind='caldera-eruption';
   else if(magmaViscosityPaS>2e4)kind='explosive-volcano';
   else kind=rnd(k+':style')<.38?'fissure-eruption':'effusive-volcano';
+  if(['explosive-volcano','caldera-eruption'].includes(kind))magmaViscosityPaS=Math.max(22000,magmaViscosityPaS);
+  if(['effusive-volcano','fissure-eruption'].includes(kind))magmaViscosityPaS=Math.min(2500,magmaViscosityPaS);
   const cycleS=Math.round((type==='Volcanic'?1600:2600)*(0.7+1.1*rnd(k+':period')));
-  const durationS=Math.max(60,Math.round(cycleS*(.06+.16*rnd(k+':duration'))));
+  const durationS=Math.max(60,Math.round(cycleS*(kind==='caldera-eruption'?.035:kind==='effusive-volcano'?.25:.10+(.07*rnd(k+':duration')))));
   out.push(Object.freeze({schema:1,id:body.id+':geothermal:'+i,bodyId:body.id,kind,
    direction:Object.freeze([cos*Math.cos(lon),Math.sin(lat),cos*Math.sin(lon)]),
    thermalFluxWm2:thermalWm2,volatileInventoryKg,magmaViscosityPaS,
@@ -61,7 +63,7 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  const capacity=site.reservoirCapacityKg||site.volatileInventoryKg||0;
  const initial=Math.min(capacity,site.initialReservoirKg??capacity);
  const recharge=Math.max(0,site.rechargeKgPerCycle||0);
- const maxDischarge=capacity*(site.kind==='caldera-eruption'?.19:site.kind==='fissure-eruption'?.11:.07);
+ const maxDischarge=capacity*(site.kind==='caldera-eruption'?.19:site.kind==='fissure-eruption'?.11:site.kind==='cinder-cone'?.045:.07);
  const cycleNumber=Math.floor((timeS+site.epochOffsetS)/cycle);
  // Closed-form reservoir model: depth inventory declines when discharge exceeds a bounded
  // deep-supply recharge. Hydrothermal reservoirs can refill at a stated finite rate.
@@ -76,7 +78,7 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  const massFlowKgS=dischargeBudgetKg*2/Math.max(1,site.durationS)*intensity;
  const estimatedExitVelocityMS=Math.sqrt(Math.max(0,2*(overpressurePa-thresholdPa)/densityKgM3));
  const ballisticHeightM=estimatedExitVelocityMS**2/(2*gravityMS2);
- const plumeHeightM=Math.min(25000,ballisticHeightM*(isMagma?1.6:.7));
+ const plumeHeightM=Math.min(25000,ballisticHeightM*(site.kind==='caldera-eruption'?3.5:site.kind==='explosive-volcano'?2.7:site.kind==='cinder-cone'?1.25:isMagma?.65:.7));
  return Object.freeze({sourceId:site.id,kind:site.kind,timeS,active:!!intensity,intensity,
   pressurePa:ambientPa+overpressurePa,ambientPressurePa:ambientPa,thresholdPa,
   massFlowKgS,exitVelocityMS:estimatedExitVelocityMS,plumeHeightM,
