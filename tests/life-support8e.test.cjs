@@ -22,7 +22,7 @@ assert.throws(()=>Life.restore({schema:1,oxygenKg:-1}),/Invalid/);
 const baseline=Power.loadPower({kind:'ship',avionicsW:1500,pumpW:420,instrumentsW:600},{loads:{}},{lifeSupportW:Life.demandW(1)});
 assert.equal(baseline.lifeSupport,450);
 const stats={kind:'ship',avionicsW:100,pumpW:0,instrumentsW:0,enginePowerW:0,
-  batteryCapacityJ:2e8,maxDischargeW:10000,maxChargeW:10000,
+  batteryCapacityJ:2e8,maxDischargeW:10000,maxChargeW:10000,chargeEfficiency:.94,dischargeEfficiency:.94,
   solarAreaM2:0,solarEfficiency:0,maxSolarW:0,generatorW:0,
   emissivity:.82,radiatorAreaM2:0};
 const state={energyJ:1e6,temperatureK:294,loads:{avionics:true,lifeSupport:true,lights:false,instruments:false,radiator:false,drive:false}};
