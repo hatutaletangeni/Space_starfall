@@ -45,6 +45,8 @@ with sync_playwright() as p:
    const r=StarfallRuntime.engineeringSystemReport().ship,v=StarfallRuntime.vehicleStore.get('ship');
    return !!(r&&r.draws.avionics>=v.stats.avionicsW&&r.draws.instruments>=v.stats.instrumentsW);
   }""",timeout=15000)
+  # UI21 places electrical systems under the Engineer route; click the visible route first.
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
   page.locator('#systems-toggle').click()
   page.wait_for_function("!document.querySelector('#systems-inner').hidden && !document.querySelector('#ship-t13-panel').hidden")
   status=page.locator('#ship-t13-readout').inner_text()
