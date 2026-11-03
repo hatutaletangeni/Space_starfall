@@ -1194,6 +1194,35 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
 
 </script><script>
+/* LW04 ocean tile renderer: uses exactly the original cubemap tile addressing.
+ * Water mesh is a separate surface above immutable terrain, with bounded GPU ownership.
+ */
+(function(root){'use strict';
+function geometry(body,tile,segments,field,groundHeight){
+ const ST=root.StarfallStableTerrain,H=root.StarfallHydrosphereLW04;
+ if(!ST||!H||!H.material(body)||!Number.isInteger(segments)||segments<2)return null;
+ const positions=[],normals=[],colors=[],indices=[],wet=[];
+ const radius=H.material(body).sceneSeaLevel;
+ for(let j=0;j<=segments;j++)for(let i=0;i<=segments;i++){
+  const d=ST.vertexDirection(tile,i,j,segments),e=field(d,body.seed),depth=groundHeight(d,body,e);
+  wet.push(depth<1);positions.push(d[0]*radius,d[1]*radius,d[2]*radius);
+  normals.push(...d);colors.push(.10,.36,.49);
+ }
+ for(let j=0;j<segments;j++)for(let i=0;i<segments;i++){
+  const a=j*(segments+1)+i,b=a+segments+1;
+  // Triangles are clipped to true sea-level basin cells, not land height.
+  if(wet[a]&&wet[a+1]&&wet[b])indices.push(a,a+1,b);
+  if(wet[a+1]&&wet[b+1]&&wet[b])indices.push(a+1,b+1,b);
+ }
+ return indices.length?Object.freeze({positions,normals,colors,indices,
+  triangles:indices.length/3,sourceTileKey:tile.key,sourceBodyId:body.id,
+  model:'fixed ocean surface using same planet-fixed cubemap grid as terrain; visual-only overlay'}):null;
+}
+const API=Object.freeze({geometry});root.StarfallWaterMeshLW04=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
 /* STARFALL 6B — Deterministic, planet-fixed biome classification.
    Science-constrained PROCEDURAL APPROXIMATION: no inference of confirmed life.
    Never modifies the authoritative collision height, orbit, or persistent IDs.
@@ -1420,6 +1449,40 @@ void main(){
  if(uShip>.5)color=max(color,vColor*.075);if(uShip>1.5)color=max(color,vColor*.93);
  float fog=1.-exp(-length(uCamera-vWorld)*uFogDensity);color=mix(color,uFogColor,clamp(fog,0.,.96));
  frag=vec4(color,1.);
+}`;
+// LW04: animated sea normals and wave displacement live in the same 3D scene.
+const waterVS=`#version 300 es
+precision highp float;layout(location=0)in vec3 aPos;layout(location=1)in vec3 aNormal;
+uniform mat4 uViewProj,uModel;uniform float uTime,uAmplitude;
+out vec3 vNormal,vPosition;out float vFoam;
+void main(){
+ float wave=sin(aPos.x*.39+aPos.z*.21+uTime*1.8)*.58+
+            sin(aPos.z*.72-aPos.x*.14-uTime*2.7)*.30+
+            sin(aPos.y*.34+aPos.x*.55+uTime*.9)*.12;
+ vec3 local=aPos+aNormal*(wave*uAmplitude);
+ vec4 world=uModel*vec4(local,1.);
+ vNormal=normalize(mat3(uModel)*aNormal);
+ vPosition=world.xyz;vFoam=abs(wave);
+ gl_Position=uViewProj*world;
+}`;
+const waterFS=`#version 300 es
+precision highp float;in vec3 vNormal,vPosition;in float vFoam;
+uniform vec3 uEye,uSun,uSunColor;uniform float uTime,uUnderwater,uWind;
+out vec4 frag;
+void main(){
+ vec3 n=normalize(vNormal);
+ vec3 detail=vec3(sin(vPosition.x*.24+uTime*.87),0.,cos(vPosition.z*.23-uTime*1.13));
+ n=normalize(n+detail*(.007+.0007*uWind));
+ vec3 view=normalize(uEye-vPosition);
+ float fresnel=pow(1.-clamp(abs(dot(n,view)),0.,1.),3.0);
+ float light=max(.05,dot(n,normalize(uSun)));
+ float spec=pow(max(0.,dot(reflect(-normalize(uSun),n),view)),85.);
+ vec3 deep=vec3(.025,.11,.18),shallow=vec3(.055,.29,.38);
+ vec3 water=mix(deep,shallow,light);
+ water+=uSunColor*spec*.78;
+ water=mix(water,vec3(.49,.69,.72),fresnel*.53+vFoam*.025);
+ if(uUnderwater>.5)water=mix(water,vec3(.013,.15,.22),.35);
+ frag=vec4(clamp(water,0.,1.),uUnderwater>.5?.60:mix(.78,.95,fresnel));
 }`;
 const shellVS=`#version 300 es
 precision highp float;layout(location=0)in vec3 aPos;uniform mat4 uVP;uniform mat4 uModel;out vec3 vWorld;out vec3 vDir;
@@ -1654,7 +1717,7 @@ class Renderer{
   this.canvas=canvas;this.galaxy=galaxy;
   this.gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:true,powerPreference:'high-performance'});
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
-  this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS)};
+  this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
   this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.meshBudget=48;
@@ -1872,7 +1935,9 @@ class Renderer{
    }else stone(base,d,right,front,size,colors);
    propCount++;
   }
-  return{ground,props:idx.length?makeMesh(this.gl,p,n,c,idx):null,propCount,key:tile.key,descriptor:tile};
+  const ocean=root.StarfallWaterMeshLW04?.geometry(body,tile,N,field,groundHeight);
+  const water=ocean?makeMesh(this.gl,ocean.positions,ocean.normals,ocean.colors,ocean.indices):null;
+  return{ground,water,props:idx.length?makeMesh(this.gl,p,n,c,idx):null,propCount,key:tile.key,descriptor:tile};
  }
  updatePatch(planet,position,alt){
   // Old per-frame recentering caused resampling triangles and visible 'breathing'.
@@ -1880,14 +1945,14 @@ class Renderer{
   this.activeTerrain=[];
   if(!planet||!planet.landable||alt>Math.min(1000,planet.radius*.65)){this.patchPlanet=null;return;}
   const local=this.localDir(planet,V.norm(V.sub(position,planet.position)));
-  if(this.terrainKeyBody!==planet.id){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;}
+  if(this.terrainKeyBody!==planet.id){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.water);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;}
   this.patchPlanet=planet;this.patchCenter=local;
   const requested=ST.visibleTiles(planet,local,3),needed=new Set(requested.map(t=>t.key));
   let built=0;for(const desc of requested){let tile=this.terrainTiles.get(desc.key);
    if(tile){this.terrainCacheHits++;this.terrainTiles.delete(desc.key);this.terrainTiles.set(desc.key,tile);}else if(built<4){tile=this.buildTerrainTile(planet,desc);this.terrainTiles.set(desc.key,tile);this.patchDraws++;this.terrainCacheMisses++;built++;}
    if(tile)this.activeTerrain.push(tile);
   }
-  while(this.terrainTiles.size>this.terrainCacheBudget){const first=[...this.terrainTiles.keys()].find(k=>!needed.has(k));if(!first)break;const old=this.terrainTiles.get(first);this.freeMesh(old.ground);this.freeMesh(old.props);this.terrainTiles.delete(first);this.terrainCacheEvictions++;}
+  while(this.terrainTiles.size>this.terrainCacheBudget){const first=[...this.terrainTiles.keys()].find(k=>!needed.has(k));if(!first)break;const old=this.terrainTiles.get(first);this.freeMesh(old.ground);this.freeMesh(old.water);this.freeMesh(old.props);this.terrainTiles.delete(first);this.terrainCacheEvictions++;}
  }
  terrainDiagnostics(){const d=this.patchCenter&&this.patchPlanet?ST.descriptorForDirection(this.patchPlanet,this.patchCenter):null;
   return{body:this.patchPlanet?.id||null,face:d?.face??null,tile:d?.key||null,resolution:this.terrainGridSegments,cached:this.terrainTiles.size,active:this.activeTerrain.length,hits:this.terrainCacheHits,misses:this.terrainCacheMisses,evictions:this.terrainCacheEvictions,built:this.patchDraws,props:this.activeTerrain.reduce((sum,t)=>sum+(t.propCount||0),0),biome:this.patchCenter&&this.patchPlanet?BIOMES.classify(this.patchPlanet,this.patchCenter,groundHeight(this.patchCenter,this.patchPlanet),field(this.patchCenter,this.patchPlanet.seed)).name:null,collision:'continuous deterministic planet-fixed sample',render:'fixed cubemap tiles / no moving tessellation',sampleHeight:this.patchCenter&&this.patchPlanet?groundHeight(this.patchCenter,this.patchPlanet):null,seamError:(()=>{if(!d)return null;const neighbor=d.ix+1<d.n?ST.tileDescriptor(this.patchPlanet,d.face,d.ix+1,d.iy):null;if(!neighbor)return null;let max=0;for(let j=0;j<=this.terrainGridSegments;j+=6){const a=ST.vertexDirection(d,this.terrainGridSegments,j,this.terrainGridSegments),b=ST.vertexDirection(neighbor,0,j,this.terrainGridSegments);max=Math.max(max,Math.abs(groundHeight(a,this.patchPlanet)-groundHeight(b,this.patchPlanet)));}return max;})()};
@@ -1918,8 +1983,8 @@ class Renderer{
   const biomePalette=biomeSample?BIOMES.PAL[biomeSample.name][0]:sky;
   const fogColor=V.mix(V.mix([.002,.004,.01],sky,atmo*daytime),biomePalette,atmo*daytime*.12);
   const weather=state.weather,weatherOpacity=weather&&atmo>0?Math.min(.75,1-weather.visibility):0;
-  const fogDensity=atmo*.00054*(1+weatherOpacity*5);
-  const eventFogColor=weatherOpacity?V.mix(fogColor,weather.tint,weatherOpacity*.55):fogColor;
+  const fogDensity=state.swimming?.055:atmo*.00054*(1+weatherOpacity*5);
+  const eventFogColor=state.swimming?[.014,.155,.24]:(weatherOpacity?V.mix(fogColor,weather.tint,weatherOpacity*.55):fogColor);
   const view=M.look([0,0,0],V.sub(cam.target,origin),cam.up),proj=M.perspective(this.fov,this.aspect,.35,2e8),vp=M.mul(proj,view),sunVP=M.mul(M.perspective(this.fov,this.aspect,100,3e9),view);
   const light=lighting.sunDir;
   const applyLight=(prog,body=near)=>{let l=lighting;
@@ -1956,6 +2021,21 @@ class Renderer{
   }
   if(this.patchPlanet&&alt<340&&state.interior?.kind!=='cave'){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
     for(const tile of this.activeTerrain){this.renderMesh(p,tile.ground,model);if(tile.props)this.renderMesh(p,tile.props,model);}
+     if(root.StarfallHydrosphereLW04?.material(this.patchPlanet,this.galaxy.seed)){
+      const H=root.StarfallHydrosphereLW04,pw=this.p.water,local=this.patchCenter,
+       surface=H.sample(this.patchPlanet,local,groundHeight(local,this.patchPlanet),this.galaxy.time,this.galaxy.seed),
+       wet=!!state.swimming,
+       wind=state.weather?.windMS||5;
+      gl.useProgram(pw);this.setMat(pw,'uViewProj',vp);this.setMat(pw,'uModel',model);
+      this.setFloat(pw,'uTime',this.galaxy.time);this.setFloat(pw,'uAmplitude',Math.min(.012,.002+wind*.00012));
+      this.setVec(pw,'uEye',[0,0,0]);this.setVec(pw,'uSun',lighting.sunDir);
+      this.setVec(pw,'uSunColor',lighting.starColor);this.setFloat(pw,'uUnderwater',wet?1:0);
+      this.setFloat(pw,'uWind',wind);gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+      for(const tile of this.activeTerrain)if(tile.water)this.renderMesh(pw,tile.water,model);
+      gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);
+      applyLight(p,this.patchPlanet);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+     }
+
   }
   // LW02: render surface-anchored 3D cave mouths, without altering original terrain.
   if(near?.landable&&state.interior?.kind!=='cave'&&root.StarfallGeologyLW02&&root.StarfallCaveMeshLW02&&root.StarfallInteriors){
@@ -2445,6 +2525,63 @@ function cell(body,dir,timeS=0,seed=742){
   provenance:'CW01 gas mixture, field-science T/P, deterministic large-scale advection'});
 }
 const API=Object.freeze({STEP,base,cell,saturation,reservoir});root.StarfallMeteorologyLW03=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
+/* LW04 deterministic hydrosphere: ocean inventory -> waves -> buoyancy and depth.
+ * Original planet ground height remains untouched for existing save compatibility.
+ * All scene units and SI conversions must be explicitly converted at the boundary.
+ */
+(function(root){'use strict';
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),TAU=Math.PI*2;
+const SCENE_M=1000;
+function material(body,seed=742){
+ if(!body?.id||!body.landable)return null;
+ if(!['Ocean','Temperate','Lush'].includes(body.type))return null;
+ const composition=root.StarfallCompositionCW01?.bodyFor(body,seed);
+ const chemistry=composition?.majorMaterialMassFractions||{},water=chemistry.H2O||0;
+ if(body.type==='Ocean'&&water<.005)return null;
+ return Object.freeze({bodyId:body.id,species:'H2O',densityKgM3:body.type==='Ocean'?1025:998,
+  sceneSeaLevel:body.radius+2.1,seaLevelOffsetScene:2.1,referenceTemperatureK:body.type==='Ocean'?288:282,
+  dissolvedSalts:body.type==='Ocean'?.034:0,inventoryPrior:water,
+  provenance:'CW01 water inventory; sea surface over legacy height-zero ocean terrain, visual offset to preserve existing collision'});
+}
+function wave(body,dir,timeS=0,seed=742,weather){
+ if(!Number.isFinite(timeS)||timeS<0||!Array.isArray(dir)||dir.length!==3||!dir.every(Number.isFinite))throw Error('Invalid wave coordinates');
+ const sea=material(body,seed);if(!sea)return 0;
+ const len=Math.hypot(...dir);if(len<1e-10)throw Error('Zero water direction');
+ const d=dir.map(x=>x/len),w=weather||root.StarfallMeteorologyLW03?.cell(body,d,timeS,seed);
+ const wind=Math.max(0,w?.windMS||4),g=Math.max(.1,(body.gravity||1)*9.80665),amplitudeM=clamp(.07+wind*wind/(g*220),.07,3.2);
+ const scales=[24,61,140],freq=[1.2,1.9,.8],coef=[.52,.30,.18];let sum=0;
+ for(let i=0;i<3;i++){const k=TAU/scales[i],speed=Math.sqrt(g/k);
+  const projection=(d[0]*(i===1?.6:1)+d[2]*(i===2?.7:1))*body.radius*SCENE_M;
+  sum+=coef[i]*Math.sin(k*projection-k*speed*timeS*freq[i]+i*2.71);}
+ return sum*amplitudeM/SCENE_M;
+}
+function sample(body,dir,sceneHeight,timeS=0,seed=742){
+ const sea=material(body,seed);
+ if(!sea)return Object.freeze({hasWater:false,wet:false,submerged:false,depthM:0,surfaceHeightScene:0,
+  densityKgM3:0,buoyancyN:0,pressurePa:0,dragFactor:1});
+ const unit=dir.map(x=>x/(Math.hypot(...dir)||1)),f=root.Starfall3D?.field?.(unit,body.seed);
+ const ground=f===undefined?0:root.Starfall3D.groundHeight(unit,body,f);
+ // Ocean masks are defined by the ORIGINAL continuous field, never by a new shoreline generator.
+ const valid=f===undefined?sceneHeight<1:ground<1;
+ const surface=sea.seaLevelOffsetScene+wave(body,unit,timeS,seed),depthM=Math.max(0,(surface-sceneHeight)*SCENE_M);
+ const rho=sea.densityKgM3,gravity=Math.max(.1,(body.gravity||1)*9.80665);
+ return Object.freeze({hasWater:valid,wet:valid&&Math.abs(sceneHeight-surface)<.65,
+  submerged:valid&&depthM>0,depthM:valid?depthM:0,surfaceHeightScene:surface,
+  densityKgM3:valid?rho:0,pressurePa:valid?rho*gravity*depthM:0,gravityMS2:gravity,
+  waveHeightM:(surface-sea.seaLevelOffsetScene)*SCENE_M,dragFactor:valid?Math.exp(-Math.min(12,depthM*.025)):1});
+}
+function buoyancy(state,displacementM3,massKg,dtSeconds){
+ if(!state?.hasWater||!Number.isFinite(displacementM3)||displacementM3<0||!(massKg>0)||!Number.isFinite(dtSeconds)||dtSeconds<0)throw Error('Invalid buoyancy inputs');
+ const g=state.gravityMS2,upthrustN=state.densityKgM3*displacementM3*g;
+ const weightN=massKg*g,netAccelerationMS2=(upthrustN-weightN)/massKg;
+ return Object.freeze({upthrustN,weightN,netAccelerationMS2,
+  displacementM3,massKg,volumeFloats:upthrustN>=weightN,model:'Archimedes hydrostatic displacement; no rigid-body wave coupling'});
+}
+const API=Object.freeze({SCENE_M,material,wave,sample,buoyancy});root.StarfallHydrosphereLW04=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
 
@@ -5767,6 +5904,7 @@ let landed=false,warp=false,camMode=0,camEye=null,camDistance=70,orbitYaw=0,orbi
 let siteWaypoint=null,scan=null,landingCapture=null,groundLocal=null,headlights=true;
 let interiorState=null;
 let eva=false,evaLocal=null,evaForward=[...forward],shipLocal=null,shipForwardVec=[...forward],shipUpVec=[...up],shipBody=null;
+let swimming=false,swimDepthScene=.01,swimVerticalSceneS=0;
 let roverLocal=null,roverForwardVec=[...forward],roverBody=null,truckOccupied=false;
 let truckLocal=null,truckForwardVec=[...forward],truckBody=null,truckBatteryJ=44e6,truckLights=true,truckCargo=0,winch7d=null,truckChargeReadyAtS=0,localRoverChargeReadyAtS=0,localRoverPortTemperatureK=290,localServiceT12=null;
 let hatchCooldown=0,walkedSinceExit=0,shipExitProgress=0,roverEntryCooldown=0,roverExitMove=null,shipIdleElapsed=0,rampTransition=null,rampLift=0;
@@ -6004,7 +6142,7 @@ function boardShip(){
  if(!eva||!shipBody||!shipLocal)return;
  const ship=shipWorldState();
  if(V.len(V.sub(pos,ship.position))>EVA_BOARD_DISTANCE){showToast('Move closer to the ship to board.');return;}
- eva=false;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
+ eva=false;swimming=false;swimDepthScene=.01;swimVerticalSceneS=0;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
  hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;showToast('Inside the ship · SPACE launch · hold S to walk back down the ramp');
 }
 function enterTruck(){
@@ -6225,7 +6363,7 @@ canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
 document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
-function stage(alt,body){if(interiorState)return interiorState.kind==='cave'?'SUBTERRANEAN CAVE':'RUIN INTERIOR';if(truckOccupied)return 'SURFACE TRUCK';if(eva)return 'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
+function stage(alt,body){if(interiorState)return interiorState.kind==='cave'?'SUBTERRANEAN CAVE':'RUIN INTERIOR';if(truckOccupied)return 'SURFACE TRUCK';if(eva)return swimming?'UNDERWATER EVA':'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
 function saveFlight(){const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
@@ -6314,14 +6452,33 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
   evaForward=V.norm(V.sub(evaForward,V.mul(radial,V.dot(radial,evaForward))));if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
   const walk=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+  const Hydro=window.StarfallHydrosphereLW04;
+  const liquidDir=evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
+  const water=Hydro?.sample(nearest,liquidDir,groundHeight(liquidDir,nearest),simTime,GALAXY_SEED);
+  if(!water?.hasWater){swimming=false;swimDepthScene=.3;swimVerticalSceneS=0;}
+  else if(!swimming){swimming=true;swimDepthScene=-.5;swimVerticalSceneS=0;showToast('ENTERING WATER · W/S swim · Q rise · E dive · L lamp');}
+  if(swimming){
+   if(swimDepthScene<.001)swimDepthScene=Math.min(.001,swimDepthScene+dt*.75);
+   else{
+    const suit=Hydro.buoyancy(water,.11,105,dt),command=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
+    swimVerticalSceneS=V.clamp((swimVerticalSceneS+suit.netAccelerationMS2*dt/Hydro.SCENE_M+command*dt*.009)*Math.exp(-dt*2.2),-.015,.015);
+    swimDepthScene=V.clamp(swimDepthScene-swimVerticalSceneS*dt,.001,Math.min(.045,Math.max(.001,water.surfaceHeightScene-.35)));
+   }
+  }
   const weather=window.StarfallMeteorologyLW03?.cell(nearest,evaLocal||[0,1,0],simTime,GALAXY_SEED),windResistance=weather?.vacuum?1:Math.max(.52,1-(weather?.windMS||0)/185);
-  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7)*windResistance,angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
+  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*(swimming?2.4:((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7))*windResistance,angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
    const nextDir=V.norm(V.rot(radial,right,-angle));evaForward=V.norm(V.rot(evaForward,right,-angle));evaLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
-   pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT));up=nextDir;
+   pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+(swimming?water.surfaceHeightScene-swimDepthScene:groundHeight(evaLocal,nearest)+EVA_HEIGHT)));up=nextDir;
    walkedSinceExit+=Math.abs(step);
   }
+  if(swimming){
+   const d=V.norm(V.rot(evaLocal||liquidDir,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
+   const ocean=Hydro.sample(nearest,evaLocal||liquidDir,groundHeight(evaLocal||liquidDir,nearest),simTime,GALAXY_SEED);
+   if(ocean.hasWater){pos=V.add(nearest.position,V.mul(d,nearest.radius+ocean.surfaceHeightScene-swimDepthScene));up=d;}
+   else{swimming=false;swimDepthScene=.3;}
+  }
   // Spatial transitions only. The astronaut physically walks into the rear ramp or rover seat.
-  if(hatchCooldown<=0 && walkedSinceExit>3 && walk>0 && shipBody===nearest){
+  if(!swimming&&hatchCooldown<=0 && walkedSinceExit>3 && walk>0 && shipBody===nearest){
    const ship=shipWorldState(),delta=V.sub(pos,ship.position),ahead=V.dot(delta,ship.forward);
    const right=V.norm(V.cross(ship.forward,ship.up)),side=V.dot(delta,right);
    if(ahead> -29 && ahead < -17 && Math.abs(side)<4.8){
@@ -6484,7 +6641,7 @@ function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=w
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
   const portraitBase=eva&&!interiorState&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(truckOccupied?3.4:0.25)+rampLift+(eva&&!truckOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
-  renderer.render({camera,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,hidePlayerShip:camMode===1&&!eva&&!truckOccupied,hidePlayerTruck:camMode===1&&truckOccupied,lightPosition:eva?pos:ship.position,headlampForward:eva?evaForward:forward,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{kind:interiorState.kind||'ruin',siteId:site.id,tier:site.tier,site,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
+  renderer.render({camera,swimming:swimming&&swimDepthScene>=.001,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,hidePlayerShip:camMode===1&&!eva&&!truckOccupied,hidePlayerTruck:camMode===1&&truckOccupied,lightPosition:eva?pos:ship.position,headlampForward:eva?evaForward:forward,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:eva&&!truckOccupied&&!interiorState?portraitBase:null,avatarUp:rad,avatarForward:evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{kind:interiorState.kind||'ruin',siteId:site.id,tier:site.tier,site,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
  if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
   window.StarfallAssetUI7A1?.tick();if(window.StarfallAssetUI7A1?.hasWorldSelection&&now-lastAssetHighlightAt>160){lastAssetHighlightAt=now;window.StarfallAssetUI7A1.syncHighlight({...camera,fov:renderer.fov},canvas,assetPickCandidates());}refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
@@ -6775,7 +6932,7 @@ window.StarfallRuntime={galaxy,vehicleStore,captureScienceImage({body,eye,forwar
  siteWaypoint={planet:body,name:String(name).slice(0,80),dir:directionUnit};target=body;
  updateSurveyUI();showToast('Waypoint plotted: '+siteWaypoint.name+' — approach manually.');
  return{bodyId,direction:directionUnit};
-},get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckWinchCancel,truckRecharge,roverRechargeLocal,fieldServiceStatus,fieldRepair,shipServiceSnapshotT13,shipServiceTargetsT13,shipDockConnectT13,shipDockUndockT13,shipDockChargeT13,shipDockReceiveT13,shipThermalObserveT13,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
+},get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get swimming(){return swimming;},get swimDepthM(){return swimming?swimDepthScene*1000:0;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckWinchCancel,truckRecharge,roverRechargeLocal,fieldServiceStatus,fieldRepair,shipServiceSnapshotT13,shipServiceTargetsT13,shipDockConnectT13,shipDockUndockT13,shipDockChargeT13,shipDockReceiveT13,shipThermalObserveT13,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
 Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{interior:interiorState?{siteId:interiorState.site.id,at:{...interiorState.at}}:null,position:[...pos],altitude,landed,eva,truckOccupied,roverOccupied:false,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],cameraLookElevationDeg:lastPickingCamera&&nearest?Math.asin(V.clamp(V.dot(lastPickingCamera.forward,V.norm(V.sub(pos,nearest.position))),-1,1))*180/Math.PI:null,timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics()};},placeEvaNearTruck(){if(!landed||!eva||!truckBody||!truckLocal||truckBody!==nearest)throw Error('Require EVA and a surface truck');
  const local=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,-11),radial=V.rot(local,truckBody.spinAxis||[0,1,0],truckBody.spinAngle||0);
  evaLocal=local;pos=V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(local,truckBody)+EVA_HEIGHT));up=radial;evaForward=[...truckForwardVec];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setInteriorPosition(x,z){if(!interiorState||!(interiorState.kind==='cave'?window.StarfallGeologyLW02.canStand:StarfallInteriors.canStand)(interiorState.layout,x,z))throw Error('Not a valid interior floor coordinate');interiorState.at={x,z};const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;camEye=null;},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){if(!Number.isFinite(t)||t<0||t>=1e13)throw Error('Invalid simulation time');simTime=physicsClock.set(t);galaxy.update(simTime);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
@@ -6883,9 +7040,25 @@ function climateRows(profile){
   entry('Precipitation',fmt(w.precipitationKgM2S*3600,'kg/m²/h'),w.sourceSpecies||'No condensable material'),
   entry('Scale height',fmt(w.scaleHeightM,'m'),'Hydrostatic atmosphere; coarse temperature')];
 }
+function hydrologyRows(profile){
+ const H=root.StarfallHydrosphereLW04;if(!H||!selected?.landable||profile?.kind==='star')return[];
+ const sea=H.material(selected,RT.galaxy.seed);if(!sea)return[entry('Surface liquid hydrosphere','Not predicted','Legacy water and phase thresholds')];
+ const ctx=RT.outpostContext?.(),local=ctx?.body?.id===selected.id&&ctx.local?ctx.local:[0,1,0];
+ const sceneHeight=ctx?.body?.id===selected.id?
+  Math.max(0,Math.hypot(...ctx.position.map((v,i)=>v-selected.position[i]))-selected.radius):
+  root.Starfall3D?.groundHeight?.(local,selected)||0;
+ const state=H.sample(selected,local,sceneHeight,RT.time,RT.galaxy.seed);
+ return [entry('Ocean species',sea.species,'Seeded inventory and legacy basin classification'),
+ entry('Liquid density',fmt(sea.densityKgM3,'kg/m³'),'Water / saline water model'),
+ entry('Local water surface',state.hasWater?'Present':'Dry coast / inland','Same immutable terrain basin mask'),
+ entry('Water surface wave',fmt(state.waveHeightM,'m'),'Wind and gravity driven wave estimate'),
+ entry('Local water depth',state.hasWater?fmt(state.depthM,'m'):'—','Computed from observer altitude'),
+ entry('Hydrostatic pressure',state.hasWater?fmt(state.pressurePa/1000,'kPa'):'—','Water-only pressure above ambient atmosphere'),
+ entry('Swimming',ctx?.body?.id===selected.id&&RT.swimming?'Yes':'No','Buoyancy, drag and vertical swim controls enabled')];
+}
 function rows(profile){if(!profile)return [];
  if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
- return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...livingGeologyRows(profile),...climateRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
+ return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...livingGeologyRows(profile),...climateRows(profile),...hydrologyRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
 function getProfile(){RT.galaxy.observerPosition=RT.scenePosition;return selected?P.scienceProfile(RT.galaxy,selected):null;}
 function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galaxy.byId.get(focus.systemId):RT.galaxy.byId.get(focus.systemId);
  if(sys?.dormant)RT.galaxy.activate(sys);
