@@ -1911,7 +1911,8 @@ class Renderer{
   const lightingSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
   const lighting=near&&lightingSystem?evaluateLighting(near,lightingSystem,this.galaxy,origin):{sunDir:[-.66,.75,.43],starColor:[1,1,1],starPower:1,moonPower:0,bounceDirection:[0,1,0],bounceColor:[.75,.82,.9],ambient:.008,occluder:null};
   const dayDot=V.dot(radial,lighting.sunDir);this.daylightLabel=near?(dayDot>.15?'DAYLIGHT':dayDot>-.16?'TWILIGHT':lighting.moonPower>.018?'MOONLIT NIGHT':'NIGHT'):'VACUUM';
-  const atmo=near&&near.kind!=='moon'&&near.landable?V.clamp((680-alt)/510,0,1):0;
+  const nearColumn=near?.landable?root.StarfallMeteorologyLW03?.base(near,this.galaxy.seed):null;
+  const atmo=near&&near.kind!=='moon'&&near.landable&&!nearColumn?.vacuum?V.clamp((680-alt)/510,0,1):0;
   const optics=near&&near.kind!=='moon'&&near.landable?root.StarfallAtmosphereCW05?.optical(near,this.galaxy.seed):null;const sky=optics&&!optics.vacuum?optics.color:(near?.sky||[.13,.27,.38]);const daytime=V.clamp((dayDot+.16)/.35,0,1);
   const biomeSample=near?.landable&&this.patchCenter&&this.patchPlanet===near?BIOMES.classify(near,this.patchCenter,groundHeight(this.patchCenter,near),field(this.patchCenter,near.seed)):null;
   const biomePalette=biomeSample?BIOMES.PAL[biomeSample.name][0]:sky;
@@ -1978,7 +1979,7 @@ class Renderer{
   }
   // Rings are actual tilted annular triangle meshes, not decorative orbit lines.
   gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
-  for(const obj of rendered){if(!obj.geometry.atmo||obj.dist<obj.body.radius+150||obj.dist>obj.body.radius+11000)continue;
+  for(const obj of rendered){if(!obj.geometry.atmo||root.StarfallMeteorologyLW03?.base(obj.body,this.galaxy.seed).vacuum||obj.dist<obj.body.radius+150||obj.dist>obj.body.radius+11000)continue;
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',.9);this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
