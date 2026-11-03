@@ -1,0 +1,48 @@
+name: Update 8A inventory, standalone and compatibility
+on:
+  push:
+    branches:
+      - feature/update-8a-physical-inventory
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  validate-and-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check inventory scripts
+        run: |
+          node --check src/physics/physical-inventory8a.js
+          node --check src/physics/material-ledger8a.js
+          node --check src/physics/physical-inventory-ui8a.js
+          node --check src/flight.js
+          node tests/update8a.test.cjs
+          node tests/material-ledger8a.test.cjs
+      - name: Rebuild source-synchronized standalone
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Preserve standalone on the feature branch
+        run: |
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PLAY-STARFALL.html
+            git commit -m "8A: synchronize offline standalone with physical inventory"
+            git push origin HEAD:feature/update-8a-physical-inventory
+          fi
+      - name: Archive standalone validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-8a-standalone
+          path: PLAY-STARFALL.html
+          if-no-files-found: error
