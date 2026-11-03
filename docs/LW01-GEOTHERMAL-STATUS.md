@@ -4,19 +4,20 @@ Status: work in progress, not a completed volcano renderer.
 
 ## Implemented
 - Deterministic candidate geothermal sites on existing seeded Rocky, Volcanic, Ocean, Lush, Temperate and Ice worlds without changing celestial IDs, terrain heights or saved site locations.
-- Different modeled sources: fissure, effusive, explosive, cryovolcanic, geyser, fumarole.
-- Pressure/recharge cycle, estimated mass flow, magma or vapor flow, and ballistic plume-height model with thermal flux, gravity and ambient pressure inputs.
-- The existing field-science thermometer and seismometer respond near an active vent; previous saved instrument readings remain unchanged.
-- Existing Observatory and planetary-events readouts expose candidate site types, locations relative to current explorer and current modeled activity; Observatory provides ordinary flight waypoints to vents.
+- Different modeled sources: effusive lava/shield-style, explosive stratovolcano-style, fissure, cinder cone, caldera, cryovolcano, geyser, boiling mud-pot and fumarole.
+- Pressure/recharge cycles using radiogenic, tidal and hotspot heat priors, magma viscosity, conduit resistance, source temperature and ambient pressure. A finite reservoir limits each cycle's mass discharge, partitioned into conserved lava, ash and vapor fractions; plume-height physics is an analytical approximation.
+- The existing field-science thermometer and seismometer respond to local heat and seismic activity; ash discharges reduce local solar transmission. Previous saved instrument readings remain unchanged.
+- Existing Observatory and environmental journal expose candidate sites, location, fluid inventory, active event state, hazard warnings and observable source-linked journal events. Observatory provides ordinary flight waypoints to vents. A real seed-742 volcanic body is used in a regression test.
 
 ## Important incomplete functionality
-- Active vents have capped near-field 3D billboard plume particles in the existing renderer, but NOT YET volumetric lava meshes, lava transport, ash advection or deposited mass. Mass flow is an analytical proxy, not yet charged against a persistent finite reservoir.
+- Active vents have capped 3D billboard eruption plumes and near-ground lava tracers aligned with existing terrain, but NOT volumetric lava meshes, collision-aware lava flow, ash advection or persistent deposits. A finite *modeled* reservoir is accounted for analytically, not through a long-term conserved world geochemistry simulation.
 - No new terrain collisions, caves, earthquake propagation, lava thermal damage or geyser jet collisions are implemented. Plume visuals are lightweight particle approximations.
 - Atmospheric precipitation and pressure/phase assessment are still legacy approximations. An active geyser candidate is a model prior, not proof of liquid water.
-- Functional fluid, mass-conservation, volcanic cone, hazards and spatial effects are the subsequent LW-01 substeps. Keep branch draft until these and standalone tests are validated.
+- Full fluid mechanics, actual volcanic cone/caldera excavation, persistent surface deposits and mechanical/thermal damage are subsequent milestones. Keep branch draft until these and standalone tests are validated.
 
 ## Build / test
 node tests/geothermal-lw01.test.cjs
+node tests/geothermal-events-lw01.test.cjs
 node --check src/physics/geothermal-lw01.js
 python3 tools/build-standalone.py
 python3 tests/standalone-parity.py
