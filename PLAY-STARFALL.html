@@ -1839,6 +1839,21 @@ function makeInfrastructureMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
  if(kind==='solar'){box(-.27,.6,-.25,.27,2.3,.25,metal);for(const side of [-1,1]){const x=side*3;box(x-2.9,2.3,-2.2,x+2.9,2.53,2.2,solar);for(let k=-2;k<=2;k++)box(x+k*.83-.02,2.51,-2.19,x+k*.83+.02,2.6,2.19,metal);} }
  if(kind==='antenna'){box(-.4,.6,-.4,.4,9,.4,metal);for(const y of [3.5,6.5]){box(-2,y,-.15,2,y+.15,.15,metal);box(-.15,y,-2,.15,y+.15,2,metal);}box(-.75,9,-.75,.75,10.1,.75,cyan);}
  if(kind==='connector'){box(-.9,.65,-.9,.9,1.5,.9,metal);box(-.6,1.5,-.6,.6,1.8,.6,gold);}
+ if(kind==='industrial_plant'){
+   box(-3.5,.6,-2.8,3.5,1.05,2.8,metal);
+   box(-2.7,1.05,-2.1,2.7,4.0,2.1,white);
+   box(-3.0,2.3,-2.35,3.0,3.05,-2.1,dark);
+   for(const x of [-1.7,0,1.7])box(x-.35,2.4,-2.39,x+.35,2.82,-2.34,cyan);
+   box(1.9,4,-1.5,2.7,8.0,-.8,metal);
+   box(-3.4,1.3,2.1,-2.7,3.7,2.8,gold);
+ }
+ if(kind==='industrial_vessel'){
+   box(-2.8,.6,-2.8,2.8,.95,2.8,metal);
+   for(const x of [-1.4,1.4]){box(x-.9,.95,-1.2,x+.9,5.5,1.2,white);
+     box(x-1,5.4,-1.3,x+1,5.9,1.3,metal);
+     box(x-.25,3,-1.31,x+.25,3.45,-1.27,cyan);}
+   box(-2.1,5.9,-.5,2.1,6.3,.5,gold);
+ }
  return makeMesh(gl,pp,nn,cc,ix);
 }
 function createExplorerMesh(gl){
@@ -1878,7 +1893,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -7005,6 +7020,86 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndus
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8E surface industrial construction.
+   A REAL certified kit lot is exchanged 1:1 for a physical mass-bearing plant
+   or pressure vessel. Nothing is spawned, no stock is gifted, and duplicate
+   operations cannot produce a second structure. Coordinate units are body-fixed. */
+(function(root){'use strict';
+const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const ids=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const KITS=Object.freeze({
+ plant_kit_electrolyzer:{type:'industrial_plant',station:'electrolyzer',tools:['electrolyzer','gas_separator','hydrogen_tank','oxygen_tank'],massKg:450,volumeM3:1.2,workJ:7e5,radiusScene:5},
+ plant_kit_reduction_furnace:{type:'industrial_plant',station:'reduction_furnace',tools:['reduction_furnace','gas_capture'],massKg:1100,volumeM3:3.4,workJ:1.5e6,radiusScene:7},
+ plant_kit_glass_furnace:{type:'industrial_plant',station:'glass_furnace',tools:['glass_furnace','mold'],massKg:520,volumeM3:1.8,workJ:9e5,radiusScene:5},
+ plant_kit_catalytic_reactor:{type:'industrial_plant',station:'catalytic_reactor',tools:['catalytic_reactor','gas_separator','methane_tank'],massKg:640,volumeM3:2,workJ:1e6,radiusScene:6},
+ plant_kit_high_temp_cell:{type:'industrial_plant',station:'high_temp_cell',tools:['high_temp_cell','carbon_anode','gas_capture'],massKg:1320,volumeM3:3.6,workJ:2e6,radiusScene:7},
+ vessel_kit_hydrogen:{type:'industrial_vessel',materialId:'hydrogen',massKg:160,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
+ vessel_kit_oxygen:{type:'industrial_vessel',materialId:'oxygen',massKg:195,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
+ vessel_kit_carbon_monoxide:{type:'industrial_vessel',materialId:'carbon_monoxide',massKg:170,volumeM3:4,workJ:2e5,radiusScene:4,pressurePa:8e6},
+ vessel_kit_carbon_dioxide:{type:'industrial_vessel',materialId:'carbon_dioxide',massKg:195,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
+ vessel_kit_methane:{type:'industrial_vessel',materialId:'methane',massKg:195,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6}
+});
+const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,a.reduce((s,v,i)=>s+v*b[i],0))))*r;
+function quote({materials,physical,kitLotId,shipContainerId,bodyId,local,bodyRadius,shipLocal,operatorLocal}){
+ if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||!Array.isArray(materials.operations)||
+    !physical||physical.schema!==1||!Array.isArray(physical.assets))throw Error('Missing 8A owner snapshots');
+ const l=materials.lots.find(x=>x.id===kitLotId&&x.containerId===shipContainerId);
+ if(!l)throw Error('Certified plant/vessel kit is not onboard ship');
+ const k=KITS[l.materialId];if(!k)throw Error('Kit has no supported 8E facility definition');
+ if(Math.abs(l.massKg-k.massKg)>EPS||!finite(l.volumeM3)||l.volumeM3<k.volumeM3-EPS||!finite(l.grade)||l.grade<.98)
+  throw Error('Incomplete or uncertified industrial kit');
+ const held=materials.operations.filter(o=>o.status==='RESERVED'&&o.lotId===l.id).reduce((s,o)=>s+o.massKg,0);
+ if(held>EPS)throw Error('Kit is already reserved');
+ if(!ids(bodyId)||!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite)||
+    !finite(bodyRadius)||bodyRadius<=0||Math.abs(Math.hypot(...local)-1)>1e-3)
+  throw Error('Invalid surface placement');
+ if(!Array.isArray(shipLocal)||!Array.isArray(operatorLocal))throw Error('Ship and EVA operator must be present');
+ if(arc(local,shipLocal,bodyRadius)>75||arc(local,operatorLocal,bodyRadius)>40)
+  throw Error('Plant must be within 75 units of landed ship and 40 of EVA operator');
+ if(arc(local,shipLocal,bodyRadius)<k.radiusScene+35)
+  throw Error('Plant would block spacecraft ramps, move farther away');
+ for(const asset of physical.assets){
+  if(asset.location?.kind!=='surface'||asset.location.bodyId!==bodyId)continue;
+  const limit=(asset.type==='industrial_plant'||asset.type==='industrial_vessel'?KITS[asset.state?.kitMaterialId]?.radiusScene||5:9);
+  if(arc(local,asset.location.local,bodyRadius)<k.radiusScene+limit+2)throw Error('Industrial footprint overlaps an owned asset');
+ }
+ return {kitLotId,materialId:l.materialId,spec:copy(k),massKg:k.massKg,workJ:k.workJ,bodyId,local:[...local]};
+}
+function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,bodyId,local,
+  bodyRadius,shipLocal,operatorLocal,energyReceipt}){
+ if(!ids(jobId)||!jobId.startsWith('plant8e:')||!ids(assetId)||!assetId.startsWith('facility8e:'))
+  throw Error('Invalid installation identity');
+ const prior=physical?.transfers?.find(x=>x.id===jobId&&x.action==='INSTALL');
+ if(prior){if(prior.assetId!==assetId||prior.sourceLotId!==kitLotId)throw Error('Installation receipt conflict');
+  return {duplicate:true,receipt:copy(prior),materials:copy(materials),physical:copy(physical)};}
+ const q=quote({materials,physical,shipContainerId,kitLotId,bodyId,local,bodyRadius,shipLocal,operatorLocal});
+ if(!energyReceipt||energyReceipt.operationId!==jobId||!ids(energyReceipt.sourceId)||
+    !finite(energyReceipt.usedJ)||energyReceipt.usedJ+EPS<q.workJ)
+   throw Error('Insufficient actual installation power debit');
+ if(physical.assets.some(a=>a.id===assetId))throw Error('Duplicate facility asset ID');
+ const m=copy(materials);m.lots=m.lots.filter(x=>x.id!==kitLotId);
+ const k=q.spec,containerId=k.type==='industrial_vessel'?'vessel8e:'+assetId:null;
+ if(containerId)m.containers.push({id:containerId,ownerId:assetId,
+  kind:'gas pressure vessel',maxMassKg:1000,maxVolumeM3:k.volumeM3});
+ const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
+  condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
+  state:{kitMaterialId:q.materialId,station:k.station||null,tools:k.tools||[],
+   materialId:k.materialId||null,containerId,ratedPressurePa:k.pressurePa||null,enabled:true}};
+ const receipt={id:jobId,assetId,status:'COMMITTED',sourceLotId:kitLotId,massKg:k.massKg};
+ const physicalState=root.StarfallPhysical8A.create(physical);
+ physicalState.install(machine,receipt);
+ const checked=root.StarfallMaterials8A.create(m);
+ const newPhysical=physicalState.serialize();
+ const sum=(ls)=>ls.reduce((a,x)=>a+x.massKg,0);
+ const before=sum(materials.lots)+sum(physical.assets),after=sum(checked.inventory())+sum(newPhysical.assets);
+ if(Math.abs(before-after)>EPS)throw Error('Industrial construction violated conservation of mass');
+ return{duplicate:false,receipt,machine,materials:checked.snapshot(),physical:newPhysical};
+}
+root.StarfallIndustrialSite8E=Object.freeze({KITS,quote,install});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndustrialSite8E;
+})(typeof globalThis!=='undefined'?globalThis:this);
+</script><script>
 /* STARFALL 8F manufacturing core — additive, dependency-free, data-only.
  * Inputs must be real refined lots from 8E, not raw 8C ore.
  * This module does not create stocks or grant machinery on its own.
@@ -7423,8 +7518,11 @@ function create(saved,legacy={}){
   if(prior){if(prior.action!=='INSTALL'||prior.assetId!==assetSpec.id||prior.sourceLotId!==receipt.sourceLotId)
    throw Error('Installation transaction ID conflict');return clone(prior);}
   if(assets.has(assetSpec.id))throw Error('Duplicate physical machinery identity');
-  if(assetSpec.type!=='industrial_machine'||assetSpec.location?.kind!=='ship'||
-    assetSpec.location.slot!=='workshop')throw Error('Only compatible physical ship workshop machinery can be installed');
+  const shipMachine=assetSpec.type==='industrial_machine'&&assetSpec.location?.kind==='ship'&&
+    assetSpec.location.slot==='workshop';
+  const surfacePlant=['industrial_plant','industrial_vessel'].includes(assetSpec.type)&&
+    assetSpec.location?.kind==='surface'&&validId(assetSpec.location.bodyId);
+  if(!shipMachine&&!surfacePlant)throw Error('Only ship workshop machinery or surface plants/vessels can be installed');
   if(assetSpec.massKg<=0||assetSpec.volumeM3<=0||assetSpec.condition<=0)throw Error('Invalid installed machine mass, volume or condition');
   const checked=asset(assetSpec);
   const record={id:receipt.id,action:'INSTALL',status:'COMMITTED',sourceLotId:receipt.sourceLotId,
@@ -7486,6 +7584,16 @@ let resources8c=StarfallResources8C.create(session.resources8c);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
 let transformation8e=StarfallTransformation8E.create(session.transformations8e);
 const refinery8e=StarfallRefinery8E.create(session.refinery8e);
+let industrialPlant8e=StarfallIndustrialPlant8E.create(session.industrialPlant8e);
+const industrialJob8e=(()=>{
+ const v=session.industrialJob8e;
+ if(v==null)return {schema:1,serial:0,active:null};
+ if(v.schema!==1||!Number.isSafeInteger(v.serial)||v.serial<0||
+  (v.active&&(!v.active.id||!v.active.reactionId||!Number.isFinite(v.active.elapsedS)||!Number.isFinite(v.active.energyJ))))
+  throw Error('Corrupt surface industrial job — restore original save');
+ return JSON.parse(JSON.stringify(v));
+})();
+let industrialSaveSeconds8E=0;
 const factory8f=StarfallFactory8F.create(session.factory8f);
 let factorySaveSeconds8F=0;
 let refinerySaveSeconds8E=0;
@@ -7539,6 +7647,7 @@ function updateVehicleSystems(dt){
  engineeringSystemSeconds+=elapsed;
  miningAdvance8D(dt);
  refineryAdvance8E(elapsed);
+ industrialAdvance8E(elapsed);
  factoryAdvance8F(elapsed);
   shipDockT13.connectorK=Math.max(290,shipDockT13.connectorK-elapsed*.04);
  updateWinch7D(elapsed);
@@ -8050,7 +8159,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),resources8c:resources8c.serialize(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),resources8c:resources8c.serialize(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -8496,6 +8605,140 @@ function refineryAdvance8E(elapsed){
   }else if(refinerySaveSeconds8E>=2){saveFlight();refinerySaveSeconds8E=0;}
  }catch(error){console.warn('8E refinery paused:',error);/* Preserve input and paid energy. User can cancel or correct stock. */}
 }
+function industrialConstruction8E(front=24,right=0){
+ const holder=StarfallMining8D.SHIP;
+ return materials8a.inventory(holder).filter(l=>StarfallIndustrialSite8E.KITS[l.materialId]).map(l=>{
+  try{return {...StarfallIndustrialSite8E.quote({
+   kitLotId:l.id,materials:materials8a.snapshot(),physical:physical8a.serialize(),shipContainerId:holder,
+   bodyId:outpostContext().bodyId,bodyRadius:nearest?.radius||1,
+   local:outpostOffset(front,right),shipLocal:shipLocal||[0,1,0],operatorLocal:evaLocal||[0,1,0]}),ready:true};}
+  catch(e){return {kitLotId:l.id,materialId:l.materialId,ready:false,reason:e.message};}
+ });
+}
+function industrialInstall8E(kitLotId,front=24,right=0){
+ const c=outpostContext(),power=vehicleStore.get('ship');
+ if(!c.landed||!c.eva||!c.body?.landable||shipBody!==c.body||!shipLocal||
+    !power.state.powerEnabled)throw Error('Exit a landed powered ship before surface facility construction');
+ if(!Number.isFinite(front)||!Number.isFinite(right)||Math.hypot(front,right)>73)
+  throw Error('Industrial position exceeds ship umbilical');
+ const local=outpostOffset(front,right),holder=StarfallMining8D.SHIP;
+ // Reuse legacy outpost footprint protection; an industrial plant must never clip
+ // into an existing hab, solar farm, storage node or launch pad.
+ const outpostItems=window.StarfallOutpostUI?.store?.items||[];
+ for(const other of outpostItems){
+  if(other.bodyId!==c.bodyId)continue;
+  const size=window.StarfallOutposts?.SPECS?.[other.kind]?.radius||8;
+  const k=StarfallIndustrialSite8E.KITS[materials8a.inventory(holder).find(l=>l.id===kitLotId)?.materialId];
+  if(k&&Math.acos(Math.max(-1,Math.min(1,local.reduce((a,v,i)=>a+v*other.local[i],0))))*
+       c.body.radius < k.radiusScene+size+2)
+   throw Error('Industrial site overlaps an existing outpost structure');
+ }
+ const quote=StarfallIndustrialSite8E.quote({materials:materials8a.snapshot(),physical:physical8a.serialize(),
+  shipContainerId:holder,kitLotId,bodyId:c.bodyId,bodyRadius:c.body.radius,local,
+  shipLocal,operatorLocal:evaLocal});
+ if(power.state.energyJ+1e-7<quote.workJ)throw Error('Insufficient ship battery for facility erection');
+ const serial=physical8a.serialize().transfers.filter(t=>t.id?.startsWith('plant8e:')).length+1;
+ let number=serial;
+ while(physical8a.get('facility8e:'+number))number++;
+ const operationId='plant8e:'+number,assetId='facility8e:'+number;
+ const result=StarfallIndustrialSite8E.install({jobId:operationId,assetId,materials:materials8a.snapshot(),
+  physical:physical8a.serialize(),shipContainerId:holder,kitLotId,bodyId:c.bodyId,local,
+  bodyRadius:c.body.radius,shipLocal,operatorLocal:evaLocal,
+  energyReceipt:{operationId,sourceId:'ship-main:engineering-battery',usedJ:quote.workJ}});
+ const materials=StarfallMaterials8A.create(result.materials),assets=StarfallPhysical8A.create(result.physical);
+ materials8a=materials;physical8a=assets;
+ vehicleStore.update('ship',{...power.state,energyJ:power.state.energyJ-quote.workJ});
+ saveFlight();showToast('8E · '+result.machine.type+' erected from physical kit');
+ return result.receipt;
+}
+function industrialEquipment8E(reactionId,assetId){
+ const recipe=StarfallIndustrialChemistry8E.reactions[reactionId];
+ if(!recipe)throw Error('Unknown chemical reaction');
+ const selected=physical8a.get(assetId);
+ if(selected?.type!=='industrial_plant'||selected.state?.station!==recipe.station||
+   selected.condition<.5||selected.location.kind!=='surface')
+  throw Error('Install a real '+recipe.station+' station before processing');
+ const vessels={},destinations={};
+ for(const [materialId,count] of Object.entries(recipe.output)){
+  if(StarfallIndustrialChemistry8E.species[materialId].phase!=='gas'){
+   destinations[materialId]=StarfallMining8D.SHIP;continue;
+  }
+  const v=physical8a.list().find(a=>a.type==='industrial_vessel'&&a.condition>=.5&&
+   a.state?.materialId===materialId&&a.location?.kind==='surface'&&
+   a.location.bodyId===selected.location.bodyId&&
+   Math.acos(Math.max(-1,Math.min(1,a.location.local.reduce((sum,n,i)=>sum+n*selected.location.local[i],0))))*
+     (nearest?.radius||1)<75);
+  if(!v)throw Error('Build a compatible nearby '+materialId+' gas pressure vessel');
+  vessels[materialId]=v.id;destinations[materialId]=v.state.containerId;
+ }
+ return {asset:selected,station:{id:selected.id,kind:recipe.station,condition:selected.condition,
+  installed:true,enabled:selected.state.enabled!==false,bodyId:selected.location.bodyId,
+  sourceContainerId:StarfallMining8D.SHIP,tools:selected.state.tools,physicalAssetId:selected.id,
+  vesselAssetIds:vessels},destinations};
+}
+function industrialCandidates8E(){return physical8a.list().filter(a=>a.type==='industrial_plant'&&
+ a.location?.kind==='surface'&&a.location.bodyId===nearest?.id).map(a=>({
+ id:a.id,station:a.state?.station,bodyId:a.location.bodyId}));}
+function industrialQuote8E(reactionId,stationId,scaleMol=100){
+ const c=refineryContext8E(),r=StarfallIndustrialChemistry8E.batch(reactionId,scaleMol);
+ const equipment=industrialEquipment8E(reactionId,stationId);
+ if(!c.shipLanded||c.bodyId!==equipment.asset.location.bodyId)
+  throw Error('Ship must be landed on same world as chemical plant');
+ if(!shipLocal||Math.acos(Math.max(-1,Math.min(1,
+  shipLocal.reduce((a,v,i)=>a+v*equipment.asset.location.local[i],0))))*nearest.radius>80)
+  throw Error('Station outside ship electrical umbilical');
+ const id='preview8e:temporary';
+ StarfallIndustrialPlant8E.create(industrialPlant8e.snapshot()).process({
+  id,reactionId,scaleMol,materials:materials8a.snapshot(),sourceContainerId:StarfallMining8D.SHIP,
+  destinations:equipment.destinations,assetState:physical8a.serialize(),station:equipment.station,
+  energyReceipt:{operationId:id,sourceId:'quote-only-not-debited',usedJ:r.energyJ},bodyId:c.bodyId});
+ return {...r,stationId,destinations:equipment.destinations};
+}
+function industrialStart8E(reactionId,stationId,scaleMol=100){
+ if(industrialJob8e.active)throw Error('Complete or cancel the current chemical job');
+ const c=refineryContext8E();
+ if(!c.operatorNear||!c.powerEnabled)throw Error('Use powered landed ship/nearby EVA service');
+ const q=industrialQuote8E(reactionId,stationId,scaleMol);
+ if(!c.energyJ||c.energyJ<100)throw Error('No ship electrical energy');
+ industrialJob8e.serial++;
+ industrialJob8e.active={schema:1,id:'chem8e:'+industrialJob8e.serial,
+  reactionId,stationId,scaleMol,bodyId:c.bodyId,elapsedS:0,energyJ:0,
+  seconds:q.seconds,powerW:q.powerW};
+ saveFlight();return JSON.parse(JSON.stringify(industrialJob8e.active));
+}
+function industrialCancel8E(){
+ if(!industrialJob8e.active)return false;
+ industrialJob8e.active=null;saveFlight();return true;
+}
+function industrialAdvance8E(elapsed){
+ const a=industrialJob8e.active;if(!a)return;
+ const c=refineryContext8E();
+ if(!c.shipLanded||!c.powerEnabled||c.bodyId!==a.bodyId)return;
+ try{
+  const selected=industrialEquipment8E(a.reactionId,a.stationId);
+  if(!shipLocal||Math.acos(Math.max(-1,Math.min(1,
+    shipLocal.reduce((sum,v,i)=>sum+v*selected.asset.location.local[i],0))))*
+      (nearest?.radius||1)>80)return; // Physical power umbilical disconnected; preserve paid work.
+  const ship=vehicleStore.get('ship');
+  const delta=Math.min(10,Math.max(0,elapsed),a.seconds-a.elapsedS,ship.state.energyJ/a.powerW);
+  if(delta>0){
+   a.elapsedS+=delta;a.energyJ+=delta*a.powerW;
+   vehicleStore.update('ship',{...ship.state,energyJ:Math.max(0,ship.state.energyJ-delta*a.powerW)});
+   industrialSaveSeconds8E+=delta;
+  }
+  if(a.elapsedS+1e-7>=a.seconds){
+   const result=StarfallIndustrialPlant8E.create(industrialPlant8e.snapshot()).process({
+    id:a.id,reactionId:a.reactionId,scaleMol:a.scaleMol,materials:materials8a.snapshot(),
+    sourceContainerId:StarfallMining8D.SHIP,destinations:selected.destinations,
+    assetState:physical8a.serialize(),station:selected.station,bodyId:a.bodyId,
+    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ}});
+   materials8a=StarfallMaterials8A.create(result.materials);
+   industrialPlant8e=StarfallIndustrialPlant8E.create(result.operations);
+   industrialJob8e.active=null;saveFlight();industrialSaveSeconds8E=0;
+   showToast('8E · '+a.reactionId+' complete; products captured in physical storage');
+  }else if(industrialSaveSeconds8E>=2){saveFlight();industrialSaveSeconds8E=0;}
+ }catch(e){console.warn('Industrial chemistry paused; no reagent was consumed',e);}
+}
 function factoryMachine8F(recipeId){
  const r=StarfallManufacturing8F.RECIPES[recipeId];if(!r)throw Error('Unknown 8F part recipe');
  // Pre-existing wire die in the already installed ship fabrication workshop.
@@ -8866,7 +9109,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -9376,7 +9619,17 @@ function selection(){const ctx=RT.outpostContext(),kind=$('outpost-type').value,
  const archae=root.StarfallRuinsUI;if(archae){for(const site of archae.visibleSites){if(site.bodyId===ctx.body.id&&O.arc(local,site.local,ctx.body.radius)<100)area.push({local:site.local,radius:root.StarfallArchaeology.TIERS[site.tier].radius});}}
  const check=O.placement({kind,body:ctx.body,local,heightAt:d=>Starfall3D.groundHeight(d,ctx.body),structures:store.items,protectedAreas:area});return{kind,ctx,local,facing,check,area};}
 function preview(){try{const p=lastPlacement?.key===placementKey()?lastPlacement:selection();previewError='';return renderLoc({kind:p.kind,local:p.local,bodyId:p.ctx.body.id,facing:p.facing});}catch(e){previewError=e.message;return null;}}
-function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[];const list=store.surfaceItems(ctx.body.id,ctx.local,ctx.body.radius,65);const result=list.map(renderLoc).filter(Boolean);if(!$('outpost').hidden&&tab==='build'){const item=preview();if(item){item.preview=true;result.push(item);}}return result;}
+function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[];const list=store.surfaceItems(ctx.body.id,ctx.local,ctx.body.radius,65);const result=list.map(renderLoc).filter(Boolean);
+ const physical=RT.physical8a?.list?.()||[];
+ let drawn=0;
+ for(const asset of physical){
+  if(drawn>=30)break;
+  if(!['industrial_plant','industrial_vessel'].includes(asset.type)||asset.location?.kind!=='surface'||
+    asset.location.bodyId!==ctx.body.id||O.arc(ctx.local,asset.location.local,ctx.body.radius)>90)continue;
+  const item=renderLoc({kind:asset.type,bodyId:asset.location.bodyId,local:asset.location.local,facing:[0,0,1]});
+  if(item){result.push(item);drawn++;}
+ }
+ if(!$('outpost').hidden&&tab==='build'){const item=preview();if(item){item.preview=true;result.push(item);}}return result;}
 function groupFor(id,bodyId){return store.connectedGroups(bodyId).find(g=>g.some(x=>x.id===id))||[];}
 function powered(id,bodyId){const rep=powerReports.get(bodyId);return rep?.byId[id]?.power===true;}
 function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(store.items.map(x=>x.bodyId));for(const bodyId of byBody){const oldSite=store.items.find(x=>x.bodyId===bodyId)?.bodySnapshot;const body=(resolveRemote?resolveRemote({bodyId,bodySnapshot:oldSite},atTime):null)||RT.galaxy.byId.get(bodyId);if(!body||!body.radius)continue;const sys=RT.galaxy.byId.get(body.systemId),star=sys?.star;if(!star)continue;const luminosity=P.starProfile(star).luminosityW;const occluders=(sys.bodies||[]).filter(x=>x.id!==bodyId&&x.radius>0).map(x=>({position:x.position,radius:x.radius}));
@@ -9732,7 +9985,7 @@ function safeSave(value,seed){
   if(f.position!==undefined&&(!Array.isArray(f.position)||f.position.length!==3||!f.position.every(x=>finite(x)&&Math.abs(x)<1e15)))throw Error('Invalid world position');
   if(f.groundDirection!==undefined&&f.groundDirection!==null&&(!Array.isArray(f.groundDirection)||f.groundDirection.length!==3||!f.groundDirection.every(finite)))throw Error('Invalid surface attachment');
  }
- for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5','engineering7A','launch7','research7e','imaging7f','robotics4','flightGalaxy','launchPlan','refinery8e','transformations8e','factory8f','industrialPlant8e'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
+ for(const field of ['engineeringVehicles','scienceSettings','science4','outpost5','engineering7A','launch7','research7e','imaging7f','robotics4','flightGalaxy','launchPlan','refinery8e','transformations8e','factory8f','industrialPlant8e','industrialJob8e'])if(value[field]!==undefined&&!plain(value[field]))throw Error('Invalid '+field+' record');
  if(value.launch7){
   const L=value.launch7;
   if(L.schema!==undefined&&L.schema!==1)throw Error('Unsupported rocket inventory schema: import cancelled');
@@ -9749,6 +10002,9 @@ function safeSave(value,seed){
  if(value.factory8f&&(value.factory8f.schema!==1||!Number.isSafeInteger(value.factory8f.serial)||!Array.isArray(value.factory8f.receipts)||
   (value.factory8f.active!=null&&(typeof value.factory8f.active!=='object'||!Number.isFinite(value.factory8f.active.energyJ)))))throw Error('Invalid factory progress');
  if(value.industrialPlant8e&&(value.industrialPlant8e.schema!==1||!Array.isArray(value.industrialPlant8e.operations)))throw Error('Invalid chemical plant receipts');
+ if(value.industrialJob8e&&(value.industrialJob8e.schema!==1||!Number.isSafeInteger(value.industrialJob8e.serial)||
+  (value.industrialJob8e.active!=null&&(!plain(value.industrialJob8e.active)||!finite(value.industrialJob8e.active.elapsedS)||
+  !finite(value.industrialJob8e.active.energyJ)))))throw Error('Invalid chemical job progress');
  if(value.research7e&&(value.research7e.plans!==undefined&&!Array.isArray(value.research7e.plans)||value.research7e.runs!==undefined&&!Array.isArray(value.research7e.runs)))throw Error('Research save records malformed');
  if(value.imaging7f&&(value.imaging7f.photos!==undefined&&!Array.isArray(value.imaging7f.photos)||value.imaging7f.jobs!==undefined&&!Array.isArray(value.imaging7f.jobs)))throw Error('Camera metadata malformed; image data is separate from JSON');
  if(value.outpost5){if(value.outpost5.items!==undefined&&(!Array.isArray(value.outpost5.items)||value.outpost5.items.length>320))throw Error('Invalid/oversized structures');
@@ -13608,6 +13864,7 @@ const guide=[
  ["Verification","8K · What is working versus unverified","Pure Node tests on constructed scenarios can prove local arithmetic and duplicate guards. They do not prove realistic chemistry, real station power transfer, WebGL rendering, rocket/vehicle operations, older save migration, independent browser restart, or one complete no-cheat expedition. Before release, verify the chain: deposit → haul → refine → manufacture → assemble → transport → habitat → measured atmospheric change.","Actual integrated repository; source/standalone parity; automated and browser end-to-end tests; rollback backup.","When you see experimental or unverified in a help page, the capability is not a supported playable feature. Never use Creative Mode output as evidence of industrial conservation."],
  ['Factory','8F · Working ship wire die','Use Engineer → Material Fabrication. With a landed, powered expedition ship and actual certified copper in the ship materials hold, the existing ship fabrication room can draw copper wire. One 2 kg batch yields 1.96 kg wire plus 0.04 kg accounted scrap after 104 kJ of electrical work over 130 simulated seconds. All parts use versioned bills of materials. The advanced machine-shop, PCB, solar and motor recipes stay unavailable until compatible physical equipment and feedstocks exist.','Survey, mine and haul real stock or import finite refined copper, then enter the ship fabrication room or approach the landed ship','Missing materials, unavailable machine tools, power or output capacity are real blockers, not research XP locks. This is not yet full 7A/T15 component installation.' ],
  ['Industry','8F · Install physical machine kits','Under Engineer → Physical Machine Installation, select a complete certified machine-kit lot in the real ship material hold. The ship must be landed, powered, and accessible from EVA or its fabrication room. The installation consumes one owned kit, debits a finite energy cost, and registers one unique mass-bearing industrial_machine asset in the existing 8A custody ledger. It then unlocks manufacturing recipes matching that machine\'s tool capabilities. No kits are granted for free; without a legitimately sourced kit, installation is blocked. The indicated installation time is currently an engineering estimate and the paid service transaction completes immediately. Machine geometry and physical wiring are not yet rendered.','Own a complete kit lot already in the ship cargo and enough ship energy; remain at the ship.','If you have no machine kits, the installer is empty. The basic wire-die remains built into the original vessel\'s fabrication workshop.'],
+ ['Industry','8E · Place visible chemical plants and tanks','Engineer → Physical Refinery Placement allows real terrain construction of an electrolyzer, smelter, glass furnace, catalytic reactor, high-temperature cell and pressure vessels from complete certified kit lots. Exit a landed powered ship, walk near the proposed site, set forward/right offsets, then erect a plant. Each installed machine or gas vessel uses a unique saved 8A asset and a visible low-poly model and consumes the kit and ship battery work. Choose a real compatible plant and reaction under Chemical Plant Control to run a timed process. Reactants are physically deducted from certified ship lots; gaseous products require separate installed, rated nearby vessels. No raw ore is magically converted into pure reagents.','Complete certified plant and vessel kit lots already owned in the ship material hold; ship within 75 surface units; EVA operator within 40; sufficient battery energy. To run a reaction, use chemically identified input stock, a correct furnace or electrolyzer and rated output tanks.','No kit, certified chemical feedstock, output tank or power means production cannot start. Gas vessel capacity and elemental conservation are checked. The process uses a temporary ship power umbilical, not a permanent surface grid. Kits still need a normal gameplay acquisition/manufacturing path.'],
  ['Glossary','Engineering terms','Apoapsis: highest orbital point. Periapsis: lowest orbital point. Delta-v: ideal velocity-change capability. TWR: thrust divided by local weight. LOS: line-of-sight radio path. Joule (J): stored energy. Watt (W): energy each second. Telemetry: measured operating data. Calibration: aligning instrument output to a known reference. Biome: environmental region.','None','The game combines physical laws, simplified engineering and clearly fictional warp technology.']
 ];
 const overlay=document.createElement('section');overlay.id='ui21-manual';overlay.hidden=true;overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Starfall Field Manual');
@@ -13917,6 +14174,72 @@ select.addEventListener('change',refresh);
 panel.append(title,status,select,controls,readout);host.appendChild(panel);
 let last=0;const tick=()=>{const now=performance.now();if(now-last>=750){last=now;refresh();}requestAnimationFrame(tick);};tick();
 root.StarfallRefineryUI8E={refresh};
+})(globalThis);
+
+</script><script>
+/* STARFALL 8E — physical site erection + actual reaction station.
+ * It uses the source game's Engineer panel, not a fake inventory. */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host||!root.StarfallIndustrialSite8E)return;
+const rt=()=>root.StarfallRuntime;
+const box=document.createElement('section');box.className='section';box.id='industrial8e-physical';
+const label=(t)=>{const el=document.createElement('div');el.className='section-title';el.textContent=t;return el;};
+const p=(txt)=>{const el=document.createElement('p');el.className='panel-note';el.textContent=txt;return el;};
+const choose=()=>{const x=document.createElement('select');x.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;max-width:100%';return x;};
+const input=(placeholder,n)=>{const x=document.createElement('input');x.type='number';x.value=String(n);x.placeholder=placeholder;x.style.cssText='width:75px;background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px';return x;};
+const button=t=>{const x=document.createElement('button');x.type='button';x.className='science-action';x.textContent=t;return x};
+const kits=choose(),front=input('Forward',24),right=input('Right',0),build=button('ERECT PHYSICAL PLANT OR VESSEL');
+const buildStatus=p('Choose a finite industrial kit in your ship cargo, exit on EVA, and position beside the construction site. Placement is limited by ship umbilical and clearance.');
+const plants=choose(),reactions=choose(),start=button('START CHEMICAL WORK'),cancel=button('CANCEL JOB (SPENT ENERGY LOST)');
+const processStatus=p('Specialized reactions require certified chemical inputs, correctly placed apparatus, separate rated gas tanks and actual ship energy.');
+const result=document.createElement('pre');result.style.cssText='white-space:pre-wrap;font:11px/1.5 Consolas,monospace;color:#c8d9d9;background:#101b23;border:1px solid #53677566;padding:12px;max-height:300px;overflow:auto';
+for(const [id,spec] of Object.entries(root.StarfallIndustrialChemistry8E.reactions)){const o=document.createElement('option');o.value=id;o.textContent=spec.label;reactions.appendChild(o);}
+const row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row.append(kits,front,right,build);
+const row2=document.createElement('div');row2.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row2.append(plants,reactions,start,cancel);
+box.append(label('8E · PHYSICAL REFINERY PLACEMENT'),p('Finite kit → installed terrain machine or rated gas vessel. Existing 8A physical assets are rendered directly on the surface. Erection consumes the full kit and ship battery energy.'),row,buildStatus,
+ label('8E · CHEMICAL PLANT CONTROL'),p('Chemistry uses one physical station, certified reagents, dedicated pressure-rated gas storage and timed battery work. This is educational idealized chemistry; do not treat it as real industrial equipment engineering.'),row2,processStatus,result);
+host.append(box);
+let signature='',last=0;
+function refresh(){
+ const r=rt();if(!r?.industrialCandidates8E){result.textContent='Flight industrial controllers unavailable';return;}
+ const f=+front.value,rr=+right.value;
+ const all=r.materials8a.inventory(root.StarfallMining8D.SHIP).filter(l=>root.StarfallIndustrialSite8E.KITS[l.materialId]);
+ const sig=all.map(l=>l.id+':'+l.massKg).join('|');
+ if(sig!==signature){const old=kits.value;kits.replaceChildren();
+  for(const lot of all){const o=document.createElement('option');o.value=lot.id;o.textContent=lot.materialId.replace(/_/g,' ')+' · '+lot.id;kits.appendChild(o);}
+  if(all.some(l=>l.id===old))kits.value=old;signature=sig;}
+ const available=r.industrialCandidates8E(),oldPlant=plants.value;
+ plants.replaceChildren();for(const asset of available){const o=document.createElement('option');o.value=asset.id;o.textContent=asset.id+' · '+asset.station;plants.append(o);}
+ if(available.some(a=>a.id===oldPlant))plants.value=oldPlant;
+ let siteQuote=null,siteErr='';
+ if(kits.value){try{siteQuote=r.industrialConstruction8E(f,rr).find(x=>x.kitLotId===kits.value);siteErr=siteQuote?.reason||'';}
+  catch(e){siteErr=String(e.message||e);}}
+ const c=r.refineryContext8E(),active=r.industrialJob8e.active;
+ let processQuote=null,processErr='';
+ if(plants.value){try{processQuote=r.industrialQuote8E(reactions.value,plants.value,100);}
+ catch(e){processErr=String(e.message||e);}}
+ build.disabled=!siteQuote?.ready||!c.powerEnabled||!c.shipLanded||!c.energyJ||siteQuote.workJ>c.energyJ;
+ start.disabled=!!active||!c.operatorNear||!c.powerEnabled||!processQuote;
+ cancel.disabled=!active;
+ const assets=r.physical8a.list().filter(a=>['industrial_plant','industrial_vessel'].includes(a.type)&&a.location?.bodyId===c.bodyId);
+ result.textContent='LOCATION: '+(c.shipLanded?'LANDED · '+c.bodyId:'LAND YOUR SHIP')+
+ '\nSHIP BATTERY: '+Math.round(c.energyJ)+' J'+
+ '\nPHYSICAL BUILD SITE: '+(siteQuote?.ready?'READY · '+siteQuote.workJ+' J to erect':(siteErr||'NO ONBOARD FACILITY KIT'))+
+ '\nBUILT INDUSTRIAL FACILITIES: '+assets.length+
+ (assets.length?'\n'+assets.map(a=>'  '+a.id+' '+a.type+' · '+(a.state.station||a.state.materialId)).join('\n'):'')+
+ '\nREACTION: '+(processQuote?processQuote.equation+' · '+processQuote.energyJ+' J / '+processQuote.seconds+' s':processErr||'SELECT A STATION')+
+ '\nCURRENT JOB: '+(active?active.reactionId+' / '+(100*active.elapsedS/active.seconds).toFixed(1)+'% / '+Math.round(active.energyJ)+' J paid':'NONE')+
+ '\nSTOCK: '+r.materials8a.inventory(root.StarfallMining8D.SHIP).length+' ship lots / '+r.physical8a.list().length+' owned assets';
+}
+function call(action,out){try{const x=action();out.textContent='COMMITTED: '+(x?.id||x?.assetId||'operation');}
+ catch(e){out.textContent='BLOCKED: '+String(e.message||e);}refresh();}
+build.addEventListener('click',()=>call(()=>rt().industrialInstall8E(kits.value,+front.value,+right.value),buildStatus));
+start.addEventListener('click',()=>call(()=>rt().industrialStart8E(reactions.value,plants.value,100),processStatus));
+cancel.addEventListener('click',()=>call(()=>rt().industrialCancel8E(),processStatus));
+for(const el of [kits,front,right,plants,reactions]){el.addEventListener('change',refresh);}
+function frame(){const n=performance.now();if(n-last>1000){last=n;refresh();}requestAnimationFrame(frame);}frame();
+root.StarfallIndustrialSiteUI8E={refresh};
 })(globalThis);
 
 </script><script>
