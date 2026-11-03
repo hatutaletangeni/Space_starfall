@@ -6,12 +6,12 @@
 const zones=Object.freeze([
  {id:'spine',x0:-5.2,x1:5.2,z0:-53,z1:32,label:'Central pressure corridor'},
  {id:'bridge',x0:-7.5,x1:7.5,z0:-58,z1:-35,label:'Bridge / navigation'},
- {id:'science',x0:-23,x1:-5,z0:-34,z1:-14,label:'Science laboratory'},
- {id:'habitat',x0:5,x1:23,z0:-34,z1:-14,label:'Habitation / medical'},
- {id:'power',x0:5,x1:23,z0:-14,z1:-1,label:'Power distribution'},
- {id:'fabrication',x0:-23,x1:-5,z0:-12,z1:13,label:'Manufacturing and repairs'},
- {id:'life',x0:-23,x1:-5,z0:13,z1:31,label:'Life support'},
- {id:'cargo',x0:5,x1:23,z0:-1,z1:22,label:'Integrated vehicle cargo bay'}
+ {id:'science',x0:-23,x1:-3,z0:-34,z1:-14,label:'Science laboratory'},
+ {id:'habitat',x0:3,x1:23,z0:-34,z1:-14,label:'Habitation / medical'},
+ {id:'power',x0:3,x1:23,z0:-14,z1:-1,label:'Power distribution'},
+ {id:'fabrication',x0:-23,x1:-3,z0:-12,z1:13,label:'Manufacturing and repairs'},
+ {id:'life',x0:-23,x1:-3,z0:13,z1:31,label:'Life support'},
+ {id:'cargo',x0:3,x1:23,z0:-1,z1:22,label:'Integrated vehicle cargo bay'}
 ]);
 const epsilon=0.65;
 function reachable(x,z){
