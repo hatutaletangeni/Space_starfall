@@ -547,7 +547,9 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    truckForwardVec=V.norm(V.sub(truckForwardVec,V.mul(radial,V.dot(radial,truckForwardVec))));if(V.len(truckForwardVec)<.05)truckForwardVec=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
    const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
    if(drive&&truckBatteryJ>0){
-    const right=V.norm(V.cross(truckForwardVec,radial)),speed=(keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5;
+    const right=V.norm(V.cross(truckForwardVec,radial)),weather=window.StarfallMeteorologyLW03?.cell(nearest,truckLocal,simTime,GALAXY_SEED),
+      traction=weather?.precipitationKgM2S>0?Math.max(.53,1-weather.precipitationKgM2S*95):weather?.regime==='dust'?.82:1,
+      speed=((keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5)*traction;
     const step=drive*dt*speed,angle=step/Math.max(1,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE);
     const nextDir=V.norm(V.rot(radial,right,-angle));truckForwardVec=V.norm(V.rot(truckForwardVec,right,-angle));
     const nextLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
@@ -559,7 +561,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   if(yaw)evaForward=V.norm(V.rot(evaForward,radial,yaw*dt*1.95));
   evaForward=V.norm(V.sub(evaForward,V.mul(radial,V.dot(radial,evaForward))));if(V.len(evaForward)<.05)evaForward=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
   const walk=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
-  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7),angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
+  if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7)*windResistance,angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
    const nextDir=V.norm(V.rot(radial,right,-angle));evaForward=V.norm(V.rot(evaForward,right,-angle));evaLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
    pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT));up=nextDir;
    walkedSinceExit+=Math.abs(step);
@@ -775,7 +777,9 @@ function driveRoverToward(dest,dt){if(!roverLocal||!roverBody||roverBody!==neare
  if(!power)return distance;
  const trial=StarfallRoverDynamics.sixWheels({body:roverBody,local:start,forward:V.rot(tangent,roverBody.spinAxis||[0,1,0],-(roverBody.spinAngle||0)),surfaceHeight:d=>groundHeight(d,roverBody),sceneRadius:roverBody.radius,vehicle:config.stats,gravityMS2:Math.max(.05,roverBody.gravity*9.80665),command:1,dt,enabled:true});
  roverPhysicsReport=trial;if(!trial.safe||trial.speedSceneS<=.001)return distance;
- const traveled=Math.min(distance,trial.speedSceneS*Math.max(0,Math.min(dt,.05)));
+ const weather=window.StarfallMeteorologyLW03?.cell(roverBody,roverLocal,simTime,GALAXY_SEED),
+     traction=weather?.precipitationKgM2S>0?Math.max(.45,1-weather.precipitationKgM2S*110):weather?.regime==='dust'?.85:1,
+     traveled=Math.min(distance,trial.speedSceneS*traction*Math.max(0,Math.min(dt,.05)));
  roverLocal=V.norm(V.mix(start,next,traveled/Math.max(distance,1e-6)));
  roverForwardVec=tangent;return Math.max(0,distance-traveled);
 }
