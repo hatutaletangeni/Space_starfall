@@ -186,7 +186,7 @@ function enterCave(requested){
  showToast('CAVE ENTRANCE · W/S walk · A/D turn · ESC surface exit');
  return interiorState;
 }
-function leaveInterior(){if(!interiorState)return false;const site=interiorState.site,body=nearest,b=interiorState.basis;
+function leaveInterior(){if(!interiorState)return false;if(interiorState.kind==='cave')window.StarfallInteriorsUI?.checkpointCave?.(interiorState,true);const site=interiorState.site,body=nearest,b=interiorState.basis;
  // Safe exit onto deterministic original terrain, not through generated walls.
  const dir=StarfallInteriors.direction(site.local,b,0,-interiorState.layout.length-4,body.radius),axis=body.spinAxis||[0,1,0];
  evaLocal=dir;const radial=V.rot(dir,axis,body.spinAngle||0);pos=V.add(body.position,V.mul(radial,body.radius+groundHeight(dir,body)+EVA_HEIGHT));up=radial;
