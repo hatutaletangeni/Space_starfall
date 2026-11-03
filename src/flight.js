@@ -240,9 +240,10 @@ function placeRoverNearShip(){
   return a.location.kind==='surface'&&a.location.bodyId===shipBody.id?a.location.local:null;};
  const r=deploy(START_ROVER,-9.5,10.5),t=deploy(START_TRUCK,-14,-18);
  roverBody=r?shipBody:null;roverLocal=r?[...r]:null;
- if(r)roverForwardVec=V.norm(shipForwardVec||forward);
+ if(r){const rf=physical8a.get(START_ROVER)?.state?.forward;roverForwardVec=Array.isArray(rf)&&rf.length===3?V.norm(rf):V.norm(shipForwardVec||forward);}
  truckBody=t?shipBody:null;truckLocal=t?[...t]:null;
- if(t){truckForwardVec=[...shipForwardVec];const st=physical8a.get(START_TRUCK)?.state;
+ if(t){const st=physical8a.get(START_TRUCK)?.state;
+  truckForwardVec=Array.isArray(st?.forward)&&st.forward.length===3?V.norm(st.forward):[...shipForwardVec];
   if(Number.isFinite(st?.batteryJ))truckBatteryJ=V.clamp(st.batteryJ,0,44e6);}
 }
 function exitShip(){
@@ -490,9 +491,9 @@ function surfaceData(body,point){const direction=V.norm(V.sub(point,body.positio
 function stage(alt,body){if(interiorState)return interiorState.kind==='cave'?'SUBTERRANEAN CAVE':'RUIN INTERIOR';if(truckOccupied)return 'SURFACE TRUCK';if(eva)return swimming?'UNDERWATER EVA':'SURFACE EVA';if(landed)return 'TOUCHDOWN';if(warp)return 'INTERSTELLAR WARP';if(!body)return 'INTERSTELLAR SPACE';if(!body.landable&&alt<750)return 'CLOUD DECK';if(alt<30)return 'FINAL DESCENT';if(alt<200)return 'LOW ATMOSPHERE';if(alt<680&&body.kind==='planet')return 'ATMOSPHERIC ENTRY';if(alt<2400)return 'ORBITAL APPROACH';return 'DEEP SPACE';}
 function saveFlight(){
  if(truckBody&&truckLocal&&physical8a.get(START_TRUCK)?.location?.bodyId===truckBody.id)
-  physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo});
+  physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
-  physical8a.setSurface(START_ROVER,roverBody.id,roverLocal);
+  physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
  const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
