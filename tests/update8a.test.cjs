@@ -25,6 +25,8 @@ assert.equal(legacy.get(a).location.bodyId,'old-planet');
 assert.equal(legacy.get(a).provenance,'legacy_import');
 assert.equal(legacy.get('rover-science-001').location.bodyId,'old-moon');
 assert.throws(()=>reloaded.move(a,{kind:'surface',bodyId:'other',local:[0,0,0]},'invalid'),/Invalid body-fixed/);
+assert.throws(()=>reloaded.move(a,{kind:'ship',slot:'hold'},'first-deployment'),/different asset or destination/);
+assert.throws(()=>Inv.create({schema:99,assets:[]}),/Unsupported physical inventory/);
 assert.throws(()=>reloaded.move(a,{kind:'ship',slot:'hold'},'wrong-owner',{expected:{kind:'ship',slot:'hold'}}),/Custody changed/);
 assert.throws(()=>Inv.create({schema:1,assets:[saved.assets[1],saved.assets[1]]}),/Duplicate physical asset/);
 console.log('Update 8A physical custody tests: PASS');
