@@ -33,7 +33,16 @@ with sync_playwright() as p:
   page.wait_for_timeout(1900)
   page.keyboard.down('w')
   try:
-   page.wait_for_function("StarfallRuntime.shipWalking8e===true",timeout=19000)
+   page.wait_for_timeout(5500)
+   print('8E BOARDING DIAGNOSTICS',page.evaluate("""()=>{
+    const d=STARFALL_DEBUG.state;
+    return {landed:d.landed,eva:d.eva,shipWalking:StarfallRuntime.shipWalking8e,
+      shipAhead:d.shipAhead,shipSide:d.shipSide,walked:d.walkedSinceExit,
+      hatchCooldown:d.hatchCooldown,rampState:d.rampState,view:document.body.dataset.sfView,
+      status:document.getElementById('status-text')?.textContent,
+      position:d.position,controls:[...window.StarfallInput.keys]};
+   }"""),flush=True)
+   page.wait_for_function("StarfallRuntime.shipWalking8e===true",timeout=14000)
   finally:
    page.keyboard.up('w')
   assert page.evaluate("StarfallRuntime.shipWalking8e"),'Did not walk onto ship'
