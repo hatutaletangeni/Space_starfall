@@ -745,8 +745,37 @@ const body=nearest||target,phase=solarWarning?'STELLAR CORONA':stage(altitude,bo
  $('entry-flash').style.opacity=String(altitude<650&&altitude>65?V.clamp((V.len(vel)-135)/600,0,.44)*Math.sin(performance.now()*.005)**2:0);
  if(lastPlanetId!==body.id){lastPlanetId=body.id;updateBodyUI();}
 }
+// LW05 local rigid-body contact approximation: never teleport, never edit the
+// existing galaxy or orbit data. Real 3D rocks have authoritative hit radii.
+let debrisLastCheckMS=0,debrisLastToastMS=-1e10,debrisLastContactS=-1e10,latestDebrisWarning=null;
+function updateDebrisHazards(now){
+ const D=window.StarfallDebrisLW05;
+ if(!D||eva||landed||warp||truckOccupied||busy()||now-debrisLastCheckMS<65)return;
+ debrisLastCheckMS=now;
+ const rocks=D.nearby(galaxy,pos,simTime,520),risk=D.proximity(rocks,pos,4);
+ latestDebrisWarning=risk;
+ if(!risk)return;
+ if(risk.clearance<150&&now-debrisLastToastMS>11000){
+  debrisLastToastMS=now;
+  showToast(risk.clearance<0?'ASTEROID IMPACT · collision impulse applied':
+   'DEBRIS PROXIMITY · '+Math.max(0,Math.round(risk.clearance))+' scene units clearance');
+ }
+ if(!risk.collision||simTime-debrisLastContactS<.4)return;
+ const rock=rocks.find(x=>x.id===risk.rockId);
+ if(!rock)return;
+ const outward=V.norm(V.sub(pos,rock.position));
+ pos=V.add(rock.position,V.mul(outward,rock.radius+4.5));
+ const incoming=V.dot(vel,outward);
+ if(incoming<0)vel=V.sub(vel,V.mul(outward,incoming*1.25));
+ if(engState?.vMS){const speed=P.SCENE_METERS_PER_UNIT;engState.vMS=V.mul(vel,speed);engState.rM=V.mul(V.sub(pos,nearest.position),speed);}
+ debrisLastContactS=simTime;
+ const ship=vehicleStore.get('ship'),previous=ship?.state;
+ if(previous&&Number.isFinite(previous.health)){
+  vehicleStore.update('ship',{...previous,health:Math.max(0,previous.health-Math.min(12,2+V.len(vel)*.015))});
+ }
+}
 function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
- try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);window.StarfallMissionOperationsUI?.advanceTo(simTime);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
+ try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);updateDebrisHazards(now);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);window.StarfallMissionOperationsUI?.advanceTo(simTime);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
   const afterUpdate=started?performance.now():0;
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
@@ -1035,7 +1064,7 @@ window.StarfallRuntime={galaxy,vehicleStore,captureScienceImage({body,eye,forwar
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
  roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,systemId:roverBody.systemId,local:roverLocal}:null,
  truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,batteryJ:truckBatteryJ}:null
-};},enterInterior,enterCave,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
+};},enterInterior,enterCave,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({debrisNearby:renderer.debrisRendered||0,debrisRisk:latestDebrisWarning,pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
  const body=galaxy.byId.get(bodyId);
  if(!body?.landable||!Array.isArray(direction)||direction.length!==3||!direction.every(Number.isFinite))throw Error('Invalid geological surface waypoint');
  const directionUnit=V.norm(direction);if(V.len(directionUnit)<.99)throw Error('Invalid waypoint direction');
