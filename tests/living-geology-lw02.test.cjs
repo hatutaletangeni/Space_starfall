@@ -1,0 +1,47 @@
+'use strict';
+const assert=require('node:assert/strict');
+const geology=require('../src/terrain/living-geology-lw02.js');
+global.StarfallGeologyLW02=geology;
+const mesh=require('../src/terrain/cave-mesh-lw02.js');
+const {generateGalaxy}=require('../src/galaxy.js');
+const galaxy=generateGalaxy(742,64),initialIDs=galaxy.systems.map(s=>s.id);
+assert.equal(galaxy.systems.length,2368,'reference 742-star catalog must remain unchanged');
+const first=galaxy.allWorlds.find(b=>b.type==='Volcanic'&&b.landable);
+assert.ok(first,'need a real Volcanic world');
+const baseline=JSON.stringify(first),sites=geology.sites(first,742);
+assert.ok(sites.length>=2&&sites.every(x=>x.bodyId===first.id));
+assert.deepEqual(sites,geology.sites(first,742));
+assert.notDeepEqual(sites,geology.sites(first,743));
+assert.ok(sites.every(x=>Math.abs(Math.hypot(...x.local)-1)<1e-10));
+assert.equal(JSON.stringify(first),baseline,'must not mutate existing world');
+for(const site of sites){
+ const layout=geology.caveLayout(site),g=mesh.geometry(site),entrance=mesh.entranceGeometry(site);
+ assert.equal(layout.kind,'cave');assert.ok(layout.length>25);
+ assert.ok(g.triangles>200&&g.triangles<6000);
+ assert.equal(g.positions.length,g.normals.length);assert.equal(g.colors.length,g.positions.length);
+ assert.equal(g.positions.length/3,g.indices.length);
+ assert.ok(g.positions.every(Number.isFinite)&&g.normals.every(Number.isFinite));
+ assert.ok(entrance.indices.length>10);
+ assert.deepEqual(mesh.geometry(site),g);
+ for(const z of [2,8,15,layout.length-2]){
+  const center=geology.center(site,z);
+  assert.ok(geology.canStand(layout,center.x,z),'centerline should be walkable');
+  assert.equal(geology.canStand(layout,center.x+geology.width(site,z)+2,z),false,'walls block');
+ }
+ assert.equal(geology.canStand(layout,0,-5),false);
+ const center=geology.center(site,10),at={x:center.x,z:10};
+ const moved=geology.move(layout,at,{x:1000,z:0});
+ assert.ok(geology.canStand(layout,moved.x,moved.z),'wall collision must stay valid');
+ const forward=geology.move(layout,at,{x:0,z:3});
+ assert.ok(forward.z>=at.z,'can move along corridor');
+ assert.equal(geology.arc(site.local,site.local,first.radius),0);
+}
+const height=72,landform=geology.landform(first,[0,1,0],height,.5);
+assert.ok(landform.kind&&landform.cause);
+assert.deepEqual(landform,geology.landform(first,[0,1,0],height,.5));
+const color=[.4,.42,.39];
+assert.deepEqual(geology.strataTint(first,[0,1,0],70,.4,color,{material:'ice'}),color);
+assert.deepEqual(geology.strataTint(first,[0,1,0],70,.4,color,{material:'water'}),color);
+assert.ok(geology.strataTint(first,[0,1,0],70,.4,color,{material:'rock'}).every(v=>v>=0&&v<=1));
+assert.deepEqual(galaxy.systems.map(s=>s.id),initialIDs);
+console.log('LW02 cave mesh/collision, deterministic geological seed, unchanged worlds and 2368 systems PASS',first.id);
