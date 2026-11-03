@@ -402,6 +402,22 @@ class Renderer{
     values.push(rel[0],rel[1],rel[2],.2+1.8*u,c[0],c[1],c[2],(.15+.5*e.intensity)*(1-u));
     if(values.length>=1600)break;
    }
+   // Ground-hugging, solidifying lava trajectories are drawn along the existing
+   // authoritative surface; no fake solid tiles or collision height changes.
+   if(e.lavaMassFlowKgS>0&&values.length<1500){
+    const flowReach=Math.min(24,2+Math.sqrt(e.lavaMassFlowKgS)*.045);
+    const cooled=e.intensity>0?.38:.2;
+    for(let j=1;j<=24;j++){
+     const fraction=j/24,angle=site.epochOffsetS*.011+j*.035;
+     const tangent=V.norm(V.add(V.mul(right,Math.cos(angle)),V.mul(fwd,Math.sin(angle))));
+     const localDir=V.norm(V.add(site.direction,V.mul(V.rot(tangent,body.spinAxis||[0,1,0],-(body.spinAngle||0)),flowReach*fraction/body.radius)));
+     const worldRadial=V.norm(V.rot(localDir,body.spinAxis||[0,1,0],body.spinAngle||0));
+     const actual=V.add(body.position,V.mul(worldRadial,body.radius+groundHeight(localDir,body)+.24));
+     const rel=V.sub(actual,eye),hot=Math.max(0,1-fraction*.9);
+     values.push(rel[0],rel[1],rel[2],.9+1.2*(1-fraction),
+      .35+hot*.65,.10+hot*.22,.045,Math.max(0,.6*e.intensity*cooled));
+    }
+   }
   }
   if(!values.length)return;
   const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',h*.7);
