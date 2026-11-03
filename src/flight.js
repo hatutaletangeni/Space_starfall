@@ -1165,6 +1165,9 @@ function industrialAdvance8E(elapsed){
  if(!c.shipLanded||!c.powerEnabled||c.bodyId!==a.bodyId)return;
  try{
   const selected=industrialEquipment8E(a.reactionId,a.stationId);
+  if(!shipLocal||Math.acos(Math.max(-1,Math.min(1,
+    shipLocal.reduce((sum,v,i)=>sum+v*selected.asset.location.local[i],0))))*
+      (nearest?.radius||1)>80)return; // Physical power umbilical disconnected; preserve paid work.
   const ship=vehicleStore.get('ship');
   const delta=Math.min(10,Math.max(0,elapsed),a.seconds-a.elapsedS,ship.state.energyJ/a.powerW);
   if(delta>0){
