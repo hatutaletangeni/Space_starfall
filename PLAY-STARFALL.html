@@ -2123,7 +2123,7 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  if(!site||!Number.isFinite(timeS)||timeS<0||!Number.isFinite(ambientPa)||ambientPa<0||!(gravityMS2>0))throw Error('Invalid geothermal state');
  const cycle=site.cycleS,dt=(timeS+site.epochOffsetS)%cycle,active=dt<site.durationS;
  const phase=clamp(dt/site.durationS),eruption=active?Math.sin(phase*Math.PI)**2:0;
- const isMagma=site.kind.includes('volcano')&&!site.kind.includes('cryo');
+ const isMagma=['effusive-volcano','explosive-volcano','fissure-eruption'].includes(site.kind);
  const isCryo=site.kind==='cryovolcano',gasFluid=!isMagma&&site.volatileInventoryKg>0;
  const overpressurePa=site.thermalFluxWm2*(isMagma?3e7:8e6)*(0.35+0.65*(1-dt/cycle));
  const thresholdPa=ambientPa+(isMagma?7e5:gasFluid?1.5e5:5e4);
