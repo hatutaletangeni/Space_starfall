@@ -1,8 +1,8 @@
-name: Update 8C geological resources integration
+name: Update 8E modular expedition ship integration
 on:
   push:
     branches:
-      - feature/update-8c-finite-geology
+      - feature/update-8e-modular-ship
   workflow_dispatch:
 permissions:
   contents: write
@@ -27,11 +27,17 @@ jobs:
           node --check src/physics/cargo-bay8b.js
           node --check src/physics/planetary-resources8c.js
           node --check src/physics/planetary-resources-ui8c.js
+          node --check src/physics/modular-ship8e.js
+          node --check src/physics/ship-walk8e.js
+          node --check src/physics/modular-ship-ui8e.js
+          node --check src/engine.js
+          node --check src/controls/input.js
           node --check src/flight.js
           node tests/update8a.test.cjs
           node tests/material-ledger8a.test.cjs
           node tests/cargo-bay8b.test.cjs
           node tests/planetary-resources8c.test.cjs
+          node tests/modular-ship8e.test.cjs
       - name: Rebuild source-synchronized standalone
         run: |
           python tools/build-standalone.py
@@ -42,12 +48,12 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add PLAY-STARFALL.html
-            git commit -m "8C: synchronize offline standalone with physical inventory"
-            git push origin HEAD:feature/update-8c-finite-geology
+            git commit -m "8E: synchronize offline standalone with physical inventory"
+            git push origin HEAD:feature/update-8e-modular-ship
           fi
       - name: Archive standalone validation artifact
         uses: actions/upload-artifact@v4
         with:
-          name: starfall-8c-standalone
+          name: starfall-8e-standalone
           path: PLAY-STARFALL.html
           if-no-files-found: error
