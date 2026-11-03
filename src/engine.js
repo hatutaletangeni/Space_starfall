@@ -671,7 +671,7 @@ class Renderer{
      if(root.StarfallHydrosphereLW04?.material(this.patchPlanet,this.galaxy.seed)){
       const H=root.StarfallHydrosphereLW04,pw=this.p.water,local=this.patchCenter,
        surface=H.sample(this.patchPlanet,local,groundHeight(local,this.patchPlanet),this.galaxy.time,this.galaxy.seed),
-       wet=state.swimming||surface.submerged,
+       wet=!!state.swimming,
        wind=state.weather?.windMS||5;
       gl.useProgram(pw);this.setMat(pw,'uViewProj',vp);this.setMat(pw,'uModel',model);
       this.setFloat(pw,'uTime',this.galaxy.time);this.setFloat(pw,'uAmplitude',Math.min(.012,.002+wind*.00012));
