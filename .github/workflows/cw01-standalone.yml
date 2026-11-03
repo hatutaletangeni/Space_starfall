@@ -37,6 +37,12 @@ jobs:
           node tests/composition-integration-cw06.test.cjs
           node --check src/physics/geothermal-lw01.js
           node tests/geothermal-lw01.test.cjs
+          node --check src/engine.js
+          node --check src/flight.js
+          node --check src/events/events.js
+          node --check src/events/events-ui.js
+          node --check src/physics/science-field.js
+          node --check src/physics/observatory.js
       - name: Build bundled offline game
         run: python3 tools/build-standalone.py
       - name: Verify single-file parity
