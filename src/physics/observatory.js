@@ -31,9 +31,87 @@ function compositionRows(profile){
  }
  return rows;
 }
+function geothermalRows(profile){
+ if(profile?.kind==='star'||!selected?.landable||!root.StarfallGeothermalLW01)return [];
+ const sites=root.StarfallGeothermalLW01.sources(selected,RT.galaxy.seed);
+ const grouped={};for(const site of sites)grouped[site.kind]=(grouped[site.kind]||0)+1;
+ const summary=Object.entries(grouped).map(([name,count])=>name+' ×'+count).join(' · ');
+ return [entry('Geothermal site candidates',summary||'None','Seeded model, not mapped or confirmed'),
+   entry('Geothermal interpretation','Pressure-driven cycles; local vents must be surveyed','Analytical model, not verified eruption animation')];
+}
+function livingGeologyRows(profile){
+ const geo=root.StarfallGeologyLW02,engine=root.Starfall3D;
+ if(profile?.kind==='star'||!selected?.landable||!geo)return[];
+ const sites=geo.sites(selected,RT.galaxy.seed),dir=sites[0]?.local||[0,1,0];
+ const height=engine?.groundHeight?engine.groundHeight(dir,selected):0;
+ const regional=geo.landform(selected,dir,height,engine?.field?.(dir,selected.seed)??.5);
+ return [entry('Subsurface candidate passages',sites.length+' · '+sites.map(x=>x.kind).join(' / '),
+   'Deterministic candidates; entrances require surface approach'),
+   entry('Regional landform',regional?.kind||'Unknown',regional?.cause||'Procedural geological prior'),
+   entry('Terrain compatibility','Original heights unchanged','Preserves all existing saves, structures and landing sites')];
+}
+function climateRows(profile){
+ const W=root.StarfallMeteorologyLW03;if(profile?.kind==='star'||!selected?.landable||!W)return[];
+ const ctx=RT.outpostContext?.(),dir=ctx?.body?.id===selected.id&&ctx.local?ctx.local:[0,1,0];
+ const w=W.cell(selected,dir,RT.time,RT.galaxy.seed),quality=ctx?.body?.id===selected.id?'Current location (modeled)':'Reference latitude sample (modeled)';
+ return [entry('Local weather regime',w.regime,quality),
+  entry('Meteorological temperature',fmt(w.temperatureK,'K'),quality),
+  entry('Weather wind',fmt(w.windMS,'m/s'),quality),
+  entry('Cloud fraction',fmt(w.cloudFraction*100,'%'),'Composition and condensation estimate'),
+  entry('Precipitation',fmt(w.precipitationKgM2S*3600,'kg/m²/h'),w.sourceSpecies||'No condensable material'),
+  entry('Scale height',fmt(w.scaleHeightM,'m'),'Hydrostatic atmosphere; coarse temperature')];
+}
+function hydrologyRows(profile){
+ const H=root.StarfallHydrosphereLW04;if(!H||!selected?.landable||profile?.kind==='star')return[];
+ const sea=H.material(selected,RT.galaxy.seed);if(!sea)return[entry('Surface liquid hydrosphere','Not predicted','Legacy water and phase thresholds')];
+ const ctx=RT.outpostContext?.(),local=ctx?.body?.id===selected.id&&ctx.local?ctx.local:[0,1,0];
+ const sceneHeight=ctx?.body?.id===selected.id?
+  Math.max(0,Math.hypot(...ctx.position.map((v,i)=>v-selected.position[i]))-selected.radius):
+  root.Starfall3D?.groundHeight?.(local,selected)||0;
+ const state=H.sample(selected,local,sceneHeight,RT.time,RT.galaxy.seed);
+ return [entry('Ocean species',sea.species,'Seeded inventory and legacy basin classification'),
+ entry('Liquid density',fmt(sea.densityKgM3,'kg/m³'),'Water / saline water model'),
+ entry('Local water surface',state.hasWater?'Present':'Dry coast / inland','Same immutable terrain basin mask'),
+ entry('Water surface wave',fmt(state.waveHeightM,'m'),'Wind and gravity driven wave estimate'),
+ entry('Local water depth',state.hasWater?fmt(state.depthM,'m'):'—','Computed from observer altitude'),
+ entry('Hydrostatic pressure',state.hasWater?fmt(state.pressurePa/1000,'kPa'):'—','Water-only pressure above ambient atmosphere'),
+ entry('Swimming',ctx?.body?.id===selected.id&&RT.swimming?'Yes':'No','Buoyancy, drag and vertical swim controls enabled')];
+}
+function debrisRows(profile){
+ const D=root.StarfallDebrisLW05;if(!D||!selected?.id||profile?.kind==='star')return[];
+ const sys=RT.galaxy.byId.get(selected.systemId),belts=sys?.belts||[],rows=[];
+ rows.push(entry('Asteroid belts',String(belts.length),'Existing seeded orbital debris; individual rocks now solid 3D shapes'));
+ if(selected.ring){
+  rows.push(entry('Planetary ring', 'Dust · rocklets · orbital gaps','Annulus and orbiting 3D moonlets share the legacy tilted plane'));
+  rows.push(entry('Ring inner radius',fmt(selected.radius*1.33,'scene u'),'Legacy ring geometry; no orbital changes'));
+  rows.push(entry('Ring outer radius',fmt(selected.radius*selected.ringWidth,'scene u'),'Legacy ring geometry; 1 scene u = 1,000 m'));
+ }
+ const hazard=RT.renderStats?.()?.debrisRisk;
+ if(hazard)rows.push(entry('Closest debris clearance',fmt(hazard.clearance,'scene u')+(hazard.collision?' · CONTACT':''),
+  'Proximity against irregular asteroid bounding radius, ship radius ~4 scene units'));
+ return rows;
+}
+function spaceWeatherRows(profile){
+ const W=root.StarfallSpaceWeatherLW06;if(!W||!selected)return[];
+ const sys=RT.galaxy.byId.get(selected.systemId);if(!sys)return[];
+ const pos=profile.kind==='star'?RT.scenePosition:selected.position;
+ const solar=W.exposure(sys,pos,RT.time,RT.galaxy.seed),src=W.source(sys,RT.galaxy.seed);
+ const items=[entry('LW06 stellar event source',src.kind,'Existing seeded star classification and legacy phenomenon tag'),
+  entry('Magnetic flare',fmt(100*solar.flareStrength,'%'),'Finite signal travel delay '+fmt(solar.pulse.lightTravelDelayS,'s')),
+  entry('Ionization / particle storm index',fmt(solar.ionizationIndex),'Normalized model, not measured dose in Sv'),
+  entry('Magnetic disturbance at location',fmt(solar.magneticDisturbanceNT,'nT'),'Approximate magnetospheric proxy'),
+  entry('Communication interference estimate',fmt(solar.inducedCommsNoise*100,'%'),'Signal-noise estimate only; not a fabricated packet loss or command ACK'),
+  entry('Stellar environment hazard',solar.hazard,'Based on current modeled local exposure')];
+ if(solar.remnant){
+  items.push(entry('Supernova ejecta remnant',solar.remnant.id,'Existing supernova-tagged star; not a recurring explosion'));
+  items.push(entry('Remnant shock radius',fmt(solar.remnant.radiusScene*1000/1e6,'million km'),'Expanding shell at modeled ejecta velocity'));
+  items.push(entry('Ejecta condensed dust',fmt(100*solar.remnant.dustFraction,'%'),'Stellar nucleosynthetic enrichment is qualitative'));
+ }
+ return items;
+}
 function rows(profile){if(!profile)return [];
- if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
- return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
+ if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...spaceWeatherRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
+ return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...livingGeologyRows(profile),...climateRows(profile),...hydrologyRows(profile),...debrisRows(profile),...spaceWeatherRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
 function getProfile(){RT.galaxy.observerPosition=RT.scenePosition;return selected?P.scienceProfile(RT.galaxy,selected):null;}
 function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galaxy.byId.get(focus.systemId):RT.galaxy.byId.get(focus.systemId);
  if(sys?.dormant)RT.galaxy.activate(sys);
@@ -49,6 +127,30 @@ function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChi
  for(const r of [{label:'Instrument evidence state',value:latest.length?'OBSERVED (seeded measurements)':'INFERRED / UNSCANNED',quality:latest.length?'Real source journal receipts, NOT calibrated astronomical truth':'Procedural catalogue only'},
  ...latest.map(x=>({label:'Observed '+x.instrument,value:String(x.value)+' '+(x.unit||'')+' at T+'+x.timeS.toFixed(1)+' s',quality:'Source '+(x.satelliteId||x.probeId||x.sourceAssetId||'field journal')+' · observation '+x.id})),
  ...rows(p)]){const tr=document.createElement('div');tr.className='science-row';const name=document.createElement('span');name.textContent=r.label;const val=document.createElement('strong');val.textContent=r.value;const quality=document.createElement('small');quality.textContent=r.quality;tr.append(name,val,quality);list.append(tr);}
+ if(selected?.landable&&root.StarfallGeothermalLW01&&RT.plotSurfaceWaypoint){
+  const vents=root.StarfallGeothermalLW01.sources(selected,RT.galaxy.seed);
+  vents.forEach((site,i)=>{
+   const button=document.createElement('button');button.type='button';button.className='site';
+   const lat=Math.asin(site.direction[1])*180/Math.PI,lon=Math.atan2(site.direction[2],site.direction[0])*180/Math.PI;
+   button.textContent='PLOT GEO '+(i+1)+' · '+site.kind+' · '+lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';
+   button.title='Set a normal flight waypoint to this seeded modeled vent; no teleport';
+   button.onclick=()=>{try{RT.plotSurfaceWaypoint(selected.id,site.direction,site.kind+' vent '+(i+1));}
+    catch(error){$('obs-caution').textContent=error.message;}};
+   list.append(button);
+  });
+ }
+ if(selected?.landable&&root.StarfallGeologyLW02&&RT.plotSurfaceWaypoint){
+  const caves=root.StarfallGeologyLW02.sites(selected,RT.galaxy.seed);
+  caves.forEach((site,i)=>{
+   const button=document.createElement('button');button.type='button';button.className='site';
+   const lat=Math.asin(site.local[1])*180/Math.PI,lon=Math.atan2(site.local[2],site.local[0])*180/Math.PI;
+   button.textContent='PLOT CAVE '+(i+1)+' · '+site.kind+' · '+lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';
+   button.title='Normal flight waypoint to a deterministic cave entrance. Walk there in EVA and press X.';
+   button.onclick=()=>{try{RT.plotSurfaceWaypoint(selected.id,site.local,site.kind+' cave '+(i+1));}
+    catch(error){$('obs-caution').textContent=error.message;}};
+   list.append(button);
+  });
+ }
  $('obs-caution').textContent=p?.notes||'Data is a deterministic procedural physical model. It is not an astronomical observation.';
 }
 function dataSnapshot(){const p=getProfile();return{schema:'starfall-science-v1',exportedSimulationSeconds:RT.time,galaxySeed:RT.galaxy.seed,bodyId:selected?.id,profile:p,assumptions:{sceneUnitMetres:P.SCENE_METERS_PER_UNIT,temperatureModel:'airless equilibrium, uniform redistribution',measurements:'Procedurally estimated; not direct instrument readings'}};}

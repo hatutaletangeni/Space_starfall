@@ -80,12 +80,14 @@ with sync_playwright() as p:
   assert page.evaluate("document.getElementById('workbench').contains(document.activeElement)"),focus
   page.locator('#wb-close').click()
   page.wait_for_function("document.getElementById('workbench').hidden",timeout=15000)
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
   page.locator('#launch-open').click()
   page.wait_for_function("!document.getElementById('launch-dialog').hidden",timeout=15000)
   assert page.locator('#launch-dialog .op16-card').count()==2, 'Rocket Lab and nested Satellite Operations each own a distinct source card'
   assert page.locator('#sat7c-section .op16-card').count()==1
   assert page.locator('#launch-emergency').count()==1,'Original emergency stop retained'
   page.locator('#launch-close').click()
+  page.locator('#ui21-navigation button[data-route="Operate"]').click()
   page.locator('#imaging7f-open').click()
   page.wait_for_function("!document.getElementById('imaging7f').hidden",timeout=15000)
   assert page.locator('#imaging7f .op16-card').count()==1

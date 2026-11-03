@@ -29,6 +29,7 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRFAnalyzerUI19&&window.StarfallOutpostUI&&window.StarfallCommsT03)",timeout=50000)
   assert page.evaluate("StarfallRuntime.landed && StarfallRuntime.eva")
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
   page.locator('#outpost-open').click()
   ids={}
   for kind in ['battery','solar','antenna']:

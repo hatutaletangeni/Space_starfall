@@ -1,4 +1,4 @@
-name: CW01-CW06 standalone build and checks
+name: CW01-CW06 + LW01-LW06 standalone build and checks
 on:
   push:
     branches:
@@ -9,6 +9,12 @@ on:
       - feature/cw04-volatile-phases
       - feature/cw05-atmosphere-optics
       - feature/cw06-science-integration-release
+      - feature/lw01-geothermal-causality
+      - feature/lw02-mountains-caves
+      - feature/lw03-causal-meteorology
+      - feature/lw04-hydrosphere-buoyancy
+      - feature/lw05-physical-asteroids-rings
+      - feature/lw06-stellar-causality-spaceweather
   workflow_dispatch:
 permissions:
   contents: write
@@ -35,6 +41,48 @@ jobs:
           node --check src/physics/atmosphere-optics-cw05.js
           node tests/atmosphere-optics-cw05.test.cjs
           node tests/composition-integration-cw06.test.cjs
+          node --check src/physics/geothermal-lw01.js
+          node tests/geothermal-lw01.test.cjs
+          node tests/geothermal-events-lw01.test.cjs
+          node --check src/terrain/living-geology-lw02.js
+          node --check src/terrain/cave-mesh-lw02.js
+          node --check src/archaeology/interiors-ui.js
+          node --check src/physics/observatory.js
+          node --check src/flight.js
+          node --check src/engine.js
+          node tests/living-geology-lw02.test.cjs
+          node --check src/physics/meteorology-lw03.js
+          node --check src/physics/science-field.js
+          node --check src/events/events.js
+          node --check src/events/events-ui.js
+          node --check src/flight.js
+          node --check src/engine.js
+          node tests/meteorology-lw03.test.cjs
+          node --check src/physics/hydrosphere-lw04.js
+          node --check src/terrain/water-mesh-lw04.js
+          node --check src/engine.js
+          node --check src/flight.js
+          node --check src/physics/observatory.js
+          node tests/hydrosphere-lw04.test.cjs
+          node --check src/physics/debris-lw05.js
+          node --check src/physics/operations-ui-t16.js
+          node --check src/engine.js
+          node --check src/flight.js
+          node tests/debris-lw05.test.cjs
+          node tests/asset-explorer-no-operations-lw05.test.cjs
+          node --check src/physics/space-weather-lw06.js
+          node --check src/physics/power.js
+          node --check src/physics/science-field.js
+          node --check src/physics/observatory.js
+          node --check src/engine.js
+          node --check src/flight.js
+          node tests/space-weather-lw06.test.cjs
+          node --check src/engine.js
+          node --check src/flight.js
+          node --check src/events/events.js
+          node --check src/events/events-ui.js
+          node --check src/physics/science-field.js
+          node --check src/physics/observatory.js
       - name: Build bundled offline game
         run: python3 tools/build-standalone.py
       - name: Verify single-file parity
@@ -45,6 +93,6 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add PLAY-STARFALL.html
-            git commit -m "build(CW01-CW06): synchronize standalone offline HTML"
+            git commit -m "build(LW06): synchronize standalone offline HTML"
             git push
           fi

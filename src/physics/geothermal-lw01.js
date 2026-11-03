@@ -1,0 +1,130 @@
+/* STARFALL LW-01 geothermal source model.
+ * Analytical, deterministic candidate sources, not a CFD or finite-element solver.
+ * Sources are planet-fixed; no collision/terrain generation or old save mutation.
+ */
+(function(root){'use strict';
+const TAU=Math.PI*2;
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const nrm=v=>{const k=Math.hypot(...v);if(!(k>0&&Number.isFinite(k)))throw Error('Invalid planet-fixed direction');return v.map(x=>x/k)};
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0}
+function rnd(s){let x=hash(s);x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);return ((x^(x>>>16))>>>0)/4294967296}
+const sourceCache=new Map(),SOURCE_CACHE_LIMIT=96;
+function sources(body,seed=742){
+ if(!body?.id||!body.landable)return Object.freeze([]);
+ const key=seed+':'+body.id+':'+body.type;
+ if(sourceCache.has(key))return sourceCache.get(key);
+ const type=body.type,magmatic=['Volcanic','Rocky'].includes(type),cryogenic=type==='Ice',hydro=['Temperate','Ocean','Lush'].includes(type);
+ if(!magmatic&&!cryogenic&&!hydro)return Object.freeze([]);
+ const out=[],count=type==='Volcanic'?5:cryogenic?3:2;
+ for(let i=0;i<count;i++){
+  const k=seed+':'+body.id+':LW01:'+i,lat=(rnd(k+':lat')-.5)*2.3,lon=rnd(k+':lon')*TAU,cos=Math.cos(lat);
+  const fluidPrior=cryogenic?.68:hydro?.75:magmatic?.24:0;
+  const prior=root.StarfallCompositionCW01?.bodyFor(body,seed),silicate=prior?.bulkComponentMassFractions?.silicate??.5;
+  const radiogenicHeatWm2=(.018+.070*silicate)*(.7+.6*rnd(k+':radiogenic'));
+  const tidalHeatWm2=body.kind==='moon'?(.045+.18*rnd(k+':tidal')):0;
+  const hotspotHeatWm2=(type==='Volcanic'?.28:cryogenic?.085:hydro?.07:magmatic?.10:0)*(.65+1.2*rnd(k+':hotspot'));
+  const thermalWm2=radiogenicHeatWm2+tidalHeatWm2+hotspotHeatWm2;
+  const conduitPermeability=.14+.8*rnd(k+':permeability');
+  const gasMassFraction=(magmatic?.01:cryogenic?.12:.025)*(.5+rnd(k+':gas'));
+  const conduitFailureStrengthPa=(magmatic?2.6e5:1.0e5)*(.7+1.5*rnd(k+':strength'));
+  const volatileInventoryKg=(4e6+3e7*rnd(k+':reservoir'))*fluidPrior;
+  const reservoirTemperatureK=magmatic?(1080+290*rnd(k+':temperature')):cryogenic?(165+90*rnd(k+':temperature')):(310+65*rnd(k+':temperature'));
+  const volatileSpecies=magmatic?'CO2/SO2':cryogenic?'H2O/NH3':'H2O';
+  const reservoirCapacityKg=(magmatic?1.4e8:volatileInventoryKg)*(0.65+0.6*rnd(k+':capacity'));
+  const initialReservoirKg=reservoirCapacityKg*(0.48+0.48*rnd(k+':initial'));
+  const rechargeKgPerCycle=reservoirCapacityKg*(magmatic?.008:cryogenic?.012:hydro?.038:0);
+  let magmaViscosityPaS=magmatic?Math.pow(10,1.7+4.4*rnd(k+':viscosity')):0;
+  let kind;
+  if(cryogenic)kind='cryovolcano';
+  else if(hydro){const t=rnd(k+':style');kind=t<.53?'geyser':t<.78?'mud-pot':'fumarole';}
+  else if(type==='Volcanic'&&i===0)kind='effusive-volcano';
+  else if(type==='Volcanic'&&i===1)kind='explosive-volcano';
+  else if(type==='Volcanic'&&i===2)kind='fissure-eruption';
+  else if(type==='Volcanic'&&i===3)kind='cinder-cone';
+  else if(type==='Volcanic'&&i===4)kind='caldera-eruption';
+  else if(magmaViscosityPaS>2e4)kind='explosive-volcano';
+  else kind=rnd(k+':style')<.38?'fissure-eruption':'effusive-volcano';
+  if(['explosive-volcano','caldera-eruption'].includes(kind))magmaViscosityPaS=Math.max(22000,magmaViscosityPaS);
+  if(['effusive-volcano','fissure-eruption'].includes(kind))magmaViscosityPaS=Math.min(2500,magmaViscosityPaS);
+  const cycleS=Math.round((type==='Volcanic'?1600:2600)*(0.7+1.1*rnd(k+':period')));
+  const durationS=Math.max(60,Math.round(cycleS*(kind==='caldera-eruption'?.035:kind==='effusive-volcano'?.25:.10+(.07*rnd(k+':duration')))));
+  out.push(Object.freeze({schema:1,id:body.id+':geothermal:'+i,bodyId:body.id,kind,
+   direction:Object.freeze([cos*Math.cos(lon),Math.sin(lat),cos*Math.sin(lon)]),
+   thermalFluxWm2:thermalWm2,radiogenicHeatWm2,tidalHeatWm2,hotspotHeatWm2,
+   conduitPermeability,conduitFailureStrengthPa,gasMassFraction,reservoirTemperatureK,volatileSpecies,
+   volatileInventoryKg,magmaViscosityPaS,
+   reservoirCapacityKg,initialReservoirKg,rechargeKgPerCycle,
+   conduitDepthM:220+2400*rnd(k+':depth'),ventRadiusM:4+36*rnd(k+':width'),
+   cycleS,durationS,epochOffsetS:Math.floor(cycleS*rnd(k+':phase')),
+   provenance:'seeded geothermal source prior; not surveyed',uncertainty:'high'}));
+ }
+ const result=Object.freeze(out);
+ if(sourceCache.size>=SOURCE_CACHE_LIMIT)sourceCache.delete(sourceCache.keys().next().value);
+ sourceCache.set(key,result);return result;
+}
+function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
+ if(!site||!Number.isFinite(timeS)||timeS<0||!Number.isFinite(ambientPa)||ambientPa<0||!(gravityMS2>0))throw Error('Invalid geothermal state');
+ const cycle=site.cycleS,dt=(timeS+site.epochOffsetS)%cycle,active=dt<site.durationS;
+ const phase=clamp(dt/site.durationS),eruption=active?Math.sin(phase*Math.PI)**2:0;
+ const isMagma=['effusive-volcano','explosive-volcano','fissure-eruption','cinder-cone','caldera-eruption'].includes(site.kind);
+ const isCryo=site.kind==='cryovolcano',gasFluid=!isMagma&&site.volatileInventoryKg>0;
+ const overpressurePa=site.thermalFluxWm2*(isMagma?3e7:8e6)*(0.35+0.65*(1-dt/cycle))*(1+Math.min(.5,(site.gasMassFraction||0)*3))/Math.sqrt(Math.max(.12,site.conduitPermeability||1));
+ const thresholdPa=ambientPa+(site.conduitFailureStrengthPa|| (isMagma?7e5:gasFluid?1.5e5:5e4));
+ const liquidReservoirPossible=!['geyser','mud-pot'].includes(site.kind)||(site.reservoirTemperatureK>=273.16&&site.reservoirTemperatureK<647.1&&overpressurePa>=611.657);
+ const canErupt=site.thermalFluxWm2>0&&overpressurePa>thresholdPa&&liquidReservoirPossible&&(isMagma||site.volatileInventoryKg>0);
+ const capacity=site.reservoirCapacityKg||site.volatileInventoryKg||0;
+ const initial=Math.min(capacity,site.initialReservoirKg??capacity);
+ const recharge=Math.max(0,site.rechargeKgPerCycle||0);
+ const maxDischarge=capacity*(site.kind==='caldera-eruption'?.19:site.kind==='fissure-eruption'?.11:site.kind==='cinder-cone'?.045:.07);
+ const cycleNumber=Math.floor((timeS+site.epochOffsetS)/cycle);
+ // Closed-form reservoir model: depth inventory declines when discharge exceeds a bounded
+ // deep-supply recharge. Hydrothermal reservoirs can refill at a stated finite rate.
+ // The next cycle cannot consume more than its available inventory.
+ // Closed-form bounded cycle recurrence:
+ // R(n+1) = min(capacity, max(0, R(n)-maximumDischarge) + suppliedMass).
+ // When supply is smaller than demand a site periodically depletes but can emit
+ // again only after bounded replenishment, not create material spontaneously.
+ const availableAtStart=cycleNumber===0?initial:
+  Math.max(0,Math.min(capacity,Math.max(recharge,initial+cycleNumber*(recharge-(canErupt?maxDischarge:0)))));
+ const dischargeBudgetKg=canErupt?Math.min(maxDischarge,availableAtStart):0;
+ const consumedFraction=active?phase-Math.sin(TAU*phase)/TAU:1;
+ const dischargedThisCycleKg=dischargeBudgetKg*consumedFraction;
+ const reservoirRemainingKg=Math.max(0,availableAtStart-dischargedThisCycleKg);
+ const intensity=dischargeBudgetKg>0&&active?eruption:0;
+ const densityKgM3=isMagma?2700:isCryo?920:1000;
+ const massFlowKgS=dischargeBudgetKg*2/Math.max(1,site.durationS)*intensity;
+ const estimatedExitVelocityMS=Math.sqrt(Math.max(0,2*(overpressurePa-thresholdPa)/densityKgM3));
+ const ballisticHeightM=estimatedExitVelocityMS**2/(2*gravityMS2);
+ const plumeHeightM=Math.min(25000,ballisticHeightM*(site.kind==='caldera-eruption'?3.5:site.kind==='explosive-volcano'?2.7:site.kind==='cinder-cone'?1.25:isMagma ? .65 : .7));
+ const ashMassFlowKgS=isMagma&&['explosive-volcano','caldera-eruption','cinder-cone'].includes(site.kind)?
+  massFlowKgS*(site.kind==='caldera-eruption'?.6:.3):0;
+ const lavaMassFlowKgS=isMagma?massFlowKgS*(site.kind==='explosive-volcano'?.2:
+  site.kind==='caldera-eruption'?.15:site.kind==='cinder-cone'?.7:.8):0;
+ const vaporMassFlowKgS=Math.max(0,massFlowKgS-ashMassFlowKgS-lavaMassFlowKgS);
+ return Object.freeze({sourceId:site.id,kind:site.kind,timeS,active:!!intensity,intensity,
+  pressurePa:ambientPa+overpressurePa,ambientPressurePa:ambientPa,thresholdPa,
+  massFlowKgS,exitVelocityMS:estimatedExitVelocityMS,plumeHeightM,
+  heatFluxWm2:site.thermalFluxWm2,reservoirCapacityKg:capacity,reservoirRemainingKg,dischargedThisCycleKg,
+  rechargeKgPerCycle:recharge,volatileSpecies:site.volatileSpecies,sourceTemperatureK:site.reservoirTemperatureK,
+  ashMassFlowKgS,lavaMassFlowKgS,vaporMassFlowKgS,
+  model:'finite reservoir with periodic discharge analytical proxy; not CFD'});
+}
+function local(body,direction,timeS,seed=742,pressurePa=101325,gravityMS2=9.80665){
+ const d=nrm(direction),r=body?.radius||1000;
+ let best=null;for(const site of sources(body,seed)){
+  const dot=clamp(d[0]*site.direction[0]+d[1]*site.direction[1]+d[2]*site.direction[2],-1,1);
+  const distanceScene=Math.acos(dot)*r;
+  const state=pulse(site,timeS,pressurePa,gravityMS2),rangeScene=Math.max(.008,site.ventRadiusM/1000)*15;
+  if(distanceScene<rangeScene&&(!best||distanceScene<best.distanceScene)){
+   const weight=clamp(1-distanceScene/rangeScene),exposure=state.intensity*weight;
+   const sourceTemp=Math.max(0,site.reservoirTemperatureK||280);
+   const radiative=Math.max(0,5.670374419e-8*(sourceTemp**4-280**4))*exposure*weight;
+   best=Object.freeze({site,state,distanceScene,rangeScene,thermalExposure:exposure,
+     radiativeHeatFluxWm2:radiative,hazard:exposure>.20&&radiative>1000?'thermal danger':exposure>.03?'active vent proximity':'low'});
+  }
+ }return best;
+}
+const API=Object.freeze({sources,pulse,local});
+root.StarfallGeothermalLW01=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);

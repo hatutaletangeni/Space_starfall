@@ -22,9 +22,15 @@ with sync_playwright() as p:
   assert page.locator('#universe').evaluate('(e)=>e.width>0&&e.height>0')
   assert page.locator('.controls-hint').is_hidden()
   assert page.locator('.identity h1').evaluate('(e)=>parseFloat(getComputedStyle(e).fontSize)<=30')
-  assert page.locator('.panel').evaluate('(e)=>e.getBoundingClientRect().height<350')
-  for id in ['launch-open','asset-open','controls-open','chart-open','obs-open','archive-t17-open']:
+  # UI21 expands its routed console within the viewport; the old <350px
+  # UI20 compact-panel assertion is no longer the intended layout.
+  assert page.locator('.panel').evaluate('(e)=>100<e.getBoundingClientRect().height<=window.innerHeight')
+  for id in ['controls-open','chart-open','obs-open','archive-t17-open']:
    assert page.locator('#'+id).is_visible(),id
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  for id in ['launch-open','asset-open']:
+   assert page.locator('#'+id).is_visible(),id
+  page.locator('#ui21-navigation button[data-route="Overview"]').click()
   assert page.locator('#ui20-vehicle-frame').is_hidden()
   page.screenshot(path=str(out/'01-flight-chase.png'))
   page.keyboard.press('v')
@@ -34,13 +40,14 @@ with sync_playwright() as p:
   assert page.locator('#mode-text').inner_text()
   page.screenshot(path=str(out/'02-ship-cockpit.png'))
   page.locator('#ui-help-open').click()
-  assert page.locator('.controls-hint').is_visible()
+  assert page.locator('#ui21-manual').is_visible(), 'Help should open the current searchable Field Manual'
   page.keyboard.press('Escape')
-  assert page.locator('.controls-hint').is_hidden()
+  assert page.locator('#ui21-manual').is_hidden(), 'Escape should close the Field Manual'
   page.locator('#ui-console-open').click()
   assert page.locator('#panel').is_visible()
-  page.locator('#sf-console-nav button').filter(has_text='Systems').click()
+  page.locator('#ui21-navigation button[data-route="Operate"]').click()
   assert page.locator('#fc-extra').is_visible()
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
   page.locator('#launch-open').click()
   assert page.locator('#launch-dialog').is_visible()
   page.locator('#launch-close').click()

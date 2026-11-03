@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const html=fs.readFileSync('index.html','utf8'),ops=fs.readFileSync('src/physics/operations-ui-t16.js','utf8');
+assert.ok(html.includes('id="asset-manager"')&&html.includes('id="asset-search"')&&html.includes('id="asset-detail"'));
+assert.ok(html.includes('Fleet & Asset Explorer'));
+assert.ok(!html.includes('STARFALL / OPERATIONS / SYSTEMS & ASSEMBLIES'),'asset UI breadcrumb should not claim operations');
+assert.ok(html.includes('STARFALL / ASSETS / SYSTEMS & ASSEMBLIES'));
+const panelIds=ops.match(/const panelIds=\{([^}]+)\}/)?.[1];
+assert.ok(panelIds,'operations panel map expected');
+assert.ok(!panelIds.includes("assets:"),'T16 must not inject the Operations status card into asset explorer');
+assert.ok(panelIds.includes("main:")&&panelIds.includes("launch:"),'independent operations consoles must remain available');
+console.log('LW05 asset explorer: removed entire Operations top window and preserved asset hierarchy/controls');
