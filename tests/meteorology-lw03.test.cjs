@@ -34,4 +34,22 @@ const oldMoon=JSON.stringify(moon);
 for(let i=0;i<20;i++)W.cell(moon,d,time+i*10,742);
 assert.equal(JSON.stringify(moon),oldMoon,'weather may not modify existing body identities');
 assert.throws(()=>W.cell(ocean,d,-1,742));
+// Verify that a real seeded Ocean-world weather front has a single event and
+// instrument source; do not create test-only bodies or fake storms.
+let wet=null;
+for(let i=0;i<120&&!wet;i++){
+ const d=[.8*Math.cos(i*.43),.6*Math.sin(i*.17),.8*Math.sin(i*.43)],t=330*i;
+ const w=W.cell(ocean,d,t,742);
+ if(w.precipitationKgM2S>1e-9)wet={d,t,w};
+}
+assert.ok(wet,'actual seed-742 Ocean world must have a possible rain event');
+const event=EV.meteorologicalEvent(ocean,wet.d,wet.t,742);
+assert.ok(event&&['rain','electrical','snow'].includes(event.kind));
+assert.equal(event.sourceSpecies,wet.w.sourceSpecies);
+assert.equal(event.precipitationKgM2S,wet.w.precipitationKgM2S);
+assert.deepEqual(event,EV.meteorologicalEvent(ocean,wet.d,wet.t,742));
+const truth=global.StarfallFieldScience.localTruth(ocean,742,wet.d,wet.t);
+assert.ok(truth.temperatureK>=wet.w.temperatureK&&truth.temperatureK<=wet.w.temperatureK+91);
+assert.ok(EV.skyTransmission(ocean,wet.d,wet.t,742)<=wet.w.solarFactor+1e-12);
 console.log('LW03 2368 systems; rain/ice/vacuum model; mass cap; deterministic weather and journal PASS');
+
