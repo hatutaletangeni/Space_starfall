@@ -14,9 +14,18 @@ function compositionRows(profile){
    .sort((a,b)=>b[1]-a[1]).slice(0,4).map(([key,v])=>key+' '+fmtPercent(v)).join(' · ');
  const rows=[entry('CW composition version','v'+c.schema,'Seeded model — not measured'),
  entry('Bulk constituents (mass %)',names||'Unknown','Modelled prior; uncertain')];
- if(c.kind==='star')rows.push(entry('Stellar metallicity',fmtPercent(c.metallicityMassFraction),'Seeded abundance prior'));
+ if(c.kind==='star'){
+   rows.push(entry('Stellar metallicity',fmtPercent(c.metallicityMassFraction),'Seeded abundance prior'));
+   const spectrum=selected&&root.StarfallStellarSpectraCW02?.profile(selected);
+   if(spectrum)rows.push(entry('UV / visible / IR model fractions',
+     ['ultraviolet','visible','infrared'].map(k=>k+' '+fmtPercent(spectrum.radiationBandFractions[k])).join(' · '),
+     'Blackbody approximation — not an instrument reading'));
+ }
  else {
    rows.push(entry('Atmospheric species (mole %)',atm||'Vacuum / unmodelled','Modeled mixture, not a gas reading'));
+   const optics=selected&&root.StarfallAtmosphereCW05?.optical(selected,RT.galaxy.seed);
+   if(optics?.meanMolarMassKgMol)rows.push(entry('Mean modeled molar mass',fmt(optics.meanMolarMassKgMol*1000,'g/mol'),
+    'Computed from seeded gas mixture; not a pressure measurement'));
    const phase=profile.volatilePhases;
    if(phase?.volatiles?.H2O)rows.push(entry('H₂O phase screen',phase.volatiles.H2O.state,'High uncertainty — equilibrium T, legacy pressure'));
  }
