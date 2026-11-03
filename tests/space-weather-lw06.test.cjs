@@ -26,7 +26,7 @@ assert.ok(W.source(pulsar).kind==='pulsar');
 const flareSrc=W.source(pulsar),peak=flareSrc.cycleS-flareSrc.epochS+flareSrc.durationS/2;
 const local=W.flare(flareSrc,peak,0);
 const delayed=W.flare(flareSrc,peak+W.C_SCENE_S*4/W.C_SCENE_S, W.C_SCENE_S*4);
-assert.ok(local.flareStrength>.99&&delayed.flareStrength>.99);
+assert.ok(local.flareStrength>flareSrc.activityScale*.99&&delayed.flareStrength>flareSrc.activityScale*.99);
 assert.equal(delayed.lightTravelDelayS,4);
 assert.ok(W.exposure(pulsar,farOrbit,1e5,742).ionizationIndex>=0);
 assert.equal(JSON.stringify([system.position,system.star,system.phenomenon,system.nebulae,system.belts]),old);
