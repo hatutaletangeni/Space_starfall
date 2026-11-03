@@ -24,7 +24,7 @@ function quote({recipeId,materials,sourceContainerId,outputContainerId,machine})
  if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||!Array.isArray(materials.containers))throw Error('Missing 8A inventory');
  for(const [id,kg] of Object.entries(r.inputs)){
   const available=materials.lots.filter(l=>l.containerId===sourceContainerId&&l.materialId===id&&
-   (l.grade===null||l.grade===undefined||l.grade>=.98)).reduce((a,l)=>{
+   (typeof l.grade==='number'&&l.grade>=.98)).reduce((a,l)=>{
     const reserved=(materials.operations||[]).filter(o=>o.status==='RESERVED'&&o.lotId===l.id).reduce((s,o)=>s+o.massKg,0);
     return a+Math.max(0,l.massKg-reserved);
    },0);
@@ -41,7 +41,7 @@ function quote({recipeId,materials,sourceContainerId,outputContainerId,machine})
 function create(saved){
  const state=saved==null?{schema:1,serial:0,active:null,receipts:[]}:clone(saved);
  if(state.schema!==1||!Number.isSafeInteger(state.serial)||state.serial<0||!Array.isArray(state.receipts)||
- (state.active!=null&&(!ident(state.active.id)||!ident(state.active.recipeId)||!finite(state.active.elapsedS)||!finite(state.active.energyJ))||
+ (state.active!=null&&(!ident(state.active.id)||!ident(state.active.recipeId)||!finite(state.active.elapsedS)||!finite(state.active.energyJ)))||
  new Set(state.receipts.map(x=>x.id)).size!==state.receipts.length)throw Error('Corrupt 8F factory save');
  function start({recipeId,materials,sourceContainerId,outputContainerId,machine,shipLanded,bodyId,powerEnabled,batteryJ}){
   if(state.active)throw Error('Finish or cancel previous machining job');
@@ -70,6 +70,7 @@ function create(saved){
    powerW:r.powerW,seconds:r.seconds};
   const result=transformer.convert({operationId:a.id,recipeId:a.recipeId,recipe,materials,
    containerId:a.sourceContainerId,outputContainerId:a.outputContainerId,
+   minInputGrade:.98,outputGrades:Object.fromEntries(Object.keys(r.outputs).map(id=>[id,1])),
    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ},
    station:{id:machine.id,kind:r.station,containerId:a.sourceContainerId,condition:machine.condition,enabled:true}});
   // The pure transformer handles balance and storage. Nothing is committed until it succeeds.
