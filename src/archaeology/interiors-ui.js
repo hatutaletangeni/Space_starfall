@@ -26,7 +26,7 @@ function interact(){try{if(RT.interiorState){const s=RT.interiorState;if(s.kind=
  const G=root.StarfallGeologyLW02,entrance=G&&ctx.body?.landable&&ctx.local?G.sites(ctx.body,RT.galaxy.seed).find(x=>G.arc(x.local,ctx.local,ctx.body.radius)<7):null;
  if(entrance){RT.enterCave(entrance);status('Entered '+entrance.kind+'. Walk with W/S, rotate with A/D and use ESC to exit.');refresh();return;}const candidate=R.visibleSites.find(s=>A.arc(s.local,ctx.local,ctx.body.radius)<30&&R.records.some(r=>r.id===s.id&&r.level>=2));if(!candidate)throw Error('Field-examine an ancient ruin, then approach within 30 units.');RT.enterInterior(candidate);status('Entered '+A.TIERS[candidate.tier].name+'. Walk with W/S and turn with A/D; drag to look. X inspects nearby relics.');refresh();
  }catch(e){status(e.message,true);}}
-function exit(){if(!RT.interiorState)return;RT.leaveInterior();status('Returned outside the ruin.');refresh();}
+function exit(){if(!RT.interiorState)return;const cave=RT.interiorState.kind==='cave';if(cave)recordCave(RT.interiorState,true);RT.leaveInterior();status(cave?'Returned to planetary surface.':'Returned outside the ruin.');refresh();}
 function status(t,error=false){const s=$('interior-status');s.textContent=t;s.style.color=error?'#ffb6a2':'#ecd69d';}
 function refresh(){const s=RT.interiorState,ctx=RT.outpostContext(),near=(!s&&ctx.body&&ctx.local)?R.visibleSites.find(x=>A.arc(x.local,ctx.local,ctx.body.radius)<34):null;
  const label=$('interior-state'),enter=$('interior-enter'),leave=$('interior-exit'),inspect=$('interior-inspect');
