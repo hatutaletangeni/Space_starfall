@@ -7575,7 +7575,7 @@ let last=-Infinity;function tick(){const now=performance.now();if(now-last<250)r
  else if(near)hint.textContent='RUIN ENTRANCE · '+String(root.StarfallInput?.settings?.bindings?.interact||'KeyX').replace(/^Key/,'')+' ENTER · EXPLORABLE CHAMBERS';}
  if(!$('interior-panel').hidden)refresh();}
 addEventListener('pagehide',save);
-root.StarfallInteriorsUI={tick,interact,exit,refresh,get caveRecords(){return caveRecords.map(x=>({...x}));},get records(){return records.map(x=>({...x}));}};
+root.StarfallInteriorsUI={tick,interact,exit,refresh,checkpointCave:recordCave,get caveRecords(){return caveRecords.map(x=>({...x}));},get records(){return records.map(x=>({...x}));}};
 })(globalThis);
 
 </script><script>
