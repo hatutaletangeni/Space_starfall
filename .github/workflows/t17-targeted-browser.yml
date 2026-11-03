@@ -1,0 +1,39 @@
+name: T17 Targeted Expedition Archive Browser Contract
+
+on:
+  push:
+    branches: [feature/t17-save-integrity-and-recovery]
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t17-targeted-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  science-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify source-owned four-stage operational metadata and ACK truth
+        run: node tests/expedition-archive-t17.test.cjs
+      - name: Build exact latest offline game and verify model-to-bundle parity
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Install isolated Chromium software WebGL test runner
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Verify actual source-status cards, original controls, packet log and focus
+        run: python tests/expedition-archive-t17-browser.py

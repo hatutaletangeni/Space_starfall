@@ -56,6 +56,17 @@ function renderScope(n,el){const children=n.children.filter(c=>c.kind!=='compone
 function renderAsset(n,el){const a=n.ref||assetById(n.assetId),model=F.build(a,sources());if(!model)return;const top=dom('div','asset-detail-top'),t=dom('div');t.append(dom('div','asset-eyebrow','ENGINEERED ASSET / '+F.pretty(a.type)));t.append(dom('h3','',title(a)));t.append(dom('div','asset-id',a.id));top.append(t);top.append(dom('span','asset-tag'+(model.warnings.length?' warn':''),model.warnings.length?'ATTENTION':String(a.status||'Modeled').toUpperCase()));el.append(top);
  el.append(dom('p','asset-dim',model.state+' · '+(a.location?.frame||'unknown')+' · '+(a.bodyId||'location unavailable')));
  if(a.type==='satellite')el.append(button('OPEN SATELLITE OPERATIONS ↗',()=>{const op=root.StarfallSatelliteOpsUI;if(op){$('asset-manager').hidden=true;op.open(a.id);}},'asset-button'));
+ if(['rover','remote-rover'].includes(a.type))el.append(button('OPEN ACTUAL T12 FIELD REPAIRS ↗',()=>{
+  if(!root.StarfallLaunchUI?.open)return;
+  $('asset-manager').hidden=true;root.StarfallLaunchUI.open();
+  // Existing Rocket Lab T12 controls own physical tool energy, component
+  // availability, EVA reach, repair cooldown and persistent service receipts.
+ },'asset-button'));
+ if(['ship','rover'].includes(a.type))el.append(button('OPEN INSTALLED WORKBENCH ↗',()=>{
+  $('asset-manager').hidden=true;
+  const sys=$('systems-vehicle');if(sys)sys.value=a.type;
+  root.StarfallEngineeringUI?.open?.();
+ },'asset-button'));
  const metrics=section(el,'01 / Operating overview'),grid=dom('div','asset-metrics');for(const m of model.metrics.slice(0,compact?4:12))addMetric(grid,m);metrics.append(grid);
  const details=section(el,'02 / Identity & placement');row(details,'Type',F.pretty(a.type));row(details,'Live store',model.state);row(details,'World ID',a.bodyId||'Unresolved');row(details,'Position reference',F.pretty(a.location?.frame||'unknown'));if(a.parentId){const p=button('↖ '+title(assetById(a.parentId)),()=>selectNode('asset:'+a.parentId),'asset-link');details.append(p);}if(Number.isFinite(a.updatedS))row(details,'Latest state sample','T + '+F.quantity(a.updatedS,'time'));
  const comp=section(el,'03 / Installed components · '+model.components.length),gridC=dom('div','asset-component-list');for(const c of model.components){const b=button('',()=>selectNode('component:'+a.id+':'+c.id),'asset-component');b.append(dom('span','asset-symbol',icons[c.type]||'◇'));const t=dom('span');t.append(dom('strong','',c.label));t.append(dom('small','',F.pretty(c.type)+' · '+c.status));b.append(t);b.setAttribute('aria-label','Inspect '+c.label+' inside '+title(a));gridC.append(b);}comp.append(model.components.length?gridC:dom('p','asset-dim','No installed components exposed for this asset in the current model.'));

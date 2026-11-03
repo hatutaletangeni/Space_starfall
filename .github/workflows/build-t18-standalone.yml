@@ -1,0 +1,45 @@
+name: T18 Release Candidate Standalone Synchronization
+
+on:
+  push:
+    branches: [feature/t18-end-to-end-release-verification]
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+concurrency:
+  group: t18-bundle-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Rebuild offline single-file game from edited sources
+        run: python tools/build-standalone.py
+      - name: Check exact offline source parity
+        run: python tests/standalone-parity.py
+      - name: Commit reproducible standalone bundle if changed
+        shell: bash
+        run: |
+          # Refresh source before writing so overlapping feature commits never publish a stale bundle.
+          git fetch origin feature/t18-end-to-end-release-verification
+          git checkout -B feature/t18-end-to-end-release-verification origin/feature/t18-end-to-end-release-verification
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PLAY-STARFALL.html
+            git commit -m "build(T18): update playable standalone HTML"
+            git push origin HEAD:feature/t18-end-to-end-release-verification
+          fi

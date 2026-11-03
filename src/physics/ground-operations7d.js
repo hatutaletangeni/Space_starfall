@@ -30,18 +30,18 @@ function acceptPacket(r,program,time,packetId){
  r.commands=program.map(x=>({...x}));r.index=0;r.remaining=0;
  g.remainingM=0;g.remainingS=0;r.status=program.length?'running':'parked';g.mode=program.length?'DRIVING':'IDLE';
  if(hw)hw.state=program.length?'TRAVERSING':'READY';
- g.acceptedPackets.push(packetId);if(g.acceptedPackets.length>500)g.acceptedPackets=g.acceptedPackets.slice(-500);
+ g.acceptedPackets.push(packetId);
  event(g,time,'UPLINK','Packet '+packetId+' accepted by powered rover transceiver');
  return true;
 }
 function useLink(g,time,link){g.lastLink={atS:time,connected:!!link?.connected,reason:link?.reason||'No receiver',delayS:Math.max(0,Number(link?.delayS)||0)};return g.lastLink;}
 function deliver(r,g,time,link){for(const q of g.pending){if(q.status==='AWAITING_LINK'&&link?.connected){q.status='IN_TRANSIT';q.deliverAtS=time+Math.max(.001,Number(link.delayS)||0);}
   if(q.status==='IN_TRANSIT'&&q.deliverAtS<=time){q.status='DELIVERED';r.commands=q.commands.map(x=>({...x}));r.index=0;r.remaining=0;g.remainingM=0;g.remainingS=0;r.status=q.commands.length?'running':'parked';g.mode=q.commands.length?'DRIVING':'IDLE';event(g,time,'UPLINK','Onboard program accepted');}}
- g.pending=g.pending.filter(q=>q.status!=='DELIVERED').slice(-MAXQUEUE);}
+ g.pending=g.pending.filter(q=>q.status!=='DELIVERED');}
 function downlink(r,g,time,link){if(!link?.connected)return[];
  const seen=new Set(g.receivedIds),received=[];let n=0;
  while(g.queuedObservations.length&&n++<4){const record=g.queuedObservations.shift();if(!seen.has(record.id)){seen.add(record.id);received.push(record);}}
- if(received.length){g.receivedIds=[...seen].slice(-160);event(g,time,'DOWNLINK','Received '+received.length+' rover measurements');}return received;}
+ if(received.length){g.receivedIds=[...seen];event(g,time,'DOWNLINK','Received '+received.length+' rover measurements');}return received;}
 /* Physically bounded next step in metres, using same six-contact traction solver as the local rover. */
 function terrainStep(r,body,distanceM,height,unitScale=1000){const G=root.StarfallRoverDynamics;if(!G?.sixWheels)throw Error('Rover traction model unavailable');if(!body||!Number.isFinite(body.radius)||body.radius<=0)throw Error('Destination terrain body unavailable');if(typeof height!=='function')throw Error('Planetary terrain samples unavailable');
  const radiusM=body.radius*unitScale,next=advance(r.local,distanceM,r.heading,radiusM),heights=local=>{const h=height(local,body);if(!Number.isFinite(h))throw Error('Non-finite fixed terrain sample');return h*unitScale;};
@@ -93,7 +93,12 @@ function tick(rover,time,{body,height,science,seed,link,unitScale=1000,onReceive
    if(r.batteryJ<g.safeReserveJ+60000){if(T)T.fault(r,time,'Insufficient energy reserve for sample');else r.status='safe-stop';g.mode='SAFE_STOP';event(g,time,'POWER','Insufficient energy reserve for sample');break;}
    try{const obs=science.sample({body,seed,local:r.local,altitudeM:.6,instrument:op.value,simTime:time,nonce:(r.records?.length||0),energyAvailableJ:r.batteryJ-g.safeReserveJ});if(!Array.isArray(r.records))r.records=[];
    if(r.records.length>=100||g.queuedObservations.length>=120){if(T)T.fault(r,time,'Onboard science archive full; export/downlink before collecting more');else r.status='safe-stop';break;}
-   const record={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};
+   const rawRecord={...obs,id:obs.id||('probe-'+r.id+'-'+time),probeId:r.id,sourceAssetId:r.id};
+   const record=root.StarfallScienceT14?.annotateObservation(rawRecord,{
+     spec:root.StarfallScienceT14.sensorSpecs(science.INSTRUMENTS)[op.value],
+     sourceAssetId:r.id,calibrated:obs.calibrated!==false,
+     temperatureK:r.ground7d?.temperatureK||290,health:r.roverT06?.health??1,
+     dataBytes:256})||rawRecord;
    if(op.value==='sampler'&&root.StarfallScienceCustodyT10){
      // This is a physically collected, model-derived 150 g regolith plug,
      // NOT a numeric observation converted into a sample after downlink.

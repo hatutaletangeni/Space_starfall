@@ -17,9 +17,9 @@ class Clock{
   this.handler=null;this.stepsExecuted=0;
   if(saved&&saved.schema===SCHEMA&&saved.seed===seed&&valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS+1e-7){
    if(valid(saved.lastSimulatedS)&&saved.lastSimulatedS<=startS){this.lastSimulatedS=saved.lastSimulatedS;}
-   this.events=bounded(saved.events,MAX_EVENTS).filter(e=>cleanId(e?.id)&&TYPES.includes(e.type)&&valid(e.atS));
-   this.receipts=bounded(saved.receipts,MAX_RECEIPTS).filter(cleanId);
-   const used=new Set();this.jobs=bounded(saved.jobs,MAX_JOBS).filter(j=>{
+   this.events=(Array.isArray(saved.events)?saved.events:[]).filter(e=>cleanId(e?.id)&&TYPES.includes(e.type)&&valid(e.atS));
+   this.receipts=(Array.isArray(saved.receipts)?saved.receipts:[]).filter(cleanId);
+   const used=new Set();this.jobs=(Array.isArray(saved.jobs)?saved.jobs:[]).filter(j=>{
     if(!cleanId(j?.id)||used.has(j.id)||!cleanId(j.assetId)||!cleanId(j.kind)||!valid(j.createdAtS)||!valid(j.eligibleAtS)||!valid(j.lastIntegratedS))return false;
     used.add(j.id);return ['QUEUED','WAITING','PAUSED','AWAITING_REVIEW','DONE','FAULT'].includes(j.status);
    }).map(clone);

@@ -1,0 +1,10 @@
+/* T19A scoped, compact within the existing Outpost RADIO tab. */
+#rf-t19{margin:14px 0 8px;border-top:1px solid rgba(118,190,237,.5);padding:12px 0;color:#d5eafd}
+#rf-t19 h3{margin:4px 0 8px;color:#b5dfff;font-size:13px;letter-spacing:.05em}
+#rf-t19 .obs-tools{display:flex;gap:6px;flex-wrap:wrap}
+#rf-t19 .obs-tools button{font-size:11px;max-width:100%;white-space:normal}
+#rf-t19-chart{display:block;max-width:100%;height:auto;border:1px solid rgba(91,161,212,.55);border-radius:6px;margin:7px 0;background:#12283f}
+#rf-t19-status{font-size:11px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto}
+#rf-t19-count,#rf-t19-feedback{color:#b8d9f2;overflow-wrap:anywhere}
+#rf-t19 button:focus-visible,#rf-t19 select:focus-visible{outline:2px solid #8de0ff;outline-offset:3px}
+@media(max-width:640px){#rf-t19{padding:8px 0}#rf-t19 .obs-tools button{flex:1 1 130px}}

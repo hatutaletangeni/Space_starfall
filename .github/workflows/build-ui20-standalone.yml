@@ -1,0 +1,45 @@
+name: UI20 Cockpit Standalone Synchronization
+
+on:
+  push:
+    branches: [feature/ui20-cockpit-hierarchy]
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+concurrency:
+  group: ui20-bundle-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Rebuild offline single-file game from edited sources
+        run: python tools/build-standalone.py
+      - name: Check exact offline source parity
+        run: python tests/standalone-parity.py
+      - name: Commit reproducible standalone bundle if changed
+        shell: bash
+        run: |
+          # Refresh source before writing so overlapping feature commits never publish a stale bundle.
+          git fetch origin feature/ui20-cockpit-hierarchy
+          git checkout -B feature/ui20-cockpit-hierarchy origin/feature/ui20-cockpit-hierarchy
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PLAY-STARFALL.html
+            git commit -m "build(UI20): update playable standalone HTML"
+            git push origin HEAD:feature/ui20-cockpit-hierarchy
+          fi

@@ -33,8 +33,22 @@ function refresh(force=false){const now=performance.now();if(!force&&now-lastRef
  $('field-robot-state').textContent='STATE: '+status+' · command '+(controller.index+1)+' / '+controller.script.length+' · '+(controller.reason||controller.event||'')+(controller.planner?' · '+controller.planner.expanded+' terrain nodes':'');
  $('field-range').textContent='MODE '+data.mode+' · BODY '+(data.body?.name||'—')+' · altitude '+fmt(data.altitudeM,1)+' m · instrument physical limits and power requirements apply';
  $('field-rover-physics').checked=RT.science4Settings.roverPhysics;
+ const key=$('field-instrument').value,sp=root.StarfallScienceT14?.sensorSpecs(S.INSTRUMENTS)?.[key];
+ const state=data.roverState||{},quality=root.StarfallScienceT14?.quality({calibrated:true,
+   temperatureK:Number.isFinite(state.temperatureK)?state.temperatureK:290,
+   health:Number.isFinite(state.health)?state.health:1})||{uncertaintyMultiplier:1,flags:[]};
+ $('field-t14-metrology').textContent=sp?[
+ 'MOUNTED INSTRUMENT '+key.toUpperCase()+' · '+sp.family,
+ 'OBSERVES '+sp.parameter+' ['+sp.unit+'] · resolution '+sp.resolution+' · nominal uncertainty ±'+sp.uncertainty,
+ 'POWER '+sp.powerW+' W for '+sp.acquisitionS+' s · cost '+sp.energyJ+' J · altitude ≤'+sp.maxAltitudeM+' m',
+ 'ENVELOPE '+sp.envelope,
+ 'CALIBRATION LEGACY BASELINE (no field-calibration certificate); modeled confidence '+Math.round(quality.confidenceModel*100)+'%',
+ 'QUALIFIERS '+(quality.flags.join(', ')||'No extra hardware/thermal degradation known'),
+ 'Source physics are seeded estimates, not independent laboratory confirmation.'].join('\n'):'T14 instrument catalog not available.';
+
 }
 for(const [key,spec] of Object.entries(S.INSTRUMENTS)){const opt=document.createElement('option');opt.value=key;opt.textContent=spec.name+' ('+spec.seconds+' s / '+spec.powerW+' W / ≤'+spec.maxAltitudeM+' m)';$('field-instrument').append(opt);}
+$('field-instrument').onchange=()=>refresh(true);
 $('field-open').onclick=()=>{$('field-lab').hidden=false;refresh(true);};
 $('field-close').onclick=()=>{$('field-lab').hidden=true;};
 $('field-lab').addEventListener('click',e=>{if(e.target===$('field-lab'))$('field-lab').hidden=true;});
@@ -69,6 +83,15 @@ function tick(dt){
 function ingestOrbital(obs){if(!obs||obs.kind!=='orbital-observation'||!S.journal||!Number.isFinite(obs.value)||!Array.isArray(obs.location)||!obs.satelliteId||!obs.bodyId)return false;
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
 function ingestRover(obs){if(!obs||!obs.probeId||!obs.bodyId||!Array.isArray(obs.location)||!Number.isFinite(obs.value))return false;
+ if(obs.t14&&!root.StarfallScienceT14?.validateEvidence(obs))return false;
  if(!journal.add(obs))return false;dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;}
-root.StarfallScienceUI={ingestRover,ingestOrbital,tick,open:()=>$('field-open').click(),get controller(){return controller;},get journal(){return journal.list();},get autoDriving(){return['MOVING','RETURNING'].includes(controller.state);},measure:collect,refresh:()=>refresh(true)};
+function ingestShip(obs){
+ if(!obs||obs.sourceAssetId!=='starfall-ship'||obs.kind!=='measurement'||
+  obs.instrument!=='thermometer'||obs.parameter!=='hullTemperatureK'||obs.unit!=='K'||
+  !Number.isFinite(obs.value)||!Number.isFinite(obs.timeS)||!Array.isArray(obs.location)||!obs.location.every(Number.isFinite))
+  return false;
+ if(!journal.add(obs))return false;
+ dirty=true;persist();if(!$('field-lab').hidden)renderJournal();return true;
+}
+root.StarfallScienceUI={ingestRover,ingestOrbital,ingestShip,tick,open:()=>$('field-open').click(),get controller(){return controller;},get journal(){return journal.list();},get autoDriving(){return['MOVING','RETURNING'].includes(controller.state);},measure:collect,refresh:()=>refresh(true)};
 })(globalThis);

@@ -33,9 +33,12 @@ const component=(id,type,massKg,extra={})=>Object.freeze({id,type,massKg,...extr
  component('wheels-grippy','wheels',315,{count:6,radiusM:.74,traction:.91}),
  component('suspension-bogie','suspension',180,{travelM:.35,maxLoadKg:2600}),
  component('avionics-ship','avionics',170,{powerW:900}),
+  component('avionics-ship-long','avionics',225,{powerW:1450,radioRangeScene:85,radioBandwidthBps:192000,radioTxPowerW:95}),
  component('avionics-rover','avionics',39,{powerW:190}),
  component('science-suite-ship','instrument',90,{powerW:600}),
  component('science-suite-rover','instrument',45,{powerW:280}),
+  component('science-suite-rover-geo','instrument',62,{powerW:360,mode:'geology',instrumentKeys:['spectrometer','thermometer','barometer','magnetometer','radar','seismometer','sampler']}),
+  component('science-suite-rover-bio','instrument',71,{powerW:420,mode:'biosurvey',instrumentKeys:['spectrometer','thermometer','barometer','bioassay','sampler']}),
  component('docking-ship','docking',90,{powerW:30}),
  component('docking-rover','docking',22,{powerW:10})
 ].forEach(item=>C[item.id]=item);
@@ -79,6 +82,13 @@ function evaluate(def,fuelKg){const errors=validate(def);if(errors.length)throw 
  const chassisMass=hull.massKg||0;
  const inertiaKgM2=[0,1,2].map(i=>chassisMass*(dimensionsM[(i+1)%3]**2+dimensionsM[(i+2)%3]**2)/12+bodies.reduce((a,b)=>a+(b.mass*((b.at[(i+1)%3]-centerOfMassM[(i+1)%3])**2+(b.at[(i+2)%3]-centerOfMassM[(i+2)%3])**2)),0));
  return{kind:def.kind,id:def.id,dryMassKg:structure,fuelKg:fuel,massKg,fuelCapacityKg,inertiaKgM2,centerOfMassM,thrustN:engine.thrustN||0,ispS:engine.ispS||0,enginePowerW:engine.powerW||0,engineHeatW:engine.heatW||0,engineHeatLimitK:engine.heatLimitK||1650,batteryCapacityJ:battery.capacityJ||0,maxChargeW:battery.maxChargeW||0,maxDischargeW:battery.maxDischargeW||0,chargeEfficiency:battery.chargeEfficiency||1,dischargeEfficiency:battery.dischargeEfficiency||1,solarAreaM2:solar.areaM2||0,solarEfficiency:solar.efficiency||0,maxSolarW:solar.maxPowerW||0,generatorW:generator.maxPowerW||0,radiatorAreaM2:radiator.areaM2||0,emissivity:radiator.emissivity||.78,pumpW:radiator.pumpW||0,avionicsW:get('avionics').powerW||0,instrumentsW:get('instruments').powerW||0,dockingW:get('docking').powerW||0,drivePowerW:motor.powerW||0,driveTorqueNm:motor.torqueNm||0,wheelRadiusM:wheels.radiusM||0,traction:wheels.traction||0,suspensionTravelM:get('suspension').travelM||0,deltaVMS:fuel>0&&engine.ispS?engine.ispS*G0*Math.log(massKg/structure):0,burnSeconds:fuel>0&&engine.thrustN?fuel*engine.ispS*G0/engine.thrustN:0};}
+function allowsInstrument(def,instrument){
+ if(!def||typeof instrument!=='string')return false;
+ const part=C[def.slots?.instruments];if(!part||part.type!=='instrument')return false;
+ // Legacy science suite intentionally retains its prior full tool set.
+ const all=['spectrometer','thermometer','barometer','magnetometer','radar','seismometer','sampler','bioassay'];
+ return (Array.isArray(part.instrumentKeys)?part.instrumentKeys:all).includes(instrument);
+}
 function initialState(kind,def=presets[kind]){const e=evaluate(def);return{schema:SCHEMA,fuelKg:e.fuelKg,energyJ:e.batteryCapacityJ*.85,temperatureK:290,health:1,loads:{avionics:true,instruments:true,lights:true,radiator:true,drive:true},powerEnabled:false};}
 function repairState(def,input){const base=initialState(def.kind,def),e=evaluate(def);const s=input&&typeof input==='object'?input:{};const safe=(key,min,max,fallback)=>Number.isFinite(s[key])?Math.min(max,Math.max(min,s[key])):fallback;return{...base,fuelKg:safe('fuelKg',0,e.fuelCapacityKg,base.fuelKg),energyJ:safe('energyJ',0,e.batteryCapacityJ,base.energyJ),temperatureK:safe('temperatureK',2,3000,290),health:safe('health',0,1,1),powerEnabled:!!s.powerEnabled,loads:Object.fromEntries(Object.keys(base.loads).map(k=>[k,s.loads?.[k]!==false]))};}
 function sanitize(saved){const output={schema:SCHEMA,definitions:{},states:{}};for(const kind of ['ship','rover']){const def=saved?.schema===SCHEMA&&saved.definitions?.[kind];output.definitions[kind]=def&&validate(def).length===0?copy(def):copy(presets[kind]);output.states[kind]=repairState(output.definitions[kind],saved?.states?.[kind]);}return output;}
@@ -86,6 +96,6 @@ function createStore(saved){let data=sanitize(saved);return{get(kind){return{def
  // Preserve current fuel and charge when possible; new capacity never gives free energy.
  converted.energyJ=Math.min(old.energyJ,stats.batteryCapacityJ);converted.fuelKg=Math.min(old.fuelKg,stats.fuelCapacityKg);
  const result={definition:revised,state:converted};data.definitions[kind]=result.definition;data.states[kind]=result.state;return{old:previous,next:evaluate(revised,converted.fuelKg)};}};}
-root.StarfallVehicles={SCHEMA,G0,components:C,presets:copy(presets),slots,validate,evaluate,initialState,repairState,sanitize,createStore,clone:copy};
+root.StarfallVehicles={SCHEMA,G0,components:C,presets:copy(presets),slots,validate,evaluate,initialState,repairState,sanitize,createStore,allowsInstrument,clone:copy};
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallVehicles;
 })(globalThis);

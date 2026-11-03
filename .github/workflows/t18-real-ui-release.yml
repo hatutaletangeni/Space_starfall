@@ -1,0 +1,47 @@
+name: T18 End-to-End Release Journey (Software WebGL)
+
+on:
+  push:
+    branches: [feature/t18-end-to-end-release-verification]
+    paths-ignore:
+      - PLAY-STARFALL.html
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t18-journey-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actual-ui-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build actual latest standalone from original sources (never stale artifact)
+        run: |
+          python tools/build-standalone.py
+          python tests/standalone-parity.py
+      - name: Install isolated headless Chromium software WebGL
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Actual control journey with unmocked DC circuitry, sensor, rollback and evidence
+        run: python tests/release-gate-t18-browser.py
+      - name: Reject fabricated evidence or unsupported full-release claim
+        run: python tools/audit-release-t18.py artifacts/t18-release/release-software-webgl.json
+      - name: Upload actual screenshot + measured timing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t18-real-ui-software-webgl-evidence
+          path: artifacts/t18-release/
+          if-no-files-found: warn
+          retention-days: 30

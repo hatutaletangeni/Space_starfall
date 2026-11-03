@@ -16,7 +16,12 @@ function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galax
  selected=items.find(b=>b.id===focus.id)||items[0];sel.value=selected.id;
 }
 function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChildren();$('obs-name').textContent=selected?.name||'—';$('obs-quality').textContent=p?.classification||'Unknown';
- for(const r of rows(p)){const tr=document.createElement('div');tr.className='science-row';const name=document.createElement('span');name.textContent=r.label;const val=document.createElement('strong');val.textContent=r.value;const quality=document.createElement('small');quality.textContent=r.quality;tr.append(name,val,quality);list.append(tr);}
+ const journal=root.StarfallScienceUI?.journal||[],observed=journal.filter(x=>x.bodyId===selected?.id&&
+ (Number.isFinite(x.receivedAtS)||x.kind==='measurement')&&Number.isFinite(x.timeS)&&Number.isFinite(x.value));
+ const latest=observed.sort((a,b)=>b.timeS-a.timeS).slice(0,6);
+ for(const r of [{label:'Instrument evidence state',value:latest.length?'OBSERVED (seeded measurements)':'INFERRED / UNSCANNED',quality:latest.length?'Real source journal receipts, NOT calibrated astronomical truth':'Procedural catalogue only'},
+ ...latest.map(x=>({label:'Observed '+x.instrument,value:String(x.value)+' '+(x.unit||'')+' at T+'+x.timeS.toFixed(1)+' s',quality:'Source '+(x.satelliteId||x.probeId||x.sourceAssetId||'field journal')+' · observation '+x.id})),
+ ...rows(p)]){const tr=document.createElement('div');tr.className='science-row';const name=document.createElement('span');name.textContent=r.label;const val=document.createElement('strong');val.textContent=r.value;const quality=document.createElement('small');quality.textContent=r.quality;tr.append(name,val,quality);list.append(tr);}
  $('obs-caution').textContent=p?.notes||'Data is a deterministic procedural physical model. It is not an astronomical observation.';
 }
 function dataSnapshot(){const p=getProfile();return{schema:'starfall-science-v1',exportedSimulationSeconds:RT.time,galaxySeed:RT.galaxy.seed,bodyId:selected?.id,profile:p,assumptions:{sceneUnitMetres:P.SCENE_METERS_PER_UNIT,temperatureModel:'airless equilibrium, uniform redistribution',measurements:'Procedurally estimated; not direct instrument readings'}};}

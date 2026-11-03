@@ -1,0 +1,34 @@
+/* STARFALL T16: scoped visual language, retains the existing space-science UI. */
+.op16-card{margin:10px 0;padding:10px 11px;background:rgba(14,25,42,.82);border:1px solid rgba(113,180,224,.4);border-radius:10px;color:#d9edfc;max-width:100%;min-width:0;font:inherit}
+.op16-title{font-size:11px;letter-spacing:.12em;color:#a0d9fc;text-transform:uppercase;margin:0 0 8px;font-weight:750}
+.op16-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 10px}
+.op16-tools select{min-width:0;flex:1 1 175px;max-width:100%;border:1px solid #6487a8;background:#14243a;color:#f0f8ff;padding:6px;border-radius:6px;font:inherit;font-size:12px}
+.op16-tools label{display:flex;flex:1 1 90px;flex-direction:column;font-size:11px;gap:4px;color:#b5d3ed;min-width:0}
+.op16-tools label select{width:100%;flex:auto}
+.op16-tools button{min-width:0;flex:0 1 auto;font-size:11px;white-space:normal}
+.op16-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:5px 9px}
+.op16-state{grid-column:1/-1;padding:5px 7px;border-left:3px solid #74a7d8;font-weight:700;font-size:12px;letter-spacing:.04em}
+.op16-state[data-stage="FAILED"]{border-left-color:#ec9b80}
+.op16-state[data-stage="COMPLETE"]{border-left-color:#8ac6a5}
+.op16-row{display:flex;flex-direction:column;gap:2px;border:1px solid rgba(112,145,181,.15);padding:6px 7px;min-width:0;background:rgba(16,28,48,.36)}
+.op16-row span{font-size:10px;letter-spacing:.09em;color:#9fc2e0}
+.op16-row strong{font-size:12px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+.op16-row small{font-size:11px;line-height:1.45;color:#b7cfe1;white-space:normal;overflow-wrap:anywhere}
+.op16-note{grid-column:1/-1;color:#bbd4e8;font-size:11px;line-height:1.5;margin:3px 0;overflow-wrap:anywhere}
+.op16-warnings{grid-column:1/-1;border-top:1px solid rgba(236,169,117,.5);padding:6px 0;color:#f1cfb4;font-size:11px;line-height:1.5}
+.op16-warnings p{margin:3px 0}
+.op16-log{border-top:1px solid rgba(120,164,204,.38);padding-top:9px;margin-top:12px}
+.op16-log-rows{max-height:165px;overflow:auto;overscroll-behavior:contain}
+.op16-log-line{font-size:11px;line-height:1.35;padding:5px;border-bottom:1px solid rgba(129,162,205,.22);overflow-wrap:anywhere;margin:0}
+.op16-log-line[data-severity="error"]{color:#f3baa8}
+.op16-log-line[data-severity="warning"]{color:#f4d19b}
+.op16-card button:focus-visible,.op16-card select:focus-visible{outline:2px solid #8ddbf8;outline-offset:2px}
+#panel-body>.op16-card{margin-bottom:14px}
+#panel-body>.op16-card .op16-body{max-height:225px;overflow-y:auto;overscroll-behavior:contain}
+#panel-body>.op16-card .op16-log-rows{max-height:110px}
+#launch-dialog .op16-card,#outpost .op16-card,#imaging7f .op16-card,#asset-manager .op16-card,
+#field-lab .op16-card,#workbench .op16-card,#research7e .op16-card{font-size:12px}
+@media(max-width:640px){.op16-card{padding:8px}.op16-tools{gap:6px}.op16-body{grid-template-columns:1fr}.op16-tools button{width:100%}.op16-log-rows{max-height:125px}}
+
+#launch-emergency{border:1px solid #ed9a80!important;color:#ffdbcd!important;font-weight:800!important;letter-spacing:.05em}
+#launch-emergency:focus-visible{outline:3px solid #ffd5ae;outline-offset:3px}

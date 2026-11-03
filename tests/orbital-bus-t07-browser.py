@@ -25,10 +25,17 @@ with sync_playwright() as p:
       up:[0,1,0],landed:true}});
     return SF.load();
   }""")
-  ctx.add_init_script("(()=>{if(sessionStorage.getItem('t07-ship-fixture'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t07-ship-fixture','1');})()")
+  # Controlled initial landed state imported ONCE, not re-injected at reload:
+  # file:// sessionStorage is not stable across opaque-origin navigations.
   boot.close()
   page=ctx.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
+  page.wait_for_function('!!(window.StarfallSatelliteOpsUI && window.StarfallCommsT03 && window.StarfallMissionOperationsUI)',timeout=30000)
+  page.evaluate("""state=>{
+   window.__STARFALL_IMPORT_PENDING=true;
+   localStorage.setItem('starfall_save',JSON.stringify(state));
+  }""",saved)
+  page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!(window.StarfallSatelliteOpsUI && window.StarfallCommsT03 && window.StarfallMissionOperationsUI)',timeout=30000)
   setup=page.evaluate("""()=>{
     const rt=StarfallRuntime,b=rt.nearest,op=StarfallMissionOperationsUI,

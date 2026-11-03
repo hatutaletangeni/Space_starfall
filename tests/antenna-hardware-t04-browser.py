@@ -25,14 +25,21 @@ with sync_playwright() as p:
             groundDirection:up,forward:[0,0,1],up,landed:true}});
           return SF.load();
         }""")
-        snapshot=json.dumps(json.dumps(saved))
-        context.add_init_script("(()=>{if(sessionStorage.getItem('t04-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t04-fixture-installed','1');})()")
-        # The first tab's pagehide autosave must happen BEFORE the new tab's
-        # initial-save injection. Never overwrite a newer outpost/packet store.
+        # Install the controlled prior-landed save exactly ONCE. An init_script
+        # runs again on each file:// reload and could erase newly saved antenna
+        # and packet records, so avoid any persistent init_script entirely.
         initial.close()
         page=context.new_page()
         page.on('pageerror',lambda e:failures.append(str(e)))
         page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('!!(window.StarfallRuntime && window.StarfallCommsT03 && window.StarfallAntennaT04)',timeout=30000)
+        page.evaluate("""state=>{
+           // Production-safe import sentinel blocks pagehide autosave overwriting
+           // this one-shot fixture before the new flight scene initializes.
+           window.__STARFALL_IMPORT_PENDING=true;
+           localStorage.setItem('starfall_save',JSON.stringify(state));
+        }""", saved)
+        page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('!!(window.StarfallRuntime && window.StarfallCommsT03 && window.StarfallAntennaT04)',timeout=30000)
         setup=page.evaluate("""()=>{
           const rt=StarfallRuntime,site=StarfallOutpostUI,O=StarfallOutposts,T=StarfallCommsT03;
