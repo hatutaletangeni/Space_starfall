@@ -1,4 +1,4 @@
-name: CW01-CW06 + LW01-LW02 standalone build and checks
+name: CW01-CW06 + LW01-LW03 standalone build and checks
 on:
   push:
     branches:
@@ -10,6 +10,7 @@ on:
       - feature/cw06-science-integration-release
       - feature/lw01-geothermal-causality
       - feature/lw02-mountains-caves
+      - feature/lw03-causal-meteorology
   workflow_dispatch:
 permissions:
   contents: write
@@ -46,6 +47,13 @@ jobs:
           node --check src/flight.js
           node --check src/engine.js
           node tests/living-geology-lw02.test.cjs
+          node --check src/physics/meteorology-lw03.js
+          node --check src/physics/science-field.js
+          node --check src/events/events.js
+          node --check src/events/events-ui.js
+          node --check src/flight.js
+          node --check src/engine.js
+          node tests/meteorology-lw03.test.cjs
           node --check src/engine.js
           node --check src/flight.js
           node --check src/events/events.js
@@ -62,6 +70,6 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add PLAY-STARFALL.html
-            git commit -m "build(LW02): synchronize standalone offline HTML"
+            git commit -m "build(LW03): synchronize standalone offline HTML"
             git push
           fi
