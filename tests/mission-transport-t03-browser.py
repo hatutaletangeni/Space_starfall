@@ -29,8 +29,9 @@ with sync_playwright() as p:
         }""")
         # The live first tab can autosave its orbital position while a second WebGL
         # tab boots; initialize the landed record before that tab's JS starts.
+        # A localStorage sentinel survives file:// reloads reliably; sessionStorage may not.
         snapshot=json.dumps(json.dumps(landed_save))
-        context.add_init_script("(()=>{if(sessionStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");sessionStorage.setItem('t03-fixture-installed','1');})()")
+        context.add_init_script("(()=>{if(localStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");localStorage.setItem('t03-fixture-installed','1');})()")
         # Close the old simulation BEFORE the new one boots. Otherwise its
         # pagehide save can overwrite source-owned launched rover packet state.
         # The init-script now restores the precise landed fixture on the new tab.
@@ -93,7 +94,7 @@ with sync_playwright() as p:
           const value=SF.load(),raw=JSON.parse(localStorage.getItem('starfall_save')||'{}');
           return{packets:value.commsT03?.packets?.length||0,rovers:value.launch7?.rovers?.length||0,
             diskPackets:raw.commsT03?.packets?.length||0,diskRovers:raw.launch7?.rovers?.length||0,
-            guard:sessionStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
+            guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
         }""")
         assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
         page.reload(wait_until='domcontentloaded',timeout=90000)
