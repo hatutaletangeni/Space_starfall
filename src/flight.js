@@ -566,11 +566,14 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
   const liquidDir=evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
   const water=Hydro?.sample(nearest,liquidDir,groundHeight(liquidDir,nearest),simTime,GALAXY_SEED);
   if(!water?.hasWater){swimming=false;swimDepthScene=.3;swimVerticalSceneS=0;}
-  else if(!swimming){swimming=true;swimDepthScene=.3;swimVerticalSceneS=0;showToast('SWIMMING · W/S move · Q rise · E dive · L lamp');}
+  else if(!swimming){swimming=true;swimDepthScene=-.5;swimVerticalSceneS=0;showToast('ENTERING WATER · W/S swim · Q rise · E dive · L lamp');}
   if(swimming){
-   const suit=Hydro.buoyancy(water,.11,105,dt),command=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
-   swimVerticalSceneS=V.clamp((swimVerticalSceneS+suit.netAccelerationMS2*dt/Hydro.SCENE_M+command*dt*.42)*Math.exp(-dt*2.2),-.33,.33);
-   swimDepthScene=V.clamp(swimDepthScene-swimVerticalSceneS*dt,.08,Math.max(.12,water.surfaceHeightScene-.35));
+   if(swimDepthScene<.08)swimDepthScene=Math.min(.08,swimDepthScene+dt*.75);
+   else{
+    const suit=Hydro.buoyancy(water,.11,105,dt),command=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
+    swimVerticalSceneS=V.clamp((swimVerticalSceneS+suit.netAccelerationMS2*dt/Hydro.SCENE_M+command*dt*.42)*Math.exp(-dt*2.2),-.33,.33);
+    swimDepthScene=V.clamp(swimDepthScene-swimVerticalSceneS*dt,.08,Math.max(.12,water.surfaceHeightScene-.35));
+   }
   }
   const weather=window.StarfallMeteorologyLW03?.cell(nearest,evaLocal||[0,1,0],simTime,GALAXY_SEED),windResistance=weather?.vacuum?1:Math.max(.52,1-(weather?.windMS||0)/185);
   if(walk){const right=V.norm(V.cross(evaForward,radial)),step=walk*dt*(swimming?2.4:((keys.has('ShiftLeft')||keys.has('ShiftRight'))?7.1:3.7))*windResistance,angle=step/Math.max(nearest.radius+groundHeight(evaLocal||V.rot(radial,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+EVA_HEIGHT,1);
