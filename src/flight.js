@@ -345,7 +345,7 @@ function boardShip(){
  if(V.len(V.sub(pos,ship.position))>EVA_BOARD_DISTANCE){showToast('Move closer to the ship to board.');return;}
  eva=false;swimming=false;swimDepthScene=.01;swimVerticalSceneS=0;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
  hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;
- shipWalking8e=true;shipWalkAt8e={x:0,z:25,heading:Math.PI};
+ shipWalking8e=true;shipWalkAt8e={x:0,z:25,heading:0};
  camMode=0;showToast('8E · Inside expedition vessel · WASD walk through ship · X near bridge to pilot · S to exit aft');
 }
 function enterTruck(){
