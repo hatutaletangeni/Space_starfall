@@ -96,14 +96,17 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  const estimatedExitVelocityMS=Math.sqrt(Math.max(0,2*(overpressurePa-thresholdPa)/densityKgM3));
  const ballisticHeightM=estimatedExitVelocityMS**2/(2*gravityMS2);
  const plumeHeightM=Math.min(25000,ballisticHeightM*(site.kind==='caldera-eruption'?3.5:site.kind==='explosive-volcano'?2.7:site.kind==='cinder-cone'?1.25:isMagma ? .65 : .7));
+ const ashMassFlowKgS=isMagma&&['explosive-volcano','caldera-eruption','cinder-cone'].includes(site.kind)?
+  massFlowKgS*(site.kind==='caldera-eruption'?.6:.3):0;
+ const lavaMassFlowKgS=isMagma?massFlowKgS*(site.kind==='explosive-volcano'?.2:
+  site.kind==='caldera-eruption'?.15:site.kind==='cinder-cone'?.7:.8):0;
+ const vaporMassFlowKgS=Math.max(0,massFlowKgS-ashMassFlowKgS-lavaMassFlowKgS);
  return Object.freeze({sourceId:site.id,kind:site.kind,timeS,active:!!intensity,intensity,
   pressurePa:ambientPa+overpressurePa,ambientPressurePa:ambientPa,thresholdPa,
   massFlowKgS,exitVelocityMS:estimatedExitVelocityMS,plumeHeightM,
   heatFluxWm2:site.thermalFluxWm2,reservoirCapacityKg:capacity,reservoirRemainingKg,dischargedThisCycleKg,
   rechargeKgPerCycle:recharge,volatileSpecies:site.volatileSpecies,sourceTemperatureK:site.reservoirTemperatureK,
-  ashMassFlowKgS:isMagma&&['explosive-volcano','caldera-eruption','cinder-cone'].includes(site.kind)?massFlowKgS*(site.kind==='caldera-eruption'?.6:.3):0,
-  lavaMassFlowKgS:isMagma?massFlowKgS*(site.kind==='explosive-volcano'?.2:site.kind==='caldera-eruption'?.15:site.kind==='cinder-cone'?.7:.8):0,
-  vaporMassFlowKgS:!isMagma?massFlowKgS:0,
+  ashMassFlowKgS,lavaMassFlowKgS,vaporMassFlowKgS,
   model:'finite reservoir with periodic discharge analytical proxy; not CFD'});
 }
 function local(body,direction,timeS,seed=742,pressurePa=101325,gravityMS2=9.80665){
