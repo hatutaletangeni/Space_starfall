@@ -590,14 +590,14 @@ class Renderer{
   this.activeTerrain=[];
   if(!planet||!planet.landable||alt>Math.min(1000,planet.radius*.65)){this.patchPlanet=null;return;}
   const local=this.localDir(planet,V.norm(V.sub(position,planet.position)));
-  if(this.terrainKeyBody!==planet.id){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;}
+  if(this.terrainKeyBody!==planet.id){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.water);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;}
   this.patchPlanet=planet;this.patchCenter=local;
   const requested=ST.visibleTiles(planet,local,3),needed=new Set(requested.map(t=>t.key));
   let built=0;for(const desc of requested){let tile=this.terrainTiles.get(desc.key);
    if(tile){this.terrainCacheHits++;this.terrainTiles.delete(desc.key);this.terrainTiles.set(desc.key,tile);}else if(built<4){tile=this.buildTerrainTile(planet,desc);this.terrainTiles.set(desc.key,tile);this.patchDraws++;this.terrainCacheMisses++;built++;}
    if(tile)this.activeTerrain.push(tile);
   }
-  while(this.terrainTiles.size>this.terrainCacheBudget){const first=[...this.terrainTiles.keys()].find(k=>!needed.has(k));if(!first)break;const old=this.terrainTiles.get(first);this.freeMesh(old.ground);this.freeMesh(old.props);this.terrainTiles.delete(first);this.terrainCacheEvictions++;}
+  while(this.terrainTiles.size>this.terrainCacheBudget){const first=[...this.terrainTiles.keys()].find(k=>!needed.has(k));if(!first)break;const old=this.terrainTiles.get(first);this.freeMesh(old.ground);this.freeMesh(old.water);this.freeMesh(old.props);this.terrainTiles.delete(first);this.terrainCacheEvictions++;}
  }
  terrainDiagnostics(){const d=this.patchCenter&&this.patchPlanet?ST.descriptorForDirection(this.patchPlanet,this.patchCenter):null;
   return{body:this.patchPlanet?.id||null,face:d?.face??null,tile:d?.key||null,resolution:this.terrainGridSegments,cached:this.terrainTiles.size,active:this.activeTerrain.length,hits:this.terrainCacheHits,misses:this.terrainCacheMisses,evictions:this.terrainCacheEvictions,built:this.patchDraws,props:this.activeTerrain.reduce((sum,t)=>sum+(t.propCount||0),0),biome:this.patchCenter&&this.patchPlanet?BIOMES.classify(this.patchPlanet,this.patchCenter,groundHeight(this.patchCenter,this.patchPlanet),field(this.patchCenter,this.patchPlanet.seed)).name:null,collision:'continuous deterministic planet-fixed sample',render:'fixed cubemap tiles / no moving tessellation',sampleHeight:this.patchCenter&&this.patchPlanet?groundHeight(this.patchCenter,this.patchPlanet):null,seamError:(()=>{if(!d)return null;const neighbor=d.ix+1<d.n?ST.tileDescriptor(this.patchPlanet,d.face,d.ix+1,d.iy):null;if(!neighbor)return null;let max=0;for(let j=0;j<=this.terrainGridSegments;j+=6){const a=ST.vertexDirection(d,this.terrainGridSegments,j,this.terrainGridSegments),b=ST.vertexDirection(neighbor,0,j,this.terrainGridSegments);max=Math.max(max,Math.abs(groundHeight(a,this.patchPlanet)-groundHeight(b,this.patchPlanet)));}return max;})()};
@@ -666,6 +666,21 @@ class Renderer{
   }
   if(this.patchPlanet&&alt<340&&state.interior?.kind!=='cave'){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
     for(const tile of this.activeTerrain){this.renderMesh(p,tile.ground,model);if(tile.props)this.renderMesh(p,tile.props,model);}
+     if(root.StarfallHydrosphereLW04?.material(this.patchPlanet,this.galaxy.seed)){
+      const H=root.StarfallHydrosphereLW04,pw=this.p.water,local=this.patchCenter,
+       surface=H.sample(this.patchPlanet,local,groundHeight(local,this.patchPlanet),this.galaxy.time,this.galaxy.seed),
+       wet=state.swimming||surface.submerged,
+       wind=state.weather?.windMS||5;
+      gl.useProgram(pw);this.setMat(pw,'uViewProj',vp);this.setMat(pw,'uModel',model);
+      this.setFloat(pw,'uTime',this.galaxy.time);this.setFloat(pw,'uAmplitude',Math.min(.012,.002+wind*.00012));
+      this.setVec(pw,'uEye',[0,0,0]);this.setVec(pw,'uSun',lighting.sunDir);
+      this.setVec(pw,'uSunColor',lighting.starColor);this.setFloat(pw,'uUnderwater',wet?1:0);
+      this.setFloat(pw,'uWind',wind);gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+      for(const tile of this.activeTerrain)if(tile.water)this.renderMesh(pw,tile.water,model);
+      gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);
+      applyLight(p,this.patchPlanet);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+     }
+
   }
   // LW02: render surface-anchored 3D cave mouths, without altering original terrain.
   if(near?.landable&&state.interior?.kind!=='cave'&&root.StarfallGeologyLW02&&root.StarfallCaveMeshLW02&&root.StarfallInteriors){
