@@ -20,7 +20,10 @@ function xyzApprox(T){ // CIE-like analytic color matching functions, approximat
  // Relative display tint, NOT a calibrated emitted-light measurement.
  return Object.freeze(rgb.map(v=>clamp(Math.pow(v/m,1/2.2),0,1)));
 }
+const cache=new Map(),MAX_CACHE=1024;
 function profile(star,existingPhysics){if(!star?.id)throw Error('Missing star ID');
+ const key=star.id+':'+star.type+':'+star.radius;
+ if(!existingPhysics&&cache.has(key))return cache.get(key);
  const physics=existingPhysics||root.StarfallPhysics;
  if(!physics?.starProfile)throw Error('StarfallPhysics.starProfile unavailable');
  const p=physics.starProfile(star),T=p.effectiveTemperatureK;
@@ -28,10 +31,11 @@ function profile(star,existingPhysics){if(!star?.id)throw Error('Missing star ID
  const composition=root.StarfallCompositionCW01?.starFor(star);
  const integrateTotal=integrate(T,100e-9,100e-6,256);
  const fractions=Object.freeze(Object.fromEntries(Object.entries(bands).map(([key,[lo,hi]])=>[key,clamp(integrate(T,lo,hi)/integrateTotal,0,1)])));
- return Object.freeze({schema:SCHEMA,starId:star.id,temperatureK:T,luminosityW:p.luminosityW,
+ const result=Object.freeze({schema:SCHEMA,starId:star.id,temperatureK:T,luminosityW:p.luminosityW,
   displayRGB:xyzApprox(T),radiationBandFractions:fractions,composition:composition||null,
   provenance:'Planck spectrum approximation from existing CW01/physics stellar profile',
   uncertainties:'Stellar temperature and effective radius are procedural approximations; no extinction or absorption lines modeled'});
+ if(!existingPhysics){if(cache.size>=MAX_CACHE)cache.delete(cache.keys().next().value);cache.set(key,result);}return result;
 }
 function stellarFluxWm2(star,distanceM,physics){if(!(Number.isFinite(distanceM)&&distanceM>0))throw Error('Invalid stellar distance');const p=profile(star,physics);return p.luminosityW/(4*PI*distanceM**2);}
 const API=Object.freeze({SCHEMA_VERSION:SCHEMA,planck,integrate,profile,stellarFluxWm2,displayColor:star=>profile(star).displayRGB});
