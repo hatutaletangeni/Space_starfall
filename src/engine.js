@@ -502,7 +502,7 @@ class Renderer{
   const lighting=near&&lightingSystem?evaluateLighting(near,lightingSystem,this.galaxy,origin):{sunDir:[-.66,.75,.43],starColor:[1,1,1],starPower:1,moonPower:0,bounceDirection:[0,1,0],bounceColor:[.75,.82,.9],ambient:.008,occluder:null};
   const dayDot=V.dot(radial,lighting.sunDir);this.daylightLabel=near?(dayDot>.15?'DAYLIGHT':dayDot>-.16?'TWILIGHT':lighting.moonPower>.018?'MOONLIT NIGHT':'NIGHT'):'VACUUM';
   const atmo=near&&near.kind!=='moon'&&near.landable?V.clamp((680-alt)/510,0,1):0;
-  const sky=near?.sky||[.13,.27,.38];const daytime=V.clamp((dayDot+.16)/.35,0,1);
+  const optics=near&&near.kind!=='moon'&&near.landable?root.StarfallAtmosphereCW05?.optical(near,this.galaxy.seed):null;const sky=optics&&!optics.vacuum?optics.color:(near?.sky||[.13,.27,.38]);const daytime=V.clamp((dayDot+.16)/.35,0,1);
   const biomeSample=near?.landable&&this.patchCenter&&this.patchPlanet===near?BIOMES.classify(near,this.patchCenter,groundHeight(this.patchCenter,near),field(this.patchCenter,near.seed)):null;
   const biomePalette=biomeSample?BIOMES.PAL[biomeSample.name][0]:sky;
   const fogColor=V.mix(V.mix([.002,.004,.01],sky,atmo*daytime),biomePalette,atmo*daytime*.12);
