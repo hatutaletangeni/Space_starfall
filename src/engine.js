@@ -236,44 +236,164 @@ function makeInteriorMesh(gl,tier){
  }
  return makeMesh(gl,p,n,c,idx);
 }
-function makeShip(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.45,.49,.50],panel=[.28,.33,.36],edge=[.72,.73,.69],accent=[.84,.56,.28],glass=[.18,.45,.58],dark=[.10,.14,.17],engine=[.55,.22,.18];
-// Larger modular expedition ship inspired by cargo and lander references. Forward is local -Z.
-box(-3.0,-1.3,-14.5,3.0,1.6,13.5,hull); // central spine
-box(-2.1,1.0,-9.4,2.1,3.1,-0.8,panel); // cockpit module
-tri([0,1.15,-18.5],[-2.2,.2,-14.5],[2.2,.2,-14.5],edge);tri([0,2.8,-12.2],[-2.2,.2,-14.5],[0,1.15,-18.5],edge);tri([0,2.8,-12.2],[0,1.15,-18.5],[2.2,.2,-14.5],edge);tri([-2.2,.2,-14.5],[2.2,.2,-14.5],[0,-1.0,-15.2],dark);
-tri([0,2.7,-12.4],[-1.65,1.35,-11.2],[1.65,1.35,-11.2],glass);tri([0,2.7,-12.4],[1.65,1.35,-11.2],[0,3.0,-8.9],glass);tri([0,2.7,-12.4],[0,3.0,-8.9],[-1.65,1.35,-11.2],glass);
-box(-7.6,-1.0,-5.2,-3.4,.85,8.2,panel);box(3.4,-1.0,-5.2,7.6,.85,8.2,panel); // side cargo pods
-box(-2.35,-1.4,5.0,2.35,1.7,15.5,hull); // aft cargo hold
-box(-1.7,-0.5,15.5,1.7,0.9,19.5,panel); // aft extension
-// docking collar and dorsal bay
-box(-1.35,1.8,1.0,1.35,3.15,8.5,edge);box(-5.0,1.2,4.5,-3.8,2.2,8.8,accent);box(3.8,1.2,4.5,5.0,2.2,8.8,accent);
-// wings / radiators
-quad([-3.0,.1,-3.6],[-15.5,-.55,3.5],[-11.8,-.25,14.8],[-3.2,.38,8.6],hull);quad([3.0,.1,-3.6],[3.2,.38,8.6],[11.8,-.25,14.8],[15.5,-.55,3.5],hull);quad([-2.9,-.3,-3.6],[-3.3,-.7,8.4],[-11.8,-.55,14.8],[-15.5,-.95,3.5],dark);quad([2.9,-.3,-3.6],[15.5,-.95,3.5],[11.8,-.55,14.8],[3.3,-.7,8.4],dark);
-// engine pods and nozzles
-box(-6.8,-1.35,13.3,-3.8,.45,18.0,dark);box(3.8,-1.35,13.3,6.8,.45,18.0,dark);box(-1.55,-1.05,16.0,1.55,.35,19.2,dark);box(-6.25,-1.0,18.0,-4.35,.1,19.4,engine);box(4.35,-1.0,18.0,6.25,.1,19.4,engine);box(-1.1,-.8,19.2,1.1,.05,20.2,engine);
-// landing legs / feet
-for(const [x,z] of [[-5.8,8.5],[5.8,8.5],[-2.8,14.6],[2.8,14.6]]){quad([x,-1.05,z],[x+(x<0?-0.5:0.5),-4.2,z+0.6],[x+(x<0?-1.4:1.4),-4.2,z+2.0],[x+(x<0?-0.9:0.9),-1.05,z+1.5],edge);box(x+(x<0?-1.65:0.65),-4.45,z+1.4,x+(x<0?-0.15:1.85),-4.1,z+3.1,accent);} 
-// Walkable rear cargo ramp. The tip meets the ground at the landed clearance.
-quad([-2.7,-1.5,13.0],[2.7,-1.5,13.0],[3.15,-7.35,29.0],[-3.15,-7.35,29.0],edge);
-quad([-2.9,-1.53,13.0],[-2.7,-1.53,13.0],[-3.15,-7.34,29.0],[-3.4,-7.34,29.0],accent);
-quad([2.7,-1.53,13.0],[2.9,-1.53,13.0],[3.4,-7.34,29.0],[3.15,-7.34,29.0],accent);
-// 8B dedicated external vehicle hangar. Truck is 11.1 wide and cannot fit
- // through the 6.3-wide crew ramp. This widened starboard rack is additive.
- // No solid rear wall: a real independent 14.5-wide drive-on ramp is visible.
- box(9.25,-1.5,-4.0,23.75,-1.15,19.0,panel); // driveable flat cargo deck
- box(9.25,11.35,-4.0,23.75,11.85,19.0,hull); // weather canopy
- box(9.0,-1.5,-4.0,9.25,11.8,19.0,edge); // left protective rail/wall
- box(23.75,-1.5,-4.0,24,11.8,19.0,edge); // right side
- box(9.25,-1.5,-4.0,23.75,11.85,-3.6,dark); // forward structural bulkhead
- for(const x of [9.25,23.75]){box(x-.2,-1.5,17.5,x+.2,11.35,19.0,accent);}
+/* 8E expedition cruiser — single continuous pressure hull enclosing the truck,
+ * with modular exterior hardware. Ship-forward stays local -Z and original
+ * 8B bay geometry/coordinates stay unchanged for save and input compatibility.
+ * Fixed mesh budget: one merged draw call, no per-frame geometry allocation.
+ */
+function makeShip(gl){
+ const p=[],n=[],c=[],idx=[];
+ const hull=[.49,.56,.59],armor=[.29,.36,.42],panel=[.17,.22,.28],edge=[.76,.78,.73],
+       stripe=[.93,.56,.22],glass=[.11,.39,.51],dark=[.055,.08,.11],
+       solar=[.07,.19,.34],cells=[.14,.31,.50],engine=[.58,.24,.16],green=[.25,.69,.58];
+ function tri(a,b,d,col){const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),k=p.length/3;
+  for(const v of [a,b,d]){p.push(...v);n.push(...normal);c.push(...col);}idx.push(k,k+1,k+2);}
+ function quad(a,b,d,e,col){tri(a,b,d,col);tri(a,d,e,col);}
+ function box(x,y,z,X,Y,Z,col){
+  const a=[x,y,z],b=[X,y,z],d=[X,Y,z],e=[x,Y,z],f=[x,y,Z],g=[X,y,Z],h=[X,Y,Z],q=[x,Y,Z];
+  quad(a,b,d,e,col);quad(g,f,q,h,col);quad(f,a,e,q,col);quad(b,g,h,d,col);quad(e,d,h,q,col);quad(f,g,b,a,col);
+ }
+ function rib(x,z){box(x-1,-5,z-.65,x+1,13,z+.65,edge);}
+ function stripePanel(x,z,X,Z,col=stripe){box(x,10.3,z,X,10.5,Z,col);}
+ // Long central armored pressure spine. The bridge visibly sits forward.
+ box(-8,-3,-56,8,10,49,hull);
+ box(-9.5,-4,-50,-8.05,10,46,armor);
+ box(8.05,-4,-50,9.5,10,46,armor);
+ box(-7,10,-49,7,11,-1,armor);
+ box(-7,10,6,7,11,42,armor);
+ // Forward stepped bridge, faceted sensor glazing and navigational roof.
+ box(-7,8,-56,7,17,-33,hull);box(-6.7,10,-57,6.7,14.5,-54.7,glass);
+ box(-6.3,14.5,-55.8,6.3,16.8,-47,glass);
+ box(-5,17,-50,5,18,-42,armor);
+ for(const x of [-5.5,5.5])box(x-.5,8,-57,x+.5,17,-34,stripe);
+ // Connected portside science/life-support and starboard habitation/power pods.
+ // These are sealed against the central spine: no floating cargo-box silhouette.
+ for(const side of [-1,1]){
+  const inner=side<0?-25:9.5,outer=side<0?-9.5:25;
+  box(inner,-3.7,-39,outer,11.8,13,hull);
+  box(inner-.5,-4,-39,outer+.5,-3.4,13,armor);
+  box(inner-.6,11.8,-39,outer+.6,13.1,13,armor);
+  for(const z of [-38,-16,12]){box(inner-.55,-3.8,z-.75,outer+.55,12.2,z+.75,edge);}
+  const sideX=side<0?inner-.85:outer+.3;
+  for(const z of [-31,-24,-5,2])box(sideX,1,z,sideX+.55,7,z+4,glass);
+  // Module ID plates and service runways
+  for(const z of [-30,1])stripePanel(inner+1,z,outer-1,z+1);
+ }
+ // Internal structural crossmembers; cargo is an actual bay volume within hull.
+ for(const z of [-32,-12,16,35]){box(-7.5,-3.7,z-.8,7.5,-2.9,z+.8,edge);}
+ // Aft starboard cargo module: same roofline/skin as the rest of ship,
+ // open at rear for an honest full-width drive-on ramp.
+ const bay=globalThis.StarfallCargo8B?.BAY||{minX:9.25,maxX:23.75,rearZ:19,rampEndZ:39};
+ box(8.8,-1.6,-5,24.4,-1.15,19,armor); // floor, 8B authoritative deck y=-1.2
+ box(8.8,11.5,-5,24.4,13.1,19,hull); // continuous full-size roof
+ box(8.6,-1.6,-5,9.05,11.7,19,armor);
+ box(24.1,-1.6,-5,24.55,11.7,19,armor);
+ box(8.8,-1.6,-5,24.4,11.7,-4.5,panel);
+ // Join cargo room to the amidships main hull, but do not cap drive-on opening.
+ box(7.0,9.4,-3,9.2,13.1,17,hull);
+ for(const x of [8.7,24.4])for(const z of [-3,10,18.5])box(x-.5,-1.5,z-.55,x+.5,11.7,z+.55,edge);
+ // Cargo traffic markings, tie-downs and traction ribs.
+ for(let z=-2;z<=14;z+=4){box(10.3,-1.08,z,11.2,-.96,z+1,stripe);box(22,-1.08,z,22.9,-.96,z+1,stripe);}
+ for(const x of [10.5,22.5])for(const z of [-2,15])box(x-.5,-.9,z-.35,x+.5,-.4,z+.35,green);
  quad([9.25,-1.20,19],[23.75,-1.20,19],[23.75,-7.25,39],[9.25,-7.25,39],edge);
- quad([9.05,-1.18,19],[9.25,-1.18,19],[9.25,-7.23,39],[9.05,-7.23,39],accent);
- quad([23.75,-1.18,19],[23.95,-1.18,19],[23.95,-7.23,39],[23.75,-7.23,39],accent);
- // Four visible load anchors, kept separate from the older crew boarding ramp.
- for(const x of [10.4,22.6])for(const z of [-1.6,14.4])box(x-.45,-.94,z-.4,x+.45,-.6,z+.4,accent);
- // underside details
-box(-1.8,-2.0,-2.5,1.8,-1.35,5.8,panel);box(-.75,-2.2,6.0,.75,-1.5,12.2,panel);
-return makeMesh(gl,p,n,c,idx);} 
+ for(const x of [9.2,23.8])quad([x-.3,-1.17,19],[x+.3,-1.17,19],[x+.3,-7.22,39],[x-.3,-7.22,39],stripe);
+ // Distinct personnel corridor and original rear pedestrian ramp.
+ box(-4.8,-1.5,9,4.8,-1.1,24,armor);
+ quad([-2.7,-1.5,13],[2.7,-1.5,13],[3.15,-7.35,29],[-3.15,-7.35,29],edge);
+ for(const x of [-2.8,2.8])quad([x-.25,-1.48,13],[x+.25,-1.48,13],[x+.36,-7.32,29],[x-.36,-7.32,29],stripe);
+ // Distinctive industrial aft block: service truss, twin large engines.
+ box(-12,-5,20,8,11,51,armor);
+ for(const x of [-16,16]){
+  box(x-5,-4,23,x+5,7,51,hull);
+  box(x-3.6,-3,47,x+3.6,5.5,55,dark);
+  box(x-2.5,-2.2,54.6,x+2.5,4.9,56,engine);
+  box(x-4,7,27,x+4,8,42,armor);
+ }
+ box(-5,-3.5,49,5,6,55,dark);
+ for(const x of [-10,10])box(x-.8,11,17,x+.8,13,41,edge);
+ // Docking hub and forward overhead utilities, mechanically attached.
+ box(-4.8,11,-12,4.8,15,1,panel);
+ box(-3.4,14.8,-13,3.4,18,1,edge);
+ box(-2.4,17,-13,2.4,19,-10,green);
+ // Larger segmented deployable solar collectors, not a decorative lone wing.
+ for(const side of [-1,1]){
+  const a=side<0?-64:26,b=side<0?-26:64;
+  for(const z of [-18,2,22]){
+   box(a,8.5,z,b,8.85,z+9,solar);
+   for(let j=1;j<6;j++){const x=a+(b-a)*j/6;box(x-.1,8.86,z,x+.1,8.96,z+9,edge);}
+   for(let j=1;j<4;j++)box(a,8.88,z+j*2.25,b,8.96,z+j*2.25+.1,cells);
+  }
+  for(const z of [-18,2,22])box(side<0?-28:23,7.4,z+3,side<0?-20:31,9.5,z+5,edge);
+  // Tall transverse radiator fins aft; point away from solar array.
+  for(const z of [31,36,41])box(side<0?-29:25,12.6,z-.8,side<0?-24:30,23,z+.8,armor);
+ }
+ // Mechanical landing struts: footprint now supports the wide pressure hull.
+ for(const x of [-22,-8,8,22])for(const z of [-27,22]){
+  box(x-.9,-8,z-1.1,x+.9,-3,z+1.1,edge);
+  box(x-2.3,-8.7,z-2.5,x+2.3,-8.2,z+2.5,stripe);
+ }
+ // Cargo hull and flat roof are continuous, no detached cube on the side.
+ return makeMesh(gl,p,n,c,idx);
+}
+/* 8E: actual, ship-local, walkable first deck, displayed instead of opaque outer
+ * hull when the pilot leaves the controls. Simple merged geometry; floor-space
+ * collision lives in ship-walk8e.js rather than the GPU. */
+function makeShipWalkDeck(gl){
+ const p=[],n=[],c=[],idx=[];
+ const floor=[.26,.34,.38],wall=[.44,.49,.51],support=[.71,.68,.54],lab=[.16,.34,.43],lights=[.24,.75,.79],dark=[.08,.13,.16];
+ function tri(a,b,d,col){const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),k=p.length/3;for(const v of [a,b,d]){p.push(...v);n.push(...normal);c.push(...col);}idx.push(k,k+1,k+2);}
+ function quad(a,b,d,e,col){tri(a,b,d,col);tri(a,d,e,col);}
+ function box(x,y,z,X,Y,Z,col){
+  const a=[x,y,z],b=[X,y,z],d=[X,Y,z],e=[x,Y,z],f=[x,y,Z],g=[X,y,Z],h=[X,Y,Z],q=[x,Y,Z];
+  quad(a,b,d,e,col);quad(g,f,q,h,col);quad(f,a,e,q,col);quad(b,g,h,d,col);quad(e,d,h,q,col);quad(f,g,b,a,col);
+ }
+ // All rooms are real, bounded, directly connected at the 8E service deck.
+ box(-5.7,-1.5,-59,5.7,-1.15,32,floor);
+ box(-7.8,-1.5,-58,7.8,-1.15,-35,floor); // command bridge
+ for(const [x0,x1,z0,z1] of [[-23.5,-5,-34,-14],[5,23.5,-34,-14],
+   [5,23.5,-14,-1],[-23.5,-5,-12,13],[-23.5,-5,13,31],[5,23.5,-1,22]])
+   box(x0,-1.5,z0,x1,-1.15,z1,floor);
+ // Overhead framing connects every room but retains sightlines.
+ for(const z of [-53,-39,-28,-16,-4,9,21,30]){
+  box(-24,7.0,z-.25,24,7.3,z+.25,support);
+  for(const x of [-23,-5,5,23])box(x-.3,6.7,z-.45,x+.3,7.7,z+.45,lights);
+ }
+ // End bulkheads are solid; side bulkheads have physically open doorways.
+ box(-8,-1.3,-59,8,7.1,-58.4,wall);
+ box(-5.9,-1.3,31.5,5.9,7.1,32,wall);
+ for(const z of [-34,-14,-12,13,22,31]){
+  box(-23.6,-1.3,z-.25,-5.1,5.9,z,wall);
+  box(5.1,-1.3,z-.25,23.6,5.9,z,wall);
+ }
+ // Side pressure-skin ribs; no full opaque wall between central corridor and
+ // rooms, so W/S walking between spaces never teleports or hits invisible doors.
+ for(const x of [-23.6,23.6]){
+  box(x-.35,-1.2,-34,x+.35,6.6,31,wall);
+  for(const z of [-30,-22,-10,2,15,26])box(x-.44,1.1,z,x+.44,4.3,z+3,lab);
+ }
+ // Each room contains purpose-built industrial furniture / workstations.
+ for(const [x,z] of [[-18,-29],[-18,-21],[-18,0],[-18,6],[-18,19],
+   [17,-28],[17,-20],[17,-8],[17,1],[17,15]]){
+  box(x-2,-1.1,z-1.3,x+2,1.2,z+1.3,lab);
+  box(x-1.7,1.2,z-1.15,x+1.7,2.1,z+.4,lights);
+ }
+ // Command flight deck and instrument consoles.
+ box(-5,-1.1,-54,5,.3,-49,dark);
+ for(const x of [-4,0,4]){
+  box(x-1.5,.25,-52.7,x+1.5,1.9,-50.6,lab);
+  box(x-1.25,1.7,-52.65,x+1.25,2.5,-52.3,lights);
+ }
+ // Distinct cargo parking guidance, no boxes inside truck lane.
+ for(let z=-1;z<18;z+=4){
+  box(9.2,-1.1,z,9.8,-.98,z+1,support);
+  box(22.5,-1.1,z,23.1,-.98,z+1,support);
+ }
+ // Pressurized roof ceiling: from inside the player sees a coherent hull.
+ box(-8.1,7.4,-59,8.1,7.8,32,wall);
+ box(-24,7.4,-34,-8.1,7.8,31,wall);
+ box(8.1,7.4,-34,24,7.8,31,wall);
+ return makeMesh(gl,p,n,c,idx);
+}
 function makeRover(gl){const p=[],n=[],c=[],idx=[];function tri(a,b,d,col){const v=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const vert of [a,b,d]){p.push(...vert);n.push(...v);c.push(...col);}idx.push(base,base+1,base+2);}function quad(a,b,c1,d,col){tri(a,b,c1,col);tri(a,c1,d,col);}function box(x1,y1,z1,x2,y2,z2,col){const a=[x1,y1,z1],b=[x2,y1,z1],c0=[x2,y2,z1],d=[x1,y2,z1],e=[x1,y1,z2],f=[x2,y1,z2],g=[x2,y2,z2],h=[x1,y2,z2];quad(a,b,c0,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c0,col);quad(d,c0,g,h,col);quad(e,f,b,a,col);}const hull=[.73,.73,.68],dark=[.14,.16,.18],accent=[.86,.59,.32],glass=[.18,.35,.42];
 // Six-wheel science rover with mast and manipulator.
 box(-3.0,1.0,-3.8,3.2,2.6,3.6,hull);box(-1.6,2.35,-2.0,1.4,3.2,1.0,[.58,.58,.54]);tri([0,5.5,-.9],[-.65,3.2,-.9],[.65,3.2,-.9],hull);box(-.32,3.1,-1.2,.32,5.1,-.55,dark);box(-.95,5.0,-1.65,.95,6.1,-.2,[.76,.76,.71]);box(-.55,6.1,-1.2,.55,6.9,-.35,dark);tri([3.0,2.2,.2],[5.3,1.7,.9],[4.0,1.3,1.8],dark);tri([3.0,2.2,.2],[4.0,1.3,1.8],[2.6,1.6,2.6],dark);box(2.35,1.4,2.1,2.95,2.0,3.15,accent);box(-2.45,2.55,-2.9,2.55,2.72,-2.2,glass);box(-1.7,2.55,-2.2,-.55,2.72,-1.2,glass);
@@ -380,7 +500,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -791,7 +911,10 @@ class Renderer{
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
   gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
-  if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
+  if(state.shipWalkInterior){
+    const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));
+    this.renderMesh(p,this.shipWalkDeck,model);
+   }else if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
   if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
   for(const probe of (state.extraRovers||[]).slice(0,15)){if(V.len(V.sub(probe.position,viewer))>2600)continue;const right=V.norm(V.cross(probe.forward,probe.up));this.renderMesh(p,this.rover,M.basis(right,probe.up,probe.forward,V.sub(probe.position,origin)));}
