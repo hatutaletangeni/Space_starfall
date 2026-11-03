@@ -1,8 +1,8 @@
-name: Update 8E modular expedition ship integration
+name: Update 8D powered mining and hauling
 on:
   push:
     branches:
-      - feature/update-8e-modular-ship
+      - feature/update-8d-mining-hauling
   workflow_dispatch:
 permissions:
   contents: write
@@ -31,6 +31,8 @@ jobs:
           node --check src/physics/ship-walk8e.js
           node --check src/physics/modular-ship-ui8e.js
           node --check src/physics/life-support8e.js
+          node --check src/physics/mining-hauling8d.js
+          node --check src/physics/mining-hauling-ui8d.js
           node --check src/physics/power.js
           node --check src/engine.js
           node --check src/controls/input.js
@@ -41,6 +43,7 @@ jobs:
           node tests/planetary-resources8c.test.cjs
           node tests/modular-ship8e.test.cjs
           node tests/life-support8e.test.cjs
+          node tests/mining-hauling8d.test.cjs
       - name: Rebuild source-synchronized standalone
         run: |
           python tools/build-standalone.py
@@ -51,13 +54,13 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add PLAY-STARFALL.html
-            git commit -m "8E: synchronize offline standalone with physical inventory"
-            git push origin HEAD:feature/update-8e-modular-ship
+            git commit -m "8D: synchronize offline standalone with physical inventory"
+            git push origin HEAD:feature/update-8d-mining-hauling
           fi
       - name: Archive standalone validation artifact
         uses: actions/upload-artifact@v4
         with:
-          name: starfall-8e-standalone
+          name: starfall-8d-standalone
           path: PLAY-STARFALL.html
           if-no-files-found: error
 
