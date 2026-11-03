@@ -70,6 +70,7 @@ jobs:
           node tests/debris-lw05.test.cjs
           node tests/asset-explorer-no-operations-lw05.test.cjs
           node --check src/physics/space-weather-lw06.js
+          node --check src/physics/power.js
           node --check src/physics/science-field.js
           node --check src/physics/observatory.js
           node --check src/engine.js
