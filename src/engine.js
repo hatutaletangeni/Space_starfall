@@ -410,8 +410,26 @@ class Renderer{
    for(const comet of sys.comets){const dir=comet.tail,scale=Math.max(3000,sys.star.radius*.22);add(comet.position,scale*.27,[.80,.94,1],.98);
     for(let j=1;j<38;j++){const dist=j/37,drift=Math.sin(j*4.9+sys.star.radius)*scale*.055*dist;add([comet.position[0]+dir[0]*scale*j*.60+drift,comet.position[1]+dir[1]*scale*j*.60,comet.position[2]+dir[2]*scale*j*.60-drift],scale*(.48+dist*.8),[.35,.72,1],.68*(1-dist));}
    }
-   if(sys.phenomenon==='pulsar') {const t=this.galaxy.time*1.7,axis=V.norm([Math.cos(t)*.32,.92,Math.sin(t)*.32]);for(const sign of [-1,1])for(let j=0;j<46;j++){const len=sys.star.radius*(1.15+j*.21),scatter=Math.sin(j*18.71+t)*sys.star.radius*.04*j/46;add([sys.position[0]+axis[0]*len*sign+scatter,sys.position[1]+axis[1]*len*sign,sys.position[2]+axis[2]*len*sign-scatter],sys.star.radius*.28,[.44,.77,1],.47*(1-j/52));}}
-   if(sys.phenomenon==='supernova'){const r=sys.star.radius*(2.8+.5*Math.sin(this.galaxy.time*.08));for(let j=0;j<150;j++){const a=j*2.3999632,y=1-2*(j+.5)/150,q=Math.sqrt(1-y*y),d=r*(.7+.25*Math.sin(j*37.13));add([sys.position[0]+Math.cos(a)*q*d,sys.position[1]+y*d,sys.position[2]+Math.sin(a)*q*d],sys.star.radius*.49,j%4===0?[.49,.75,1]:[1,.47,.29],.25);}}
+   if(sys.phenomenon==='pulsar') {const t=this.galaxy.time*.55,source=root.StarfallSpaceWeatherLW06?.source(sys,this.galaxy.seed),sp=source?.spinAxis||[.28,.90,.30],axis=V.norm([Math.cos(t)*sp[0]-Math.sin(t)*sp[2],sp[1],Math.sin(t)*sp[0]+Math.cos(t)*sp[2]]);for(const sign of [-1,1])for(let j=0;j<46;j++){const len=sys.star.radius*(1.15+j*.21),scatter=Math.sin(j*18.71+t)*sys.star.radius*.04*j/46;add([sys.position[0]+axis[0]*len*sign+scatter,sys.position[1]+axis[1]*len*sign,sys.position[2]+axis[2]*len*sign-scatter],sys.star.radius*.28,[.44,.77,1],.47*(1-j/52));}}
+   if(sys.phenomenon==='supernova'&&root.StarfallSpaceWeatherLW06){
+    // An expanding ejecta remnant produces the shell, shock and condensable dust;
+    // the unrelated pre-existing molecular nebulae remain separate.
+    const remnants=root.StarfallSpaceWeatherLW06.remnantParticles(sys,this.galaxy.time,144,this.galaxy.seed);
+    for(const part of remnants)add(part.position,part.size,part.color,part.alpha);
+   }
+   // Only a magnetically active source emits flare-plasma tracers.
+   if(root.StarfallSpaceWeatherLW06&&distance<sys.star.radius*95){
+    const activity=root.StarfallSpaceWeatherLW06.exposure(sys,eye,this.galaxy.time,this.galaxy.seed);
+    if(activity.flareStrength>.025){
+     const strength=activity.flareStrength;
+     for(let j=0;j<55;j++){
+      const angle=j*2.39996323+this.galaxy.time*.009,q=1-2*(j+.5)/55,k=Math.sqrt(1-q*q),
+       distanceFromStar=sys.star.radius*(1.12+(j%9)*.08)* (1+.26*strength);
+      const part=[sys.position[0]+Math.cos(angle)*k*distanceFromStar,sys.position[1]+q*distanceFromStar,sys.position[2]+Math.sin(angle)*k*distanceFromStar];
+      add(part,sys.star.radius*(.11+.1*strength),[.95,.57,.28],.21*strength);
+     }
+    }
+   }
    for(const body of sys.planets){if(body.type!=='Shattered'||V.len(V.sub(body.position,eye))>body.radius*180)continue;for(let j=0;j<110;j++){const a=j*2.3999632,y=1-2*(j+.5)/110,q=Math.sqrt(1-y*y),r=body.radius*(1.1+(j%13)/16);const spin=this.galaxy.time*.025;add([body.position[0]+Math.cos(a+spin)*q*r,body.position[1]+y*r*.62,body.position[2]+Math.sin(a+spin)*q*r],body.radius*.10,[.66,.47,.36],.85);}}
   }
   gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(list),gl.DYNAMIC_DRAW);this.effectCount=list.length/8;this.effectsRendered=this.effectCount;
