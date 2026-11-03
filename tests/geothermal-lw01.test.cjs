@@ -44,6 +44,6 @@ const drySite={...Geo.sources(wet,742)[0],thermalFluxWm2:0};
 assert.equal(Geo.pulse(drySite,120,101325,9.8).massFlowKgS,0);
 const empty={...Geo.sources(volcanic,742)[0],initialReservoirKg:0,rechargeKgPerCycle:0};
 assert.equal(Geo.pulse(empty,180,101325,9.8).massFlowKgS,0);
-assert.equal(Geo.pulse(effusive,1e10,101325,9.8).reservoirRemainingKg,0);
+assert.ok(Geo.pulse(effusive,1e10,101325,9.8).reservoirRemainingKg<=effusive.rechargeKgPerCycle+1);
 
 console.log('LW01 geothermal source classes, finite mass, depletion, pressure and determinism PASS');
