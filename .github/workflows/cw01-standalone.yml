@@ -37,6 +37,7 @@ jobs:
           node tests/composition-integration-cw06.test.cjs
           node --check src/physics/geothermal-lw01.js
           node tests/geothermal-lw01.test.cjs
+          node tests/geothermal-events-lw01.test.cjs
           node --check src/engine.js
           node --check src/flight.js
           node --check src/events/events.js
