@@ -29,6 +29,7 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
  if(!lot)throw Error('Missing '+spec.massKg+' kg of actual '+spec.material+' in ship hold');
  if(!finite(lot.grade)||lot.grade>1)throw Error('Uncalibrated ore grade — prospect and sample first');
  const contained=spec.massKg*lot.grade;
+ if(contained<=EPS)throw Error('Ore assay contains no recoverable target material');
  const recovered=contained*spec.recovery;
  const concentrated=spec.targetGrade>0?recovered/spec.targetGrade:0;
  // The concentrate cannot contain more valuable material than the ore.
@@ -78,6 +79,8 @@ function create(saved){let state=normalize(saved);
    station:{id:EQUIPMENT.id,kind:'ship_fabrication',containerId:a.sourceContainerId,condition:1,enabled:true}});
   const receipt={id:a.id,mode:a.mode,status:'COMMITTED',inputKg:a.inputKg,productKg:a.productKg,
     residueKg:a.residueKg,product:a.product,energyJ:a.energyJ,bodyId:a.bodyId,lotId:a.lotId};
+  // Validate the complete 8A inventory BEFORE retiring a working machine job.
+  if(root.StarfallMaterials8A?.create)root.StarfallMaterials8A.create(result.materials);
   state.receipts.push(receipt);state.active=null;
   return {materials:result.materials,transformations:result.operations,refinery:stateSnapshot(),receipt:clone(receipt)};
  }
