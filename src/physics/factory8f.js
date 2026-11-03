@@ -12,7 +12,7 @@ function billOfMaterials(recipeId){
  const r=model()?.RECIPES?.[recipeId];if(!r)throw Error('Unknown industrial part definition');
  const input=Object.values(r.inputs).reduce((a,b)=>a+b,0),output=Object.values(r.outputs).reduce((a,b)=>a+b,0);
  return {schema:1,version:1,id:recipeId,category:r.category,requiredStation:r.station,tool:r.tool,
-   inputs:clone(r.inputs),outputs:clone(r.outputs),scrapKg:input-output,
+   inputs:clone(r.inputs),outputs:clone(r.outputs),outputVolumesM3:clone(r.outputVolumesM3||{}),scrapKg:input-output,
    powerW:r.powerW,seconds:r.seconds,energyJ:r.powerW*r.seconds,toleranceMm:r.toleranceMm,
    qualityRisk:'Simplified yield only. Precision certification and service performance must be validated on installation.'};
 }
@@ -29,6 +29,31 @@ function quote({recipeId,materials,sourceContainerId,outputContainerId,machine})
     return a+Math.max(0,l.massKg-reserved);
    },0);
   if(available+EPS<kg)throw Error('Missing refined '+id+': '+kg+' kg required');
+ }
+ // Kit outputs must fit their ACTUAL packaged volume, not the feedstock's
+ // denser aggregate volume. Preflight before any battery energy is spent.
+ if(r.outputVolumesM3){
+  let removedVol=0;
+  if(sourceContainerId===outputContainerId){
+   for(const [materialId,need] of Object.entries(r.inputs)){
+    let remaining=need;
+    for(const lot of materials.lots){
+     if(lot.containerId!==sourceContainerId||lot.materialId!==materialId||
+       !finite(lot.grade)||lot.grade<.98)continue;
+     const held=(materials.operations||[]).filter(x=>x.status==='RESERVED'&&x.lotId===lot.id).reduce((a,x)=>a+x.massKg,0);
+     const take=Math.min(remaining,Math.max(0,lot.massKg-held));
+     removedVol+=take*lot.volumeM3/lot.massKg;remaining-=take;
+     if(remaining<=EPS)break;
+    }
+   }
+  }
+  const container=materials.containers.find(x=>x.id===outputContainerId);
+  if(!container)throw Error('Missing actual output container');
+  const existing=materials.lots.filter(x=>x.containerId===outputContainerId)
+    .reduce((a,x)=>a+x.volumeM3,0);
+  const needed=Object.values(r.outputVolumesM3).reduce((a,x)=>a+x,0);
+  if(existing-removedVol+needed>container.maxVolumeM3+EPS)
+   throw Error('Insufficient volume for assembled physical machine kit');
  }
  const c=materials.containers.find(x=>x.id===outputContainerId);
  if(!c)throw Error('Output container missing');
@@ -70,7 +95,7 @@ function create(saved){
    powerW:r.powerW,seconds:r.seconds};
   const result=transformer.convert({operationId:a.id,recipeId:a.recipeId,recipe,materials,
    containerId:a.sourceContainerId,outputContainerId:a.outputContainerId,
-   minInputGrade:.98,outputGrades:Object.fromEntries(Object.keys(r.outputs).map(id=>[id,1])),
+   outputVolumesM3:r.outputVolumesM3||{},minInputGrade:.98,outputGrades:Object.fromEntries(Object.keys(r.outputs).map(id=>[id,1])),
    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ},
    station:{id:machine.id,kind:r.station,containerId:a.sourceContainerId,condition:machine.condition,enabled:true}});
   // The pure transformer handles balance and storage. Nothing is committed until it succeeds.
