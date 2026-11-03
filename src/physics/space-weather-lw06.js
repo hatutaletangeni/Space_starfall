@@ -12,21 +12,23 @@ function rand(k){return hash(k)/4294967296;}
 function source(system,seed=742){
  if(!system?.id||!system.star?.radius)throw Error('Stellar source needs existing system');
  const star=system.star,kind=system.phenomenon==='supernova'?'supernova-remnant':system.phenomenon==='pulsar'?'pulsar':'stellar-wind';
- const key=seed+':'+system.id;
+ const key=seed+':'+system.id,composition=root.StarfallCompositionCW01?.starFor(star,seed);
+ const metallicity=composition?.metallicityMassFraction??.012;
+ const activityScale=kind==='supernova-remnant'?0:star.type==='M dwarf'?1.0:star.type==='K dwarf'?.48:star.type.includes('G')?.67:kind==='pulsar'?.82:.53;
  const cycleS=2400+Math.round(rand(key+':cycle')*2300),
  epochS=cycleS*(.22+.58*rand(key+':phase')),durationS=100+280*rand(key+':width');
  const axis=[.2+rand(key+':x'),.2+rand(key+':y'),.2+rand(key+':z')],length=Math.hypot(...axis);
  const ejectaAgeAtZeroS=system.phenomenon==='supernova'?100+300*rand(key+':ejectaAge'):null;
  return Object.freeze({systemId:system.id,starId:star.id,kind,seed,cycleS,epochS,durationS,
   spinAxis:Object.freeze(axis.map(x=>x/length)),ejectaAgeAtZeroS,
-  ejectaSpeedSceneS:REMNANT_SPEED,metallicityPrior:star.type==='Blue hypergiant'?.025:.012,
+  ejectaSpeedSceneS:REMNANT_SPEED,metallicityPrior:metallicity,activityScale,
   note:kind==='supernova-remnant'?'Existing legacy supernova tag interpreted as a remnant, not a fresh star exploding every frame':'Model activity, not a calibrated flare prediction'});
 }
 function flare(source,timeS,distanceScene=0){
  if(!Number.isFinite(timeS)||timeS<0||!Number.isFinite(distanceScene)||distanceScene<0)throw Error('Invalid stellar activity time or distance');
  const observedTime=timeS-distanceScene/C_SCENE_S,dt=observedTime+source.epochS;
  const cycle=Math.floor(dt/source.cycleS),phase=((dt%source.cycleS)+source.cycleS)%source.cycleS;
- const strength=cycle>=0&&phase<source.durationS?Math.sin(Math.PI*phase/source.durationS)**2:0;
+ const strength=cycle>=0&&phase<source.durationS?Math.sin(Math.PI*phase/source.durationS)**2*source.activityScale:0;
  return Object.freeze({eventId:'lw06:'+source.systemId+':flare:'+cycle,cycle,
   sourceTimeS:observedTime,phaseS:phase,flareStrength:strength,active:strength>.02,
   lightTravelDelayS:distanceScene/C_SCENE_S,provenance:'Periodic seeded magnetic flare with finite electromagnetic travel time'});
