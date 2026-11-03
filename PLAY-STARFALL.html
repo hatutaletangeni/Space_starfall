@@ -1763,8 +1763,26 @@ class Renderer{
    for(const comet of sys.comets){const dir=comet.tail,scale=Math.max(3000,sys.star.radius*.22);add(comet.position,scale*.27,[.80,.94,1],.98);
     for(let j=1;j<38;j++){const dist=j/37,drift=Math.sin(j*4.9+sys.star.radius)*scale*.055*dist;add([comet.position[0]+dir[0]*scale*j*.60+drift,comet.position[1]+dir[1]*scale*j*.60,comet.position[2]+dir[2]*scale*j*.60-drift],scale*(.48+dist*.8),[.35,.72,1],.68*(1-dist));}
    }
-   if(sys.phenomenon==='pulsar') {const t=this.galaxy.time*1.7,axis=V.norm([Math.cos(t)*.32,.92,Math.sin(t)*.32]);for(const sign of [-1,1])for(let j=0;j<46;j++){const len=sys.star.radius*(1.15+j*.21),scatter=Math.sin(j*18.71+t)*sys.star.radius*.04*j/46;add([sys.position[0]+axis[0]*len*sign+scatter,sys.position[1]+axis[1]*len*sign,sys.position[2]+axis[2]*len*sign-scatter],sys.star.radius*.28,[.44,.77,1],.47*(1-j/52));}}
-   if(sys.phenomenon==='supernova'){const r=sys.star.radius*(2.8+.5*Math.sin(this.galaxy.time*.08));for(let j=0;j<150;j++){const a=j*2.3999632,y=1-2*(j+.5)/150,q=Math.sqrt(1-y*y),d=r*(.7+.25*Math.sin(j*37.13));add([sys.position[0]+Math.cos(a)*q*d,sys.position[1]+y*d,sys.position[2]+Math.sin(a)*q*d],sys.star.radius*.49,j%4===0?[.49,.75,1]:[1,.47,.29],.25);}}
+   if(sys.phenomenon==='pulsar') {const t=this.galaxy.time*.55,source=root.StarfallSpaceWeatherLW06?.source(sys,this.galaxy.seed),sp=source?.spinAxis||[.28,.90,.30],axis=V.norm([Math.cos(t)*sp[0]-Math.sin(t)*sp[2],sp[1],Math.sin(t)*sp[0]+Math.cos(t)*sp[2]]);for(const sign of [-1,1])for(let j=0;j<46;j++){const len=sys.star.radius*(1.15+j*.21),scatter=Math.sin(j*18.71+t)*sys.star.radius*.04*j/46;add([sys.position[0]+axis[0]*len*sign+scatter,sys.position[1]+axis[1]*len*sign,sys.position[2]+axis[2]*len*sign-scatter],sys.star.radius*.28,[.44,.77,1],.47*(1-j/52));}}
+   if(sys.phenomenon==='supernova'&&root.StarfallSpaceWeatherLW06){
+    // An expanding ejecta remnant produces the shell, shock and condensable dust;
+    // the unrelated pre-existing molecular nebulae remain separate.
+    const remnants=root.StarfallSpaceWeatherLW06.remnantParticles(sys,this.galaxy.time,144,this.galaxy.seed);
+    for(const part of remnants)add(part.position,part.size,part.color,part.alpha);
+   }
+   // Only a magnetically active source emits flare-plasma tracers.
+   if(root.StarfallSpaceWeatherLW06&&distance<sys.star.radius*95){
+    const activity=root.StarfallSpaceWeatherLW06.exposure(sys,eye,this.galaxy.time,this.galaxy.seed);
+    if(activity.flareStrength>.025){
+     const strength=activity.flareStrength;
+     for(let j=0;j<55;j++){
+      const angle=j*2.39996323+this.galaxy.time*.009,q=1-2*(j+.5)/55,k=Math.sqrt(1-q*q),
+       distanceFromStar=sys.star.radius*(1.12+(j%9)*.08)* (1+.26*strength);
+      const part=[sys.position[0]+Math.cos(angle)*k*distanceFromStar,sys.position[1]+q*distanceFromStar,sys.position[2]+Math.sin(angle)*k*distanceFromStar];
+      add(part,sys.star.radius*(.11+.1*strength),[.95,.57,.28],.21*strength);
+     }
+    }
+   }
    for(const body of sys.planets){if(body.type!=='Shattered'||V.len(V.sub(body.position,eye))>body.radius*180)continue;for(let j=0;j<110;j++){const a=j*2.3999632,y=1-2*(j+.5)/110,q=Math.sqrt(1-y*y),r=body.radius*(1.1+(j%13)/16);const spin=this.galaxy.time*.025;add([body.position[0]+Math.cos(a+spin)*q*r,body.position[1]+y*r*.62,body.position[2]+Math.sin(a+spin)*q*r],body.radius*.10,[.66,.47,.36],.85);}}
   }
   gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(list),gl.DYNAMIC_DRAW);this.effectCount=list.length/8;this.effectsRendered=this.effectCount;
@@ -1802,6 +1820,35 @@ class Renderer{
   }
   if(!verts.length)return;
   const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderHeight*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
+  gl.depthMask(true);
+ }
+ // LW06 auroral curtains depend on atmospheric pressure, magnetic field and
+ // real source-linked stellar particle activity; never generated in vacuum.
+ renderAurora(state,eye,vp,renderH){
+  const W=root.StarfallSpaceWeatherLW06,F=root.StarfallFieldScience,body=state.nearest;
+  if(!W||!F||!body?.landable||state.interior||state.altitude>1300)return;
+  const sys=this.galaxy.byId.get(body.systemId);if(!sys)return;
+  const space=W.exposure(sys,body.position,this.galaxy.time,this.galaxy.seed);
+  const ground=F.profile(body,this.galaxy.seed);
+  if(ground.pressurePa<750||Math.abs(ground.magneticFieldNT)<2000||space.ionizationIndex<.04)return;
+  const up=V.norm(V.sub(eye,body.position)),strength=Math.min(1,space.ionizationIndex*2.5);
+  const gl=this.gl,verts=[],axis=body.spinAxis||[0,1,0];
+  for(const sign of [-1,1])for(let i=0;i<28;i++){
+   const a=i*2.3999632+this.galaxy.time*.007;
+   const polar=sign*(.88+.07*Math.sin(i*.43)),r=Math.sqrt(Math.max(0,1-polar*polar));
+   const dir=V.rot([Math.cos(a)*r,polar,Math.sin(a)*r],axis,body.spinAngle||0);
+   for(let j=0;j<3;j++){
+    const point=V.add(body.position,V.mul(dir,body.radius+65+j*27)),delta=V.sub(point,eye);
+    if(V.len(delta)>1600||V.dot(delta,state.camera.forward)<-20)continue;
+    const alpha=strength*(.22+.10*j),t=.1+.9*Math.sin(i+j+this.galaxy.time*.045)**2;
+    verts.push(delta[0],delta[1],delta[2],2.5+j*.4,.18+t*.10,.76,.54+t*.40,alpha);
+   }
+  }
+  if(!verts.length)return;
+  const p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
   gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
   gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
   gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
@@ -2082,7 +2129,7 @@ class Renderer{
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',.9);this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
-  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
   if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
@@ -2696,6 +2743,97 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);
 
 </script><script>
+/* STARFALL LW06 — causal stellar activity and observable remnant / space weather.
+ * A derived, reproducible model. Does NOT mutate existing galaxy systems,
+ * planetary orbits, saved positions, or pre-existing molecular clouds.
+ * Sim-time pulses propagate outward at a finite modeled speed.
+ */
+(function(root){'use strict';
+const TAU=Math.PI*2,clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const C_SCENE_S=299792.458; // 1 scene unit = 1000 m, light travels 299792.458 units/s
+const REMNANT_SPEED=2800; // illustrative early ejecta: 2800 km/s at scene scale
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+function rand(k){return hash(k)/4294967296;}
+function source(system,seed=742){
+ if(!system?.id||!system.star?.radius)throw Error('Stellar source needs existing system');
+ const star=system.star,kind=system.phenomenon==='supernova'?'supernova-remnant':system.phenomenon==='pulsar'?'pulsar':'stellar-wind';
+ const key=seed+':'+system.id,composition=root.StarfallCompositionCW01?.starFor(star,seed);
+ const metallicity=composition?.metallicityMassFraction??.012;
+ const activityScale=kind==='supernova-remnant'?0:star.type==='M dwarf'?1.0:star.type==='K dwarf'?.48:star.type.includes('G')?.67:kind==='pulsar'?.82:.53;
+ const cycleS=2400+Math.round(rand(key+':cycle')*2300),
+ epochS=cycleS*(.22+.58*rand(key+':phase')),durationS=100+280*rand(key+':width');
+ const axis=[.2+rand(key+':x'),.2+rand(key+':y'),.2+rand(key+':z')],length=Math.hypot(...axis);
+ const ejectaAgeAtZeroS=system.phenomenon==='supernova'?100+300*rand(key+':ejectaAge'):null;
+ return Object.freeze({systemId:system.id,starId:star.id,kind,seed,cycleS,epochS,durationS,
+  spinAxis:Object.freeze(axis.map(x=>x/length)),ejectaAgeAtZeroS,
+  ejectaSpeedSceneS:REMNANT_SPEED,metallicityPrior:metallicity,activityScale,
+  note:kind==='supernova-remnant'?'Existing legacy supernova tag interpreted as a remnant, not a fresh star exploding every frame':'Model activity, not a calibrated flare prediction'});
+}
+function flare(source,timeS,distanceScene=0){
+ if(!Number.isFinite(timeS)||timeS<0||!Number.isFinite(distanceScene)||distanceScene<0)throw Error('Invalid stellar activity time or distance');
+ const observedTime=timeS-distanceScene/C_SCENE_S,dt=observedTime+source.epochS;
+ const cycle=Math.floor(dt/source.cycleS),phase=((dt%source.cycleS)+source.cycleS)%source.cycleS;
+ const strength=cycle>=0&&phase<source.durationS?Math.sin(Math.PI*phase/source.durationS)**2*source.activityScale:0;
+ return Object.freeze({eventId:'lw06:'+source.systemId+':flare:'+cycle,cycle,
+  sourceTimeS:observedTime,phaseS:phase,flareStrength:strength,active:strength>.02,
+  lightTravelDelayS:distanceScene/C_SCENE_S,provenance:'Periodic seeded magnetic flare with finite electromagnetic travel time'});
+}
+function remnant(source,timeS){
+ if(source.kind!=='supernova-remnant')return null;
+ if(!Number.isFinite(timeS)||timeS<0)throw Error('Invalid remnant time');
+ const age=source.ejectaAgeAtZeroS+timeS,radius=age*source.ejectaSpeedSceneS;
+ const thickness=radius*(.075+.020*rand(source.systemId+':thickness'));
+ const dustCondensation=clamp((age-180)/1100);
+ return Object.freeze({id:'lw06:'+source.systemId+':remnant',originSystemId:source.systemId,ageS:age,
+  radiusScene:radius,thicknessScene:thickness,shockSpeedSceneS:source.ejectaSpeedSceneS,
+  dustFraction:dustCondensation*.28,gasFraction:1-dustCondensation*.28,
+  enrichedMaterial:'O, Ne, Mg, Si, Fe (qualitative stellar-yield prior)',
+  mechanism:'expanding ejecta shock and progressively condensing dust, not primordial molecular cloud',
+  caveat:'Legacy explosion age and uniform speed are seeded approximations; no hydrodynamic shock solver'});
+}
+function exposure(system,position,timeS=0,seed=742){
+ const src=source(system,seed),delta=position.map((v,i)=>v-system.position[i]),r=Math.max(1,Math.hypot(...delta));
+ const pulse=flare(src,timeS,r),rem=remnant(src,timeS);
+ // Inverse-square dilution with a finite source near-field limit.
+ const radius=Math.max(1,system.star.radius),geom=Math.min(1,(radius/Math.max(radius*2,r))**2);
+ const quiescent=clamp(geom*.12),flareDose=clamp(pulse.flareStrength*geom*4);
+ const dir=delta.map(x=>x/r),axis=src.spinAxis,cos=axis.reduce((s,x,i)=>s+x*dir[i],0);
+ // Rotating magnetic cone is narrow and double-sided.
+ const spin=timeS*.55,beamVector=[Math.cos(spin)*axis[0]-Math.sin(spin)*axis[2],axis[1],Math.sin(spin)*axis[0]+Math.cos(spin)*axis[2]];
+ const alignment=Math.abs(beamVector.reduce((s,x,i)=>s+x*dir[i],0));
+ const beam=src.kind==='pulsar'?Math.pow(clamp((alignment-.82)/.18),3):0;
+ const shock=rem?Math.exp(-.5*((r-rem.radiusScene)/Math.max(1,rem.thicknessScene))**2)*.85:0;
+ const ionization=clamp(quiescent+flareDose+beam*.75+shock);
+ const shieldFactor=clamp(1-ionization*.68,.22,1);
+ return Object.freeze({systemId:system.id,sourceId:src.starId,kind:src.kind,distanceScene:r,
+  pulse,remnant:rem,flareStrength:pulse.flareStrength,beamStrength:beam,shockStrength:shock,
+  ionizationIndex:ionization,magneticDisturbanceNT:(flareDose+beam*.35+shock*.55)*9000,
+  inducedCommsNoise:clamp(ionization*.8),solarTransmissionFactor:shieldFactor,
+  hazard:ionization>.75?'SEVERE':ionization>.27?'ELEVATED':ionization>.06?'WATCH':'NOMINAL',
+  provenance:'inverse-square and finite-delay stellar activity plus expanding remnant shock proxy'});
+}
+function nearest(galaxy,position,timeS=0,seed=742){
+ if(!galaxy||!position||!position.every(Number.isFinite))return null;
+ const sys=galaxy.nearestSystem(position);if(!sys)return null;
+ return exposure(sys,position,timeS,seed);
+}
+function remnantParticles(system,timeS,count=144,seed=742){
+ const src=source(system,seed),rem=remnant(src,timeS);if(!rem)return Object.freeze([]);
+ const n=Math.min(288,Math.max(0,Math.floor(count))),out=[];
+ for(let j=0;j<n;j++){
+  const a=j*2.399963229728653,y=1-2*(j+.5)/n,q=Math.sqrt(Math.max(0,1-y*y));
+  const radial=rem.radiusScene*(.94+.12*rand(src.systemId+':shell:'+j));
+  out.push(Object.freeze({position:Object.freeze([system.position[0]+Math.cos(a)*q*radial,
+    system.position[1]+y*radial,system.position[2]+Math.sin(a)*q*radial]),size:rem.thicknessScene*(.38+.20*rand(src.systemId+':size:'+j)),
+   color:j%5===0?Object.freeze([.50,.71,1]):Object.freeze([.95,.47,.30]),alpha:.13+.18*rand(src.systemId+':alpha:'+j)}));
+ }
+ return Object.freeze(out);
+}
+const API=Object.freeze({C_SCENE_S,REMNANT_SPEED,source,flare,remnant,exposure,nearest,remnantParticles});
+root.StarfallSpaceWeatherLW06=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
 /* STARFALL LW-01 geothermal source model.
  * Analytical, deterministic candidate sources, not a CFD or finite-element solver.
  * Sources are planet-fixed; no collision/terrain generation or old save mutation.
@@ -3074,7 +3212,11 @@ function profile(body,seed=742){if(!body||!body.id)throw Error('Missing body');c
 function localTruth(body,seed,local,simTime=0){const p=profile(body,seed),vec=Array.isArray(local)?local:[0,1,0],lat=clamp(vec[1],-1,1),lon=Math.atan2(vec[2],vec[0]);const patch=rand(seed+':'+body.id+':patch:'+Math.floor(lat*38)+':'+Math.floor(lon*38)),diurnal=Math.sin(simTime*Math.PI*2/Math.max(30,body.spinPeriod||500)+lon);
  const geo=root.StarfallGeothermalLW01?.local(body,vec,simTime,seed,p.pressurePa,Math.max(.25,(body.gravity||1)*9.80665));const geothermalK=geo?.thermalExposure?Math.min(90,(geo.radiativeHeatFluxWm2||0)/30+geo.thermalExposure*8):0;const geothermalSeismic=geo?.thermalExposure?geo.thermalExposure*.14:0;
  const weather=root.StarfallMeteorologyLW03?.cell(body,vec,simTime,seed);const ambientK=weather&&!weather.vacuum?weather.temperatureK:p.temperatureK+12*diurnal*Math.cos(lat)+10*(patch-.5);
- return{...p,temperatureK:ambientK+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5),silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
+ const sys=root.StarfallRuntime?.galaxy?.byId?.get(body.systemId);
+ const starWeather=sys&&root.StarfallSpaceWeatherLW06?.exposure(sys,body.position,simTime,seed);
+ const magneticResponse=starWeather?
+  starWeather.magneticDisturbanceNT*(1-Math.min(.85,Math.abs(p.magneticFieldNT)/35000)*.66)*Math.abs(.35+.65*lat):0;
+ return{...p,temperatureK:ambientK+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5)+magneticResponse,silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
 function sample({body,seed=742,local=[0,1,0],altitudeM=0,instrument,simTime=0,energyAvailableJ=Infinity,calibrated=true,nonce=0}){
  const spec=INSTRUMENTS[instrument];if(!spec)throw Error('Unknown instrument');if(!body?.landable)throw Error('Requires a solid planetary surface');if(!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite))throw Error('Invalid local position');
  if(!Number.isFinite(altitudeM)||altitudeM<0||altitudeM>spec.maxAltitudeM)throw Error(spec.name+' out of range: maximum '+spec.maxAltitudeM+' m');
@@ -6037,6 +6179,7 @@ const Vehicles=StarfallVehicles, Power=StarfallPower,vehicleStore=Vehicles.creat
 let equipmentT15=StarfallEquipmentT15.restore(session.equipmentT15);
 let engineeringSystemReport={ship:null,rover:null},engineeringSystemSeconds=0;
 function persistVehicles(){SF.save({engineeringVehicles:vehicleStore.serialize()});}
+function rootSpaceWeather(){return window.StarfallSpaceWeatherLW06;}
 function shipConfiguredState(){const x=vehicleStore.get('ship'),s=x.stats;return FP.shipState({dryMassKg:s.dryMassKg,fuelKg:x.state.fuelKg,thrustN:s.thrustN,ispS:s.ispS,radiatorAreaM2:s.radiatorAreaM2,emissivity:s.emissivity,temperatureK:x.state.temperatureK});}
 function updateVehicleSystems(dt){
  const elapsed=dt*timeScale;
@@ -6049,10 +6192,14 @@ function updateVehicleSystems(dt){
   const direction=star?P.vec.sub(sys.position,craftPos):[0,1,0],distanceScene=P.vec.len(direction);
   const sunDir=V.norm(direction),normal=kind==='ship'?(landed?shipWorldState().up:up):(roverWorldState()?.up||up);
   const atmo=nearest?FP.atmosphere(nearest,Math.max(0,altitude)*P.SCENE_METERS_PER_UNIT):{densityKgM3:0};
-  const light={luminosityW:star?P.starProfile(star).luminosityW:0,distanceM:Math.max(1,distanceScene*P.SCENE_METERS_PER_UNIT),incidence:Math.max(0,V.dot(normal,sunDir)),transmission:Math.exp(-Math.min(9,atmo.densityKgM3*.1))*(landed&&nearest=== (kind==='ship'?shipBody:roverBody)?StarfallEvents.skyTransmission(nearest,V.rot(V.norm(V.sub(craftPos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):1),occluded:!!(nearest&&star&&!Power.visibleSun(P.vec.mul(craftPos,P.SCENE_METERS_PER_UNIT),P.vec.mul(sys.position,P.SCENE_METERS_PER_UNIT),{positionM:P.vec.mul(nearest.position,P.SCENE_METERS_PER_UNIT),radiusM:nearest.radius*P.SCENE_METERS_PER_UNIT})),ambientK:190};
+  // Radiation storm mitigation consumes actual owner-managed electrical energy;
+  // no fabricated ACKs, generator power, or save migrations.
+  const stellar=rootSpaceWeather()?.exposure(sys,craftPos,simTime,GALAXY_SEED);
+  const mitigationW=stellar?Math.round(stellar.ionizationIndex*850):0;
+  const light={luminosityW:star?P.starProfile(star).luminosityW:0,distanceM:Math.max(1,distanceScene*P.SCENE_METERS_PER_UNIT),incidence:Math.max(0,V.dot(normal,sunDir)),transmission:Math.exp(-Math.min(9,atmo.densityKgM3*.1))*(landed&&nearest=== (kind==='ship'?shipBody:roverBody)?StarfallEvents.skyTransmission(nearest,V.rot(V.norm(V.sub(craftPos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):1)*(stellar?.solarTransmissionFactor??1),occluded:!!(nearest&&star&&!Power.visibleSun(P.vec.mul(craftPos,P.SCENE_METERS_PER_UNIT),P.vec.mul(sys.position,P.SCENE_METERS_PER_UNIT),{positionM:P.vec.mul(nearest.position,P.SCENE_METERS_PER_UNIT),radiusM:nearest.radius*P.SCENE_METERS_PER_UNIT})),ambientK:190};
   const shipThrust=kind==='ship'&&engEnabled&&!eva&&!landed&&(keys.has('KeyW')||keys.has('KeyS'));
   const driven=kind==='rover'&&!!window.StarfallScienceUI?.autoDriving;
-  const result=Power.step(stats,st,elapsed,light,{engineActive:shipThrust,driveW:driven?stats.drivePowerW:0,lightsW:headlights?(kind==='ship'?1200:180):0,heatW:shipThrust?stats.engineHeatW:driven?stats.drivePowerW*.13:0});
+  const result=Power.step(stats,st,elapsed,light,{engineActive:shipThrust,driveW:driven?stats.drivePowerW:0,lightsW:(headlights?(kind==='ship'?1200:180):0)+mitigationW,heatW:shipThrust?stats.engineHeatW:driven?stats.drivePowerW*.13:0});
   vehicleStore.update(kind,result.state);engineeringSystemReport[kind]=result;
  }
  engineeringSystemSeconds+=elapsed;
@@ -6735,7 +6882,7 @@ function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;
 const body=nearest||target,phase=solarWarning?'STELLAR CORONA':stage(altitude,body);$('phase-top').textContent='EXPEDITION / '+phase;$('flight-state').textContent=phase;$('mode-text').textContent=truckOccupied?'TRUCK':eva?'EVA':solarWarning?'CORONA':warp?'WARP':landed?'SURFACE':altitude<650?'ATMOSPHERE':altitude<2500?'ORBIT':'FREE FLIGHT';
  $('speed-text').textContent=warp?'FTL CRUISE':V.len(vel).toFixed(0)+' u/s';$('alt-text').textContent=formatDistance(Math.max(0,altitude));$('vertical-text').textContent=vertical.toFixed(0)+' u/s';$('star-count').textContent=renderer.starPoints.toLocaleString();$('body-count').textContent=renderer.renderedBodies+' / '+galaxy.allWorlds.length;$('system-count').textContent=String(galaxy.systems.length);$('coordinates').textContent=pos.map(n=>Math.round(n/1e6)).join(' / ')+' Mu';$('fps-text').textContent=Math.round(fps);$('effects-count').textContent=(renderer.effectsRendered||0).toLocaleString();$('time-scale').textContent=timeScale+'×';$('lighting-state').textContent=renderer.daylightLabel||'—';$('floodlights-state').textContent=headlights?'ON':'OFF';
  const biomeLabel=$('biome-label'),biomeDesc=$('biome-description');if(biomeLabel){const nearby=body?.landable&&altitude<1100;if(nearby){const d=V.rot(V.norm(V.sub(pos,body.position)),body.spinAxis||[0,1,0],-(body.spinAngle||0)),h=groundHeight(d,body),f=Starfall3D.field(d,body.seed),a=BIOMES.classify(body,d,h,f);biomeLabel.textContent=a.name.toUpperCase();biomeDesc.textContent=a.lifePotential?'Potential biology · unconfirmed':'Geological environment · unconfirmed biology';}else{biomeLabel.textContent='—';biomeDesc.textContent='Approach a solid world to survey the surface';}}
- const nearSys=galaxy.nearestSystem(pos);const types=[];if(nearSys?.belts.length)types.push(nearSys.belts.length+' ASTEROID BELT'+(nearSys.belts.length>1?'S':''));if(nearSys?.nebulae.length)types.push('NEBULA');if(nearSys?.comets.length)types.push('COMET');if(nearSys?.phenomenon)types.push(nearSys.phenomenon.toUpperCase());const eventVisible=nearSys&&V.len(V.sub(pos,nearSys.position))<nearSys.maxOrbit*2.5;$('space-event').hidden=!eventVisible;$('space-event').textContent=eventVisible?'SECTOR PHENOMENA / '+(types.join('  ·  ')||'QUIET SYSTEM'):'';
+ const nearSys=galaxy.nearestSystem(pos);const stellarStatus=window.StarfallSpaceWeatherLW06?.exposure(nearSys,pos,simTime,GALAXY_SEED);const types=[];if(nearSys?.belts.length)types.push(nearSys.belts.length+' ASTEROID BELT'+(nearSys.belts.length>1?'S':''));if(nearSys?.nebulae.length)types.push('NEBULA');if(nearSys?.comets.length)types.push('COMET');if(nearSys?.phenomenon)types.push(nearSys.phenomenon.toUpperCase());if(stellarStatus&&stellarStatus.hazard!=='NOMINAL')types.push('SPACE WEATHER '+stellarStatus.hazard+' · IONIZATION '+Math.round(stellarStatus.ionizationIndex*100)+'%');const eventVisible=nearSys&&(V.len(V.sub(pos,nearSys.position))<nearSys.maxOrbit*2.5||stellarStatus?.ionizationIndex>.06);$('space-event').hidden=!eventVisible;$('space-event').textContent=eventVisible?'SECTOR PHENOMENA / '+(types.join('  ·  ')||'QUIET SYSTEM'):'';
  $('solar-alert').hidden=!solarWarning;$('heat-fill').style.width=heat.toFixed(1)+'%';$('heat-number').textContent=Math.round(heat)+'%';$('corona-star').textContent=galaxy.nearestStar(pos).system?.name||'—';
  $('walk-context').textContent=truckOccupied?'X / CLICK TO EXIT THE TRUCK':eva?rampTransition?(rampTransition.kind==='out'?'WALKING DOWN REAR RAMP':'WALKING UP REAR RAMP'):roverExitMove?'STEPPING AWAY FROM TRUCK':(roverBody===nearest&&roverWorldState()&&V.len(V.sub(pos,roverWorldState().position))<24?'SCIENCE ROVER: PROGRAM ONLY · TRUCK: APPROACH AND PRESS X':'EVA · X NEAR TRUCK TO DRIVE · SCIENCE ROVER IS UNCREWED'):landed?'HOLD S TO WALK DOWN THE RAMP · SPACE TO LAUNCH':'';
  $('status-text').textContent=solarWarning?'CORONAL WARNING · THERMAL LOAD '+Math.round(heat)+'% · PHOTOSPHERE IS SOLID':truckOccupied?'TRUCK · W/S DRIVE · A/D STEER · X OR CLICK TO EXIT · BATTERY '+Math.round(truckBatteryJ/44e6*100)+'%':eva?'EVA · SKY LOOK · X NEAR TRUCK · SCIENCE ROVER IS UNCREWED':landed?'SHIP LANDED · SPACE TO TAKE OFF · HOLD S TO WALK DOWN RAMP':warp?'WARP CRUISE · RELEASE SHIFT TO EXIT · G ALIGNS':'LEFT DRAG STEER · RIGHT DRAG LOOK · SCROLL ZOOM · F CENTRE CAMERA';
@@ -7064,7 +7211,7 @@ window.StarfallRuntime={galaxy,vehicleStore,captureScienceImage({body,eye,forwar
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
  roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,systemId:roverBody.systemId,local:roverLocal}:null,
  truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,batteryJ:truckBatteryJ}:null
-};},enterInterior,enterCave,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({debrisNearby:renderer.debrisRendered||0,debrisRisk:latestDebrisWarning,pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
+};},enterInterior,enterCave,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({spaceWeather:window.StarfallSpaceWeatherLW06?.nearest(galaxy,pos,simTime,GALAXY_SEED)||null,debrisNearby:renderer.debrisRendered||0,debrisRisk:latestDebrisWarning,pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
  const body=galaxy.byId.get(bodyId);
  if(!body?.landable||!Array.isArray(direction)||direction.length!==3||!direction.every(Number.isFinite))throw Error('Invalid geological surface waypoint');
  const directionUnit=V.norm(direction);if(V.len(directionUnit)<.99)throw Error('Invalid waypoint direction');
@@ -7209,9 +7356,27 @@ function debrisRows(profile){
   'Proximity against irregular asteroid bounding radius, ship radius ~4 scene units'));
  return rows;
 }
+function spaceWeatherRows(profile){
+ const W=root.StarfallSpaceWeatherLW06;if(!W||!selected)return[];
+ const sys=RT.galaxy.byId.get(selected.systemId);if(!sys)return[];
+ const pos=profile.kind==='star'?RT.scenePosition:selected.position;
+ const solar=W.exposure(sys,pos,RT.time,RT.galaxy.seed),src=W.source(sys,RT.galaxy.seed);
+ const items=[entry('LW06 stellar event source',src.kind,'Existing seeded star classification and legacy phenomenon tag'),
+  entry('Magnetic flare',fmt(100*solar.flareStrength,'%'),'Finite signal travel delay '+fmt(solar.pulse.lightTravelDelayS,'s')),
+  entry('Ionization / particle storm index',fmt(solar.ionizationIndex),'Normalized model, not measured dose in Sv'),
+  entry('Magnetic disturbance at location',fmt(solar.magneticDisturbanceNT,'nT'),'Approximate magnetospheric proxy'),
+  entry('Communication interference estimate',fmt(solar.inducedCommsNoise*100,'%'),'Signal-noise estimate only; not a fabricated packet loss or command ACK'),
+  entry('Stellar environment hazard',solar.hazard,'Based on current modeled local exposure')];
+ if(solar.remnant){
+  items.push(entry('Supernova ejecta remnant',solar.remnant.id,'Existing supernova-tagged star; not a recurring explosion'));
+  items.push(entry('Remnant shock radius',fmt(solar.remnant.radiusScene*1000/1e6,'million km'),'Expanding shell at modeled ejecta velocity'));
+  items.push(entry('Ejecta condensed dust',fmt(100*solar.remnant.dustFraction,'%'),'Stellar nucleosynthetic enrichment is qualitative'));
+ }
+ return items;
+}
 function rows(profile){if(!profile)return [];
- if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
- return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...livingGeologyRows(profile),...climateRows(profile),...hydrologyRows(profile),...debrisRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
+ if(profile.kind==='star')return [entry('Stellar classification',profile.spectralClass),entry('Effective temperature',fmt(profile.effectiveTemperatureK,'K')),entry('Estimated mass',fmt(profile.massKg/P.MSUN,'M☉')),entry('Visual radius',fmt(profile.radiusM/1000,'km'),'Fictional render scale'),entry('Luminosity',fmt(profile.luminosityW/P.LSUN,'L☉')),entry('Gravitational parameter',fmt(profile.mu,'m³/s²')),...compositionRows(profile),...spaceWeatherRows(profile),...profile.warnings.map(w=>entry('Scale warning',w,'Compatibility'))];
+ return [entry('Classification',profile.type+' '+profile.kind),entry('Bulk density',fmt(profile.bulkDensityKgM3,'kg/m³')),entry('Mass',fmt(profile.massKg,'kg')),entry('Surface gravity',fmt(profile.surfaceGravityMS2,'m/s²')),entry('Radius',fmt(profile.radiusM/1000,'km'),'Render-to-SI mapping'),entry('Bond albedo',fmt(profile.albedo)),entry('Equilibrium temperature',fmt(profile.estimatedEquilibriumTemperatureK,'K')+' ±'+fmt(profile.temperatureUncertaintyK,'K'),'Estimated (not measured)'),entry('Atmosphere at reference level',fmt(profile.atmospherePressurePa/1000,'kPa'),'Seeded approximation'),entry('Orbital semimajor axis',fmt(profile.orbit.semiMajorAxisM/1000,'km')),entry('Eccentricity',fmt(profile.orbit.eccentricity)),entry('Inclination',fmt(profile.orbit.inclinationRad*180/Math.PI,'°')),entry('Physical Kepler period',fmt(profile.orbit.keplerPeriodS/3600,'h')),entry('Legacy visual period',fmt(profile.orbit.legacyPeriodS/3600,'h'),'Compatibility'),entry('Visible illuminated fraction',fmt(profile.illuminatedFraction*100,'%'),'Geometry-derived'),entry('Planetary eclipse',profile.approximateEclipse?'Yes (simplified)':'No (simplified)','Geometry-derived'),entry('Sidereal spin period',fmt(profile.spinPeriodS,'s')),entry('Axial tilt',fmt(profile.axialTiltRad*180/Math.PI,'°')),entry('Geology signature',profile.geologySignature),entry('Water evidence',profile.waterEvidence,'Unverified'),entry('Life evidence',profile.lifeEvidence,'Unknown'),...compositionRows(profile),...geothermalRows(profile),...livingGeologyRows(profile),...climateRows(profile),...hydrologyRows(profile),...debrisRows(profile),...spaceWeatherRows(profile),...profile.warnings.map(w=>entry('Physical deviation',w,'Compatibility'))];}
 function getProfile(){RT.galaxy.observerPosition=RT.scenePosition;return selected?P.scienceProfile(RT.galaxy,selected):null;}
 function fillBodies(){const focus=RT.target;let sys=focus.kind==='star'?RT.galaxy.byId.get(focus.systemId):RT.galaxy.byId.get(focus.systemId);
  if(sys?.dormant)RT.galaxy.activate(sys);
