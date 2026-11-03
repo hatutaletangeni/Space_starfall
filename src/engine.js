@@ -630,8 +630,8 @@ class Renderer{
   const biomePalette=biomeSample?BIOMES.PAL[biomeSample.name][0]:sky;
   const fogColor=V.mix(V.mix([.002,.004,.01],sky,atmo*daytime),biomePalette,atmo*daytime*.12);
   const weather=state.weather,weatherOpacity=weather&&atmo>0?Math.min(.75,1-weather.visibility):0;
-  const fogDensity=atmo*.00054*(1+weatherOpacity*5);
-  const eventFogColor=weatherOpacity?V.mix(fogColor,weather.tint,weatherOpacity*.55):fogColor;
+  const fogDensity=state.swimming?.055:atmo*.00054*(1+weatherOpacity*5);
+  const eventFogColor=state.swimming?[.014,.155,.24]:(weatherOpacity?V.mix(fogColor,weather.tint,weatherOpacity*.55):fogColor);
   const view=M.look([0,0,0],V.sub(cam.target,origin),cam.up),proj=M.perspective(this.fov,this.aspect,.35,2e8),vp=M.mul(proj,view),sunVP=M.mul(M.perspective(this.fov,this.aspect,100,3e9),view);
   const light=lighting.sunDir;
   const applyLight=(prog,body=near)=>{let l=lighting;
