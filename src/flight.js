@@ -37,6 +37,7 @@ const Vehicles=StarfallVehicles, Power=StarfallPower,vehicleStore=Vehicles.creat
 let equipmentT15=StarfallEquipmentT15.restore(session.equipmentT15);
 let engineeringSystemReport={ship:null,rover:null},engineeringSystemSeconds=0;
 function persistVehicles(){SF.save({engineeringVehicles:vehicleStore.serialize()});}
+function rootSpaceWeather(){return window.StarfallSpaceWeatherLW06;}
 function shipConfiguredState(){const x=vehicleStore.get('ship'),s=x.stats;return FP.shipState({dryMassKg:s.dryMassKg,fuelKg:x.state.fuelKg,thrustN:s.thrustN,ispS:s.ispS,radiatorAreaM2:s.radiatorAreaM2,emissivity:s.emissivity,temperatureK:x.state.temperatureK});}
 function updateVehicleSystems(dt){
  const elapsed=dt*timeScale;
@@ -49,10 +50,14 @@ function updateVehicleSystems(dt){
   const direction=star?P.vec.sub(sys.position,craftPos):[0,1,0],distanceScene=P.vec.len(direction);
   const sunDir=V.norm(direction),normal=kind==='ship'?(landed?shipWorldState().up:up):(roverWorldState()?.up||up);
   const atmo=nearest?FP.atmosphere(nearest,Math.max(0,altitude)*P.SCENE_METERS_PER_UNIT):{densityKgM3:0};
-  const light={luminosityW:star?P.starProfile(star).luminosityW:0,distanceM:Math.max(1,distanceScene*P.SCENE_METERS_PER_UNIT),incidence:Math.max(0,V.dot(normal,sunDir)),transmission:Math.exp(-Math.min(9,atmo.densityKgM3*.1))*(landed&&nearest=== (kind==='ship'?shipBody:roverBody)?StarfallEvents.skyTransmission(nearest,V.rot(V.norm(V.sub(craftPos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):1),occluded:!!(nearest&&star&&!Power.visibleSun(P.vec.mul(craftPos,P.SCENE_METERS_PER_UNIT),P.vec.mul(sys.position,P.SCENE_METERS_PER_UNIT),{positionM:P.vec.mul(nearest.position,P.SCENE_METERS_PER_UNIT),radiusM:nearest.radius*P.SCENE_METERS_PER_UNIT})),ambientK:190};
+  // Radiation storm mitigation consumes actual owner-managed electrical energy;
+  // no fabricated ACKs, generator power, or save migrations.
+  const stellar=rootSpaceWeather()?.exposure(sys,craftPos,simTime,GALAXY_SEED);
+  const mitigationW=stellar?Math.round(stellar.ionizationIndex*850):0;
+  const light={luminosityW:star?P.starProfile(star).luminosityW:0,distanceM:Math.max(1,distanceScene*P.SCENE_METERS_PER_UNIT),incidence:Math.max(0,V.dot(normal,sunDir)),transmission:Math.exp(-Math.min(9,atmo.densityKgM3*.1))*(landed&&nearest=== (kind==='ship'?shipBody:roverBody)?StarfallEvents.skyTransmission(nearest,V.rot(V.norm(V.sub(craftPos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):1)*(stellar?.solarTransmissionFactor??1),occluded:!!(nearest&&star&&!Power.visibleSun(P.vec.mul(craftPos,P.SCENE_METERS_PER_UNIT),P.vec.mul(sys.position,P.SCENE_METERS_PER_UNIT),{positionM:P.vec.mul(nearest.position,P.SCENE_METERS_PER_UNIT),radiusM:nearest.radius*P.SCENE_METERS_PER_UNIT})),ambientK:190};
   const shipThrust=kind==='ship'&&engEnabled&&!eva&&!landed&&(keys.has('KeyW')||keys.has('KeyS'));
   const driven=kind==='rover'&&!!window.StarfallScienceUI?.autoDriving;
-  const result=Power.step(stats,st,elapsed,light,{engineActive:shipThrust,driveW:driven?stats.drivePowerW:0,lightsW:headlights?(kind==='ship'?1200:180):0,heatW:shipThrust?stats.engineHeatW:driven?stats.drivePowerW*.13:0});
+  const result=Power.step(stats,st,elapsed,light,{engineActive:shipThrust,driveW:driven?stats.drivePowerW:0,lightsW:(headlights?(kind==='ship'?1200:180):0)+mitigationW,heatW:shipThrust?stats.engineHeatW:driven?stats.drivePowerW*.13:0});
   vehicleStore.update(kind,result.state);engineeringSystemReport[kind]=result;
  }
  engineeringSystemSeconds+=elapsed;
