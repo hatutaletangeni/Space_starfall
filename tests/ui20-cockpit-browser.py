@@ -22,9 +22,15 @@ with sync_playwright() as p:
   assert page.locator('#universe').evaluate('(e)=>e.width>0&&e.height>0')
   assert page.locator('.controls-hint').is_hidden()
   assert page.locator('.identity h1').evaluate('(e)=>parseFloat(getComputedStyle(e).fontSize)<=30')
-  assert page.locator('.panel').evaluate('(e)=>e.getBoundingClientRect().height<350')
-  for id in ['launch-open','asset-open','controls-open','chart-open','obs-open','archive-t17-open']:
+  # UI21 expands its routed console within the viewport; the old <350px
+  # UI20 compact-panel assertion is no longer the intended layout.
+  assert page.locator('.panel').evaluate('(e)=>100<e.getBoundingClientRect().height<=window.innerHeight')
+  for id in ['controls-open','chart-open','obs-open','archive-t17-open']:
    assert page.locator('#'+id).is_visible(),id
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  for id in ['launch-open','asset-open']:
+   assert page.locator('#'+id).is_visible(),id
+  page.locator('#ui21-navigation button[data-route="Overview"]').click()
   assert page.locator('#ui20-vehicle-frame').is_hidden()
   page.screenshot(path=str(out/'01-flight-chase.png'))
   page.keyboard.press('v')
