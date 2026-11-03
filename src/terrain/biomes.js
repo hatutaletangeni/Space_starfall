@@ -71,7 +71,7 @@ function classify(body,dir,height,fieldValue,precomputed){const d=normalized(dir
 function color(body,dir,height,fieldValue,precomputed){const sample=precomputed||classify(body,dir,height,fieldValue),palette=PAL[sample.name];if(!palette)return[.4,.4,.4];
  const t=clamp(.25+.55*sample.sub+.21*fieldValue+.1*Math.min(height/110,1)),latitude=sample.latitude;
  const mixed=palette[0].map((x,i)=>mix(x,palette[1][i],t));const frost=Math.max(0,(latitude-.91)*9)*(body.type==='Volcanic'||body.type==='Desert'?0:1);
- return mixed.map((x,i)=>clamp(mix(x,[.78,.84,.88][i],frost)));
+ const visual=mixed.map((x,i)=>clamp(mix(x,[.78,.84,.88][i],frost)));return root.StarfallGeologyCW03?.tint(body,dir,height,fieldValue,visual)||visual;
 }
 function descriptor(body,dir,height=0,fieldValue=.5){return classify(body,dir,height,fieldValue);}
 function decoration(biome,r){if(biome.material==='water')return'none';const x=r();if(x<.09)return'rock';switch(biome.feature){case'flora':return biome.lifePotential?(x>.16?'flora':'rock'):'rock';case'fungal':return biome.lifePotential?(x>.15?'fungal':'rock'):'rock';case'scrub':return biome.lifePotential?(x>.19?'scrub':'rock'):'rock';case'crystal':return x>.30?'crystal':'rock';case'ice':return x>.25?'ice':'rock';case'column':return x>.42?'column':'rock';case'vent':return x>.38?'vent':'rock';case'dune':return x>.52?'dune':'rock';case'sediment':return x>.62?'sediment':'rock';default:return'rock';}}
