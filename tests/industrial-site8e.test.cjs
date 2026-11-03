@@ -42,6 +42,13 @@ assert.throws(()=>S.install({...sites[1],materials:state.materials,physical:stat
 sites[1].local=[Math.sin(.052)*Math.cos(1.2),Math.cos(.052),Math.sin(.052)*Math.sin(1.2)];
 sites[2].local=[Math.sin(.056)*Math.cos(-1.2),Math.cos(.056),Math.sin(.056)*Math.sin(-1.2)];
 build(sites[1]);build(sites[2]);
+assert.equal(P.create(state.physical).get('facility8e:2').state.materialId,'hydrogen');
+assert.equal(P.create(state.physical).get('facility8e:3').state.materialId,'oxygen');
+assert.throws(()=>S.install({jobId:'plant8e:5',assetId:'facility8e:5',materials:state.materials,
+ physical:state.physical,shipContainerId:'ship-hold',kitLotId:'kit:1',bodyId:'world1',
+ local:vector(.060),bodyRadius:radius,shipLocal,operatorLocal:vector(.060),
+ energyReceipt:null}),/not onboard/);
+
 const after=state.materials.lots.reduce((x,a)=>x+a.massKg,0)+state.physical.assets.reduce((x,a)=>x+a.massKg,0);
 assert.ok(Math.abs(initial-after)<1e-8);
 assert.equal(state.materials.containers.filter(x=>x.kind==='gas pressure vessel').length,2);
