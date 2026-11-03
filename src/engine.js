@@ -97,6 +97,40 @@ void main(){
  float fog=1.-exp(-length(uCamera-vWorld)*uFogDensity);color=mix(color,uFogColor,clamp(fog,0.,.96));
  frag=vec4(color,1.);
 }`;
+// LW04: animated sea normals and wave displacement live in the same 3D scene.
+const waterVS=`#version 300 es
+precision highp float;layout(location=0)in vec3 aPos;layout(location=1)in vec3 aNormal;
+uniform mat4 uViewProj,uModel;uniform float uTime,uAmplitude;
+out vec3 vNormal,vPosition;out float vFoam;
+void main(){
+ float wave=sin(aPos.x*.39+aPos.z*.21+uTime*1.8)*.58+
+            sin(aPos.z*.72-aPos.x*.14-uTime*2.7)*.30+
+            sin(aPos.y*.34+aPos.x*.55+uTime*.9)*.12;
+ vec3 local=aPos+aNormal*(wave*uAmplitude);
+ vec4 world=uModel*vec4(local,1.);
+ vNormal=normalize(mat3(uModel)*aNormal);
+ vPosition=world.xyz;vFoam=abs(wave);
+ gl_Position=uViewProj*world;
+}`;
+const waterFS=`#version 300 es
+precision highp float;in vec3 vNormal,vPosition;in float vFoam;
+uniform vec3 uEye,uSun,uSunColor;uniform float uTime,uUnderwater,uWind;
+out vec4 frag;
+void main(){
+ vec3 n=normalize(vNormal);
+ vec3 detail=vec3(sin(vPosition.x*.24+uTime*.87),0.,cos(vPosition.z*.23-uTime*1.13));
+ n=normalize(n+detail*(.007+.0007*uWind));
+ vec3 view=normalize(uEye-vPosition);
+ float fresnel=pow(1.-clamp(abs(dot(n,view)),0.,1.),3.0);
+ float light=max(.05,dot(n,normalize(uSun)));
+ float spec=pow(max(0.,dot(reflect(-normalize(uSun),n),view)),85.);
+ vec3 deep=vec3(.025,.11,.18),shallow=vec3(.055,.29,.38);
+ vec3 water=mix(deep,shallow,light);
+ water+=uSunColor*spec*.78;
+ water=mix(water,vec3(.49,.69,.72),fresnel*.53+vFoam*.025);
+ if(uUnderwater>.5)water=mix(water,vec3(.013,.15,.22),.35);
+ frag=vec4(clamp(water,0.,1.),uUnderwater>.5?.60:mix(.78,.95,fresnel));
+}`;
 const shellVS=`#version 300 es
 precision highp float;layout(location=0)in vec3 aPos;uniform mat4 uVP;uniform mat4 uModel;out vec3 vWorld;out vec3 vDir;
 void main(){vDir=normalize(mat3(uModel)*aPos);vec4 w=uModel*vec4(aPos,1.);vWorld=w.xyz;gl_Position=uVP*w;}`;
@@ -330,7 +364,7 @@ class Renderer{
   this.canvas=canvas;this.galaxy=galaxy;
   this.gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:true,powerPreference:'high-performance'});
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
-  this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS)};
+  this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
   this.ship=makeShip(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.meshBudget=48;
