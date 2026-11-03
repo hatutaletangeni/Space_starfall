@@ -31,7 +31,10 @@ function refresh(){const ctx=context(),ev=current(),name=$('events-current'),lis
    const activity=geo.pulse(nearest.site,RT.time,p.pressurePa,Math.max(.25,(ctx.body.gravity||1)*9.80665));
    name.textContent+='\\nGEOTHERMAL MODEL: '+sites.length+' candidate vent(s); nearest '+nearest.site.kind+' '+nearest.distanceKm.toFixed(1)+' km away.'+
     '\\nHeat flux '+nearest.site.thermalFluxWm2.toFixed(2)+' W/m² · '+(activity.active?'ERUPTING':'RECHARGING')+
-    ' · mass flow '+activity.massFlowKgS.toFixed(1)+' kg/s (modeled, not measured).';
+    ' · mass flow '+activity.massFlowKgS.toFixed(1)+' kg/s (modeled, not measured).' +
+    '\\nReservoir '+(activity.reservoirRemainingKg/1e6).toFixed(2)+' million kg · fluid '+(activity.volatileSpecies||'unknown')+
+    (activity.ashMassFlowKgS>0?' · ASH DISCHARGE: solar attenuation nearby':'')+
+    (nearest.distanceKm<.4&&activity.active?' · DANGER: ACTIVE HOT VENT — retreat and use instruments from a safe distance':'');
   }
  }
  list.replaceChildren();if(!records.length)list.textContent='No environmental observations recorded.';
