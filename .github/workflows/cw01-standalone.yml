@@ -67,6 +67,7 @@ jobs:
           node --check src/engine.js
           node --check src/flight.js
           node tests/debris-lw05.test.cjs
+          node tests/asset-explorer-no-operations-lw05.test.cjs
           node --check src/engine.js
           node --check src/flight.js
           node --check src/events/events.js
