@@ -6409,6 +6409,18 @@ function renderProfile(){const p=getProfile(),list=$('obs-grid');list.replaceChi
  for(const r of [{label:'Instrument evidence state',value:latest.length?'OBSERVED (seeded measurements)':'INFERRED / UNSCANNED',quality:latest.length?'Real source journal receipts, NOT calibrated astronomical truth':'Procedural catalogue only'},
  ...latest.map(x=>({label:'Observed '+x.instrument,value:String(x.value)+' '+(x.unit||'')+' at T+'+x.timeS.toFixed(1)+' s',quality:'Source '+(x.satelliteId||x.probeId||x.sourceAssetId||'field journal')+' · observation '+x.id})),
  ...rows(p)]){const tr=document.createElement('div');tr.className='science-row';const name=document.createElement('span');name.textContent=r.label;const val=document.createElement('strong');val.textContent=r.value;const quality=document.createElement('small');quality.textContent=r.quality;tr.append(name,val,quality);list.append(tr);}
+ if(selected?.landable&&root.StarfallGeothermalLW01&&RT.plotSurfaceWaypoint){
+  const vents=root.StarfallGeothermalLW01.sources(selected,RT.galaxy.seed);
+  vents.forEach((site,i)=>{
+   const button=document.createElement('button');button.type='button';button.className='site';
+   const lat=Math.asin(site.direction[1])*180/Math.PI,lon=Math.atan2(site.direction[2],site.direction[0])*180/Math.PI;
+   button.textContent='PLOT GEO '+(i+1)+' · '+site.kind+' · '+lat.toFixed(1)+'° / '+lon.toFixed(1)+'°';
+   button.title='Set a normal flight waypoint to this seeded modeled vent; no teleport';
+   button.onclick=()=>{try{RT.plotSurfaceWaypoint(selected.id,site.direction,site.kind+' vent '+(i+1));}
+    catch(error){$('obs-caution').textContent=error.message;}};
+   list.append(button);
+  });
+ }
  $('obs-caution').textContent=p?.notes||'Data is a deterministic procedural physical model. It is not an astronomical observation.';
 }
 function dataSnapshot(){const p=getProfile();return{schema:'starfall-science-v1',exportedSimulationSeconds:RT.time,galaxySeed:RT.galaxy.seed,bodyId:selected?.id,profile:p,assumptions:{sceneUnitMetres:P.SCENE_METERS_PER_UNIT,temperatureModel:'airless equilibrium, uniform redistribution',measurements:'Procedurally estimated; not direct instrument readings'}};}
