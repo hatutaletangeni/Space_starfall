@@ -21,7 +21,11 @@ function normalize(saved){if(saved==null)return{schema:1,serial:0,active:null,re
 function quote(mode,materials,sourceContainerId,outputContainerId){
  const spec=MODES[mode];if(!spec)throw Error('Unknown refining process');
  if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||!Array.isArray(materials.containers))throw Error('8A material inventory required');
- const lot=materials.lots.find(x=>x.materialId===spec.material&&x.containerId===sourceContainerId&&x.massKg>=spec.massKg-EPS);
+ const lot=materials.lots.find(x=>{
+  if(x.materialId!==spec.material||x.containerId!==sourceContainerId)return false;
+  const reserved=(materials.operations||[]).filter(o=>o.lotId===x.id&&o.status==='RESERVED').reduce((n,o)=>n+o.massKg,0);
+  return x.massKg-reserved>=spec.massKg-EPS;
+ });
  if(!lot)throw Error('Missing '+spec.massKg+' kg of actual '+spec.material+' in ship hold');
  if(!finite(lot.grade)||lot.grade>1)throw Error('Uncalibrated ore grade — prospect and sample first');
  const contained=spec.massKg*lot.grade;
@@ -69,7 +73,7 @@ function create(saved){let state=normalize(saved);
   const recipe={station:'ship_fabrication',inputs:{[a.material]:a.inputKg},
    outputs:{[a.product]:a.productKg,[a.residue]:a.residueKg},powerW:a.powerW,seconds:a.seconds};
   const result=transformation.convert({operationId:a.id,recipeId:a.mode,recipe,materials,containerId:a.sourceContainerId,
-   outputContainerId:a.outputContainerId,outputGrades:{[a.product]:a.productGrade,[a.residue]:Math.max(0,Math.min(1,(a.inputKg*a.inputGrade-a.productKg*a.productGrade)/Math.max(a.residueKg,EPS)))},
+   outputContainerId:a.outputContainerId,lotId:a.lotId,outputGrades:{[a.product]:a.productGrade,[a.residue]:Math.max(0,Math.min(1,(a.inputKg*a.inputGrade-a.productKg*a.productGrade)/Math.max(a.residueKg,EPS)))},
    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ},
    station:{id:EQUIPMENT.id,kind:'ship_fabrication',containerId:a.sourceContainerId,condition:1,enabled:true}});
   const receipt={id:a.id,mode:a.mode,status:'COMMITTED',inputKg:a.inputKg,productKg:a.productKg,
