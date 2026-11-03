@@ -18,7 +18,7 @@ const RECIPES=Object.freeze({
 function validateRecipe(r){if(!r||!id(r.station)||!valid(r.powerW)||!valid(r.seconds)||r.seconds<=0||!r.inputs||!r.outputs)throw Error('Invalid recipe');for(const group of [r.inputs,r.outputs])for(const [k,v] of Object.entries(group))if(!id(k)||!valid(v)||v<=0)throw Error('Invalid material amount');if(Math.abs(mass(r.inputs)-mass(r.outputs))>EPS)throw Error('Recipe mass balance violated');}
 Object.values(RECIPES).forEach(validateRecipe);
 function create(saved){let state=saved==null?{schema:1,operations:[]}:clone(saved);if(state.schema!==1||!Array.isArray(state.operations))throw Error('Corrupt 8E production history');
-function convert({operationId,recipeId,recipe,materials,containerId,outputContainerId,outputGrades={},lotId=null,energyReceipt,station}){
+function convert({operationId,recipeId,recipe,materials,containerId,outputContainerId,outputGrades={},lotId=null,minInputGrade=0,energyReceipt,station}){
  if(!id(operationId)||!id(containerId)||!id(outputContainerId))throw Error('Invalid conversion identity');
  const existing=state.operations.find(x=>x.id===operationId);if(existing)return{duplicate:true,materials:clone(materials),operations:clone(state),receipt:clone(existing)};
  const r=recipe||RECIPES[recipeId];validateRecipe(r);
@@ -31,7 +31,8 @@ function convert({operationId,recipeId,recipe,materials,containerId,outputContai
  const deductions=[];
  for(const [materialId,quantity] of Object.entries(r.inputs)){
   let remaining=quantity;
-  for(const lot of next.lots){if(lot.containerId!==containerId||lot.materialId!==materialId||(lotId&&lot.id!==lotId))continue;
+  for(const lot of next.lots){if(lot.containerId!==containerId||lot.materialId!==materialId||(lotId&&lot.id!==lotId)||
+    (minInputGrade>0&&(!valid(lot.grade)||lot.grade<minInputGrade)))continue;
    const free=Math.max(0,lot.massKg-(reserved.get(lot.id)||0));const used=Math.min(remaining,free);if(used>EPS){deductions.push({lot,used});remaining-=used;}
    if(remaining<=EPS)break;
   }
