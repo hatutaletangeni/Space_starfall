@@ -6708,7 +6708,7 @@ const RECIPES=Object.freeze({
 function validateRecipe(r){if(!r||!id(r.station)||!valid(r.powerW)||!valid(r.seconds)||r.seconds<=0||!r.inputs||!r.outputs)throw Error('Invalid recipe');for(const group of [r.inputs,r.outputs])for(const [k,v] of Object.entries(group))if(!id(k)||!valid(v)||v<=0)throw Error('Invalid material amount');if(Math.abs(mass(r.inputs)-mass(r.outputs))>EPS)throw Error('Recipe mass balance violated');}
 Object.values(RECIPES).forEach(validateRecipe);
 function create(saved){let state=saved==null?{schema:1,operations:[]}:clone(saved);if(state.schema!==1||!Array.isArray(state.operations))throw Error('Corrupt 8E production history');
-function convert({operationId,recipeId,recipe,materials,containerId,outputContainerId,outputGrades={},lotId=null,minInputGrade=0,energyReceipt,station}){
+function convert({operationId,recipeId,recipe,materials,containerId,outputContainerId,outputGrades={},outputVolumesM3={},lotId=null,minInputGrade=0,energyReceipt,station}){
  if(!id(operationId)||!id(containerId)||!id(outputContainerId))throw Error('Invalid conversion identity');
  const existing=state.operations.find(x=>x.id===operationId);if(existing)return{duplicate:true,materials:clone(materials),operations:clone(state),receipt:clone(existing)};
  const r=recipe||RECIPES[recipeId];validateRecipe(r);
@@ -6735,13 +6735,15 @@ function convert({operationId,recipeId,recipe,materials,containerId,outputContai
  // Check capacity after the reserved input mass/volume is removed, not before.
  const removing=containerId===outputContainerId?deductions.reduce((a,d)=>({
   kg:a.kg+d.used,vol:a.vol+d.used*(d.lot.volumeM3/d.lot.massKg)}),{kg:0,vol:0}):{kg:0,vol:0};
- const volume=containerId===outputContainerId?removing.vol:outputs*.001;
+ const provided=Object.entries(r.outputs).every(([materialId])=>Number.isFinite(outputVolumesM3[materialId])&&outputVolumesM3[materialId]>0);
+ const volume=provided?Object.values(outputVolumesM3).reduce((a,v)=>a+v,0):
+   (containerId===outputContainerId?removing.vol:outputs*.001);
  if(currently.kg-removing.kg+outputs>dest.maxMassKg+EPS||currently.vol-removing.vol+volume>dest.maxVolumeM3+EPS)throw Error('Output storage full');
  if(op.operations.some(x=>x.id===operationId))throw Error('Duplicate operation');
  for(const d of deductions){const original=d.lot.massKg;d.lot.massKg-=d.used;d.lot.volumeM3=Math.max(0,d.lot.volumeM3*(d.lot.massKg/original));}
  next.lots=next.lots.filter(l=>l.massKg>EPS);
  let i=0;for(const [materialId,kg] of Object.entries(r.outputs))next.lots.push({id:'process:'+operationId+':'+(++i),materialId,containerId:outputContainerId,massKg:kg,
-  volumeM3:kg*volume/Math.max(outputs,EPS),provenance:'process:'+operationId,
+  volumeM3:provided?outputVolumesM3[materialId]:kg*volume/Math.max(outputs,EPS),provenance:'process:'+operationId,
   grade:valid(outputGrades[materialId])&&outputGrades[materialId]<=1?outputGrades[materialId]:null});
  const receipt={id:operationId,recipeId:recipeId||'custom',stationId:station.id,inputs:clone(r.inputs),outputs:clone(r.outputs),energyJ:requiredJ,status:'COMMITTED'};
  op.operations.push(receipt);return{duplicate:false,materials:next,operations:op,receipt:clone(receipt)};
@@ -7100,6 +7102,53 @@ root.StarfallIndustrialSite8E=Object.freeze({KITS,quote,install});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndustrialSite8E;
 })(typeof globalThis!=='undefined'?globalThis:this);
 </script><script>
+/* STARFALL 8F installation-kit fabrication: certified hardware from actual
+ * finished manufactured parts. Every bill is finite, mass-balanced and paid.
+ * No standalone kit acquisition from raw rock, and no imaginary starter chips. */
+(function(root){'use strict';
+const SPECS=Object.freeze({
+ machine_kit_cnc:[220,.42,'machine'],machine_kit_grinder:[85,.18,'machine'],
+ machine_kit_caster:[260,.68,'foundry'],machine_kit_extruder:[160,.30,'machine'],
+ machine_kit_winder:[80,.14,'machine'],machine_kit_motor_fixture:[130,.25,'machine'],
+ machine_kit_etcher:[230,.47,'electronics'],machine_kit_solder_station:[65,.12,'electronics'],
+ machine_kit_battery:[260,.44,'electronics'],machine_kit_laminator:[210,.39,'electronics'],
+ machine_kit_cleanroom:[940,1.9,'cleanroom'],machine_kit_printer:[160,.38,'machine'],
+ plant_kit_electrolyzer:[450,1.2,'plant'],plant_kit_reduction_furnace:[1100,3.4,'furnace'],
+ plant_kit_glass_furnace:[520,1.8,'furnace'],plant_kit_catalytic_reactor:[640,2,'plant'],
+ plant_kit_high_temp_cell:[1320,3.6,'furnace'],
+ vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],
+ vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],
+ vessel_kit_methane:[195,4,'vessel']
+});
+const FRACTIONS=Object.freeze({
+ machine:{steel:.48,copper:.12,aluminum:.08,glass:.04,refractory_block:.10,insulated_wire:.05,electric_motor:.08,control_board:.05},
+ electronics:{steel:.36,copper:.17,aluminum:.12,glass:.06,refractory_block:.06,insulated_wire:.08,electric_motor:.06,control_board:.09},
+ cleanroom:{steel:.42,copper:.12,aluminum:.10,glass:.08,refractory_block:.12,insulated_wire:.05,electric_motor:.05,control_board:.06},
+ foundry:{steel:.43,copper:.10,aluminum:.06,glass:.05,refractory_block:.27,insulated_wire:.03,electric_motor:.04,control_board:.02},
+ furnace:{steel:.38,copper:.08,aluminum:.06,glass:.04,refractory_block:.34,insulated_wire:.03,electric_motor:.04,control_board:.03},
+ plant:{steel:.50,copper:.14,aluminum:.10,glass:.05,refractory_block:.08,insulated_wire:.05,electric_motor:.05,control_board:.03},
+ vessel:{steel:.68,aluminum:.12,glass:.02,refractory_block:.08,copper:.07,insulated_wire:.03}
+});
+function recipe(id){
+ const s=SPECS[id];if(!s)throw Error('Unknown physical kit');
+ const [massKg,volumeM3,className]=s,shares=FRACTIONS[className];
+ if(!shares)throw Error('Unknown kit construction family');
+ const keys=Object.keys(shares),inputs={};let left=massKg;
+ keys.forEach((material,i)=>{const amount=i===keys.length-1?left:Math.round(massKg*shares[material]*100000)/100000;
+   if(!(amount>0))throw Error('Invalid kit recipe quantity');inputs[material]=amount;left-=amount;});
+ if(Math.abs(Object.values(inputs).reduce((a,b)=>a+b,0)-massKg)>1e-6)throw Error('Kit BOM must conserve mass');
+ return Object.freeze({category:'industrial_kit',station:'assembly',tool:'kit-fixture',
+   inputs:Object.freeze(inputs),outputs:Object.freeze({[id]:massKg}),
+   outputVolumesM3:Object.freeze({[id]:volumeM3}),
+   powerW:2400,seconds:Math.ceil(massKg*3),toleranceMm:1,
+   engineeringNote:'Simplified finite equipment BOM. Requires certified completed components and actual ship fabrication bay. Installation requires additional power.'});
+}
+const RECIPES=Object.freeze(Object.fromEntries(Object.keys(SPECS).map(id=>[id,recipe(id)])));
+root.StarfallKitRecipes8F=Object.freeze({SPECS,FRACTIONS,RECIPES,recipe});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallKitRecipes8F;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8F manufacturing core — additive, dependency-free, data-only.
  * Inputs must be real refined lots from 8E, not raw 8C ore.
  * This module does not create stocks or grant machinery on its own.
@@ -7109,7 +7158,7 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const EPS=1e-8;
-const STATIONS=Object.freeze({foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
+const STATIONS=Object.freeze({assembly:{tools:['kit-fixture']},foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
 // Illustrative process budgets: W and s, not industrial engineering certification.
 // Mass difference is explicitly returned as scrap/consumable remainder, NEVER destroyed silently.
 const RECIPES=Object.freeze({
@@ -7125,7 +7174,8 @@ const RECIPES=Object.freeze({
  battery_cell:{category:'energy',station:'battery',tool:'cell-assembly',inputs:{electrode_active:1.2,copper:0.15,aluminum:0.1,electrolyte:0.25,separator:0.08,cell_casing:0.3},outputs:{battery_cell:1.95},powerW:1800,seconds:400,toleranceMm:0.5},
  solar_module:{category:'energy',station:'solar',tool:'module-laminator',inputs:{pv_cells:2,glass:4,aluminum_frame:2,insulated_wire:0.5,encapsulant:0.6},outputs:{solar_module:8.8},powerW:2200,seconds:370,toleranceMm:1},
  // Semiconductor-grade manufacturing only from existing certified feedstocks and equipment.
- pv_cells:{category:'semiconductor',station:'cleanroom',tool:'photolithography',inputs:{electronic_silicon:2,dopant:0.01,process_chemicals:0.5},outputs:{pv_cells:2.15},powerW:12000,seconds:900,toleranceMm:0.001}
+ pv_cells:{category:'semiconductor',station:'cleanroom',tool:'photolithography',inputs:{electronic_silicon:2,dopant:0.01,process_chemicals:0.5},outputs:{pv_cells:2.15},powerW:12000,seconds:900,toleranceMm:0.001},
+ ...(root.StarfallKitRecipes8F?.RECIPES||{})
 });
 for(const [id,r] of Object.entries(RECIPES)){
  const input=Object.values(r.inputs).reduce((a,b)=>a+b,0),output=Object.values(r.outputs).reduce((a,b)=>a+b,0);
@@ -7195,7 +7245,7 @@ function billOfMaterials(recipeId){
  const r=model()?.RECIPES?.[recipeId];if(!r)throw Error('Unknown industrial part definition');
  const input=Object.values(r.inputs).reduce((a,b)=>a+b,0),output=Object.values(r.outputs).reduce((a,b)=>a+b,0);
  return {schema:1,version:1,id:recipeId,category:r.category,requiredStation:r.station,tool:r.tool,
-   inputs:clone(r.inputs),outputs:clone(r.outputs),scrapKg:input-output,
+   inputs:clone(r.inputs),outputs:clone(r.outputs),outputVolumesM3:clone(r.outputVolumesM3||{}),scrapKg:input-output,
    powerW:r.powerW,seconds:r.seconds,energyJ:r.powerW*r.seconds,toleranceMm:r.toleranceMm,
    qualityRisk:'Simplified yield only. Precision certification and service performance must be validated on installation.'};
 }
@@ -7212,6 +7262,31 @@ function quote({recipeId,materials,sourceContainerId,outputContainerId,machine})
     return a+Math.max(0,l.massKg-reserved);
    },0);
   if(available+EPS<kg)throw Error('Missing refined '+id+': '+kg+' kg required');
+ }
+ // Kit outputs must fit their ACTUAL packaged volume, not the feedstock's
+ // denser aggregate volume. Preflight before any battery energy is spent.
+ if(r.outputVolumesM3){
+  let removedVol=0;
+  if(sourceContainerId===outputContainerId){
+   for(const [materialId,need] of Object.entries(r.inputs)){
+    let remaining=need;
+    for(const lot of materials.lots){
+     if(lot.containerId!==sourceContainerId||lot.materialId!==materialId||
+       !finite(lot.grade)||lot.grade<.98)continue;
+     const held=(materials.operations||[]).filter(x=>x.status==='RESERVED'&&x.lotId===lot.id).reduce((a,x)=>a+x.massKg,0);
+     const take=Math.min(remaining,Math.max(0,lot.massKg-held));
+     removedVol+=take*lot.volumeM3/lot.massKg;remaining-=take;
+     if(remaining<=EPS)break;
+    }
+   }
+  }
+  const container=materials.containers.find(x=>x.id===outputContainerId);
+  if(!container)throw Error('Missing actual output container');
+  const existing=materials.lots.filter(x=>x.containerId===outputContainerId)
+    .reduce((a,x)=>a+x.volumeM3,0);
+  const needed=Object.values(r.outputVolumesM3).reduce((a,x)=>a+x,0);
+  if(existing-removedVol+needed>container.maxVolumeM3+EPS)
+   throw Error('Insufficient volume for assembled physical machine kit');
  }
  const c=materials.containers.find(x=>x.id===outputContainerId);
  if(!c)throw Error('Output container missing');
@@ -7253,7 +7328,7 @@ function create(saved){
    powerW:r.powerW,seconds:r.seconds};
   const result=transformer.convert({operationId:a.id,recipeId:a.recipeId,recipe,materials,
    containerId:a.sourceContainerId,outputContainerId:a.outputContainerId,
-   minInputGrade:.98,outputGrades:Object.fromEntries(Object.keys(r.outputs).map(id=>[id,1])),
+   outputVolumesM3:r.outputVolumesM3||{},minInputGrade:.98,outputGrades:Object.fromEntries(Object.keys(r.outputs).map(id=>[id,1])),
    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ},
    station:{id:machine.id,kind:r.station,containerId:a.sourceContainerId,condition:machine.condition,enabled:true}});
   // The pure transformer handles balance and storage. Nothing is committed until it succeeds.
@@ -8741,6 +8816,13 @@ function industrialAdvance8E(elapsed){
 }
 function factoryMachine8F(recipeId){
  const r=StarfallManufacturing8F.RECIPES[recipeId];if(!r)throw Error('Unknown 8F part recipe');
+ // The already installed fabrication room also contains a basic assembly jig.
+ // It can fit certified complete components into one kit but cannot make chips,
+ // motors, furnaces or metals from nothing.
+ if(r.station==='assembly'&&r.tool==='kit-fixture'&&
+  modularShip8e.describe('fabrication').status==='INSTALLED')
+  return {id:'ship-main:fabrication:kit-fixture',station:'assembly',
+   tools:['kit-fixture'],installed:true,condition:1};
  // Pre-existing wire die in the already installed ship fabrication workshop.
  // All other machine tools MUST have a real installed 8A physical asset.
  if(r.station==='wire'&&r.tool==='wire-die'&&modularShip8e.describe('fabrication').status==='INSTALLED')
@@ -13865,6 +13947,7 @@ const guide=[
  ['Factory','8F · Working ship wire die','Use Engineer → Material Fabrication. With a landed, powered expedition ship and actual certified copper in the ship materials hold, the existing ship fabrication room can draw copper wire. One 2 kg batch yields 1.96 kg wire plus 0.04 kg accounted scrap after 104 kJ of electrical work over 130 simulated seconds. All parts use versioned bills of materials. The advanced machine-shop, PCB, solar and motor recipes stay unavailable until compatible physical equipment and feedstocks exist.','Survey, mine and haul real stock or import finite refined copper, then enter the ship fabrication room or approach the landed ship','Missing materials, unavailable machine tools, power or output capacity are real blockers, not research XP locks. This is not yet full 7A/T15 component installation.' ],
  ['Industry','8F · Install physical machine kits','Under Engineer → Physical Machine Installation, select a complete certified machine-kit lot in the real ship material hold. The ship must be landed, powered, and accessible from EVA or its fabrication room. The installation consumes one owned kit, debits a finite energy cost, and registers one unique mass-bearing industrial_machine asset in the existing 8A custody ledger. It then unlocks manufacturing recipes matching that machine\'s tool capabilities. No kits are granted for free; without a legitimately sourced kit, installation is blocked. The indicated installation time is currently an engineering estimate and the paid service transaction completes immediately. Machine geometry and physical wiring are not yet rendered.','Own a complete kit lot already in the ship cargo and enough ship energy; remain at the ship.','If you have no machine kits, the installer is empty. The basic wire-die remains built into the original vessel\'s fabrication workshop.'],
  ['Industry','8E · Place visible chemical plants and tanks','Engineer → Physical Refinery Placement allows real terrain construction of an electrolyzer, smelter, glass furnace, catalytic reactor, high-temperature cell and pressure vessels from complete certified kit lots. Exit a landed powered ship, walk near the proposed site, set forward/right offsets, then erect a plant. Each installed machine or gas vessel uses a unique saved 8A asset and a visible low-poly model and consumes the kit and ship battery work. Choose a real compatible plant and reaction under Chemical Plant Control to run a timed process. Reactants are physically deducted from certified ship lots; gaseous products require separate installed, rated nearby vessels. No raw ore is magically converted into pure reagents.','Complete certified plant and vessel kit lots already owned in the ship material hold; ship within 75 surface units; EVA operator within 40; sufficient battery energy. To run a reaction, use chemically identified input stock, a correct furnace or electrolyzer and rated output tanks.','No kit, certified chemical feedstock, output tank or power means production cannot start. Gas vessel capacity and elemental conservation are checked. The process uses a temporary ship power umbilical, not a permanent surface grid. Kits still need a normal gameplay acquisition/manufacturing path.'],
+ ['Industry','8F · Fabricate installable machinery and plant kits','In Engineer → Material Fabrication, choose a recipe beginning machine_kit_, plant_kit_, or vessel_kit_. The existing ship fabrication module contains a certified assembly fixture (not a metal refinery or semiconductor plant). The fixture can package finished real steel, copper, aluminum, electronics, motors, glass and refractory parts into a physical machine, reactor or pressure-vessel kit. Each of 22 designs has a strict bill of materials, manufacturing time, ship battery energy charge, actual kit dimensions and item identity. Completed kit lots appear in the real ship inventory. Use Engineer → Physical Machine Installation or Engineer → Physical Refinery Placement to consume the kit once and install the asset. The same component mass cannot appear both in cargo and in the erected machine.','First mine, refine or otherwise legitimately source every certified industrial input; ensure ship fabrication and electrical power work, the ship is landed, and its hold has enough free volume for the finished kit.','If the recipe says Missing refined steel, copper, electronics or motor, that material is not magically produced; you must build the preceding chain or transfer legitimately acquired stock. Generic ore is NOT a certified metal. Some advanced inputs cannot yet be produced from mined ore through normal gameplay, so this is not a completed no-cheat industrial progression.'],
  ['Glossary','Engineering terms','Apoapsis: highest orbital point. Periapsis: lowest orbital point. Delta-v: ideal velocity-change capability. TWR: thrust divided by local weight. LOS: line-of-sight radio path. Joule (J): stored energy. Watt (W): energy each second. Telemetry: measured operating data. Calibration: aligning instrument output to a known reference. Biome: environmental region.','None','The game combines physical laws, simplified engineering and clearly fictional warp technology.']
 ];
 const overlay=document.createElement('section');overlay.id='ui21-manual';overlay.hidden=true;overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Starfall Field Manual');

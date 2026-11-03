@@ -1190,6 +1190,13 @@ function industrialAdvance8E(elapsed){
 }
 function factoryMachine8F(recipeId){
  const r=StarfallManufacturing8F.RECIPES[recipeId];if(!r)throw Error('Unknown 8F part recipe');
+ // The already installed fabrication room also contains a basic assembly jig.
+ // It can fit certified complete components into one kit but cannot make chips,
+ // motors, furnaces or metals from nothing.
+ if(r.station==='assembly'&&r.tool==='kit-fixture'&&
+  modularShip8e.describe('fabrication').status==='INSTALLED')
+  return {id:'ship-main:fabrication:kit-fixture',station:'assembly',
+   tools:['kit-fixture'],installed:true,condition:1};
  // Pre-existing wire die in the already installed ship fabrication workshop.
  // All other machine tools MUST have a real installed 8A physical asset.
  if(r.station==='wire'&&r.tool==='wire-die'&&modularShip8e.describe('fabrication').status==='INSTALLED')
