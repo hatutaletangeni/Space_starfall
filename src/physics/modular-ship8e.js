@@ -49,6 +49,11 @@ function restore(saved){
  }
  function upgrade(id,receipt){
   if(!MODULES[id])throw Error('Unknown ship module');
+  if(receipt&&typeof receipt.id==='string'&&transactions.has(receipt.id)){
+   const prior=transactions.get(receipt.id);
+   if(prior.module!==id)throw Error('Upgrade receipt used for another module');
+   return copy(prior);
+  }
   if(levels[id]>=MODULES[id].levels)throw Error('Ship module already at maximum');
   // Receipt must come from verified physical manufacturing. UI never bypasses it.
   if(!receipt||typeof receipt.id!=='string'||!receipt.id||receipt.module!==id||
