@@ -5814,10 +5814,10 @@ const DEFAULTS=Object.freeze({
  thrust:'KeyW',brake:'KeyS',turnLeft:'KeyA',turnRight:'KeyD',pitchUp:'ArrowUp',pitchDown:'ArrowDown',
  rollLeft:'KeyQ',rollRight:'KeyE',ascend:'Space',descend:'KeyC',boost:'ShiftLeft',
  recenter:'KeyF',chart:'KeyM',align:'KeyG',time:'KeyT',lights:'KeyL',camera:'KeyV',terrain:'KeyH',
- scan1:'Digit1',scan2:'Digit2',scan3:'Digit3',reset:'KeyR',interact:'KeyX'
+ scan1:'Digit1',scan2:'Digit2',scan3:'Digit3',reset:'KeyR',interact:'KeyX',cargo:'KeyB'
 });
 const OPTIONS=Object.freeze({lookInvertX:false,lookInvertY:false,flightPitchInvert:false,roverSteerInvert:false,lookSensitivity:1});
-const LABELS=Object.freeze({thrust:'Forward / thrust',brake:'Reverse / brake',turnLeft:'Turn left',turnRight:'Turn right',pitchUp:'Flight nose up',pitchDown:'Flight nose down',rollLeft:'Roll left',rollRight:'Roll right',ascend:'Ascend / launch',descend:'Descend',boost:'Boost / sprint',recenter:'Centre camera',chart:'Star chart',align:'Align to target',time:'Time acceleration',lights:'Lights',camera:'Ship camera',terrain:'Terrain diagnostics',scan1:'Quick scan 1',scan2:'Quick scan 2',scan3:'Quick scan 3',reset:'Orbit reset (with Shift)',interact:'Interact / inspect relic'});
+const LABELS=Object.freeze({thrust:'Forward / thrust',brake:'Reverse / brake',turnLeft:'Turn left',turnRight:'Turn right',pitchUp:'Flight nose up',pitchDown:'Flight nose down',rollLeft:'Roll left',rollRight:'Roll right',ascend:'Ascend / launch',descend:'Descend',boost:'Boost / sprint',recenter:'Centre camera',chart:'Star chart',align:'Align to target',time:'Time acceleration',lights:'Lights',camera:'Ship camera',terrain:'Terrain diagnostics',scan1:'Quick scan 1',scan2:'Quick scan 2',scan3:'Quick scan 3',reset:'Orbit reset (with Shift)',interact:'Interact / inspect relic',cargo:'Secure / release cargo tie-downs'});
 const BLOCKED=/^(?:Escape|Tab|Enter|Backspace|CapsLock|NumLock|ScrollLock|Pause|PrintScreen|MetaLeft|MetaRight|AltLeft|AltRight|ControlLeft|ControlRight|F\d{1,2})$/;
 const allowed=code=>typeof code==='string'&&/^(Key[A-Z]|Digit[0-9]|Space|Arrow(?:Left|Right|Up|Down)|Shift(?:Left|Right)|Comma|Period|Minus|Equal|BracketLeft|BracketRight|Semicolon|Quote|Slash|Backslash|Backquote|Numpad[0-9])$/.test(code)&&!BLOCKED.test(code);
 const plainObject=v=>v&&typeof v==='object'&&!Array.isArray(v);
