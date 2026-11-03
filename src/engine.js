@@ -472,6 +472,35 @@ class Renderer{
   gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
   gl.depthMask(true);
  }
+ // LW06 auroral curtains depend on atmospheric pressure, magnetic field and
+ // real source-linked stellar particle activity; never generated in vacuum.
+ renderAurora(state,eye,vp,renderH){
+  const W=root.StarfallSpaceWeatherLW06,F=root.StarfallFieldScience,body=state.nearest;
+  if(!W||!F||!body?.landable||state.interior||state.altitude>1300)return;
+  const sys=this.galaxy.byId.get(body.systemId);if(!sys)return;
+  const space=W.exposure(sys,body.position,this.galaxy.time,this.galaxy.seed);
+  const ground=F.profile(body,this.galaxy.seed);
+  if(ground.pressurePa<750||Math.abs(ground.magneticFieldNT)<2000||space.ionizationIndex<.04)return;
+  const up=V.norm(V.sub(eye,body.position)),strength=Math.min(1,space.ionizationIndex*2.5);
+  const gl=this.gl,verts=[],axis=body.spinAxis||[0,1,0];
+  for(const sign of [-1,1])for(let i=0;i<28;i++){
+   const a=i*2.3999632+this.galaxy.time*.007;
+   const polar=sign*(.88+.07*Math.sin(i*.43)),r=Math.sqrt(Math.max(0,1-polar*polar));
+   const dir=V.rot([Math.cos(a)*r,polar,Math.sin(a)*r],axis,body.spinAngle||0);
+   for(let j=0;j<3;j++){
+    const point=V.add(body.position,V.mul(dir,body.radius+65+j*27)),delta=V.sub(point,eye);
+    if(V.len(delta)>1600||V.dot(delta,state.camera.forward)<-20)continue;
+    const alpha=strength*(.22+.10*j),t=.1+.9*Math.sin(i+j+this.galaxy.time*.045)**2;
+    verts.push(delta[0],delta[1],delta[2],2.5+j*.4,.18+t*.10,.76,.54+t*.40,alpha);
+   }
+  }
+  if(!verts.length)return;
+  const p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
+  gl.depthMask(true);
+ }
  renderGeothermal(body,eye,vp,h){
   const G=root.StarfallGeothermalLW01;if(!G||!body?.landable)return;
   const values=[],pressure=root.StarfallFieldScience?.profile(body,this.galaxy.seed).pressurePa??0,
@@ -747,7 +776,7 @@ class Renderer{
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',.9);this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
-  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
   if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
