@@ -1554,6 +1554,33 @@ class Renderer{
   }
   gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(list),gl.DYNAMIC_DRAW);this.effectCount=list.length/8;this.effectsRendered=this.effectCount;
  }
+ renderGeothermal(body,eye,vp,h){
+  const G=root.StarfallGeothermalLW01;if(!G||!body?.landable)return;
+  const values=[],pressure=root.StarfallFieldScience?.profile(body,this.galaxy.seed).pressurePa??0,
+    gravity=Math.max(.25,(body.gravity||1)*9.80665);
+  for(const site of G.sources(body,this.galaxy.seed)){
+   const d=V.norm(V.rot(site.direction,body.spinAxis||[0,1,0],body.spinAngle||0));
+   const base=V.add(body.position,V.mul(d,body.radius+groundHeight(site.direction,body)+.2));
+   if(V.len(V.sub(base,eye))>2500)continue;
+   const e=G.pulse(site,this.galaxy.time,pressure,gravity);if(!e.active||e.intensity<.03)continue;
+   const height=Math.max(1.5,Math.min(35,e.plumeHeightM/1000*9));
+   const c=site.kind==='cryovolcano'?[.7,.85,1]:site.kind==='geyser'?[.73,.85,.94]:
+    site.kind==='fumarole'?[.73,.78,.77]:site.kind==='explosive-volcano'?[.48,.43,.4]:[1,.4,.16];
+   const right=V.norm(V.cross(Math.abs(d[1])>.85?[0,0,1]:[0,1,0],d)),fwd=V.norm(V.cross(d,right));
+   for(let i=0;i<25;i++){
+    const u=(i+.5)/25,angle=i*2.399963+site.epochOffsetS*.017,spread=(.04+.7*u)*Math.sqrt(u);
+    const point=V.add(base,V.add(V.mul(d,height*u),V.add(V.mul(right,Math.cos(angle)*spread),V.mul(fwd,Math.sin(angle)*spread))));
+    const rel=V.sub(point,eye);
+    values.push(rel[0],rel[1],rel[2],.2+1.8*u,c[0],c[1],c[2],(.15+.5*e.intensity)*(1-u));
+    if(values.length>=1600)break;
+   }
+  }
+  if(!values.length)return;
+  const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',h*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(values),gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,values.length/8);this.frameDrawCalls++;this.effectsRendered+=values.length/8;gl.depthMask(true);
+ }
  geometry(body,lod){const key=body.id+':'+lod;let cached=this.meshCache.get(key);if(cached){this.meshCache.delete(key);this.meshCache.set(key,cached);return cached;}
   const gl=this.gl,detail=lod===2?[80,160]:lod===1?[36,72]:[16,32];cached={world:makeSphere(gl,body.radius,...detail,body,true),atmo:null,cloud:null};
   if(lod===2&&body.kind!=='moon'&&body.landable){cached.atmo=makeSphere(gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);if(['Temperate','Ocean','Lush','Ice'].includes(body.type))cached.cloud=makeSphere(gl,body.radius+Math.min(114,body.radius*.06),28,56,body,false);}
@@ -1724,7 +1751,7 @@ class Renderer{
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',.9);this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',1);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
-  gl.depthMask(true);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
   if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){const tr=V.norm(V.cross(state.truckForward,state.truckUp));this.renderMesh(p,this.truck,M.basis(tr,state.truckUp,state.truckForward,V.sub(state.truckPosition,origin)));}
