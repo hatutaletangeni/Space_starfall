@@ -22,7 +22,11 @@ function profile(body,seed=742){if(!body||!body.id)throw Error('Missing body');c
 function localTruth(body,seed,local,simTime=0){const p=profile(body,seed),vec=Array.isArray(local)?local:[0,1,0],lat=clamp(vec[1],-1,1),lon=Math.atan2(vec[2],vec[0]);const patch=rand(seed+':'+body.id+':patch:'+Math.floor(lat*38)+':'+Math.floor(lon*38)),diurnal=Math.sin(simTime*Math.PI*2/Math.max(30,body.spinPeriod||500)+lon);
  const geo=root.StarfallGeothermalLW01?.local(body,vec,simTime,seed,p.pressurePa,Math.max(.25,(body.gravity||1)*9.80665));const geothermalK=geo?.thermalExposure?Math.min(90,(geo.radiativeHeatFluxWm2||0)/30+geo.thermalExposure*8):0;const geothermalSeismic=geo?.thermalExposure?geo.thermalExposure*.14:0;
  const weather=root.StarfallMeteorologyLW03?.cell(body,vec,simTime,seed);const ambientK=weather&&!weather.vacuum?weather.temperatureK:p.temperatureK+12*diurnal*Math.cos(lat)+10*(patch-.5);
- return{...p,temperatureK:ambientK+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5),silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
+ const sys=root.StarfallRuntime?.galaxy?.byId?.get(body.systemId);
+ const starWeather=sys&&root.StarfallSpaceWeatherLW06?.exposure(sys,body.position,simTime,seed);
+ const magneticResponse=starWeather?
+  starWeather.magneticDisturbanceNT*(1-Math.min(.85,Math.abs(p.magneticFieldNT)/35000)*.66)*Math.abs(.35+.65*lat):0;
+ return{...p,temperatureK:ambientK+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5)+magneticResponse,silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
 function sample({body,seed=742,local=[0,1,0],altitudeM=0,instrument,simTime=0,energyAvailableJ=Infinity,calibrated=true,nonce=0}){
  const spec=INSTRUMENTS[instrument];if(!spec)throw Error('Unknown instrument');if(!body?.landable)throw Error('Requires a solid planetary surface');if(!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite))throw Error('Invalid local position');
  if(!Number.isFinite(altitudeM)||altitudeM<0||altitudeM>spec.maxAltitudeM)throw Error(spec.name+' out of range: maximum '+spec.maxAltitudeM+' m');
