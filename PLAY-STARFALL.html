@@ -270,6 +270,51 @@ body.ui20[data-sf-view=ship-cockpit] .panel:not(:hover):not(:focus-within),body.
  body.ui20 #sf-quick-tools>button::before{display:none!important}
 }
 
+</style><style>
+/* UI21: intentionally compact, ID-preserving navigation. */
+body.ui20 #sf-console-nav{display:none}
+body.ui20 #ui21-navigation{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;position:sticky;top:37px;z-index:5;background:#101f30;padding:7px 0;border-bottom:1px solid #8bbdd847}
+body.ui20 #ui21-navigation button{font:600 9px/1.25 system-ui;color:#aecad9;border:1px solid transparent;background:transparent;border-radius:6px;padding:8px 3px;min-width:0}
+body.ui20 #ui21-navigation button[aria-current=true]{background:#345a72;color:#fff;border-color:#9ac3dc66}
+body.ui20 #ui21-pages{padding-bottom:6px}
+body.ui20 .ui21-page[hidden]{display:none!important}
+body.ui20 .ui21-intro{color:#b6cddf;font:11px/1.5 system-ui;margin:12px 0}
+body.ui20 #ui21-quick{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:12px}
+body.ui20 #ui21-quick button,body.ui20 .ui21-link{background:#1c354a;color:#e4f2fa;border:1px solid #789bb15f;border-radius:8px;padding:10px 7px;font:600 10px system-ui;text-align:left}
+body.ui20 .ui21-link{display:block;width:100%;margin:6px 0}
+body.ui20 .panel{max-height:min(48dvh,410px)}
+body.ui20 .panel.ui20-expanded,body.ui20 .panel:focus-within,body.ui20 .panel:hover{max-height:min(76dvh,710px)}
+body.ui20 #ui21-manual{position:fixed;inset:0;z-index:10000;background:#020911dc;display:grid;place-items:center;padding:15px}
+body.ui20 #ui21-manual[hidden]{display:none!important}
+body.ui20 .ui21-manual-window{display:flex;flex-direction:column;width:min(890px,96vw);max-height:min(82dvh,760px);background:#102135;color:#e9f4fb;border:1px solid #7298b1;border-radius:14px;box-shadow:0 18px 70px #000b;overflow:hidden}
+body.ui20 .ui21-manual-window header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #728fa04d}
+body.ui20 .ui21-manual-window h2{margin:3px 0 0;font:650 21px system-ui}
+body.ui20 .ui21-manual-window small{color:#bbd3df;font-size:10px}
+body.ui20 #ui21-manual-close{background:#253e50;color:#fff;border:1px solid #6688a0;border-radius:8px;padding:9px 13px}
+body.ui20 #ui21-manual-search{display:block;width:calc(100% - 36px);margin:14px 18px;padding:12px;background:#071525;color:#fff;border:1px solid #7899ad;border-radius:9px}
+body.ui20 .ui21-manual-content{display:grid;grid-template-columns:minmax(170px,240px) minmax(0,1fr);min-height:0;overflow:hidden}
+body.ui20 #ui21-manual-topics{padding:8px;overflow-y:auto;border-right:1px solid #7899ad45}
+body.ui20 #ui21-manual-topics button{display:block;text-align:left;width:100%;padding:11px 9px;margin:3px 0;color:#bcd2e0;background:transparent;border:0;border-radius:7px;font:550 12px system-ui}
+body.ui20 #ui21-manual-topics button[aria-current=true],body.ui20 #ui21-manual-topics button:hover{background:#32536e;color:white}
+body.ui20 #ui21-manual-article{overflow-y:auto;padding:8px 22px 20px;font:13px/1.65 system-ui}
+body.ui20 #ui21-manual-article h3{font:650 19px system-ui;margin:10px 0 16px}
+body.ui20 #ui21-manual-article h4{font:650 12px system-ui;color:#f0c48c;margin:17px 0 5px}
+body.ui20 #ui21-manual-article p{color:#d0e0eb;margin:0 0 12px}
+body.ui20 .ui21-manual-step{display:flex;gap:10px;margin-top:18px}
+body.ui20 .ui21-manual-step button{padding:10px 14px;color:#eaf6ff;border:1px solid #7490a2;border-radius:7px;background:#26445c}
+body.ui20 .ui21-manual-window footer{border-top:1px solid #7899ad44;color:#adbecb;padding:10px 18px;font:11px system-ui}
+@media(max-width:650px){
+ body.ui20 #ui21-navigation{grid-template-columns:repeat(5,minmax(0,1fr));top:34px}
+ body.ui20 #ui21-navigation button{font-size:8px;padding:8px 2px}
+ body.ui20 .panel.ui20-expanded{width:min(360px,91vw);max-height:min(72dvh,620px)}
+ body.ui20 .ui21-manual-window{height:90dvh;max-height:90dvh}
+ body.ui20 .ui21-manual-content{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+ body.ui20 #ui21-manual-topics{display:flex;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid #7899ad44;padding:6px;max-height:66px}
+ body.ui20 #ui21-manual-topics button{flex:0 0 auto;width:auto;white-space:nowrap;padding:9px}
+ body.ui20 #ui21-manual-article{padding:12px 15px}
+}
+@media(prefers-reduced-motion:reduce){body.ui20 .ui21-page,body.ui20 #ui21-manual{transition:none}}
+
 </style>
 </head>
 <body class="ui20">
@@ -1779,6 +1824,70 @@ root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:
 })(globalThis);
 
 </script><script>
+/* CW-01: deterministic, read-only composition interpretation of existing celestial bodies.
+ * Values are modeled priors, NOT measured composition or precise planetary formation.
+ * No galaxy regeneration, body mutation, clocks, DOM, WebGL, saves or side effects.
+ * Composition versions are explicit because previously discovered worlds must not silently re-roll.
+ */
+(function(root){'use strict';
+const VERSION=1, EPS=1e-10;
+const FREEZE=x=>Object.freeze(x);
+const mixtures=FREEZE({
+ Rocky:{silicate:.68,metal:.27,volatile:.05},Desert:{silicate:.78,metal:.19,volatile:.03},
+ Ice:{silicate:.29,metal:.09,volatile:.62},Temperate:{silicate:.69,metal:.25,volatile:.06},
+ Ocean:{silicate:.44,metal:.16,volatile:.40},Volcanic:{silicate:.78,metal:.19,volatile:.03},
+ Lush:{silicate:.64,metal:.25,volatile:.11},'Gas Giant':{gas:.94,ice:.045,rock:.015},
+ Shattered:{silicate:.53,metal:.43,volatile:.04}
+});
+const bulkDensity=FREEZE({Rocky:4100,Desert:3650,Ice:1700,Temperate:4000,Ocean:2600,Volcanic:4600,Lush:3800,'Gas Giant':920,Shattered:3250});
+const atmosphereTemplates=FREEZE({
+ Rocky:{},Desert:{CO2:.94,N2:.05,Ar:.01},Ice:{N2:.90,CH4:.08,Ar:.02},
+ Temperate:{N2:.79,O2:.20,Ar:.01},Ocean:{N2:.76,O2:.21,H2O:.02,Ar:.01},
+ Volcanic:{CO2:.82,N2:.12,SO2:.06},Lush:{N2:.77,O2:.21,Ar:.01,H2O:.01},
+ 'Gas Giant':{H2:.86,He:.13,CH4:.01},Shattered:{}
+});
+const compatible=FREEZE(['Rocky','Desert','Ice','Temperate','Ocean','Volcanic','Lush','Gas Giant','Shattered']);
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+function unit(seed,id,salt){let x=hash(seed+':'+id+':cw01:'+VERSION+':'+salt);x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);return ((x^(x>>>16))>>>0)/4294967296;}
+function fractions(x){const entries=Object.entries(x);if(!entries.length)return FREEZE({});let sum=0;for(const [key,val] of entries){if(typeof key!=='string'||!Number.isFinite(val)||val<0)throw Error('Invalid composition fraction');sum+=val;}if(!(sum>0))throw Error('Empty positive inventory');return FREEZE(Object.fromEntries(entries.map(([key,val])=>[key,val/sum])));}
+function check(x){const a=Object.values(x);return a.length===0||Math.abs(a.reduce((s,v)=>s+v,0)-1)<EPS;}
+function interpolate(prior,seed,id){const entries=Object.entries(prior),altered={};for(const [name,frac] of entries)altered[name]=frac*(.91+.18*unit(seed,id,name));return fractions(altered);}
+function starFor(star,seed=742){if(!star||!star.id)throw Error('Expected an existing star ID');const metal=.008+.024*unit(seed,star.id,'stellar-metallicity');const helium=.225+.09*unit(seed,star.id,'stellar-helium');const elements=fractions({H:1-helium-metal,He:helium,metals:metal});
+return FREEZE({schema:VERSION,id:star.id,kind:'star',legacyType:star.type,elementMassFractions:elements,metallicityMassFraction:elements.metals,provenance:'seeded stellar abundance prior (not spectroscopic measurement)',uncertainty:'high',generationKey:seed+':'+star.id+':'+VERSION});}
+function bodyFor(body,seed=742,context={}){if(!body||!body.id||!['planet','moon'].includes(body.kind))throw Error('Expected existing planet/moon ID');
+ const type=compatible.includes(body.type)?body.type:'Rocky',giant=type==='Gas Giant',p=interpolate(mixtures[type],seed,body.id);
+ const parentType=context.parentType||null;
+ // Legacy moon surfaces remain interpreted by their own type; no body-class or terrain rewriting.
+ const major=giant?fractions({H2:.73+.08*unit(seed,body.id,'H2'),He:.24,CH4:.02,NH3:.01}):fractions({
+ SiO2:p.silicate*.65,otherSilicates:p.silicate*.35,FeNi:p.metal||0,
+ H2O:(p.volatile||0)*(type==='Ice'||type==='Ocean'?.80:.45),
+ CO2_ice:(p.volatile||0)*(type==='Ice'?.12:.16),
+ otherVolatiles:(p.volatile||0)*(type==='Ice'?.08:.39)
+ });
+ // Legacy moon-atmosphere text is not trustworthy pressure evidence. The existing
+ // physics model reports vacuum for moons; interpretation must therefore be vacuum.
+ const vacuum=body.kind==='moon'||type==='Rocky'||type==='Shattered'||body.atmosphere==='Vacuum / debris field';
+ const atmosphereMoleFractions=vacuum?FREEZE({}):interpolate(atmosphereTemplates[type],seed,body.id+':atm');
+ const layers=giant?FREEZE({envelopeMassFraction:p.gas,condensateMassFraction:p.ice,deepInteriorMassFraction:p.rock}):FREEZE({crustMantleSilicateMassFraction:p.silicate,coreMetalMassFraction:p.metal,bulkVolatileMassFraction:p.volatile});
+ const profile=FREEZE({schema:VERSION,id:body.id,seed,kind:body.kind,legacyType:body.type,parentType,landable:!!body.landable,
+   bulkComponentMassFractions:p,majorMaterialMassFractions:major,layers,
+   atmosphereMoleFractions,atmosphereMode:vacuum?'legacy vacuum-compatible':giant?'gas envelope':'seeded atmosphere prior',
+   approximateDensityKgM3:bulkDensity[type],phaseAssessment:'unknown: requires local pressure-temperature model',
+   provenance:'seeded compositional prior derived from existing classification; not observed',uncertainty:'high',
+   generationKey:seed+':'+body.id+':'+VERSION});
+ if(!check(p)||!check(major)||!check(atmosphereMoleFractions))throw Error('Invalid composition sum');
+ return profile;
+}
+function forBody(body,galaxy){if(!body)return null;const seed=Number.isSafeInteger(galaxy?.seed)?galaxy.seed:742;
+ if(body.kind==='star')return starFor(body,seed);
+ const parent=body.kind==='moon'?galaxy?.byId?.get(body.parentId):null;
+ return bodyFor(body,seed,{parentType:parent?.type||null});}
+const API=FREEZE({SCHEMA_VERSION:VERSION,mixtures,starFor,bodyFor,forBody,check});
+root.StarfallCompositionCW01=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
 /* STARFALL Update 2A/2D: SI-based, deterministic physics and scientific profiles.
  * No WebGL dependency. Legacy orbit positions are authoritative unless explicitly enabled.
  * Unit contract: 1 scene length unit = 1,000 meters; render time unit = 1 second.
@@ -1816,14 +1925,14 @@ function stateToElements(r,v,mu){assertPositive(mu,'mu');const R=vec.len(r),V=ve
 function orbitalObservables(r,v,mu){const el=stateToElements(r,v,mu);return{...el,speedMS:vec.len(v),circularSpeedMS:Math.sqrt(mu/vec.len(r)),escapeSpeedMS:Math.sqrt(2*mu/vec.len(r))};}
 function equilibriumTemperature(luminosityW,distanceM,albedo){assertPositive(distanceM,'distance');assertPositive(luminosityW,'luminosity');return Math.pow(luminosityW*(1-Math.max(0,Math.min(1,albedo)))/(16*Math.PI*SIGMA*distanceM**2),.25);}
 function scienceProfile(galaxy,body){if(!body)return null;const system=body.kind==='star'?galaxy.byId.get(body.systemId):galaxy.byId.get(body.systemId),star=system?.star||body;
- const stellar=starProfile(star);if(body.kind==='star')return{...stellar,systemName:system?.name||star.name};
+ const stellar=starProfile(star);if(body.kind==='star')return{...stellar,systemName:system?.name||star.name,composition:root.StarfallCompositionCW01?.forBody(body,galaxy)||null};
  const parent=body.kind==='moon'?galaxy.byId.get(body.parentId):null,profile=bodyProfile(body,body.kind==='moon'?bodyProfile(parent,stellar):stellar),distance=body.kind==='moon'?(parent?.orbitRadius||0):body.orbitRadius;
  const temp=equilibriumTemperature(stellar.luminosityW,Math.max(distance*UNIT,stellar.radiusM*1.01),profile.albedo);
  const fromStar=vec.norm(vec.sub(system.position,body.position)),observer=vec.norm(vec.sub((galaxy.observerPosition||system.position),body.position));
  const illuminatedFraction=(1+vec.dot(fromStar,observer))*.5;
  let eclipseFraction=0;
  if(parent){const d=vec.sub(system.position,body.position),toParent=vec.sub(parent.position,body.position),length=vec.len(d),along=vec.dot(toParent,d)/Math.max(1,length);if(along>0&&along<length){const perpendicular=vec.len(vec.sub(toParent,vec.mul(vec.norm(d),along)));if(perpendicular<parent.radius)eclipseFraction=1;}}
- return{...profile,systemName:system?.name,star:stellar.type,starId:stellar.id,estimatedEquilibriumTemperatureK:temp,temperatureUncertaintyK:Math.max(12,temp*.14),illuminatedFraction,approximateEclipse:eclipseFraction>0,geologySignature:body.type==='Volcanic'?'Igneous / volcanic':body.type==='Ice'?'Cryogenic ice':body.type==='Ocean'?'Hydrological':body.type==='Shattered'?'Impact debris':'Mixed silicates',waterEvidence:body.water||'Unknown',lifeEvidence:'Unconfirmed (survey required)',distances:{sceneOrbitRadius:body.orbitRadius,physicalOrbitM:distance*UNIT},classification:'procedural estimate / unmeasured',notes:'Equilibrium temperature assumes uniform heat redistribution, fixed albedo and no greenhouse effect. Moon phase is view-relative; eclipse uses a simplified spherical blocker.'};}
+ return{...profile,composition:root.StarfallCompositionCW01?.forBody(body,galaxy)||null,systemName:system?.name,star:stellar.type,starId:stellar.id,estimatedEquilibriumTemperatureK:temp,temperatureUncertaintyK:Math.max(12,temp*.14),illuminatedFraction,approximateEclipse:eclipseFraction>0,geologySignature:body.type==='Volcanic'?'Igneous / volcanic':body.type==='Ice'?'Cryogenic ice':body.type==='Ocean'?'Hydrological':body.type==='Shattered'?'Impact debris':'Mixed silicates',waterEvidence:body.water||'Unknown',lifeEvidence:'Unconfirmed (survey required)',distances:{sceneOrbitRadius:body.orbitRadius,physicalOrbitM:distance*UNIT},classification:'procedural estimate / unmeasured',notes:'Equilibrium temperature assumes uniform heat redistribution, fixed albedo and no greenhouse effect. Moon phase is view-relative; eclipse uses a simplified spherical blocker.'};}
 class SimulationClock{constructor(t=0){this.set(t);}set(t){if(!Number.isFinite(t))throw Error('Time must be finite');this.seconds=t;return this.seconds;}advance(dt,scale=1){if(!Number.isFinite(dt)||dt<0||!Number.isFinite(scale)||scale<0)throw Error('Invalid timestep');return this.set(this.seconds+dt*scale);}at(){return this.seconds;}}
 const API={G,SIGMA,AU,MSUN,LSUN,G0,TAU,SCENE_METERS_PER_UNIT:UNIT,vec,hash,random01,starProfile,bodyProfile,scienceProfile,solveE,keplerState,stateToElements,orbitalObservables,equilibriumTemperature,SimulationClock,sceneToMeters:x=>x*UNIT,metersToScene:x=>x/UNIT};
 root.StarfallPhysics=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
@@ -10385,6 +10494,149 @@ root.StarfallRFAnalyzerUI19={inspect,refresh:inspectOnly,selection};
  body.classList.add('ui20');
  root.StarfallContextUI20={openPanel,closeTools};
 })(window);
+</script><script>
+/* STARFALL UI21 — compact intent navigation and contextual field manual.
+ * Presentation only. Existing buttons, listeners and simulation stores are reused.
+ */
+(function(root){'use strict';
+const $=id=>document.getElementById(id), panel=$('panel'), oldNav=$('sf-console-nav'), content=$('panel-body'), question=$('ui-help-open');
+if(!panel||!oldNav||!content||!question)return;
+const sections={
+ Explore:['biome-section','survey-open','field-open','discovery-open','ecology-open','ruin-open','interior-open','events-open','sandbox-open'],
+ Engineer:['systems-toggle','workbench-open','asset-open','launch-open','outpost-open'],
+ Operate:['fc-extra','imaging7f-open'],
+ Records:['imaging7f-open','discovery-open','events-open']
+};
+const titles={
+ Explore:'Select a destination, survey a world, then investigate its discoveries.',
+ Engineer:'Inspect hardware, configure a design, build and validate it.',
+ Operate:'Choose an active vehicle or mission, then execute and monitor.',
+ Records:'Review scientific evidence, photographs, discoveries and logs.'
+};
+const panelHeader=panel.querySelector('.panel-title');
+const header=document.createElement('div');header.id='ui21-navigation';header.setAttribute('role','navigation');header.setAttribute('aria-label','Starfall feature navigation');
+const pages=document.createElement('div');pages.id='ui21-pages';
+const original=[...content.children], moved=new Set();
+const pageMap={};
+function moveSectionTo(page,id){
+ const el=$(id);if(!el)return false;
+ const section=el.closest('.section')||el;
+ // Preserve legacy event handlers by moving, never cloning or replacing the control.
+ if(!content.contains(section))return false;
+ if(moved.has(section))return false;
+ page.appendChild(section);moved.add(section);return true;
+}
+for(const name of ['Explore','Engineer','Operate','Records']){
+ const page=document.createElement('div');page.className='ui21-page';page.dataset.page=name;page.hidden=true;
+ const intro=document.createElement('p');intro.className='ui21-intro';intro.textContent=titles[name];page.appendChild(intro);
+ pageMap[name]=page;pages.appendChild(page);
+ for(const id of sections[name])moveSectionTo(page,id);
+}
+const overview=document.createElement('div');overview.className='ui21-page';overview.dataset.page='Overview';overview.hidden=true;
+const overviewIntro=document.createElement('p');overviewIntro.className='ui21-intro';overviewIntro.textContent='Your current surroundings, basic surveys and flight status.';overview.appendChild(overviewIntro);
+for(const el of [...content.children]){if(el!==pages && el!==overview && !el.closest?.('#ui21-pages'))overview.appendChild(el);}
+pages.prepend(overview);content.appendChild(pages);pageMap.Overview=overview;
+// Only the active page is painted. No subsystem code or data is replaced.
+const routes=['Overview','Explore','Engineer','Operate','Records'];
+let current='Overview';let lastFocus=null;
+function openRoute(name){
+ if(!pageMap[name])return;
+ current=name;
+ for(const [key,page] of Object.entries(pageMap))page.hidden=key!==name;
+ for(const button of header.querySelectorAll('button[data-route]')){
+  const active=button.dataset.route===name;
+  button.setAttribute('aria-current',String(active));
+ }
+ panel.classList.add('ui21-active','ui20-expanded');
+ if(panel.classList.contains('collapsed'))$('panel-toggle')?.click();
+ $('ui-console-open')?.setAttribute('aria-expanded','true');
+ panel.scrollTop=0;
+}
+for(const name of routes){
+ const button=document.createElement('button');button.type='button';button.dataset.route=name;button.textContent=name;button.setAttribute('aria-current','false');
+ button.addEventListener('click',()=>openRoute(name));header.appendChild(button);
+}
+oldNav.replaceWith(header);openRoute('Overview');
+const quick=document.createElement('div');quick.id='ui21-quick';
+const quickActions=[['Star Chart','chart-open','Explore'],['Observatory','obs-open','Explore'],['Rocket Lab','launch-open','Engineer'],['Asset Manager','asset-open','Engineer'],['Control Settings','controls-open','Operate'],['Save / Recovery','archive-t17-open','Records']];
+for(const [label,id,route] of quickActions){
+ const source=$(id);if(!source)continue;
+ const b=document.createElement('button');b.type='button';b.textContent=label;
+ b.addEventListener('click',()=>{openRoute(route);source.click();});quick.appendChild(b);
+}
+pageMap.Explore.prepend(quick);
+// Utility and existing operational controls remain accessible from original header.
+// Place short routing links within Records when the underlying feature lives in another route.
+for(const [label,id] of [['Mission Photos','imaging7f-open'],['Field Journal','discovery-open'],['Planetary Events','events-open'],['Science Research','research7e-open']]){
+ const b=document.createElement('button');b.type='button';b.className='ui21-link';b.textContent=label;
+ b.addEventListener('click',()=>{const source=$(id);if(source)source.click();else root.alert?.('This feature is not loaded in this build.');});
+ pageMap.Records.appendChild(b);
+}
+// Help is self-contained so it does not require a server, fetch, or external dependencies.
+const guide=[
+ ['Start Here','Getting started','Open Star Chart (M) or select a real star in the sky. Select a destination, align with G, then use Shift+W to warp where allowed. Approach a planet manually and descend through its atmosphere; touchdown begins EVA. Walk onto the ship rear ramp to board again.','Navigation target and a flight-capable ship','If warp is unavailable, check mode, distance, destination and alignment.'],
+ ['Controls','Ship, EVA and truck','W/S control forward motion and braking, A/D steer on the surface, mouse drag steers or looks depending on button, scroll adjusts camera distance, V changes camera, T cycles time rate, L controls lights. The four-wheel truck uses X for deliberate entry and exit; the six-wheel science rover is not rideable. Open Control Settings for remapping/inversion.','Appropriate active mode','If directions feel reversed, adjust inversion in Control Settings. Remapped keys take precedence over these defaults.'],
+ ['Navigation','Stars, maps and warp','Every twinkling star is an actual deterministic star system. Use the Star Chart for interstellar destinations and the Planetary Survey Map for surface waypoints and measured areas. Distant planetary details load only as needed.','A selected valid destination','Align the craft and verify warp restrictions if travel does not start.'],
+ ['Exploration','Surface science and ruins','After landing, open Explore for survey scans, instruments, planetary map, anomalies, ecology and ruins. Scientific instruments have range, operating conditions and uncertainty. Ruin interiors are accessible only where generated and physically reachable.','A nearby world or surface','A barren planet may lack biology; a ruin may not have an enterable interior.'],
+ ['Engineering','Vehicles and electric power','Open Engineer to inspect ship and vehicle systems, use the Engineering Workbench, design rockets, and construct outposts. Power flows only through valid connected sources and loads in engineering simulation. Solar panels depend on illumination and eclipses.','Compatible hardware and safe operating state','No power: inspect wiring, switch state, sunlight, battery charge, component faults and connector limits.'],
+ ['Rocket Lab','Stages, launch and orbit','In Engineer, open Rocket Lab. Configure stages, dry mass, fuel, engines and payload; inspect thrust-to-weight ratio (TWR), available delta-v, target orbit and pad readiness. A real force-integrated launch can fail from gravity, drag, staging or propellant limits.','A valid launch pad and rocket design','If orbit fails, compare TWR, actual staging, fuel remaining and ascent telemetry instead of relying on a success percentage.'],
+ ['Operations','Rovers, satellites and communications','Operate a rover through validated commands, inspect satellites and transmission jobs and capture photographs. Remote operations require reachable powered endpoints, line-of-sight, sufficient storage, available bandwidth and transmission time. Ordinary radio is not instantaneous; any faster interstellar transport is fictional.','Powered instrument and communication route','Pending photograph: check capture state, onboard storage, link visibility, data backlog and final downlink receipt.'],
+ ['Records','Research, photos and evidence','Records links to the existing science journal, mission photo gallery, event history and research bench. Evidence keeps its originating instrument, world, time, measurements and uncertainty where supported. Review or export without creating a second save store.','A recorded observation or completed received transfer','An image onboard a rover is not yet in the received gallery.'],
+ ['Troubleshooting','Common failures','Cannot board? Walk onto the rear ship ramp; the truck uses X, and the science rover is non-rideable. Cannot warp? Check current mode, target and distance. No solar? Inspect eclipse, connection and battery. Rover stopped? Check slope, charge, command safety and link. FPS low? Reduce graphics load and inspect Diagnostics.','Relevant vehicle or equipment','Save before risky changes. Open Diagnostics for performance, backup and recovery.'],
+ ['Glossary','Engineering terms','Apoapsis: highest orbital point. Periapsis: lowest orbital point. Delta-v: ideal velocity-change capability. TWR: thrust divided by local weight. LOS: line-of-sight radio path. Joule (J): stored energy. Watt (W): energy each second. Telemetry: measured operating data. Calibration: aligning instrument output to a known reference. Biome: environmental region.','None','The game combines physical laws, simplified engineering and clearly fictional warp technology.']
+];
+const overlay=document.createElement('section');overlay.id='ui21-manual';overlay.hidden=true;overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Starfall Field Manual');
+overlay.innerHTML='<div class="ui21-manual-window"><header><div><small>STARFALL / KNOWLEDGE BASE</small><h2>Field Manual</h2></div><button id="ui21-manual-close" type="button" aria-label="Close Field Manual">✕</button></header><input type="search" id="ui21-manual-search" placeholder="Search controls, equipment, problems…" aria-label="Search Field Manual"><div class="ui21-manual-content"><nav id="ui21-manual-topics" aria-label="Manual topics"></nav><article id="ui21-manual-article" tabindex="-1"></article></div><footer>Use Escape to close · All guides work offline</footer></div>';
+document.body.appendChild(overlay);
+const topics=$('ui21-manual-topics'),article=$('ui21-manual-article'),search=$('ui21-manual-search');
+let selected=0;
+function showArticle(i){
+ if(!guide[i])return;selected=i;
+ const [category,title,description,requires,failure]=guide[i];
+ article.replaceChildren();
+ const h=document.createElement('h3');h.textContent=title;article.appendChild(h);
+ for(const [heading,value] of [['What it does / how to use',description],['Prerequisites',requires],['Common issues',failure]]){
+ const sub=document.createElement('h4');sub.textContent=heading;
+ const p=document.createElement('p');p.textContent=value;article.append(sub,p);
+ }
+ const next=document.createElement('div');next.className='ui21-manual-step';
+ for(const [label,target] of [['← Previous',(i+guide.length-1)%guide.length],['Next →',(i+1)%guide.length]]){
+ const b=document.createElement('button');b.textContent=label;b.type='button';b.addEventListener('click',()=>showArticle(target));next.appendChild(b);
+ }article.appendChild(next);
+ for(const b of topics.querySelectorAll('button'))b.setAttribute('aria-current',String(+b.dataset.index===i));
+}
+function listTopics(query=''){
+ topics.replaceChildren();
+ guide.forEach(([cat,title,desc,pre,fail],i)=>{
+ if(!(cat+' '+title+' '+desc+' '+pre+' '+fail).toLowerCase().includes(query.toLowerCase()))return;
+ const b=document.createElement('button');b.type='button';b.dataset.index=i;b.textContent=cat+' · '+title;b.addEventListener('click',()=>showArticle(i));topics.appendChild(b);
+ });
+ if(!topics.children.length){const p=document.createElement('p');p.textContent='No matching articles. Try a vehicle, instrument or issue.';topics.appendChild(p);}
+ showArticle(selected);
+}
+function closeManual(){overlay.hidden=true;document.body.classList.remove('ui20-help-open');question.setAttribute('aria-expanded','false');if(lastFocus?.focus)lastFocus.focus();}
+function openManual(){
+ lastFocus=document.activeElement;overlay.hidden=false;document.body.classList.remove('ui20-help-open');question.setAttribute('aria-expanded','true');listTopics(search.value);search.focus();
+}
+question.setAttribute('aria-controls','ui21-manual');question.title='Search the Starfall Field Manual';
+question.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();if(overlay.hidden)openManual();else closeManual();},true);
+$('ui21-manual-close').addEventListener('click',closeManual);
+overlay.addEventListener('click',e=>{if(e.target===overlay)closeManual();});
+search.addEventListener('input',()=>{selected=0;listTopics(search.value);});
+document.addEventListener('keydown',e=>{
+ if(overlay.hidden)return;
+ if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();closeManual();return;}
+ if(e.key==='Tab'){
+ const controls=[...overlay.querySelectorAll('button:not([hidden]),input:not([hidden])')].filter(x=>x.offsetParent!==null);
+ if(!controls.length)return;
+ const first=controls[0],last=controls[controls.length-1];
+ if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+ else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+ }
+},true);
+root.StarfallUI21={openRoute,openManual,closeManual};
+})(window);
+
 </script>
 </body>
 </html>
