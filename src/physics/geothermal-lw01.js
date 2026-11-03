@@ -80,7 +80,12 @@ function pulse(site,timeS,ambientPa=101325,gravityMS2=9.80665){
  // Closed-form reservoir model: depth inventory declines when discharge exceeds a bounded
  // deep-supply recharge. Hydrothermal reservoirs can refill at a stated finite rate.
  // The next cycle cannot consume more than its available inventory.
- const availableAtStart=Math.max(0,Math.min(capacity,initial+cycleNumber*(recharge-maxDischarge)));
+ // Closed-form bounded cycle recurrence:
+ // R(n+1) = min(capacity, max(0, R(n)-maximumDischarge) + suppliedMass).
+ // When supply is smaller than demand a site periodically depletes but can emit
+ // again only after bounded replenishment, not create material spontaneously.
+ const availableAtStart=cycleNumber===0?initial:
+  Math.max(0,Math.min(capacity,Math.max(recharge,initial+cycleNumber*(recharge-maxDischarge))));
  const dischargeBudgetKg=canErupt?Math.min(maxDischarge,availableAtStart):0;
  const consumedFraction=active?phase-Math.sin(TAU*phase)/TAU:1;
  const dischargedThisCycleKg=dischargeBudgetKg*consumedFraction;
