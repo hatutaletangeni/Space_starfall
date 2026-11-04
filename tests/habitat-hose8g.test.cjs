@@ -69,7 +69,7 @@ const sum=(m,p)=>m.lots.reduce((s,x)=>s+x.massKg,0)+p.assets.reduce((s,x)=>s+x.m
 assert.ok(Math.abs(sum(materials,physical)-sum(t.materials,t.physical))<1e-6);
 assert.throws(()=>Hose.transfer({...a,physical:t.physical,materials:t.materials}),/already received a charge/);
 assert.throws(()=>Hose.transfer({...a,powerReceipt:{...a.powerReceipt,usedJ:0}}),/1.5 MJ/);
-assert.throws(()=>Hose.transfer({...a,shipPowered:false}),/Landed powered/);
+assert.throws(()=>Hose.transfer({...a,shipPowered:false}),/landed powered/);
 assert.throws(()=>Hose.transfer({...a,evaLocal:[1,0,0]}),/100-unit ship hose|24-unit EVA/);
 assert.throws(()=>Hose.transfer({...a,physical:{...physical,
  assets:physical.assets.map(x=>x.id===oId?{...x,state:{...x.state,ratedPressurePa:1e6}}:x)}}),/rated oxygen vessel/);
