@@ -62,6 +62,7 @@ const metalWheel=stock.lots.find(l=>l.materialId==='low_speed_rover_wheel');
 near(metalWheel.massKg,10.02);assert.equal(metalWheel.grade,1);
 assert.equal(stock.lots.some(l=>l.materialId==='wheel_tire'),false);
 assert.equal(factory.receipts.length,9);
+assert.equal(stock.lots.some(x=>x.materialId==='truck' || x.materialId==='new_truck'),false,'Parts fabrication must not spawn a vehicle');
 assert.ok(stock.lots.some(l=>l.materialId==='manufacturing_scrap'));
 const expected=Object.values(Man.RECIPES).length;
 assert.ok(expected>20);
