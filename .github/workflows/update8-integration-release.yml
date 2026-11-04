@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - release/update8-industrial-integration-candidate
+      - feature/update-8b-truck-ramp-guidance
   pull_request:
     branches:
       - main
@@ -70,6 +71,8 @@ jobs:
       - name: Browser smoke physical walk and ship ramp
         run: python tests/modular-ship8e-walk-browser.py
       - name: Browser smoke physical mining/cargo and UI
+        run: python tests/mining-hauling8d-browser.py
+      - name: Browser ship and cargo controls smoke
         run: python tests/mining-hauling8d-browser.py
       - name: Screenshots and failure diagnostics
         if: always()
