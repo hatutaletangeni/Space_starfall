@@ -140,7 +140,16 @@ with sync_playwright() as pw:
         repairPanel=page.locator('#structure-repair8g')
         repairPanel.locator('select[aria-label="Select damaged physical rocket or habitat"]').select_option(rocket['id'])
         repairButton=repairPanel.get_by_role('button',name='REPLACE DAMAGED STRUCTURAL HARDWARE')
-        assert repairButton.is_enabled()
+        page.wait_for_timeout(1300)
+        if not repairButton.is_enabled():
+            diagnostic=page.evaluate("""id=>({
+              quote:StarfallRuntime.structureRepairQuote8G(id),
+              context:StarfallRuntime.structureRepairContext8G(),
+              ui:document.querySelector('#structure-repair8g pre')?.textContent,
+              selected:document.querySelector('#structure-repair8g select')?.value,
+              buttonDisabled:document.querySelector('#structure-repair8g button')?.disabled
+            })""",rocket['id'])
+            raise AssertionError('Repair action disabled despite source quote: '+str(diagnostic))
         batteryStart=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
         repairButton.click()
         page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.condition>.6""",
