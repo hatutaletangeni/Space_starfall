@@ -314,7 +314,11 @@ function cargoInteract8B(){
   truckBody=null;truckLocal=null;roverExitMove=null;
   showToast('8B · TRUCK SECURED · tie-downs locked · flight mass updated');saveFlight();return true;
  }
- showToast('8B · Park truck completely on cargo deck, exit X, then press B near loading ramp.');return true;
+ const truckState=truckWorldState();
+ const rel=truckState?.position?cargoRelative8B(truckState.position):null;
+ const heading=truckState?.forward?-V.dot(truckState.forward,ship.forward):NaN;
+ const cargoPos=cargo8b.mode==='ramp'?cargo8b.pose:rel;
+ showToast('8B · '+BAY8B.loadingAdvice(cargo8b.mode,cargoPos,heading));return true;
 }
 function truckWorldState(){
  if((cargo8b.mode==='secured'&&physical8a.get(START_TRUCK)?.location.kind==='ship')||cargo8b.mode==='ramp')return shipCargoWorld8B();
