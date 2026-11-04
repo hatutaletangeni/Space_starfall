@@ -1,0 +1,25 @@
+name: STARFALL 8H physical carrier logistics contracts
+on:
+  pull_request:
+    paths:
+      - 'src/physics/logistics-orders8h.js'
+      - 'tests/logistics-orders8h.test.cjs'
+      - '.github/workflows/update-8h-logistics.yml'
+  push:
+    branches:
+      - feature/update-8h-physical-logistics-orders
+jobs:
+  logistics-custody-and-conservation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Source syntax, real 8A transport conservation and custody
+        run: |
+          node --check src/physics/logistics-orders8h.js
+          node --check tests/logistics-orders8h.test.cjs
+          node --test tests/logistics-orders8h.test.cjs
+          node tests/material-ledger8a.test.cjs
+          node tests/logistics8h.test.cjs
+      - name: Preserve offline source/bundle parity
+        run: python3 tests/standalone-parity.py
