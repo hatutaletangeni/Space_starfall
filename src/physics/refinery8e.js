@@ -8,7 +8,16 @@ const clone=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const MODES=Object.freeze({
  iron_sort:{label:'Iron ore concentration',material:'iron_ore',product:'iron_concentrate',residue:'iron_tailings',targetGrade:.60,recovery:.80,massKg:20,powerW:1800,seconds:100,capability:'mechanical_separator'},
- copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
+ iron_mineralogy:{label:'Identify and recover hematite from iron concentrate',material:'iron_concentrate',
+  product:'hematite',residue:'iron_mineralogy_tailings',targetGrade:1,recovery:.80,
+  targetElementFraction:(2*55.845)/(2*55.845+3*15.999),
+  massKg:2,powerW:3200,seconds:240,capability:'mechanical_separator',
+  minSourceGrade:.60,requiresProcessProvenance:true},
+ carbon_recovery:{label:'Recover carbon from carbon-bearing rock',material:'carbon_feed',
+  product:'carbon',residue:'carbon_ash_tailings',targetGrade:1,recovery:.80,
+  targetElementFraction:1,massKg:10,powerW:2600,seconds:230,
+  capability:'mechanical_separator'},
+  copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
  silica_sort:{label:'Silica beneficiation',material:'silica',product:'silica_concentrate',residue:'silicate_tailings',targetGrade:.95,recovery:.82,massKg:20,powerW:1500,seconds:130,capability:'mechanical_separator'},
  silica_polish:{label:'Quartz concentrate polishing',material:'silica_concentrate',
   product:'silicon_dioxide',residue:'silica_polishing_tailings',targetGrade:.99,recovery:.82,
@@ -39,7 +48,12 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
  const contained=spec.massKg*lot.grade;
  if(contained<=EPS)throw Error('Ore assay contains no recoverable target material');
  const recovered=contained*spec.recovery;
- const concentrated=spec.targetGrade>0?recovered/spec.targetGrade:0;
+ // For a chemically identified product, grade is a *purity*, whereas the
+ // input's assay records recoverable ELEMENT mass. Hematite is only ~69.94%
+ // Fe by mass; this bound conversion accounts for the oxygen already present
+ // in the assayed iron-bearing rock rather than conjuring extra iron.
+ const productElementFraction=spec.targetElementFraction??spec.targetGrade;
+ const concentrated=productElementFraction>0?recovered/productElementFraction:0;
  // The concentrate cannot contain more valuable material than the ore.
  if(!finite(concentrated)||concentrated>spec.massKg+EPS)throw Error('Input grade cannot be concentrated with this equipment');
  const outputKg=Math.min(spec.massKg,concentrated),residueKg=spec.massKg-outputKg;
@@ -53,8 +67,13 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
  if(afterVolume>dest.maxVolumeM3+EPS)throw Error('Output volume limit reached');
  return {mode,lotId:lot.id,sourceContainerId,outputContainerId,material:spec.material,
   inputKg:spec.massKg,inputGrade:lot.grade,product:spec.product,productKg:outputKg,
+  targetElementFraction:productElementFraction,
   productGrade:spec.targetGrade,residue:spec.residue,residueKg,energyJ:spec.powerW*spec.seconds,
-  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='silica_polish'?
+  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='iron_mineralogy'?
+  'Idealized hematite identification from Fe-assayed concentrated rock. Assumes Fe2O3-bearing lithology; requires real upstream concentrate. Fe element conserved, oxygen comes from the original rock. Not proof of mineral identity by spectroscopy.' :
+  mode==='carbon_recovery'?
+  'Concentrates finite naturally present carbon mass; does not manufacture coke, graphite or chemicals. Residues retain unrecovered carbon.' :
+  mode==='silica_polish'?
   'Idealized mechanical quartz upgrading; source must be 8E concentrate. Grade 99% is chemical mass fraction, NOT electronic silicon purity. No silicon metal is produced.' :
   'assay-based simplified separation; non-target constituents retained in residue'};
 }
@@ -84,7 +103,7 @@ function create(saved){let state=normalize(saved);
   const recipe={station:'ship_fabrication',inputs:{[a.material]:a.inputKg},
    outputs:{[a.product]:a.productKg,[a.residue]:a.residueKg},powerW:a.powerW,seconds:a.seconds};
   const result=transformation.convert({operationId:a.id,recipeId:a.mode,recipe,materials,containerId:a.sourceContainerId,
-   outputContainerId:a.outputContainerId,lotId:a.lotId,outputGrades:{[a.product]:a.productGrade,[a.residue]:Math.max(0,Math.min(1,(a.inputKg*a.inputGrade-a.productKg*a.productGrade)/Math.max(a.residueKg,EPS)))},
+   outputContainerId:a.outputContainerId,lotId:a.lotId,outputGrades:{[a.product]:a.productGrade,[a.residue]:Math.max(0,Math.min(1,(a.inputKg*a.inputGrade-a.productKg*(a.targetElementFraction??a.productGrade))/Math.max(a.residueKg,EPS)))},
    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ},
    station:{id:EQUIPMENT.id,kind:'ship_fabrication',containerId:a.sourceContainerId,condition:1,enabled:true}});
   const receipt={id:a.id,mode:a.mode,status:'COMMITTED',inputKg:a.inputKg,productKg:a.productKg,

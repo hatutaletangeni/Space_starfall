@@ -6,7 +6,7 @@ const rt=()=>root.StarfallRuntime, api=root.StarfallRefinery8E;
 const panel=document.createElement('section');panel.className='section';panel.id='refinery8e-panel';
 const title=document.createElement('div');title.className='section-title';title.textContent='REFINERY · SHIP FABRICATION';
 const status=document.createElement('p');status.className='panel-note';status.setAttribute('role','status');
-status.textContent='Mined and hauled quartz-bearing rock can be separated into silica concentrate, then polished into 99% SiO₂ feedstock. Both stages conserve mass, consume real ship battery energy and retain tailings. 99% SiO₂ is not electronic-grade silicon; advanced plant machinery and gas storage must still be constructed.';
+status.textContent='Finite 8D ores can now be concentrated and identified: iron-bearing rock → Fe concentrate → modeled hematite, carbon-bearing rock → carbon, silica → 99% SiO₂. Every process pays real ship battery energy, produces tailings and retains original inventory mass. Furnace chemistry requires separately installed equipment and captured exhaust.';
 const select=document.createElement('select');select.setAttribute('aria-label','Select actual material processing operation');
 select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:9px;width:100%';
 for(const [k,r] of Object.entries(api.MODES)){const opt=document.createElement('option');opt.value=k;opt.textContent=r.label+' · '+r.massKg+' kg';select.appendChild(opt);}

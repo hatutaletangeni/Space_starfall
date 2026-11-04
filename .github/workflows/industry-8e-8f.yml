@@ -7,6 +7,7 @@ on:
       - feature/update-8e-physical-plant-testable
       - feature/update-8f-fabricate-industrial-kits
       - feature/update-8e-silica-mineral-purification
+      - feature/update-8e-iron-carbon-steel
   pull_request:
     paths:
       - 'src/physics/*8e.js'
@@ -33,6 +34,7 @@ jobs:
           done
           node tests/refinery8e.test.cjs
           node tests/silica-chain8e.test.cjs
+          node tests/iron-steel-chain8e.test.cjs
           node tests/industrial-chemistry8e.test.cjs
           node tests/factory8f.test.cjs
           node tests/machine-install8f.test.cjs
@@ -60,12 +62,12 @@ jobs:
           path: PLAY-STARFALL.html
           retention-days: 14
       - name: Commit fresh standalone HTML to test branch
-        if: github.event_name == 'push' && github.ref_name == 'feature/update-8e-silica-mineral-purification'
+        if: github.event_name == 'push' && github.ref_name == 'feature/update-8e-iron-carbon-steel'
         run: |
           git config user.name "starfall-ci"
           git config user.email "starfall-ci@users.noreply.github.com"
           git add -f PLAY-STARFALL.html
           if ! git diff --cached --quiet; then
             git commit -m "build(8E): publish test standalone [skip ci]"
-            git push origin HEAD:feature/update-8e-silica-mineral-purification
+            git push origin HEAD:feature/update-8e-iron-carbon-steel
           fi
