@@ -51,6 +51,13 @@ with sync_playwright() as pw:
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("assembly-inspector8g-panel")',timeout=40000)
+        diagnostic=page.evaluate("""() => ({
+          context:StarfallRuntime.assemblyContext8G(),
+          outpost:StarfallRuntime.outpostContext(),
+          ship:StarfallRuntime.vehicleStore.get('ship').state,
+          physical:StarfallRuntime.physical8a.get('8g-test-pad')
+        })""")
+        print('8G diagnostic:',diagnostic,flush=True)
         quote=page.evaluate("""() => StarfallRuntime.assemblyQuote8G('science_rover','8g-test-pad')""")
         assert quote['ready'] is True,quote
         prior=page.evaluate("""() => ({
