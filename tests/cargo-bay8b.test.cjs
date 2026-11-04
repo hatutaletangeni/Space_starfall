@@ -35,4 +35,5 @@ assert.match(advice('ground',{x:bay.centerX,z:bay.rampEndZ+15,y:0},-.9),/from BE
 assert.match(advice('ground',{x:bay.centerX,z:bay.rampEndZ+3,y:0},.9),/wrong way/);
 assert.match(advice('ground',{x:bay.centerX,z:bay.rampEndZ+3,y:0},-.9),/correctly aligned/);
 assert.equal(Cargo.snapshot().mode,'secured');
+assert.equal(Cargo.canApproach({x:bay.centerX,z:bay.rampEndZ+3,y:-7},-.9),true);
 console.log('8B geometry + cargo custody invariants PASS');
