@@ -56,10 +56,28 @@ with sync_playwright() as p:
   saved=page.evaluate("""()=>{
    const rt=StarfallRuntime,b=rt.galaxy.byId.get('star-0-p0'),
     ss=SF.load(),p=b.position;
-   SF.save({flightGalaxy:{...ss.flightGalaxy,seed:rt.galaxy.seed,time:0,
+   // UI20's surface-truck exercise must have a surface truck. Update 8A/8B
+   // correctly retains the unique initial truck inside the ship until released.
+   // Seed only this test fixture through the real custody ledger (not a new
+   // asset or an untracked truckPose); production gameplay remains unchanged.
+   const truck=rt.physical8a.get('truck-expedition-001');
+   if(!truck)throw Error('Missing original physical truck');
+   if(truck.location.kind==='ship'){
+     rt.physical8a.move(truck.id,{kind:'surface',bodyId:b.id,local:[0,1,0]},
+       'ui20-fixture:deploy-existing-truck',{expected:truck.location});
+   }else if(truck.location.kind!=='surface'||truck.location.bodyId!==b.id){
+     throw Error('Original truck belongs to another world; fixture cannot duplicate it');
+   }
+   SF.save({physical8a:rt.physical8a.serialize(),flightGalaxy:{...ss.flightGalaxy,
+    seed:rt.galaxy.seed,time:0,
     position:[p[0],p[1]+b.radius+8,p[2]],target:b.id,attached:b.id,
-    groundDirection:[0,1,0],forward:[0,0,1],up:[0,1,0],landed:true}});
-   return SF.load();
+    groundDirection:[0,1,0],forward:[0,0,1],up:[0,1,0],landed:true,
+    truckPose:{bodyId:b.id,local:[0,1,0],forward:[0,0,1],
+      batteryJ:truck.state?.batteryJ??44e6,lights:true,cargo:0}}});
+   const ready=SF.load(),unique=ready.physical8a.assets.filter(a=>a.id===truck.id);
+   if(unique.length!==1||unique[0].location.kind!=='surface'||unique[0].location.bodyId!==b.id)
+     throw Error('UI20 fixture lost original truck custody');
+   return ready;
   }""")
   page.evaluate("""s=>{
    window.__STARFALL_IMPORT_PENDING=true;
