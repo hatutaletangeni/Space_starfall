@@ -143,7 +143,8 @@ with sync_playwright() as pw:
         page.wait_for_timeout(1300)
         if not repairButton.is_enabled():
             diagnostic=page.evaluate("""id=>({
-              quote:StarfallRuntime.structureRepairQuote8G(id),
+              quote:(()=>{try{return StarfallRuntime.structureRepairQuote8G(id);}
+                catch(error){return {error:String(error.message||error)};}})(),
               context:StarfallRuntime.structureRepairContext8G(),
               ui:document.querySelector('#structure-repair8g pre')?.textContent,
               selected:document.querySelector('#structure-repair8g select')?.value,
