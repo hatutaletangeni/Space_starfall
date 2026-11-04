@@ -102,6 +102,23 @@ with sync_playwright() as pw:
         }""")
         assert saved['records']==1 and saved['lotCount']==1,saved
         assert abs(saved['remaining']-2380)<1e-7,saved
+        # Second physical collection must have a distinct lot and permanently
+        # further deplete the same modeled surface cell, not reset at reload.
+        page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("air-fractionation8g")',timeout=40000)
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        ui=page.locator('#air-fractionation8g')
+        ui.locator('select[aria-label="Select physical air separator"]').select_option('air-test-plant')
+        ui.locator('select[aria-label="Select physical nitrogen vessel"]').select_option('air-test-nitrogen-vessel')
+        ui.get_by_role('button',name='SEPARATE 20 KG ATMOSPHERIC AIR').click()
+        page.wait_for_function('StarfallRuntime.atmosphere8g.snapshot().harvests.length===2',timeout=12000)
+        twice=page.evaluate("""() => {
+          const rt=StarfallRuntime,h=rt.atmosphere8g.snapshot().harvests,plant=rt.physical8a.get('air-test-plant');
+          const p=StarfallAirFractionation8G.parcel(rt.galaxy.byId.get(plant.location.bodyId),rt.galaxy,plant.location.local);
+          return{count:h.length,ids:h.map(x=>x.outputLotId),remaining:rt.atmosphere8g.remaining(p),
+            lots:rt.materials8a.inventory('vessel8e:air-test-nitrogen-vessel').length};
+        }""")
+        assert twice['count']==2 and len(set(twice['ids']))==2 and twice['lots']==2,twice
+        assert abs(twice['remaining']-2360)<1e-6,twice
         assert not errors,errors
         print('PASS offline Chromium: CW01 modeled real N2 planet, powered machine + rated vessel, 20 kg finite air depleted, 8A gas lot mass and 810 kJ conserved, original truck and save/reload protected')
     finally:
