@@ -22,7 +22,17 @@ with sync_playwright() as p:
     groundDirection:[0,1,0],forward:[0,0,1],up:[0,1,0],landed:true}});
    return SF.load();
   }""")
-  ctx.add_init_script("(()=>{if(sessionStorage.getItem('t13-landed'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t13-landed','1');})()")
+  # The per-document init script must not overwrite a newer physical docking
+  # ledger on reload if file:// sessionStorage does not retain its marker.
+  ctx.add_init_script("""(()=>{
+   const current=localStorage.getItem('starfall_save');
+   let live=null;try{live=current?JSON.parse(current):null;}catch(_){}
+   const dock=live?.flightGalaxy?.shipDockT13;
+   if(dock?.receipts?.length||dock?.history?.length)return;
+   if(sessionStorage.getItem('t13-landed'))return;
+   localStorage.setItem('starfall_save',__T13_FIXTURE__);
+   sessionStorage.setItem('t13-landed','1');
+  })()""".replace('__T13_FIXTURE__',json.dumps(json.dumps(saved))))
   boot.close()
   page=ctx.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(url,wait_until='domcontentloaded',timeout=90000)
