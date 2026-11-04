@@ -147,6 +147,82 @@ with sync_playwright() as pw:
         assert len(after_unload['moves'])==2,after_unload
         assert len(after_unload['trucks'])==1 and after_unload['trucks'][0]['location']==fixture['truck']
         assert after_unload['frame']['state']['operational'] is False
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        activation=page.locator('#vehicle-activation8g')
+        activation.locator('select[aria-label="Select physical manufactured vehicle"]').select_option(frame_id)
+        button=activation.get_by_role('button',name='CALIBRATE & CHARGE')
+        assert button.is_enabled(),'Paid 8G activation control is unexpectedly disabled'
+        button.click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.state?.operational===true""",arg=frame_id,timeout=15000)
+        activated=page.evaluate("""id => {
+          const rt=StarfallRuntime,a=rt.physical8a.get(id);
+          return{asset:a,truck:rt.physical8a.list().filter(x=>x.id==='truck-expedition-001'),
+          shipCharge:rt.vehicleStore.get('ship').state.energyJ};
+        }""",frame_id)
+        assert activated['asset']['state']['rideable'] is True
+        assert activated['asset']['state']['drive']['batteryEnergyJ']==2000000
+        assert activated['asset']['state']['activationReceipt']['energyJ']==2500000
+        assert len(activated['truck'])==1 and activated['truck'][0]['location']==fixture['truck']
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.landed && StarfallRuntime.eva',timeout=40000)
+        assert page.evaluate("""id => StarfallRuntime.physical8a.get(id)?.state?.operational===true""",frame_id)
+        # Test-only physical placement by the already verified unique frame.
+        # Then use the actual X boarding / WASD input rather than teleporting
+        # the vehicle or modifying the authoritative 8A custody directly.
+        page.evaluate("""id => STARFALL_DEBUG.placeEvaNearManufactured8G(id)""",frame_id)
+        assert page.evaluate("""() => StarfallRuntime.enterManufactured8G()""") is True
+        initial_drive=page.evaluate("""id => {
+          const s=StarfallRuntime.physical8a.get(id).state;
+          return s.batteryEnergyJ ?? s.drive.batteryEnergyJ;
+        }""",frame_id)
+        page.keyboard.down('w')
+        page.wait_for_timeout(1200)
+        page.keyboard.up('w')
+        driven=page.evaluate("""id => ({
+          occupied:StarfallRuntime.manufacturedOccupied8G,
+          frame:StarfallRuntime.physical8a.get(id),
+          original:StarfallRuntime.physical8a.list().filter(a=>a.id==='truck-expedition-001')
+        })""",frame_id)
+        assert driven['occupied']==frame_id,driven
+        assert driven['frame']['state']['distanceM']>0,driven
+        assert driven['frame']['state']['batteryEnergyJ']<initial_drive,driven
+        assert len(driven['original'])==1 and driven['original'][0]['location']==fixture['truck']
+        # Force an actual complete stop; powered winch may not load moving frames.
+        page.keyboard.down('Space')
+        page.wait_for_timeout(900)
+        page.keyboard.up('Space')
+        stopped=page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.speedMS""",frame_id)
+        assert abs(stopped)<.05,'Braking did not reach safe loading speed: '+str(stopped)
+        assert page.evaluate("""() => StarfallRuntime.exitManufactured8G()""") is True
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        cargo=page.locator('#frame-cargo8g')
+        cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
+        cargo.get_by_role('button',name='WINCH FRAME INTO SHIP').click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.location?.slot==='engineering-frame-cradle'""",
+          arg=frame_id,timeout=15000)
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=40000)
+        assert page.evaluate("""id => {
+          const a=StarfallRuntime.physical8a.get(id);
+          return a.location.slot==='engineering-frame-cradle' && a.state.operational===true &&
+            a.state.batteryEnergyJ<2000000;
+        }""",frame_id),'Driven prototype lost custody, operational status or battery during ship load/reload'
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        cargo=page.locator('#frame-cargo8g')
+        cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
+        cargo.get_by_role('button',name='UNLOAD FRAME ONTO CLEAR GROUND').click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.location?.kind==='surface'""",
+          arg=frame_id,timeout=15000)
+        assert page.evaluate("""id => {
+          const a=StarfallRuntime.physical8a.get(id);
+          return a.state.operational===true && a.state.distanceM>0 &&
+            StarfallRuntime.physical8a.list().filter(x=>x.id==='truck-expedition-001').length===1;
+        }""",frame_id),'Unloaded vehicle lost driving progress or original truck ownership'
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        assert page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.distanceM>0""",frame_id)
+        assert not errors,errors
+        print('PASS 8G Chromium activation: complete manufactured frame calibrated and charged 2.5MJ, distinct rideable vehicle saved without cloning expedition truck')
         assert not errors,errors
         print('PASS 8G file:// Chromium: manufactured frame built, conserved, loaded in dedicated cradle, paid energy, restored and unloaded; original truck untouched')
     finally:
