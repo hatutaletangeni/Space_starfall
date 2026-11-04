@@ -7,7 +7,7 @@
 2. Drive and physically haul at least 20 kg to the ship material hold.
 3. Under **Engineer → Refinery**, choose **Silica beneficiation**. A 20 kg batch uses 1.5 kW over 130 simulated seconds. Recovery is 82% of the measured silica mass, with a 95%-grade `silica_concentrate` lot and an explicit `silicate_tailings` lot. Matter is conserved.
 4. Select **Quartz concentrate polishing**. A 4 kg batch is only allowed from an authentic preceding 8E processing lot (provenance `process:refine8e:`) with certified `grade >= 0.95`. This consumes 4.2 kW over 160 simulated seconds. It recovers 82% of source silica and yields 99%-grade `silicon_dioxide`, with a second explicit physical tailings lot.
-5. A separately installed glass furnace, consuming separately metered ship power, can run the already existing atom-balanced SiO₂→glass process, using the true 8A stock.
+5. A separately installed glass furnace, consuming separately metered ship power, can run the already existing atom-balanced SiO₂→glass process using real 8A stock. Choose a 25, 50 or 100 mol input batch from **Engineer → Chemical Plant Control** to match the actually available SiO₂ lot; one 4 kg polishing batch provides enough input for 25 mol of glass feed. Fixed machine time and energy per batch are simplified setup overhead, not validated proportional kinetics.
 6. Products and residues remain tracked in real ship containers. The model does not create iron, aluminum, electronic silicon, silicon metal, mortar or electronics.
 
 ## Assay and mass examples
