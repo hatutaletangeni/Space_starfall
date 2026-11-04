@@ -7233,6 +7233,74 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallKitRe
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8G — factory commissioning: exact one BOM -> one physical asset. */
+(function(root){'use strict';
+const copy=x=>JSON.parse(JSON.stringify(x)),finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const DEFINITIONS=Object.freeze({
+ science_rover:{kind:'rover',massKg:180,volumeM3:1.5,parts:{electric_motor:8.5,control_board:0.6,battery_cell:9.75,beam:28,gear:6.8,bearing:5.1},facility:'vehicle_assembly'},
+ truck:{kind:'truck',massKg:900,volumeM3:5,parts:{electric_motor:34,control_board:1.2,battery_cell:39,beam:350,gear:13.6,bearing:13.6},facility:'vehicle_assembly'},
+ satellite_bus:{kind:'satellite',massKg:48,volumeM3:0.6,parts:{control_board:0.6,battery_cell:5.85,solar_module:8.8,beam:19.2},facility:'precision_assembly'},
+ habitat_shell:{kind:'habitat',massKg:1100,volumeM3:25,parts:{beam:960,control_board:1.2,solar_module:17.6},facility:'habitat_pad'},
+ rocket_stage:{kind:'rocket_stage',massKg:220,volumeM3:3,parts:{beam:96,control_board:0.6,gear:3.4,bearing:1.7},facility:'rocket_integration'}
+});
+function create(saved){const state=saved?copy(saved):{schema:1,receipts:[]};if(state.schema!==1||!Array.isArray(state.receipts))throw Error('Invalid assembly history');
+function commission({jobId,blueprintId,facility,materials,partsContainerId,assetState,location,energyReceipt}){
+ const old=state.receipts.find(x=>x.id===jobId);if(old)return{duplicate:true,receipt:copy(old),materials:copy(materials),assets:copy(assetState),assembly:copy(state)};
+ const def=DEFINITIONS[blueprintId];if(!def)throw Error('Unknown blueprint');
+ if(!facility||facility.kind!==def.facility||!facility.enabled||facility.condition<.5||facility.bodyId!==location.bodyId)throw Error('Assembly facility not physically available');
+ if(!energyReceipt||energyReceipt.operationId!==jobId||!finite(energyReceipt.usedJ)||energyReceipt.usedJ<200000||!energyReceipt.sourceId)throw Error('Missing assembly energy');
+ if(!assetState||assetState.schema!==1||!Array.isArray(assetState.assets))throw Error('Missing 8A asset registry');
+ if(assetState.assets.some(a=>a.id===jobId))throw Error('Asset ID already exists');
+ if(!location||location.kind!=='surface'||!Array.isArray(location.local)||location.local.length!==3||location.local.some(x=>!Number.isFinite(x)))throw Error('Invalid assembly pad coordinates');
+ const inventory=copy(materials),assets=copy(assetState);for(const [materialId,kg] of Object.entries(def.parts)){
+  let left=kg;for(const lot of inventory.lots){if(lot.containerId!==partsContainerId||lot.materialId!==materialId)continue;const used=Math.min(left,lot.massKg);if(used>0){const previous=lot.massKg;lot.massKg-=used;lot.volumeM3*=lot.massKg/previous;left-=used;}if(left<1e-7)break;}
+  if(left>1e-7)throw Error('Missing manufactured part: '+materialId);
+ }
+ inventory.lots=inventory.lots.filter(l=>l.massKg>1e-7);
+ const actualPartMass=Object.entries(def.parts).reduce((a,[,n])=>a+n,0);
+ // The remaining mass is not materialized. A finished asset mass must equal consumed part mass.
+ const newAsset={id:jobId,type:def.kind,massKg:actualPartMass,volumeM3:def.volumeM3,condition:1,provenance:'assembly:'+jobId,
+  location:copy(location),components:[{blueprintId}],state:{installed:true,commissioned:true}};
+ assets.assets.push(newAsset);
+ const receipt={id:jobId,blueprintId,assetId:jobId,status:'COMMITTED',massKg:actualPartMass,energyJ:200000};
+ const assembly=copy(state);assembly.receipts.push(receipt);
+ return{duplicate:false,receipt,materials:inventory,assets,assembly};
+}
+return Object.freeze({commission,snapshot:()=>copy(state)});
+}
+root.StarfallAssembly8G=Object.freeze({DEFINITIONS,create});if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallAssembly8G;
+})(typeof globalThis!=='undefined'?globalThis:this);
+</script><script>
+/* STARFALL 8G — non-mutating vehicle assembly engineering preflight.
+ * No vehicle commissioning, inventory transfer, asset creation or power debit. */
+(function(root){'use strict';
+const good=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+function report({blueprintId,materials,physical,containerId,bodyId,shipLanded,powerEnabled,operatorNear}){
+ const def=root.StarfallAssembly8G?.DEFINITIONS?.[blueprintId];
+ if(!def)throw Error('Unknown 8G engineering blueprint');
+ if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||!Array.isArray(materials.operations)||
+    !physical||physical.schema!==1||!Array.isArray(physical.assets)||!containerId)throw Error('Missing authoritative inventory');
+ const parts=Object.entries(def.parts).map(([materialId,requiredKg])=>{
+  const availableKg=materials.lots.filter(l=>l.containerId===containerId&&l.materialId===materialId&&good(l.grade)&&l.grade>=.98)
+   .reduce((sum,l)=>{
+    const reserved=materials.operations.filter(x=>x.status==='RESERVED'&&x.lotId===l.id).reduce((n,x)=>n+x.massKg,0);
+    return sum+Math.max(0,l.massKg-reserved);
+   },0);
+  return {materialId,requiredKg,availableKg,missingKg:Math.max(0,requiredKg-availableKg)};
+ });
+ const pad=physical.assets.find(a=>a.type==='industrial_plant'&&a.condition>=.5&&a.location?.kind==='surface'&&
+   a.location.bodyId===bodyId&&a.state?.station===def.facility&&a.state?.enabled!==false);
+ const flags={shipLanded:!!shipLanded,powerEnabled:!!powerEnabled,operatorNear:!!operatorNear,
+   physicalFacility:!!pad,components:parts.every(p=>p.missingKg<=1e-7)};
+ return Object.freeze({blueprintId,kind:def.kind,facilityNeeded:def.facility,facilityId:pad?.id||null,
+  nominalBlueprintMassKg:def.massKg,exactPartMassKg:parts.reduce((s,p)=>s+p.requiredKg,0),
+  volumeM3:def.volumeM3,parts,flags,readyForEngineeringReview:Object.values(flags).every(Boolean),
+  canCommission:false,reason:'READ-ONLY PREFLIGHT. No verified drivable vehicle or rocket/habitat commissioning path is enabled.'});
+}
+root.StarfallAssemblyInspector8G=Object.freeze({report});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallAssemblyInspector8G;
+})(typeof globalThis!=='undefined'?globalThis:this);
+</script><script>
 /* STARFALL 8F — low-tech parts from actual refined raw stocks.
  * Already fitted ship fabrication bay contains hand shears, a small bending
  * brake and a guarded glass scoring bench. No motor, chip or industrial plant
@@ -14564,6 +14632,52 @@ let last=0;function check(){const now=performance.now();if(now-last>900){last=no
 root.StarfallMachineInstallUI8F={refresh};
 })(globalThis);
 
+</script><script>
+/* STARFALL 8G — safe truck locator and assembly readiness, no commissioning. */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host||!root.StarfallAssemblyInspector8G||!root.StarfallAssembly8G)return;
+const panel=document.createElement('section');panel.className='section';panel.id='assembly-inspector8g-panel';
+const h=document.createElement('div');h.className='section-title';h.textContent='8G · VEHICLE ASSEMBLY PREFLIGHT & TRUCK LOCATOR';
+const explain=document.createElement('p');explain.className='panel-note';
+explain.textContent='Read-only engineering inspector. It never creates a vehicle or grants stock. Check the original truck custody and exact missing real components.';
+const button=document.createElement('button');button.type='button';button.className='science-action';
+button.textContent='OPEN TRUCK & CARGO INVENTORY';
+const where=document.createElement('p');where.className='panel-note';where.setAttribute('role','status');
+const select=document.createElement('select');select.setAttribute('aria-label','Inspect future vehicle bill of materials');
+select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:9px;max-width:100%';
+for(const [key,d] of Object.entries(root.StarfallAssembly8G.DEFINITIONS)){
+ const x=document.createElement('option');x.value=key;x.textContent=key.replace(/_/g,' ').toUpperCase()+' / '+d.facility;select.append(x);
+}
+const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font:11px/1.55 Consolas,monospace;background:#101b23;color:#c8d9d9;border:1px solid #53677566;padding:12px;max-height:340px;overflow:auto';
+function refresh(){
+ const rt=root.StarfallRuntime;if(!rt?.physical8a||!rt?.materials8a)return;
+ const truck=rt.physical8a.get('truck-expedition-001'),l=truck?.location;
+ where.textContent=!truck?'NO EXPEDITION TRUCK IN CUSTODY — restore previous save rather than spawning another':
+  l.kind==='ship'?'TRUCK: SECURED IN STARBOARD CARGO BAY. Land on flat terrain; walk out the aft crew ramp, press B at the right-hand WIDE cargo ramp, X to enter, S to reverse. Rack: '+rt.cargo8b?.mode:
+  'TRUCK: LEFT ON '+l.bodyId+'. Return to that planet; no replacement is spawned when you land elsewhere.';
+ try{
+  const c=rt.refineryContext8E(),q=root.StarfallAssemblyInspector8G.report({
+   blueprintId:select.value,materials:rt.materials8a.snapshot(),physical:rt.physical8a.serialize(),
+   containerId:root.StarfallMining8D.SHIP,bodyId:c.bodyId,shipLanded:c.shipLanded,
+   powerEnabled:c.powerEnabled,operatorNear:c.operatorNear});
+  pre.textContent='BLUEPRINT '+q.blueprintId+' / '+q.kind+
+   '\nNOMINAL MASS '+q.nominalBlueprintMassKg+' kg (actual required part mass '+q.exactPartMassKg.toFixed(3)+' kg)'+
+   '\nREQUIRED PHYSICAL FACILITY '+q.facilityNeeded+' / '+(q.facilityId||'NOT INSTALLED ON THIS PLANET')+
+   '\nLANDED / POWERED / NEAR '+[q.flags.shipLanded,q.flags.powerEnabled,q.flags.operatorNear].map(v=>v?'YES':'NO').join(' / ')+
+   '\nCERTIFIED SHIP PARTS (kg):'+
+   q.parts.map(p=>'\n '+p.materialId+': '+p.availableKg.toFixed(2)+' / '+p.requiredKg.toFixed(2)+(p.missingKg>1e-7?'  NEED '+p.missingKg.toFixed(2):'  OK')).join('')+
+   '\nBOM PREFLIGHT '+(q.readyForEngineeringReview?'READY FOR FURTHER ENGINEERING':'INCOMPLETE')+
+   '\nACTUAL VEHICLE COMMISSIONING: DISABLED / NOT IMPLEMENTED'+
+   '\n'+q.reason;
+ }catch(e){pre.textContent='Inspection unavailable: '+String(e.message||e);}
+}
+button.addEventListener('click',()=>root.StarfallInventoryUI8A?.open?.());
+select.addEventListener('change',refresh);
+panel.append(h,explain,button,where,select,pre);host.append(panel);
+let last=0;function tick(){const t=performance.now();if(t-last>=900){last=t;refresh();}requestAnimationFrame(tick);}tick();
+root.StarfallAssemblyInspectorUI8G={refresh};
+})(globalThis);
 </script>
 </body>
 </html>
