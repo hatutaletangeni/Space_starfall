@@ -92,7 +92,11 @@ with sync_playwright() as pw:
         assert abs(made['frames'][0]['massKg']-fixture['expectedKg'])<1e-6
         assert len(made['truck'])==1 and made['truck'][0]['location']==fixture['truck']
         assert len(made['paid'])==1 and made['unspent']==0
-        assert abs(prior['energy']-made['energy']-200000)<1e-5
+        # Ship's live bus has independent generation and hotel loads between
+        # browser interactions. Charge receipt is exact; net battery shift may
+        # contain those real intervening flows, not phantom assembly energy.
+        assert made['paid'][0]['energyJ']==200000
+        assert 190000<=prior['energy']-made['energy']<=210000,(prior,made['energy'])
         assert not errors,errors
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=60000)
