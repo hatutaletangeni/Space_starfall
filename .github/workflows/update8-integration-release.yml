@@ -4,6 +4,7 @@ on:
     branches:
       - release/update8-industrial-integration-candidate
       - hotfix/truck-custody-visibility-and-reconciliation
+      - feature/update-8f-vehicle-chassis-components
       - feature/update-8b-truck-ramp-guidance
   pull_request:
     branches:
