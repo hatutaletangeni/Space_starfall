@@ -22,7 +22,17 @@ with sync_playwright() as p:
     groundDirection:[0,1,0],forward:[0,0,1],up:[0,1,0],landed:true}});
    return SF.load();
   }""")
-  ctx.add_init_script("(()=>{if(sessionStorage.getItem('t13-landed'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t13-landed','1');})()")
+  # The per-document init script must not overwrite a newer physical docking
+  # ledger on reload if file:// sessionStorage does not retain its marker.
+  ctx.add_init_script("""(()=>{
+   const current=localStorage.getItem('starfall_save');
+   let live=null;try{live=current?JSON.parse(current):null;}catch(_){}
+   const dock=live?.flightGalaxy?.shipDockT13;
+   if(dock?.receipts?.length||dock?.history?.length)return;
+   if(sessionStorage.getItem('t13-landed'))return;
+   localStorage.setItem('starfall_save',__T13_FIXTURE__);
+   sessionStorage.setItem('t13-landed','1');
+  })()""".replace('__T13_FIXTURE__',json.dumps(json.dumps(saved))))
   boot.close()
   page=ctx.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(url,wait_until='domcontentloaded',timeout=90000)
@@ -77,10 +87,33 @@ with sync_playwright() as p:
    return{observationId:obs.id,thermalId:thermal.id,sourceShipJ:shipBefore,sourceRoverJ:roverBefore,
     lossJ:e.lossJ,drawnJ:e.drawnJ,deliveredJ:e.deliveredJ,receiptCount:s.receipts.length};
   }""",initial['roverId'])
+  # Validate the actual durable browser bytes, not only SF.load()'s in-memory
+  # fallback, before asking a new page instance to restore T13 custody.
+  durable=page.evaluate("""ids=>{
+   const status=SF.storageStatus(),raw=localStorage.getItem('starfall_save');
+   let disk=null;try{disk=raw?JSON.parse(raw):null;}catch(error){throw Error('T13 save JSON is corrupt: '+error.message)}
+   const dock=disk?.flightGalaxy?.shipDockT13;
+   return{status,bytes:raw?.length||0,rawState:dock?.state||null,
+    targetId:dock?.targetId||null,receiptCount:dock?.receipts?.length||0,
+    foundReceipt:!!dock?.receipts?.some(x=>x.observationId===ids.observationId),
+    memoryState:StarfallRuntime.shipServiceSnapshotT13().state};
+  }""",complete)
+  assert durable['status']['durable'],f"T13 browser storage is not durable: {durable}"
+  assert durable['rawState']=='LATCHED' and durable['foundReceipt'],f"T13 save did not reach localStorage: {durable}"
+  page.on('console',lambda msg: print('T13 CONSOLE',msg.text) if 'T13 reload diagnostic' in msg.text else None)
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallShipT13&&window.StarfallScienceUI)",timeout=45000)
   restored=page.evaluate("""ids=>{
    const rt=StarfallRuntime,info=rt.shipServiceSnapshotT13(),saved=SF.load().flightGalaxy.shipDockT13;
+   const raw=localStorage.getItem('starfall_save');let disk=null;
+   try{disk=raw?JSON.parse(raw):null;}catch(e){}
+   const persisted=disk?.flightGalaxy?.shipDockT13;
+   console.info('T13 reload diagnostic',JSON.stringify({runtime:info.state,loaded:saved?.state,
+    persisted:persisted?.state,loadedReceipts:saved?.receipts?.length,
+    persistedReceipts:persisted?.receipts?.length,expected:ids.observationId,
+    loadedHasReceipt:saved?.receipts?.some(x=>x.observationId===ids.observationId),
+    persistedHasReceipt:persisted?.receipts?.some(x=>x.observationId===ids.observationId),
+    landed:rt.landed,storage:SF.storageStatus()}));
    if(info.state!=='LATCHED'||!saved.receipts.some(x=>x.observationId===ids.observationId))
     throw Error('Docking/received record did not survive genuine localStorage reload');
    if(!StarfallScienceUI.journal.some(x=>x.id===ids.thermalId))throw Error('Ship sensor scientific reading missing after reload');

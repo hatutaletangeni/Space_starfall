@@ -28,6 +28,7 @@ on:
       - feature/update-8g-finite-habitat-initial-charge
       - feature/update-8g-finite-nitrogen-air-fractionation
       - feature/update-8g-rated-gas-vessel-transport
+      - feature/update-8g-metered-vessel-habitat-charge
   pull_request:
     paths:
       - 'src/physics/*8e.js'
@@ -94,6 +95,9 @@ jobs:
           node --check src/physics/gas-vessel-cargo8g.js
           node --check src/physics/gas-vessel-cargo-ui8g.js
           node tests/gas-vessel-cargo8g.test.cjs
+          node --check src/physics/habitat-hose8g.js
+          node --check src/physics/habitat-hose-ui8g.js
+          node tests/habitat-hose8g.test.cjs
           node tests/industrial-kit-factory8f.test.cjs
           node tests/stock-parts8f.test.cjs
           node tests/industry-crosschain8e-8f.test.cjs
@@ -118,12 +122,12 @@ jobs:
           path: PLAY-STARFALL.html
           retention-days: 14
       - name: Commit fresh standalone HTML to test branch
-        if: github.event_name == 'push' && github.ref_name == 'feature/update-8g-rated-gas-vessel-transport'
+        if: github.event_name == 'push' && github.ref_name == 'feature/update-8g-metered-vessel-habitat-charge'
         run: |
           git config user.name "starfall-ci"
           git config user.email "starfall-ci@users.noreply.github.com"
           git add -f PLAY-STARFALL.html
           if ! git diff --cached --quiet; then
             git commit -m "build(8E): publish test standalone [skip ci]"
-            git push origin HEAD:feature/update-8g-rated-gas-vessel-transport
+            git push origin HEAD:feature/update-8g-metered-vessel-habitat-charge
           fi

@@ -24,6 +24,3 @@ python3 tests/standalone-parity.py
 python3 tests/gas-vessel-cargo8g-browser.py
 ```
 The browser test includes real CW01 nitrogen extraction with physical installed test-only apparatus, then filled-cylinder load → ship reload → unload → surface reload without gas lot duplication or original-truck loss. Full existing engineering, 8G industrial, Rocket Lab and original rover/truck regression gates must stay green.
-
-## Final current-head release verification
-The source and generated standalone must match exactly after the automatic 8E/8F packaging build. Review the CI results for this exact PR head, not earlier parent commits with out-of-date standalone output. Preserve the original ship/truck/rover integration regressions, including correct ship wet-cargo mass and the existing 8G frame cradle.
