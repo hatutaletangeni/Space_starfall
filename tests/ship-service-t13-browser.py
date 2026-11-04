@@ -77,6 +77,19 @@ with sync_playwright() as p:
    return{observationId:obs.id,thermalId:thermal.id,sourceShipJ:shipBefore,sourceRoverJ:roverBefore,
     lossJ:e.lossJ,drawnJ:e.drawnJ,deliveredJ:e.deliveredJ,receiptCount:s.receipts.length};
   }""",initial['roverId'])
+  # Validate the actual durable browser bytes, not only SF.load()'s in-memory
+  # fallback, before asking a new page instance to restore T13 custody.
+  durable=page.evaluate("""ids=>{
+   const status=SF.storageStatus(),raw=localStorage.getItem('starfall_save');
+   let disk=null;try{disk=raw?JSON.parse(raw):null;}catch(error){throw Error('T13 save JSON is corrupt: '+error.message)}
+   const dock=disk?.flightGalaxy?.shipDockT13;
+   return{status,bytes:raw?.length||0,rawState:dock?.state||null,
+    targetId:dock?.targetId||null,receiptCount:dock?.receipts?.length||0,
+    foundReceipt:!!dock?.receipts?.some(x=>x.observationId===ids.observationId),
+    memoryState:StarfallRuntime.shipServiceSnapshotT13().state};
+  }""",complete)
+  assert durable['status']['durable'],f"T13 browser storage is not durable: {durable}"
+  assert durable['rawState']=='LATCHED' and durable['foundReceipt'],f"T13 save did not reach localStorage: {durable}"
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallShipT13&&window.StarfallScienceUI)",timeout=45000)
   restored=page.evaluate("""ids=>{
