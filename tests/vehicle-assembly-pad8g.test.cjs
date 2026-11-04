@@ -50,7 +50,7 @@ assert.equal(Site.install({...args,materials:installed.materials,physical:instal
 assert.throws(()=>Site.install({...args,jobId:'plant8e:assembly-pad-2',assetId:'facility8e:assembly-pad-2',
  materials:installed.materials,physical:installed.physical}),/onboard ship/);
 assert.throws(()=>Site.quote({...args,materials:finished.materials,physical:originalPhysical,
- local:[Math.sin(.01),Math.cos(.01),0]}),/block spacecraft ramps/);
+ local:[Math.sin(.01),Math.cos(.01),0],operatorLocal:[Math.sin(.01),Math.cos(.01),0]}),/block spacecraft ramps/);
 assert.throws(()=>Factory.quote({recipeId:id,materials:{...ledger.snapshot(),lots:[]},
  sourceContainerId:'hold',outputContainerId:'hold',machine:jig}),/Missing refined/);
 assert.ok(installed.physical.assets.some(a=>a.id===args.assetId));
