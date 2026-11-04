@@ -9964,8 +9964,10 @@ function structureRepairSite8G(assetId){
  if(a.location?.kind!=='surface'||a.location.bodyId!==c.bodyId||!nearest?.radius)
   throw Error('Damaged structure is not on the current world');
  const arc=(x,y)=>Math.acos(Math.max(-1,Math.min(1,V.dot(V.norm(x),V.norm(y)))))*nearest.radius;
- if(arc(evaLocal,a.location.local)>35||arc(shipLocal,a.location.local)>85)
-  throw Error('EVA must be within 35 scene units of damage; ship within 85 for repair tool power');
+ const operatorRange=arc(evaLocal,a.location.local),powerRange=arc(shipLocal,a.location.local);
+ if(operatorRange>35||powerRange>85)
+  throw Error('Repair distance: EVA '+operatorRange.toFixed(1)+' / 35, ship '+
+   powerRange.toFixed(1)+' / 85 scene units. Physically move closer.');
  return{ctx:c,asset:a};
 }
 function structureRepairQuote8G(assetId){
@@ -10569,7 +10571,8 @@ Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{
  const local=V.norm(V.add(V.mul(a.location.local,1-fraction),V.mul(shipLocal,fraction))),
    radial=V.norm(V.rot(local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
  evaLocal=local;pos=V.add(nearest.position,V.mul(radial,nearest.radius+groundHeight(local,nearest)+EVA_HEIGHT));
- up=radial;evaForward=[...forward];camEye=null;
+ up=radial;evaForward=[...forward];vertical=0;vel=[0,0,0];
+ roverExitMove=null;rampTransition=null;camEye=null;
 },placeEvaNearManufactured8G(id){
  if(!landed||!eva||truckOccupied||manufacturedOccupied8G||!nearest?.landable)
   throw Error('Require landed EVA and no occupied vehicle');
