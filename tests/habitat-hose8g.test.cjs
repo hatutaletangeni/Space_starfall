@@ -6,6 +6,7 @@ globalThis.StarfallHabitatT09=require('../src/physics/habitat-t09.js');
 globalThis.StarfallHabitatCharge8G=require('../src/physics/habitat-charge8g.js');
 const Hose=require('../src/physics/habitat-hose8g.js'),req=StarfallHabitatCharge8G.requirements();
 const bodyId='star-0-p0',hId='structure8g:1',oId='facility8e:oxygen',nId='facility8e:nitrogen';
+const compressedVolume=species=>(req[species]/(species==='oxygen'?.031998:.028014))*8.314462618*293.15/5e6;
 const pose={kind:'surface',bodyId,local:[0,1,0]};
 const vessel=(id,gas)=>({id,type:'industrial_vessel',location:pose,massKg:195,volumeM3:4,
  condition:1,provenance:'8E real kit',state:{materialId:gas,containerId:'vessel8e:'+id,
@@ -24,9 +25,9 @@ const materials={schema:1,containers:[
  {id:'vessel8e:'+nId,ownerId:nId,maxMassKg:1000,maxVolumeM3:4,kind:'gas pressure vessel'}
 ],lots:[
  {id:'oxy:8e:lot',materialId:'oxygen',containerId:'vessel8e:'+oId,
-  massKg:req.oxygen,volumeM3:.03,grade:.999,provenance:'finite-electrolysis'},
+  massKg:req.oxygen,volumeM3:compressedVolume('oxygen'),grade:.999,provenance:'finite-electrolysis'},
  {id:'nit:8g:lot',materialId:'nitrogen',containerId:'vessel8e:'+nId,
-  massKg:req.nitrogen,volumeM3:.11,grade:.999,provenance:'finite-atmospheric-capture'},
+  massKg:req.nitrogen,volumeM3:compressedVolume('nitrogen'),grade:.999,provenance:'finite-atmospheric-capture'},
  {id:'water:ship:lot',materialId:'water',containerId:'8d:ship-main:materials',
   massKg:req.water,volumeM3:.02,grade:1,provenance:'finite-water-stock'}
 ],operations:[]};
@@ -70,6 +71,7 @@ assert.ok(Math.abs(sum(materials,physical)-sum(t.materials,t.physical))<1e-6);
 assert.throws(()=>Hose.transfer({...a,physical:t.physical,materials:t.materials}),/already received a charge/);
 assert.throws(()=>Hose.transfer({...a,powerReceipt:{...a.powerReceipt,usedJ:0}}),/1.5 MJ/);
 assert.throws(()=>Hose.transfer({...a,shipPowered:false}),/landed powered/);
+assert.throws(()=>Hose.transfer({...a,materials:{...materials,lots:materials.lots.map(x=>x.materialId==='oxygen'?{...x,volumeM3:.001}:x)}}),/pressure violates rated source vessel/);
 assert.throws(()=>Hose.transfer({...a,evaLocal:[1,0,0]}),/100-unit ship hose|24-unit EVA/);
 assert.throws(()=>Hose.transfer({...a,physical:{...physical,
  assets:physical.assets.map(x=>x.id===oId?{...x,state:{...x.state,ratedPressurePa:1e6}}:x)}}),/rated oxygen vessel/);
