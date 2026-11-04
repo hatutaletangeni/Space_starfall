@@ -14,6 +14,8 @@ const SPECS=Object.freeze({
  plant_kit_glass_furnace:[520,1.8,'furnace'],plant_kit_catalytic_reactor:[640,2,'plant'],
  plant_kit_high_temp_cell:[1320,3.6,'furnace'],
  plant_kit_vehicle_assembly_pad:[760,2.8,'assembly_pad'],
+ plant_kit_rocket_integration:[900,2.9,'rocket_integrator'],
+ plant_kit_habitat_construction_pad:[1120,3.7,'habitat_builder'],
  vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],
  vessel_kit_sulfur_dioxide:[210,4,'vessel'],
  vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],
@@ -21,6 +23,8 @@ const SPECS=Object.freeze({
 });
 const FRACTIONS=Object.freeze({
  assembly_pad:{steel:.60,copper:.12,aluminum:.08,glass:.05,refractory_block:.05,insulated_wire:.04,electric_motor:.04,control_board:.02},
+ rocket_integrator:{steel:.54,copper:.1,aluminum:.06,glass:.04,refractory_block:.11,insulated_wire:.05,electric_motor:.07,control_board:.03},
+ habitat_builder:{steel:.55,copper:.12,aluminum:.07,glass:.05,refractory_block:.06,insulated_wire:.06,electric_motor:.06,control_board:.03},
  hand_winder:{steel:.5625,copper:.09375,aluminum:.125,glass:.0625,iron_bracket:.0625,steel_bracket:.09375},
  manual_press:{steel:.66,copper:.12,iron_bracket:.08,glass_panel:.14},
  machine:{steel:.48,copper:.12,aluminum:.08,glass:.04,refractory_block:.10,insulated_wire:.05,electric_motor:.08,control_board:.05},
