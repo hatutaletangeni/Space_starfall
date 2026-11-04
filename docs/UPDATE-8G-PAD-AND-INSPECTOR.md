@@ -19,3 +19,6 @@ The assembly pad does NOT mint a second truck/rover or allow operation without a
 
 ## Known limitations
 Advanced electronics, electric motors and precision parts still lack complete ore-to-product manufacturing chains. Industrial equipment is visible through generic existing industrial site geometry; dedicated vehicle pad 3D mesh is future work. Browser GPU performance and old-save compatibility require explicit acceptance before merging this 8G PR into main.
+
+## Release candidate integration QA status
+The preview HTML is emitted from the industrial CI compiler; it contains the 8G pad, inspector and the merged main cargo feedback. Do not conflate an automatic standalone artifact with a completed browser UI interaction. Test real save/reload, cargo B and X, Engineer mode, physical site placement and game startup before merge.
