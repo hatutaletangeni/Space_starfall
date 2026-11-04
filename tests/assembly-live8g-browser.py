@@ -88,6 +88,14 @@ with sync_playwright() as pw:
             energy:rt.vehicleStore.get('ship').state.energyJ,unspent:m.length};
         }""")
         assert len(made['frames'])==1,made
+        separation=page.evaluate("""() => {
+          const rt=StarfallRuntime,frame=rt.physical8a.list().find(a=>a.type==='vehicle_frame'),
+            pad=rt.physical8a.get('8g-test-pad');
+          const a=frame.location.local,b=pad.location.local,
+            dot=Math.max(-1,Math.min(1,a.reduce((s,x,i)=>s+x*b[i],0)));
+          return Math.acos(dot)*rt.galaxy.byId.get(frame.location.bodyId).radius;
+        }""")
+        assert separation>=15,'Frame overlaps the real assembly pad footprint: '+str(separation)
         assert made['frames'][0]['state']['operational'] is False
         assert abs(made['frames'][0]['massKg']-fixture['expectedKg'])<1e-6
         assert len(made['truck'])==1 and made['truck'][0]['location']==fixture['truck']
