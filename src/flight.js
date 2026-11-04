@@ -68,7 +68,9 @@ let equipmentT15=StarfallEquipmentT15.restore(session.equipmentT15);
 let engineeringSystemReport={ship:null,rover:null},engineeringSystemSeconds=0;
 function persistVehicles(){SF.save({engineeringVehicles:vehicleStore.serialize()});}
 function rootSpaceWeather(){return window.StarfallSpaceWeatherLW06;}
-function shipCargoMass8A(){return physical8a.list().filter(a=>a.type!=='ship'&&a.location.kind==='ship'&&a.location.parentId==='ship-main').reduce((sum,a)=>sum+a.massKg,0);}
+function shipCargoMass8A(){return physical8a.list().filter(a=>a.type!=='ship'&&a.location.kind==='ship'&&a.location.parentId==='ship-main').reduce((sum,a)=>sum+a.massKg+
+ (a.type==='industrial_vessel'&&a.state?.containerId?
+  materials8a.used(a.state.containerId).massKg:0),0);}
 function shipConfiguredState(){const x=vehicleStore.get('ship'),s=x.stats;return FP.shipState({dryMassKg:s.dryMassKg+shipCargoMass8A()+materials8a.used(StarfallMining8D.SHIP).massKg+(physical8a.get(START_TRUCK)?.location.kind==='ship'?materials8a.used(StarfallMining8D.TRUCK).massKg:0),fuelKg:x.state.fuelKg,thrustN:s.thrustN,ispS:s.ispS,radiatorAreaM2:s.radiatorAreaM2,emissivity:s.emissivity,temperatureK:x.state.temperatureK});}
 function updateVehicleSystems(dt){
  const elapsed=dt*timeScale;
@@ -1580,7 +1582,7 @@ function frameCargoTransfer8G(action,assetId){
  const n=all.transfers.filter(t=>t.id?.startsWith('frameCargo8g:')).length+1;
  let counter=n;while(all.transfers.some(t=>t.id==='frameCargo8g:'+counter))counter++;
  const jobId='frameCargo8g:'+counter,workJ=StarfallFrameCargo8G.LIMIT.workJ;
- const result=StarfallFrameCargo8G.transfer({jobId,assetId,action,physical:all,bodyId:c.bodyId,
+ const result=StarfallFrameCargo8G.transfer({jobId,assetId,action,physical:all,materials:materials8a.snapshot(),bodyId:c.bodyId,
   shipLocal,evaLocal,bodyRadius:nearest.radius,shipLanded:c.landed,operatorEVA:c.eva,
   unloadLocal,powerReceipt:{operationId:jobId,status:'COMMITTED',
    sourceId:'ship-main:engineering-battery',usedJ:workJ}});
