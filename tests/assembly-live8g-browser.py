@@ -170,7 +170,8 @@ with sync_playwright() as pw:
         # Then use the actual X boarding / WASD input rather than teleporting
         # the vehicle or modifying the authoritative 8A custody directly.
         page.evaluate("""id => STARFALL_DEBUG.placeEvaNearManufactured8G(id)""",frame_id)
-        assert page.evaluate("""() => StarfallRuntime.enterManufactured8G()""") is True
+        page.keyboard.press('x')
+        page.wait_for_function("""id => StarfallRuntime.manufacturedOccupied8G===id""",arg=frame_id,timeout=10000)
         initial_drive=page.evaluate("""id => {
           const s=StarfallRuntime.physical8a.get(id).state;
           return s.batteryEnergyJ ?? s.drive.batteryEnergyJ;
@@ -193,7 +194,8 @@ with sync_playwright() as pw:
         page.keyboard.up('Space')
         stopped=page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.speedMS""",frame_id)
         assert abs(stopped)<.05,'Braking did not reach safe loading speed: '+str(stopped)
-        assert page.evaluate("""() => StarfallRuntime.exitManufactured8G()""") is True
+        page.keyboard.press('x')
+        page.wait_for_function("""() => !StarfallRuntime.manufacturedOccupied8G""",timeout=10000)
         page.locator('#ui21-navigation button[data-route="Engineer"]').click()
         cargo=page.locator('#frame-cargo8g')
         cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
