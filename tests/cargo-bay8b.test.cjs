@@ -26,4 +26,13 @@ assert.deepEqual(Inventory.create(stock.serialize()).get(truck.id).location,stoc
 assert.throws(()=>stock.move(truck.id,{kind:'surface',bodyId:'planet-B',local:[0,0,1]},'secure:2'),/Transfer ID already used/);
 assert.throws(()=>Cargo.snapshot({schema:1,mode:'secured',pose:{x:NaN,y:0,z:0},counter:0}),/Invalid/);
 assert.equal(Cargo.snapshot(Cargo.snapshot()).mode,'secured');
+const advice=(mode,pos,heading)=>Cargo.loadingAdvice(mode,pos,heading);
+assert.match(advice('secured',null,0),/ALREADY SECURED/);
+assert.match(advice('ramp',{x:bay.centerX,z:19,y:Cargo.height(19)},-.9),/STILL ON RAMP/);
+assert.match(advice('ramp',{x:bay.centerX,z:11.2,y:Cargo.height(11.2)},-.9),/fully on cargo deck/);
+assert.match(advice('ground',{x:0,z:bay.rampEndZ+3,y:0},-.9),/OFF-CENTER/);
+assert.match(advice('ground',{x:bay.centerX,z:bay.rampEndZ+15,y:0},-.9),/from BEHIND/);
+assert.match(advice('ground',{x:bay.centerX,z:bay.rampEndZ+3,y:0},.9),/wrong way/);
+assert.match(advice('ground',{x:bay.centerX,z:bay.rampEndZ+3,y:0},-.9),/correctly aligned/);
+assert.equal(Cargo.snapshot().mode,'secured');
 console.log('8B geometry + cargo custody invariants PASS');
