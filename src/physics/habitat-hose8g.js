@@ -72,9 +72,19 @@ function check(a,withPower){
   const lots=a.materials.lots.filter(l=>l.containerId===container.id);
   if(lots.some(l=>l.materialId!==materialId||!good(l.massKg)||!good(l.volumeM3)))
    throw Error('Mixed/invalid gas contamination in the rated vessel');
-  if(lots.reduce((s,l)=>s+l.massKg,0)>container.maxMassKg+EPS||
-     lots.reduce((s,l)=>s+l.volumeM3,0)>container.maxVolumeM3+EPS)
+  const totalGasKg=lots.reduce((s,l)=>s+l.massKg,0),
+    compressedGasM3=lots.reduce((s,l)=>s+l.volumeM3,0);
+  if(totalGasKg>container.maxMassKg+EPS||compressedGasM3>container.maxVolumeM3+EPS)
    throw Error('Overloaded rated gas source vessel');
+  if(totalGasKg>EPS){
+   if(compressedGasM3<=EPS)throw Error('Compressed source gas has no finite volume');
+   // 8E industrial production and 8G N2 fractionation both record the
+   // ideal-gas equivalent volume at 293.15 K and their compression pressure.
+   const modeledSourcePa=(totalGasKg/MOLE_KG[materialId])*8.314462618*293.15/compressedGasM3;
+   if(!good(modeledSourcePa)||modeledSourcePa>v.state.ratedPressurePa+100||
+      modeledSourcePa<100000)
+    throw Error('Compressed gas pressure violates rated source vessel limits');
+  }
   vessels[materialId]={v,container,lots};
  }
  const request=needs(),holds=new Map(),debits=[],shortages=[];
