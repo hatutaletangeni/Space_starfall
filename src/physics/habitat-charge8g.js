@@ -38,8 +38,8 @@ function evaluate(a,requireReceipt){
    !finite(a.bodyRadius)||a.bodyRadius<=0||a.shipLanded!==true||a.operatorEVA!==true||a.shipPowered!==true)
   throw Error('Powered landed ship and physically positioned EVA operator required');
  const arc=(x,y)=>Math.acos(Math.max(-1,Math.min(1,x.reduce((s,n,i)=>s+n*y[i],0))))*a.bodyRadius;
- if(arc(asset.location.local,a.shipLocal)>80||arc(asset.location.local,a.evaLocal)>20)
-  throw Error('Habitat must be within 80 scene units of ship and 20 units of EVA operator');
+ if(arc(asset.location.local,a.shipLocal)>85||arc(asset.location.local,a.evaLocal)>20)
+  throw Error('Habitat must be within 85 scene units of ship and 20 units of EVA operator');
  const requirements=supplies(),taken=[],shortages=[];
  const reserve=new Map();
  for(const op of a.materials.operations){
