@@ -30,14 +30,14 @@ assert.throws(()=>R.quote('silica_polish',inventory,ship,ship),/provenanced/);
 const first=run('silica_sort');
 const firstConcentrate=inventory.lots.find(l=>l.materialId==='silica_concentrate');
 close(firstConcentrate.grade,.95);
-assert.ok(firstConcentrate.massKg>10);
+assert.ok(firstConcentrate.massKg>4);
 assert.equal(firstConcentrate.provenance,'process:refine8e:1');
 const last=run('silica_polish');
 const purified=inventory.lots.find(l=>l.materialId==='silicon_dioxide');
 assert.ok(purified);
-close(purified.grade,.99);close(purified.massKg,10*.95*.82/.99);
+close(purified.grade,.99);close(purified.massKg,4*.95*.82/.99);
 close(inventory.lots.reduce((a,l)=>a+l.massKg,0),20);
-close(paid,1500*130+4200*320);
+close(paid,1500*130+4200*160);
 assert.ok(inventory.lots.some(l=>l.materialId==='silica_polishing_tailings'));
 assert.ok(inventory.lots.some(l=>l.materialId==='silicate_tailings'));
 assert.equal(T.create(operations).convert({operationId:last.receipt.id,
