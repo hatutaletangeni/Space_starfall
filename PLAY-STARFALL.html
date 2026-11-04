@@ -10560,7 +10560,13 @@ Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{
  if(!a||!['rocket_stage_dry','habitat_envelope'].includes(a.type)||
     a.location?.kind!=='surface'||a.location.bodyId!==nearest.id)
   throw Error('No owned on-world structural asset for EVA test placement');
- const local=tangentOffsetLocal(nearest,a.location.local,shipForwardVec||forward,0,-4),
+ if(!shipLocal)throw Error('Test-only EVA placement requires the original landed ship');
+ const separation=Math.acos(Math.max(-1,Math.min(1,V.dot(
+  V.norm(a.location.local),V.norm(shipLocal)))))*nearest.radius;
+ // Place the test EVA 4 scene units toward the ship, never beyond the
+ // existing powered repair umbilical at the far side of the structure.
+ const fraction=Math.min(.5,4/Math.max(separation,1));
+ const local=V.norm(V.add(V.mul(a.location.local,1-fraction),V.mul(shipLocal,fraction))),
    radial=V.norm(V.rot(local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
  evaLocal=local;pos=V.add(nearest.position,V.mul(radial,nearest.radius+groundHeight(local,nearest)+EVA_HEIGHT));
  up=radial;evaForward=[...forward];camEye=null;
