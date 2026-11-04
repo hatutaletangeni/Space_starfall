@@ -31,7 +31,18 @@ with sync_playwright() as p:
         # tab boots; initialize the landed record before that tab's JS starts.
         # A localStorage sentinel survives file:// reloads reliably; sessionStorage may not.
         snapshot=json.dumps(json.dumps(landed_save))
-        context.add_init_script("(()=>{if(localStorage.getItem('t03-fixture-installed'))return;localStorage.setItem('starfall_save',"+snapshot+");localStorage.setItem('t03-fixture-installed','1');})()")
+        # Do not replace a newer real rover/comms save with the old landed
+        # fixture if file:// origin policy drops an auxiliary localStorage key.
+        # The marker alone is insufficient proof that the save is still the
+        # original fixture; inspect actual persisted mission custody first.
+        context.add_init_script("""(()=>{
+          const raw=localStorage.getItem('starfall_save');
+          let state=null;try{state=raw?JSON.parse(raw):null;}catch(_){}
+          if(state?.commsT03?.packets?.length||state?.launch7?.rovers?.length)return;
+          if(localStorage.getItem('t03-fixture-installed'))return;
+          localStorage.setItem('starfall_save',__T03_FIXTURE__);
+          localStorage.setItem('t03-fixture-installed','1');
+        })()""".replace('__T03_FIXTURE__',snapshot))
         # Close the old simulation BEFORE the new one boots. Otherwise its
         # pagehide save can overwrite source-owned launched rover packet state.
         # The init-script now restores the precise landed fixture on the new tab.
