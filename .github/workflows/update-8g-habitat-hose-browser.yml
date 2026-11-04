@@ -1,0 +1,35 @@
+name: STARFALL 8G metered habitat vessel hose browser
+on:
+  push:
+    branches:
+      - feature/update-8g-metered-vessel-habitat-charge
+  pull_request:
+    paths:
+      - 'src/physics/habitat-hose8g.js'
+      - 'src/physics/habitat-hose-ui8g.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/habitat-hose8g*'
+      - '.github/workflows/update-8g-habitat-hose-browser.yml'
+jobs:
+  rated-hose-habitat-commissioning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install offline Chromium WebGL2 harness
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Validate real O2/N2 vessel pressure transfer and durable habitat mass
+        run: |
+          node --check src/physics/habitat-hose8g.js
+          node --check src/physics/habitat-hose-ui8g.js
+          node tests/habitat-hose8g.test.cjs
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          python3 tests/habitat-hose8g-browser.py
