@@ -114,6 +114,22 @@ with sync_playwright() as pw:
         }""",habitat_id)
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("habitat-hose8g")',timeout=45000)
+        # Use the real 8G gantry to carry the oxygen pressure vessel aboard.
+        # The hose must still see the original rated vessel OWN its gas, not
+        # hallucinate a generic oxygen stock lot in the ship hold.
+        page.evaluate("""() => STARFALL_DEBUG.placeEvaNearGasVessel8G('hose-fixture:oxygen')""")
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        crane=page.locator('#gas-vessel-cargo8g')
+        crane.locator('select[aria-label="Select physical nitrogen or oxygen vessel"]').select_option('hose-fixture:oxygen')
+        crane.get_by_role('button',name='WINCH GAS VESSEL INTO SHIP').click()
+        page.wait_for_function("""() =>
+          StarfallRuntime.physical8a.get('hose-fixture:oxygen')?.location?.slot==='engineering-gas-cradle'""",timeout=15000)
+        assert page.evaluate("""() => {
+          const a=StarfallRuntime.physical8a.get('hose-fixture:oxygen');
+          return a.location.kind==='ship'&&
+            StarfallRuntime.materials8a.inventory(a.state.containerId).length===1;
+        }""")
+        # Physically walk back to the fabricated envelope before using the hose.
         page.evaluate("""id => STARFALL_DEBUG.placeEvaNearRepairAsset8G(id)""",habitat_id)
         ready=page.evaluate("""id => StarfallRuntime.habitatHoseQuote8G(id,
           'hose-fixture:oxygen','hose-fixture:nitrogen')""",habitat_id)
