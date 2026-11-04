@@ -25,8 +25,17 @@ function transfer({jobId,assetId,action,physical,bodyId,shipLocal,evaLocal,bodyR
   return {duplicate:true,receipt:copy(prior),physical:copy(physical)};
  }
  const asset=physical.assets.find(x=>x.id===assetId);
- if(!asset||asset.type!=='vehicle_frame'||asset.state?.commissioned===true||asset.state?.operational===true)
-  throw Error('Only incomplete physical 8G frames can be secured in engineering cradle');
+ if(!asset||asset.type!=='vehicle_frame')
+  throw Error('Only manufactured physical 8G frames or activated prototypes fit the cradle');
+ const activated=asset.state?.operational===true||asset.state?.commissioned===true;
+ if(activated&&(!asset.state?.operational||!asset.state?.rideable||
+   asset.state?.activationReceipt?.assetId!==assetId))
+  throw Error('Unverified active vehicle cannot enter ship cradle');
+ const velocity=Number.isFinite(asset.state?.speedMS)?Math.abs(asset.state.speedMS):
+  Math.abs(asset.state?.drive?.speedMS||0);
+ if(activated&&(!Number.isFinite(velocity)||velocity>.05))
+  throw Error('Bring the manufactured vehicle to a complete stop before loading');
+
  if(!valid(asset.massKg)||asset.massKg<=0||!valid(asset.volumeM3)||asset.volumeM3<=0)
   throw Error('Invalid frame mass or volume');
  if(!powerReceipt||powerReceipt.operationId!==jobId||powerReceipt.status!=='COMMITTED'||
