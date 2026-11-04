@@ -7,7 +7,7 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const EPS=1e-8;
-const STATIONS=Object.freeze({assembly:{tools:['kit-fixture']},foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
+const STATIONS=Object.freeze({assembly:{tools:['kit-fixture']},bench:{tools:['hand-shear','bending-brake','glass-cutter']},press:{tools:['manual-press']},foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
 // Illustrative process budgets: W and s, not industrial engineering certification.
 // Mass difference is explicitly returned as scrap/consumable remainder, NEVER destroyed silently.
 const RECIPES=Object.freeze({
@@ -24,7 +24,8 @@ const RECIPES=Object.freeze({
  solar_module:{category:'energy',station:'solar',tool:'module-laminator',inputs:{pv_cells:2,glass:4,aluminum_frame:2,insulated_wire:0.5,encapsulant:0.6},outputs:{solar_module:8.8},powerW:2200,seconds:370,toleranceMm:1},
  // Semiconductor-grade manufacturing only from existing certified feedstocks and equipment.
  pv_cells:{category:'semiconductor',station:'cleanroom',tool:'photolithography',inputs:{electronic_silicon:2,dopant:0.01,process_chemicals:0.5},outputs:{pv_cells:2.15},powerW:12000,seconds:900,toleranceMm:0.001},
- ...(root.StarfallKitRecipes8F?.RECIPES||{})
+ ...(root.StarfallKitRecipes8F?.RECIPES||{}),
+ ...(root.StarfallStockParts8F?.RECIPES||{})
 });
 for(const [id,r] of Object.entries(RECIPES)){
  const input=Object.values(r.inputs).reduce((a,b)=>a+b,0),output=Object.values(r.outputs).reduce((a,b)=>a+b,0);

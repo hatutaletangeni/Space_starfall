@@ -1203,6 +1203,9 @@ function industrialAdvance8E(elapsed){
 }
 function factoryMachine8F(recipeId){
  const r=StarfallManufacturing8F.RECIPES[recipeId];if(!r)throw Error('Unknown 8F part recipe');
+ if(r.station==='bench'&&modularShip8e.describe('fabrication').status==='INSTALLED')
+  return {id:'ship-main:fabrication:low-tech-bench',station:'bench',
+    tools:['hand-shear','bending-brake','glass-cutter'],installed:true,condition:1};
  // The already installed fabrication room also contains a basic assembly jig.
  // It can fit certified complete components into one kit but cannot make chips,
  // motors, furnaces or metals from nothing.

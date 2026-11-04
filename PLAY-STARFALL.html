@@ -7168,7 +7168,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndus
  * No standalone kit acquisition from raw rock, and no imaginary starter chips. */
 (function(root){'use strict';
 const SPECS=Object.freeze({
- machine_kit_cnc:[220,.42,'machine'],machine_kit_grinder:[85,.18,'machine'],
+ machine_kit_cnc:[220,.42,'machine'],machine_kit_manual_press:[50,.22,'manual_press'],machine_kit_grinder:[85,.18,'machine'],
  machine_kit_caster:[260,.68,'foundry'],machine_kit_extruder:[160,.30,'machine'],
  machine_kit_winder:[80,.14,'machine'],machine_kit_motor_fixture:[130,.25,'machine'],
  machine_kit_etcher:[230,.47,'electronics'],machine_kit_solder_station:[65,.12,'electronics'],
@@ -7183,6 +7183,7 @@ const SPECS=Object.freeze({
  vessel_kit_methane:[195,4,'vessel']
 });
 const FRACTIONS=Object.freeze({
+ manual_press:{steel:.66,copper:.12,iron_bracket:.08,glass_panel:.14},
  machine:{steel:.48,copper:.12,aluminum:.08,glass:.04,refractory_block:.10,insulated_wire:.05,electric_motor:.08,control_board:.05},
  electronics:{steel:.36,copper:.17,aluminum:.12,glass:.06,refractory_block:.06,insulated_wire:.08,electric_motor:.06,control_board:.09},
  cleanroom:{steel:.42,copper:.12,aluminum:.10,glass:.08,refractory_block:.12,insulated_wire:.05,electric_motor:.05,control_board:.06},
@@ -7211,6 +7212,30 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallKitRe
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8F — low-tech parts from actual refined raw stocks.
+ * Already fitted ship fabrication bay contains hand shears, a small bending
+ * brake and a guarded glass scoring bench. No motor, chip or industrial plant
+ * is conjured by these tools. All swarf/shards become physical scrap lots.
+ */
+(function(root){'use strict';
+const RECIPES=Object.freeze({
+ copper_busbar:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.5},outputs:{copper_busbar:.48},powerW:420,seconds:95,toleranceMm:.8},
+ copper_contact:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.2},outputs:{copper_contact:.19},powerW:360,seconds:70,toleranceMm:.5},
+ iron_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{iron:.5},outputs:{iron_bracket:.46},powerW:650,seconds:125,toleranceMm:1.1},
+ steel_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{steel:.8},outputs:{steel_bracket:.75},powerW:740,seconds:145,toleranceMm:1},
+ glass_panel:{category:'glazing',station:'bench',tool:'glass-cutter',inputs:{glass:.6},outputs:{glass_panel:.55},powerW:380,seconds:110,toleranceMm:1.2},
+ stamped_steel_plate:{category:'structural_stock',station:'press',tool:'manual-press',inputs:{steel:2},outputs:{stamped_steel_plate:1.92},powerW:980,seconds:180,toleranceMm:.65}
+});
+const kgs=x=>Object.values(x).reduce((a,b)=>a+b,0);
+for(const [key,s] of Object.entries(RECIPES)){
+ if(!(kgs(s.inputs)>kgs(s.outputs))||!Number.isFinite(s.powerW)||s.powerW<=0||s.seconds<=0)
+  throw Error('Invalid finished-stock recipe '+key);
+}
+root.StarfallStockParts8F=Object.freeze({RECIPES});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallStockParts8F;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8F manufacturing core — additive, dependency-free, data-only.
  * Inputs must be real refined lots from 8E, not raw 8C ore.
  * This module does not create stocks or grant machinery on its own.
@@ -7220,7 +7245,7 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const EPS=1e-8;
-const STATIONS=Object.freeze({assembly:{tools:['kit-fixture']},foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
+const STATIONS=Object.freeze({assembly:{tools:['kit-fixture']},bench:{tools:['hand-shear','bending-brake','glass-cutter']},press:{tools:['manual-press']},foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
 // Illustrative process budgets: W and s, not industrial engineering certification.
 // Mass difference is explicitly returned as scrap/consumable remainder, NEVER destroyed silently.
 const RECIPES=Object.freeze({
@@ -7237,7 +7262,8 @@ const RECIPES=Object.freeze({
  solar_module:{category:'energy',station:'solar',tool:'module-laminator',inputs:{pv_cells:2,glass:4,aluminum_frame:2,insulated_wire:0.5,encapsulant:0.6},outputs:{solar_module:8.8},powerW:2200,seconds:370,toleranceMm:1},
  // Semiconductor-grade manufacturing only from existing certified feedstocks and equipment.
  pv_cells:{category:'semiconductor',station:'cleanroom',tool:'photolithography',inputs:{electronic_silicon:2,dopant:0.01,process_chemicals:0.5},outputs:{pv_cells:2.15},powerW:12000,seconds:900,toleranceMm:0.001},
- ...(root.StarfallKitRecipes8F?.RECIPES||{})
+ ...(root.StarfallKitRecipes8F?.RECIPES||{}),
+ ...(root.StarfallStockParts8F?.RECIPES||{})
 });
 for(const [id,r] of Object.entries(RECIPES)){
  const input=Object.values(r.inputs).reduce((a,b)=>a+b,0),output=Object.values(r.outputs).reduce((a,b)=>a+b,0);
@@ -7420,6 +7446,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallFacto
 const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const CAPS=Object.freeze({
  machine_kit_cnc:{station:'machine',tools:['cnc','lathe'],massKg:220,volumeM3:.42,workJ:360000,seconds:300},
+ machine_kit_manual_press:{station:'press',tools:['manual-press'],massKg:50,volumeM3:.22,workJ:110000,seconds:160},
  machine_kit_grinder:{station:'machine',tools:['grinder'],massKg:85,volumeM3:.18,workJ:120000,seconds:140},
  machine_kit_caster:{station:'foundry',tools:['caster'],massKg:260,volumeM3:.68,workJ:420000,seconds:380},
  machine_kit_extruder:{station:'polymer',tools:['extruder'],massKg:160,volumeM3:.30,workJ:250000,seconds:230},
@@ -8891,6 +8918,9 @@ function industrialAdvance8E(elapsed){
 }
 function factoryMachine8F(recipeId){
  const r=StarfallManufacturing8F.RECIPES[recipeId];if(!r)throw Error('Unknown 8F part recipe');
+ if(r.station==='bench'&&modularShip8e.describe('fabrication').status==='INSTALLED')
+  return {id:'ship-main:fabrication:low-tech-bench',station:'bench',
+    tools:['hand-shear','bending-brake','glass-cutter'],installed:true,condition:1};
  // The already installed fabrication room also contains a basic assembly jig.
  // It can fit certified complete components into one kit but cannot make chips,
  // motors, furnaces or metals from nothing.
@@ -14026,6 +14056,7 @@ const guide=[
  ['Industry','8E · Quartz from mining to glass','A finite, two-stage silica production chain is available in Engineer → Refinery. First mine and haul a surveyed silica / quartz-bearing 8C deposit to the existing 8A ship material hold. Choose Silica beneficiation to turn 20 kg of ore into 95%-grade silica_concentrate and explicit silicate tailings. Next, choose Quartz concentrate polishing: this consumes 4 kg of the real 8E-provenanced concentrate and, using more energy and simulated work, produces 99%-grade silicon_dioxide plus silica_polishing_tailings. Physical mass and grade are conserved; the operation cannot start on unverified non-8E concentrate. A separately erected, powered glass furnace can convert this chemically identified silica into glass. In Chemical Plant Control, choose a 25, 50 or 100 mole batch size that fits the actually held silica; 25 mol works after one polish batch. This 99% SiO2 is neither pure elemental silicon nor semiconductor-grade material.','Survey real silica, drill at a physical 8C deposit, haul 20 kg to your ship, complete the first separation stage, then polish a 4 kg lot. A glass furnace requires its own finite built kit and physical electrical supply.','If the first-stage yield is less than 4 kg, mine more silica and run additional cycles. Insufficient grade, full ship hold, no available battery, missing 8E provenance or no installed glass furnace blocks the next stage. Generic regolith is not assumed to contain saleable quartz.'],
  ['Industry','8E · Iron ore, carbon and alloy production','Survey and mine real iron_ore and carbon_feed deposits through 8C/8D; haul actual lots into the ship. Under Engineer → Refinery, run Iron ore concentration on 20 kg of iron_ore. Then run Identify and recover hematite on 2 kg of authentic 8E iron_concentrate at grade 60% or higher; the Fe assay is converted to modeled Fe₂O₃ using its 69.94% elemental iron fraction. Residue retains unrecovered iron. Separately, run Recover carbon from carbon-bearing rock on 10 kg of naturally sourced carbon_feed. Place a real reduction furnace and an independently rated carbon monoxide pressure vessel. In Chemical Plant Control select Hematite reduction, usually 5 mol per batch, so actual iron oxide + carbon yield iron and captured CO. Then select Iron-carbon alloying at 0.1 mol for a small batch of steel; the furnace must have an alloy crucible. All work is powered, timed and conserved. This is a simplified science model; Fe₂O₃ mineral identity and steel microstructure are not validated industrial assays.','Mine, haul, concentrate and recover both ore and carbon. Build physical furnace and CO tank from certified kits. If a deposit has low assay, perform several real mining and processing cycles; no material is gifted.','Missing iron oxide, carbon, power, physical furnace or CO vessel will block smelting. No CO is vented into an imaginary atmosphere. Alloying consumes more carbon and Fe and produces approximate low-carbon steel, not certified automotive or structural steel.'],
  ['Industry','8E · Copper sulfide roasting to usable copper','Mine and haul a finite 8C copper_ore deposit into the ship. Use Engineer → Refinery → Copper ore concentration (20 kg ore) to recover real copper_concentrate. Then run Identify copper(I) sulfide on 2 kg of 8E-made concentrate of grade 25% Cu or higher. The modeled Cu₂S mass accounts for the copper assay and the sulfur mass presumed already in the assayed rock. Build the real reduction furnace and distinct pressure-rated oxygen, sulfur dioxide and carbon dioxide vessels; oxygen must first be produced by the 8E water electrolyzer from finite recovered water. In Chemical Plant Control, use Copper(I) sulfide oxygen roasting (Cu₂S + 2 O₂ → 2 CuO + SO₂), select 1 mol (or a smaller feasible batch), and capture all SO₂. Then run Copper oxide reduction (2 CuO + C → 2 Cu + CO₂) using actual carbon recovered from 8C carbon_feed, with separate CO₂ capture. All real 8A stock and gas-vessel quantities are debited, and the copper can feed the existing wire-drawing workflow. Chemistry is idealized and Cu₂S mineral identification from coarse 8C assay is an assumption, not a verified XRD result.','Survey and mine sulfide copper ore, haul it, concentrate and identify sulfide, commission a reduction furnace, install rated oxygen/SO₂/CO₂ tanks, use real carbon and electrolysis oxygen.','No oxygen tank or sulfur dioxide capture vessel means the roast cannot start. No carbon or carbon dioxide tank means reduction cannot start. All exhaust remains in owned vessels, not imaginary atmospheric disposal. The process energy and yields are simplified.' ],
+ ['Industry','8F · Basic parts and manual press','The existing ship fabrication room now exposes six more real 8F part recipes. Use Engineer → Material Fabrication. Copper busbar and copper contact require previously recovered true copper; iron bracket requires refined iron; steel bracket and manually stamped steel plate require real iron-carbon alloy steel; glass panel requires physically produced glass. The ship bench provides a finite-energy hand shear, bending brake and glass cutter. Each batch produces its requested part and an explicit, physical manufacturing_scrap lot. Build machine_kit_manual_press from 33 kg steel, 6 kg copper, 4 kg already produced iron brackets and 7 kg already produced glass panels. That kit is a 50 kg and 0.22 m³ actual cargo item; install it with Engineer → Physical Machine Installation to activate its manual-press tool and make stamped steel plates from steel. Existing 8A physical machinery, 8E ore products and saved power jobs are reused.','Collect real metal/glass stocks by mining and refinery/plant operations or legitimate stored stock. Manufacture the required number of bracket and panel batches, assemble one certified press kit and install it while landed, powered and at the ship workshop.','This route does not create motors, chips, semiconductors, polymers, aluminum or a fully self-sufficient planet industry. Scrap remains in cargo; equipment installation consumes additional energy and the physical kit only once.'],
  ['Glossary','Engineering terms','Apoapsis: highest orbital point. Periapsis: lowest orbital point. Delta-v: ideal velocity-change capability. TWR: thrust divided by local weight. LOS: line-of-sight radio path. Joule (J): stored energy. Watt (W): energy each second. Telemetry: measured operating data. Calibration: aligning instrument output to a known reference. Biome: environmental region.','None','The game combines physical laws, simplified engineering and clearly fictional warp technology.']
 ];
 const overlay=document.createElement('section');overlay.id='ui21-manual';overlay.hidden=true;overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Starfall Field Manual');

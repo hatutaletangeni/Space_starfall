@@ -3,7 +3,7 @@
  * No standalone kit acquisition from raw rock, and no imaginary starter chips. */
 (function(root){'use strict';
 const SPECS=Object.freeze({
- machine_kit_cnc:[220,.42,'machine'],machine_kit_grinder:[85,.18,'machine'],
+ machine_kit_cnc:[220,.42,'machine'],machine_kit_manual_press:[50,.22,'manual_press'],machine_kit_grinder:[85,.18,'machine'],
  machine_kit_caster:[260,.68,'foundry'],machine_kit_extruder:[160,.30,'machine'],
  machine_kit_winder:[80,.14,'machine'],machine_kit_motor_fixture:[130,.25,'machine'],
  machine_kit_etcher:[230,.47,'electronics'],machine_kit_solder_station:[65,.12,'electronics'],
@@ -18,6 +18,7 @@ const SPECS=Object.freeze({
  vessel_kit_methane:[195,4,'vessel']
 });
 const FRACTIONS=Object.freeze({
+ manual_press:{steel:.66,copper:.12,iron_bracket:.08,glass_panel:.14},
  machine:{steel:.48,copper:.12,aluminum:.08,glass:.04,refractory_block:.10,insulated_wire:.05,electric_motor:.08,control_board:.05},
  electronics:{steel:.36,copper:.17,aluminum:.12,glass:.06,refractory_block:.06,insulated_wire:.08,electric_motor:.06,control_board:.09},
  cleanroom:{steel:.42,copper:.12,aluminum:.10,glass:.08,refractory_block:.12,insulated_wire:.05,electric_motor:.05,control_board:.06},
