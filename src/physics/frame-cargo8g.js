@@ -10,7 +10,7 @@ const EPS=1e-6;
 const LIMIT=Object.freeze({massKg:3500,volumeM3:155,sceneRangeFromShip:55,
  sceneRangeFromEva:30,workJ:30000,slot:'engineering-frame-cradle'});
 function distance(a,b,r){const dot=a.reduce((n,x,i)=>n+x*b[i],0);return Math.acos(Math.max(-1,Math.min(1,dot)))*r;}
-function transfer({jobId,assetId,action,physical,bodyId,shipLocal,evaLocal,bodyRadius,
+function transfer({jobId,assetId,action,physical,materials,bodyId,shipLocal,evaLocal,bodyRadius,
   shipLanded,operatorEVA,powerReceipt,unloadLocal}){
  if(!id(jobId)||!id(assetId)||!id(bodyId)||!['load','unload'].includes(action))
   throw Error('Invalid 8G cargo operation');
@@ -52,7 +52,15 @@ function transfer({jobId,assetId,action,physical,bodyId,shipLocal,evaLocal,bodyR
   // The existing unique 8B truck cargo is unchanged. All real ship-stowed
   // physical objects count toward its mass/volume envelope, including truck.
   const stowed=physical.assets.filter(x=>x.id!==assetId&&x.location?.kind==='ship'&&x.type!=='ship');
-  const mass=stowed.reduce((s,x)=>s+x.massKg,0),volume=stowed.reduce((s,x)=>s+x.volumeM3,0);
+  const gasKg=stowed.filter(x=>x.type==='industrial_vessel').reduce((total,vessel)=>{
+   const cid=vessel.state?.containerId;
+   if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||
+       !materials.containers?.some(x=>x.id===cid&&x.ownerId===vessel.id))
+    throw Error('Cannot load a frame without accounting for all onboard rated gas');
+   return total+materials.lots.filter(l=>l.containerId===cid).reduce((n,l)=>n+l.massKg,0);
+  },0);
+  const mass=stowed.reduce((s,x)=>s+x.massKg,0)+gasKg,
+        volume=stowed.reduce((s,x)=>s+x.volumeM3,0);
   if(mass+asset.massKg>LIMIT.massKg+EPS||volume+asset.volumeM3>LIMIT.volumeM3+EPS)
    throw Error('Engineering cradle exceeds shared rated ship cargo capacity');
   if(stowed.some(x=>x.type==='vehicle_frame'))throw Error('Engineering cradle already occupied by a frame');

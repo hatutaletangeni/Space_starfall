@@ -1,0 +1,35 @@
+name: STARFALL 8G rated gas vessel cargo browser
+on:
+  push:
+    branches:
+      - feature/update-8g-rated-gas-vessel-transport
+  pull_request:
+    paths:
+      - 'src/physics/gas-vessel-cargo8g.js'
+      - 'src/physics/gas-vessel-cargo-ui8g.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/gas-vessel-cargo8g*'
+      - '.github/workflows/update-8g-gas-cargo-browser.yml'
+jobs:
+  gas-vessel-custody:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install offline Chromium/WebGL harness
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Validate source, 8A wet-mass capacity, real browser roundtrip and standalone
+        run: |
+          node --check src/physics/gas-vessel-cargo8g.js
+          node --check src/physics/gas-vessel-cargo-ui8g.js
+          node tests/gas-vessel-cargo8g.test.cjs
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          python3 tests/gas-vessel-cargo8g-browser.py
