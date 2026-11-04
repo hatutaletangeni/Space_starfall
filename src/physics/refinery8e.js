@@ -18,6 +18,11 @@ const MODES=Object.freeze({
   targetElementFraction:1,massKg:10,powerW:2600,seconds:230,
   capability:'mechanical_separator'},
   copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
+ copper_sulfide_identification:{label:'Identify copper(I) sulfide from copper concentrate',
+  material:'copper_concentrate',product:'copper_sulfide',residue:'sulfide_mineralogy_tailings',
+  targetGrade:1,targetElementFraction:(2*63.546)/(2*63.546+32.06),
+  recovery:.78,massKg:2,powerW:3400,seconds:220,capability:'mechanical_separator',
+  minSourceGrade:.25,requiresProcessProvenance:true},
  silica_sort:{label:'Silica beneficiation',material:'silica',product:'silica_concentrate',residue:'silicate_tailings',targetGrade:.95,recovery:.82,massKg:20,powerW:1500,seconds:130,capability:'mechanical_separator'},
  silica_polish:{label:'Quartz concentrate polishing',material:'silica_concentrate',
   product:'silicon_dioxide',residue:'silica_polishing_tailings',targetGrade:.99,recovery:.82,
@@ -69,7 +74,9 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
   inputKg:spec.massKg,inputGrade:lot.grade,product:spec.product,productKg:outputKg,
   targetElementFraction:productElementFraction,
   productGrade:spec.targetGrade,residue:spec.residue,residueKg,energyJ:spec.powerW*spec.seconds,
-  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='iron_mineralogy'?
+  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='copper_sulfide_identification'?
+  'Copper assay converted to an idealized chalcocite (Cu2S) phase using its elemental Cu fraction. Assumes sulfide mineralogy; sulfur must be contained in the source rock, not created.' :
+  mode==='iron_mineralogy'?
   'Idealized hematite identification from Fe-assayed concentrated rock. Assumes Fe2O3-bearing lithology; requires real upstream concentrate. Fe element conserved, oxygen comes from the original rock. Not proof of mineral identity by spectroscopy.' :
   mode==='carbon_recovery'?
   'Concentrates finite naturally present carbon mass; does not manufacture coke, graphite or chemicals. Residues retain unrecovered carbon.' :
