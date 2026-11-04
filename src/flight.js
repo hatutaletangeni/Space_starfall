@@ -1360,7 +1360,14 @@ function miningAdvance8D(dt){
  }catch(error){console.error('8D operation paused:',error);}
 }
 function truckSystems(){const truck=truckWorldState(),robot=roverWorldState(),body=nearest;
- if(!truck||!body)return{available:false};const dist=robot&&roverBody===body?V.len(V.sub(truck.position,robot.position)):Infinity;
+ if(!truck||!body)return{available:false};
+ // When secured inside the spacecraft the truck has a ship-local cargo
+ // pose but NO planet-fixed local radial direction. Do not use surface
+ // terrain functions until the same persistent truck is unloaded.
+ if(!truckLocal||!truckBody||truckBody!==body)
+  return{available:false,stored:cargo8b.mode==='secured'||cargo8b.mode==='ramp',
+   cargoMode:cargo8b.mode,assetId:START_TRUCK};
+ const dist=robot&&roverBody===body?V.len(V.sub(truck.position,robot.position)):Infinity;
  const at=truckLocal,frontLocal=tangentOffsetLocal(body,at,truck.forward,25,0),elevation=groundHeight(frontLocal,body)-groundHeight(at,body);
  return{available:true,bodyId:body.id,batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo+materials8a.used(StarfallMining8D.TRUCK).massKg,minedCargoKg:materials8a.used(StarfallMining8D.TRUCK).massKg,scienceRoverDistance:dist,winch:winch7d?{...winch7d}:null,service:StarfallFieldServiceT12.diagnosis({service:localServiceT12,health:vehicleStore.get('rover').state.health}),forwardSlopeDeg:Math.atan2(elevation,25)*180/Math.PI,terrain:StarfallBiomes.classify(body,at,groundHeight(at,body),Starfall3D.field(at,body.seed)).name};}
 function truckWinch(){

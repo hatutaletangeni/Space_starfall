@@ -26,10 +26,15 @@ with sync_playwright() as p:
         page=context.new_page()
         errors=[]
         network=[]
-        page.on('pageerror',lambda e:errors.append(str(e)))
+        page.on('pageerror',lambda e:errors.append(str(e.stack or e)))
         page.on('request',lambda r:network.append(r.url) if r.url.startswith(('http://','https://')) else None)
         page.goto(TARGET.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallIntegration && window.StarfallLaunchUI && window.StarfallScienceUI && window.StarfallImagingUI7F)",timeout=30000)
+
+        # A single expedition truck stays in ship cargo at a fresh launch.
+        # Terrain/slope calculations MUST NOT access a null planet-fixed pose.
+        truck_state=page.evaluate("()=>window.StarfallRuntime.truckSystems()")
+        assert not truck_state['available'] and truck_state['stored'],truck_state
 
         # Actual application event handlers, no stubbed UI state; only invoke DOM
         # elements programmatically if their parent drawer is collapsed.
@@ -46,7 +51,7 @@ with sync_playwright() as p:
         for opener,dialog,closer in panels:
             assert page.locator('#'+opener).count()==1,opener
             page.locator('#'+opener).evaluate('(el)=>el.click()')
-            assert page.locator('#'+dialog).evaluate('(el)=>!el.hidden'),dialog
+            assert page.locator('#'+dialog).evaluate('(el)=>!el.hidden'), (dialog, 'pageerrors', errors[-5:], 'ui-state', page.evaluate('''()=>({launched:!document.getElementById('launch-dialog').hidden,route:document.querySelector('#ui21-navigation button[aria-current="true"]')?.dataset.route,toolsOpen:document.body.classList.contains('ui20-tools-open')})'''))
             visited.append(dialog)
             page.locator('#'+closer).evaluate('(el)=>el.click()')
             assert page.locator('#'+dialog).evaluate('(el)=>el.hidden'),dialog+' did not close'
