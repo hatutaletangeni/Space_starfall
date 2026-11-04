@@ -12,7 +12,7 @@ const MODES=Object.freeze({
  silica_sort:{label:'Silica beneficiation',material:'silica',product:'silica_concentrate',residue:'silicate_tailings',targetGrade:.95,recovery:.82,massKg:20,powerW:1500,seconds:130,capability:'mechanical_separator'},
  silica_polish:{label:'Quartz concentrate polishing',material:'silica_concentrate',
   product:'silicon_dioxide',residue:'silica_polishing_tailings',targetGrade:.99,recovery:.82,
-  massKg:10,powerW:4200,seconds:320,capability:'mechanical_separator',minSourceGrade:.95,
+  massKg:4,powerW:4200,seconds:160,capability:'mechanical_separator',minSourceGrade:.95,
   requiresProcessProvenance:true},
  ice_recovery:{label:'Heated water extraction',material:'water_ice',product:'water',residue:'hydrated_residue',targetGrade:1,recovery:.80,massKg:10,powerW:3500,seconds:240,capability:'ice_recovery'}
 });
