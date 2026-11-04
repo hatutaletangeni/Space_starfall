@@ -41,7 +41,7 @@ const args={jobId:'plant8e:assembly-pad-1',assetId:'facility8e:assembly-pad-1',
 const installed=Site.install(args);
 assert.equal(installed.machine.type,'industrial_plant');
 assert.equal(installed.machine.state.station,'vehicle_assembly');
-assert.equal(installed.machine.state.installed,true);
+assert.equal(installed.machine.state.enabled,true);
 assert.deepEqual(installed.machine.state.tools,kit.tools);
 assert.equal(installed.physical.assets.filter(a=>a.type==='truck').length,1);
 assert.equal(installed.physical.assets.filter(a=>a.type==='science-rover').length,1);
