@@ -14,8 +14,9 @@ const model=A.create();model.registerContainer({id:ship,ownerId:'ship-main',maxM
 model.importLot({id:'8d:mined-quartz:1',containerId:ship,materialId:'silica',massKg:20,
   volumeM3:.012,grade:.7,provenance:'8d:8c:surveyed-quartz-site'});
 let inventory=model.snapshot(),operations=T.create().snapshot(),paid=0;
+const factory=R.create();
 function run(mode){
- const factory=R.create(),job=factory.start({mode,materials:inventory,sourceContainerId:ship,
+ const job=factory.start({mode,materials:inventory,sourceContainerId:ship,
   outputContainerId:ship,workshopInstalled:true,shipLanded:true,shipBodyId:'world1',
   powerEnabled:true,batteryJ:10e6});
  while(factory.active.elapsedS+1e-8<job.seconds){
