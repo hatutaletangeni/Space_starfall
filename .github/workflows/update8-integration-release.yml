@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - release/update8-industrial-integration-candidate
+      - feature/update-8g-vehicle-factory-inspector
   pull_request:
     branches:
       - main
@@ -71,6 +72,8 @@ jobs:
         run: python tests/modular-ship8e-walk-browser.py
       - name: Browser smoke physical mining/cargo and UI
         run: python tests/mining-hauling8d-browser.py
+      - name: Browser 8G truck locator / no-spawn assembly preflight
+        run: python tests/assembly-inspector8g-browser.py
       - name: Screenshots and failure diagnostics
         if: always()
         uses: actions/upload-artifact@v4
