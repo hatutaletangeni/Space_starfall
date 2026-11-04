@@ -4,6 +4,7 @@ on:
     branches:
       - feature/update-8g-live-assembly-runtime
       - release/update-8g-hardware-clearance-current-main
+      - feature/update-8g-manufactured-frame-transport
   pull_request:
     paths:
       - 'src/physics/*8g.js'
