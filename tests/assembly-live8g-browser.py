@@ -115,6 +115,39 @@ with sync_playwright() as pw:
         })""")
         assert persisted=={'frames':1,'receipts':1,'trucks':1},persisted
         assert not errors,errors
-        print('PASS 8G file:// browser: actual Engineer UI paid for one finite chassis, original truck conserved, 200 kJ debited, frame and receipt survive reload')
+        page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=30000)
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        cargo=page.locator('#frame-cargo8g')
+        frame_id=made['frames'][0]['id']
+        cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
+        cargo.get_by_role('button',name='WINCH FRAME INTO SHIP').click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.location?.slot==='engineering-frame-cradle'""",arg=frame_id,timeout=15000)
+        after_load=page.evaluate("""id => ({
+          custody:StarfallRuntime.physical8a.get(id).location,
+          truck:StarfallRuntime.physical8a.get('truck-expedition-001').location,
+          receipt:StarfallRuntime.physical8a.serialize().transfers.filter(x=>x.reason==='8G_FRAME_LOAD'),
+          cargoMass:StarfallRuntime.shipCargoMass8A()
+        })""",frame_id)
+        assert len(after_load['receipt'])==1,after_load
+        assert after_load['receipt'][0]['energyJ']==30000,after_load
+        assert after_load['truck']==fixture['truck'],'Loading frame moved or duplicated original truck'
+        assert after_load['cargoMass']>=made['frames'][0]['massKg']
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=40000)
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        cargo=page.locator('#frame-cargo8g')
+        cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
+        cargo.get_by_role('button',name='UNLOAD FRAME ONTO CLEAR GROUND').click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.location?.kind==='surface'""",arg=frame_id,timeout=15000)
+        after_unload=page.evaluate("""id => ({
+          frame:StarfallRuntime.physical8a.get(id),
+          trucks:StarfallRuntime.physical8a.list().filter(x=>x.id==='truck-expedition-001'),
+          moves:StarfallRuntime.physical8a.serialize().transfers.filter(x=>x.reason?.startsWith('8G_FRAME_'))
+        })""",frame_id)
+        assert len(after_unload['moves'])==2,after_unload
+        assert len(after_unload['trucks'])==1 and after_unload['trucks'][0]['location']==fixture['truck']
+        assert after_unload['frame']['state']['operational'] is False
+        assert not errors,errors
+        print('PASS 8G file:// Chromium: manufactured frame built, conserved, loaded in dedicated cradle, paid energy, restored and unloaded; original truck untouched')
     finally:
         browser.close()
