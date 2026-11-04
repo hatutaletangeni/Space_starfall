@@ -66,7 +66,7 @@ const alloy=materials.lots.find(l=>l.materialId==='steel');
 assert.ok(alloy&&alloy.grade===1);
 close(alloy.massKg,(99*55.845+12.011)*.1/1000);
 assert.ok(energy>1e7);
-assert.equal(Plant.create(operations).process({id:'react:steel_alloying',materials}).duplicate,true);
+assert.equal(Plant.create(operations).process({id:'react:steel_alloying',sourceContainerId:hold,materials}).duplicate,true);
 assert.throws(()=>Refinery.quote('iron_mineralogy',{
  ...ledger.snapshot(),lots:[{id:'forged',containerId:hold,materialId:'iron_concentrate',
  massKg:4,volumeM3:.004,grade:1,provenance:'unverified'}]
