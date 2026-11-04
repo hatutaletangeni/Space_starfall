@@ -1,0 +1,31 @@
+'use strict';
+const assert=require('node:assert/strict'),Assembly=require('../src/physics/assembly8g.js');
+const Contract=require('../src/physics/vehicle-assembly-contract8g.js');
+const parts=Assembly.DEFINITIONS.truck.parts;
+const lots=Object.entries(parts).map(([materialId,massKg],i)=>({id:'made:'+i,materialId,massKg,volumeM3:massKg*.001,grade:1,provenance:'fabricated:8f',containerId:'ship-hold'}));
+const materials={schema:1,containers:[{id:'ship-hold',ownerId:'ship-main',maxMassKg:9000,maxVolumeM3:16}],lots,operations:[]};
+const physical={schema:1,assets:[{id:'truck-expedition-001',type:'truck',location:{kind:'ship',slot:'starboard-hangar'}},
+{id:'pad-1',type:'industrial_plant',location:{kind:'surface',bodyId:'planet',local:[0,1,0]},condition:1,state:{station:'vehicle_assembly',enabled:true}}]};
+const args={jobId:'frame-2',blueprintId:'truck',facilityId:'pad-1',containerId:'ship-hold',
+bodyId:'planet',local:[0,1,0],materials,physical,powerReceipt:{operationId:'frame-2',status:'COMMITTED',sourceId:'ship-battery',usedJ:200000}};
+const previous=JSON.stringify({materials,physical});
+assert.equal(Contract.create().quote(args).ready,true);
+const result=Contract.create().stage(args);
+assert.equal(JSON.stringify({materials,physical}),previous);
+assert.equal(result.physical.assets.filter(x=>x.type==='truck').length,1);
+assert.equal(result.physical.assets.find(x=>x.id==='frame-2').state.operational,false);
+assert.equal(result.physical.assets.find(x=>x.id==='frame-2').type,'vehicle_frame');
+assert.equal(result.receipt.massKg,Object.values(parts).reduce((s,x)=>s+x,0));
+assert.equal(result.materials.lots.length,0);
+assert.equal(Contract.create(result.assembly).stage({...args,materials:result.materials,physical:result.physical}).duplicate,true);
+assert.throws(()=>Contract.create(result.assembly).stage({...args,blueprintId:'science_rover'}),/reused/);
+assert.throws(()=>Contract.create().stage({...args,powerReceipt:{...args.powerReceipt,status:'PENDING'}}),/electrical/);
+assert.throws(()=>Contract.create().stage({...args,physical:{...physical,assets:physical.assets.slice(0,1)}}),/assembly pad/);
+assert.throws(()=>Contract.create().stage({...args,physical:{...physical,assets:[...physical.assets,{id:'frame-2'}]}}),/Duplicate/);
+assert.throws(()=>Contract.create().stage({...args,bodyId:'alien'}),/assembly pad/);
+const reserved={...materials,operations:[{status:'RESERVED',lotId:'made:0',massKg:1}]};
+assert.equal(Contract.create().quote({...args,materials:reserved}).ready,false);
+assert.throws(()=>Contract.create().stage({...args,materials:reserved}),/Missing certified/);
+const low={...materials,lots:materials.lots.map((x,i)=>i===0?{...x,grade:.6}:x)};
+assert.equal(Contract.create().quote({...args,materials:low}).ready,false);
+console.log('PASS 8G: non-operational conserved chassis, exact source lot debits, persisted receipt, reserved stock and existing truck preserved');
