@@ -8090,6 +8090,7 @@ const originalTruckCargo8B=StarfallTruckCustody8B.restore(saved?.shipCargo8b,phy
 let cargo8b=originalTruckCargo8B.cargo;
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
+let vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(session.vehicleAssembly8g);
 let resources8c=StarfallResources8C.create(session.resources8c);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
 let transformation8e=StarfallTransformation8E.create(session.transformations8e);
@@ -8714,7 +8715,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),resources8c:resources8c.serialize(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -9206,6 +9207,51 @@ function industrialInstall8E(kitLotId,front=24,right=0){
  saveFlight();showToast('8E · '+result.machine.type+' erected from physical kit');
  return result.receipt;
 }
+function assemblyContext8G(){
+ const c=outpostContext(),ship=vehicleStore.get('ship');
+ return {bodyId:c.bodyId,landed:!!c.landed,eva:!!c.eva&&!truckOccupied&&!shipWalking8e,
+  powered:!!ship.state.powerEnabled,energyJ:Math.max(0,ship.state.energyJ),
+  padIds:physical8a.list().filter(a=>a.type==='industrial_plant'&&a.state?.station==='vehicle_assembly'&&
+   a.location?.kind==='surface'&&a.location.bodyId===c.bodyId).map(a=>a.id)};
+}
+function assemblyQuote8G(blueprintId,facilityId){
+ const c=assemblyContext8G();
+ if(!['truck','science_rover'].includes(blueprintId))throw Error('Unsupported 8G surface vehicle blueprint');
+ if(!c.landed||!c.eva||!c.powered||!shipLocal||!evaLocal)throw Error('Land, power ship and walk EVA to assembly site');
+ const facility=physical8a.get(facilityId);
+ if(!facility||facility.location?.kind!=='surface'||facility.location.bodyId!==c.bodyId)
+  throw Error('Selected assembly pad not on this world');
+ const arc=(a,b)=>Math.acos(Math.max(-1,Math.min(1,V.dot(V.norm(a),V.norm(b)))))*nearest.radius;
+ if(arc(evaLocal,facility.location.local)>35||arc(shipLocal,facility.location.local)>80)
+  throw Error('Operator >35 m or ship power umbilical >80 m from assembly pad');
+ return StarfallVehicleAssemblyContract8G.create(vehicleAssembly8g.snapshot()).quote({
+  jobId:'vehicle8g:preview',blueprintId,facilityId,containerId:StarfallMining8D.SHIP,bodyId:c.bodyId,
+  local:facility.location.local,materials:materials8a.snapshot(),physical:physical8a.serialize(),
+  powerReceipt:{operationId:'vehicle8g:preview',status:'COMMITTED',sourceId:'ship-main:engineering-battery',usedJ:200000}});
+}
+function assemblyStage8G(blueprintId,facilityId){
+ const q=assemblyQuote8G(blueprintId,facilityId),c=assemblyContext8G();
+ if(!q.ready)throw Error('Missing manufactured parts: '+q.shortages.map(x=>x.materialId+' '+x.missingKg.toFixed(2)+' kg').join(', '));
+ if(c.energyJ<200000)throw Error('Assembly requires 200000 J of real ship battery energy');
+ const facility=physical8a.get(facilityId),all=physical8a.list();let n=1;
+ while(all.some(x=>x.id==='vehicle8g:'+n)||vehicleAssembly8g.snapshot().receipts.some(x=>x.id==='vehicle8g:'+n))n++;
+ const jobId='vehicle8g:'+n;
+ const output=vehicleAssembly8g.stage({jobId,blueprintId,facilityId,containerId:StarfallMining8D.SHIP,
+  bodyId:c.bodyId,local:facility.location.local,materials:materials8a.snapshot(),
+  physical:physical8a.serialize(),powerReceipt:{operationId:jobId,status:'COMMITTED',
+   sourceId:'ship-main:engineering-battery',usedJ:200000}});
+ // Validate all next ledgers before modifying runtime state. This is one synchronous
+ // transaction, followed by durable save; no new truck may enter legacy controls.
+ const newMaterials=StarfallMaterials8A.create(output.materials);
+ const newPhysical=StarfallPhysical8A.create(output.physical);
+ const ship=vehicleStore.get('ship');
+ if(ship.state.energyJ<200000)throw Error('Battery energy changed before commit');
+ materials8a=newMaterials;physical8a=newPhysical;
+ vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(output.assembly);
+ vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-200000});
+ saveFlight();showToast('8G · Manufactured non-operational '+blueprintId+' frame '+jobId);
+ return output.receipt;
+}
 function industrialEquipment8E(reactionId,assetId){
  const recipe=StarfallIndustrialChemistry8E.reactions[reactionId];
  if(!recipe)throw Error('Unknown chemical reaction');
@@ -9695,7 +9741,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -14638,9 +14684,26 @@ select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;
 for(const [key,d] of Object.entries(root.StarfallAssembly8G.DEFINITIONS)){
  const x=document.createElement('option');x.value=key;x.textContent=key.replace(/_/g,' ').toUpperCase()+' / '+d.facility;select.append(x);
 }
+const pad=document.createElement('select');pad.setAttribute('aria-label','Physical assembly pad');
+pad.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:9px;max-width:100%';
+const stage=document.createElement('button');stage.type='button';stage.className='science-action';
+stage.textContent='ASSEMBLE REAL FRAME (200 kJ · NOT DRIVABLE)';
+const stageStatus=document.createElement('p');stageStatus.className='panel-note';stageStatus.setAttribute('role','status');
+stageStatus.textContent='Requires powered landed ship, astronaut EVA within 35 m, a physical pad and a certified parts bill. No truck duplication.';
 const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font:11px/1.55 Consolas,monospace;background:#101b23;color:#c8d9d9;border:1px solid #53677566;padding:12px;max-height:340px;overflow:auto';
 function refresh(){
  const rt=root.StarfallRuntime;if(!rt?.physical8a||!rt?.materials8a)return;
+ const ctx=rt.assemblyContext8G?.(),pads=ctx?.padIds||[],oldPad=pad.value;
+ const current=[...pad.options].map(x=>x.value).join('|'),next=pads.join('|');
+ if(current!==next){pad.replaceChildren();
+  for(const id of pads){const opt=document.createElement('option');opt.value=id;opt.textContent='PAD · '+id;pad.append(opt);}
+  if(pads.includes(oldPad))pad.value=oldPad;}
+ let liveQuote=null,liveError='';
+ try{if(pad.value&&['truck','science_rover'].includes(select.value))liveQuote=rt.assemblyQuote8G(select.value,pad.value);}
+ catch(e){liveError=String(e.message||e);}
+ stage.disabled=!liveQuote?.ready||!ctx?.powered||ctx.energyJ<200000;
+ stage.title=liveQuote?.ready?'Consumes certified parts and 200000 J into one NON-OPERATIONAL frame':liveError||'Missing physical pad or parts';
+
  const truck=rt.physical8a.get('truck-expedition-001'),l=truck?.location;
  where.textContent=!truck?'NO EXPEDITION TRUCK IN CUSTODY — restore previous save rather than spawning another':
   l.kind==='ship'?'TRUCK: SECURED IN STARBOARD CARGO BAY. Land on flat terrain; walk out the aft crew ramp, press B at the right-hand WIDE cargo ramp, X to enter, S to reverse. Rack: '+rt.cargo8b?.mode:
@@ -14662,8 +14725,17 @@ function refresh(){
  }catch(e){pre.textContent='Inspection unavailable: '+String(e.message||e);}
 }
 button.addEventListener('click',()=>root.StarfallInventoryUI8A?.open?.());
+stage.addEventListener('click',()=>{
+ try{
+  const rt=root.StarfallRuntime,receipt=rt.assemblyStage8G(select.value,pad.value);
+  stageStatus.textContent='ASSEMBLED '+receipt.assetId+' · '+receipt.massKg.toFixed(2)+' kg · '+receipt.status+
+   '. Conserved physical frame; NOT DRIVABLE until steering, brakes, powertrain and 3D collision are validated.';
+ }catch(e){stageStatus.textContent='BLOCKED: '+String(e.message||e);}
+ refresh();
+});
+pad.addEventListener('change',refresh);
 select.addEventListener('change',refresh);
-panel.append(h,explain,button,where,select,pre);host.append(panel);
+panel.append(h,explain,button,where,select,pad,stage,stageStatus,pre);host.append(panel);
 let last=0;function tick(){const t=performance.now();if(t-last>=900){last=t;refresh();}requestAnimationFrame(tick);}tick();
 root.StarfallAssemblyInspectorUI8G={refresh};
 })(globalThis);
