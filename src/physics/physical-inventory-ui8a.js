@@ -22,13 +22,38 @@ const redraw=()=>{const a=runtime()?.physical8a?.list()||[];
   const u=model.used(c.id);return c.id+' · '+u.massKg.toFixed(2)+'/'+c.maxMassKg+' kg · '+u.volumeM3.toFixed(3)+'/'+c.maxVolumeM3+' m³';
  }).join('\n'):'No material storage commissioned yet.');
  const bay=runtime()?.cargo8b,attached=runtime()?.shipCargoMass8A?.()||0;
+ const truck=runtime()?.physical8a?.get('truck-expedition-001'),shipBodyId=runtime()?.engineeringAssetPoses?.()?.shipPose?.bodyId;
+ const truckCustody=root.StarfallTruckCustody8B?.description(truck,bay,shipBodyId)||'Truck custody inspector not loaded.';
+ const truckLine='\\n\\nEXPEDITION TRUCK — AUTHORITATIVE CUSTODY\\n'+truckCustody+'\\n';
  status.textContent='8B VEHICLE RACK · '+(bay?.mode||'UNAVAILABLE').toUpperCase()+
   ' · ONBOARD DRY CARGO '+attached.toFixed(0)+' kg\n'+heading+
-  (vehicleText||'No vehicle data')+stockText+binsText;};
+  (vehicleText||'No vehicle data')+truckLine+stockText+binsText;};
 const shut=()=>{shell.hidden=true;btn.focus();};
 btn.addEventListener('click',()=>{redraw();shell.hidden=false;close.focus();});
 close.addEventListener('click',shut);shell.addEventListener('click',e=>{if(e.target===shell)shut();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!shell.hidden){e.preventDefault();e.stopPropagation();shut();}},true);
 pane.append(heading,note,status,close);shell.append(pane);document.body.append(shell);host.append(btn);
+// Legacy 7B Asset Manager has a separate registry. Display the authoritative
+// 8A truck status there too so a ship-stowed truck is not mistaken as deleted.
+const legacy=document.getElementById('asset-manager');
+if(legacy){
+ const truth=document.createElement('p');
+ truth.id='truck-custody8b-asset-manager';
+ truth.setAttribute('role','status');
+ truth.style.cssText='white-space:pre-wrap;font:12px/1.45 monospace;padding:10px;margin:10px;border:1px solid #b1a169;color:#eef3ed;background:#14232a';
+ truth.textContent='Authoritative truck custody checking…';
+ const target=legacy.querySelector('#asset-list')||legacy.querySelector('#asset-detail')||legacy;
+ target.parentNode.insertBefore(truth,target);
+ const update=()=>{
+  const rt=runtime(),truck=rt?.physical8a?.get('truck-expedition-001');
+  truth.textContent='8A PHYSICAL INVENTORY (separate from legacy Asset Manager): '+
+   (root.StarfallTruckCustody8B?.description(truck,rt?.cargo8b,
+    rt?.engineeringAssetPoses?.()?.shipPose?.bodyId)||'UNAVAILABLE');
+ };
+ const open=()=>{if(!legacy.hidden)update();};
+ document.getElementById('asset-open')?.addEventListener('click',open);
+ document.getElementById('asset-refresh')?.addEventListener('click',open);
+ update();
+}
 root.StarfallInventoryUI8A={open:()=>btn.click(),refresh:redraw};
 })(globalThis);

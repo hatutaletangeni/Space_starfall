@@ -6612,6 +6612,36 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallCargo
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* 8B: custody reconciliation. Never spawn or move the truck. */
+(function(root){'use strict';
+function restore(saved,truck,landedBodyId){
+ const cargo=root.StarfallCargo8B.snapshot(saved),B=root.StarfallCargo8B.BAY;
+ if(!truck)return {cargo,issue:'MISSING'};
+ if(truck.location?.kind==='ship'){
+  if(cargo.mode==='secured')return {cargo,issue:null};
+  return {cargo:{...cargo,mode:'secured',pose:{x:B.centerX,z:5.7,y:B.floorY}},issue:'REPAIRED'};
+ }
+ if(truck.location?.kind==='surface'){
+  const mode=cargo.mode==='ramp'&&truck.location.bodyId===landedBodyId?'ramp':'ground';
+  return {cargo:{...cargo,mode},issue:mode===cargo.mode?null:'REPAIRED'};
+ }
+ return {cargo,issue:'UNSUPPORTED'};
+}
+function description(truck,cargo,landedBodyId){
+ if(!truck)return 'TRUCK MISSING FROM AUTHORITATIVE INVENTORY. No vehicle was created. Restore a previous backup.';
+ if(truck.location?.kind==='ship')
+  return 'TRUCK truck-expedition-001 IS SECURED INSIDE SHIP STARBOARD CARGO BAY (not listed under planetary assets). Land, walk EVA to wide right-hand ramp, press B to RELEASE. If hidden behind hull, use this physical custody record.';
+ if(truck.location?.kind==='surface')
+  return 'TRUCK truck-expedition-001 ON PLANET '+truck.location.bodyId+
+   (truck.location.bodyId===landedBodyId?' (this world)':' (DIFFERENT WORLD—cannot remotely deploy)')+
+   ' / ramp '+cargo.mode+'. Return to its actual planet; no duplicate will spawn.';
+ return 'Truck custody location invalid; restore a backup.';
+}
+root.StarfallTruckCustody8B=Object.freeze({restore,description});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallTruckCustody8B;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8D — finite physical extraction and hauling transactions.
  * Does not fabricate starting ore, overwrite terrain, or create independent truck cargo.
  * 8A inventory and 8C depletion are atomically simulated on clones before both
@@ -7780,8 +7810,10 @@ const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
 const session=SF.load(),saved=session.flightGalaxy;
 let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
-const BAY8B=StarfallCargo8B;let cargo8b=BAY8B.snapshot(saved?.shipCargo8b);
-if(physical8a.get(START_TRUCK)?.location.kind==='surface'&&cargo8b.mode==='secured')cargo8b.mode='ground';
+const BAY8B=StarfallCargo8B;
+const originalTruckCargo8B=StarfallTruckCustody8B.restore(saved?.shipCargo8b,physical8a.get(START_TRUCK),saved?.attached||null);
+let cargo8b=originalTruckCargo8B.cargo;
+if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
 let resources8c=StarfallResources8C.create(session.resources8c);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
@@ -8053,11 +8085,23 @@ function cargoInteract8B(){
  if(V.len(V.sub(pos,access))>35)return false;
  if(!cargoRampReady8B()){showToast('8B · CARGO RAMP TERRAIN BLOCKED — reland on flatter ground');return true;}
  const a=physical8a.get(START_TRUCK);
+ const reconciled=StarfallTruckCustody8B.restore(cargo8b,a,shipBody?.id||null);
+ if(reconciled.issue==='MISSING'||reconciled.issue==='UNSUPPORTED'){
+  showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody?.id||null));return true;
+ }
+ if(reconciled.issue){
+  cargo8b=reconciled.cargo;
+  showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody?.id||null));
+  saveFlight();return true;
+ }
+ if(a.location.kind==='surface'&&a.location.bodyId!==shipBody.id){
+  showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody.id));return true;
+ }
  if(cargo8b.mode==='secured'&&a?.location.kind==='ship'){
   cargo8b.mode='ramp';cargo8b.pose={x:BAY8B.BAY.centerX,z:11.2,y:BAY8B.height(11.2)};cargo8b.counter++;
   truckBody=shipBody;truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);truckForwardVec=[...shipForwardVec];
   physical8a.move(START_TRUCK,{kind:'surface',bodyId:shipBody.id,local:truckLocal},'8b-release:'+cargo8b.counter,{expected:a.location});
-  showToast('8B · Cargo tie-downs released. Approach truck, X to enter, S to reverse down wide ramp.');saveFlight();return true;
+  showToast('8B · TRUCK IS INSIDE STARBOARD BAY AT RAMP MOUTH. It may be hidden by hull: stand at WIDE RIGHT-HAND ramp access, press X to enter, then hold S to reverse it into view.');saveFlight();return true;
  }
  if(cargo8b.mode==='ramp'&&cargo8b.pose.z<=11.6&&a?.location.kind==='surface'){
   if(!BAY8B.fit(a).ok){showToast('8B · TRUCK EXCEEDS CARGO BAY CAPACITY');return true;}
@@ -14233,14 +14277,39 @@ const redraw=()=>{const a=runtime()?.physical8a?.list()||[];
   const u=model.used(c.id);return c.id+' · '+u.massKg.toFixed(2)+'/'+c.maxMassKg+' kg · '+u.volumeM3.toFixed(3)+'/'+c.maxVolumeM3+' m³';
  }).join('\n'):'No material storage commissioned yet.');
  const bay=runtime()?.cargo8b,attached=runtime()?.shipCargoMass8A?.()||0;
+ const truck=runtime()?.physical8a?.get('truck-expedition-001'),shipBodyId=runtime()?.engineeringAssetPoses?.()?.shipPose?.bodyId;
+ const truckCustody=root.StarfallTruckCustody8B?.description(truck,bay,shipBodyId)||'Truck custody inspector not loaded.';
+ const truckLine='\\n\\nEXPEDITION TRUCK — AUTHORITATIVE CUSTODY\\n'+truckCustody+'\\n';
  status.textContent='8B VEHICLE RACK · '+(bay?.mode||'UNAVAILABLE').toUpperCase()+
   ' · ONBOARD DRY CARGO '+attached.toFixed(0)+' kg\n'+heading+
-  (vehicleText||'No vehicle data')+stockText+binsText;};
+  (vehicleText||'No vehicle data')+truckLine+stockText+binsText;};
 const shut=()=>{shell.hidden=true;btn.focus();};
 btn.addEventListener('click',()=>{redraw();shell.hidden=false;close.focus();});
 close.addEventListener('click',shut);shell.addEventListener('click',e=>{if(e.target===shell)shut();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!shell.hidden){e.preventDefault();e.stopPropagation();shut();}},true);
 pane.append(heading,note,status,close);shell.append(pane);document.body.append(shell);host.append(btn);
+// Legacy 7B Asset Manager has a separate registry. Display the authoritative
+// 8A truck status there too so a ship-stowed truck is not mistaken as deleted.
+const legacy=document.getElementById('asset-manager');
+if(legacy){
+ const truth=document.createElement('p');
+ truth.id='truck-custody8b-asset-manager';
+ truth.setAttribute('role','status');
+ truth.style.cssText='white-space:pre-wrap;font:12px/1.45 monospace;padding:10px;margin:10px;border:1px solid #b1a169;color:#eef3ed;background:#14232a';
+ truth.textContent='Authoritative truck custody checking…';
+ const target=legacy.querySelector('#asset-list')||legacy.querySelector('#asset-detail')||legacy;
+ target.parentNode.insertBefore(truth,target);
+ const update=()=>{
+  const rt=runtime(),truck=rt?.physical8a?.get('truck-expedition-001');
+  truth.textContent='8A PHYSICAL INVENTORY (separate from legacy Asset Manager): '+
+   (root.StarfallTruckCustody8B?.description(truck,rt?.cargo8b,
+    rt?.engineeringAssetPoses?.()?.shipPose?.bodyId)||'UNAVAILABLE');
+ };
+ const open=()=>{if(!legacy.hidden)update();};
+ document.getElementById('asset-open')?.addEventListener('click',open);
+ document.getElementById('asset-refresh')?.addEventListener('click',open);
+ update();
+}
 root.StarfallInventoryUI8A={open:()=>btn.click(),refresh:redraw};
 })(globalThis);
 

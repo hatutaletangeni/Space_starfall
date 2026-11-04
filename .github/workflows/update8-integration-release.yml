@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - release/update8-industrial-integration-candidate
+      - hotfix/truck-custody-visibility-and-reconciliation
       - feature/update-8b-truck-ramp-guidance
   pull_request:
     branches:
@@ -74,6 +75,8 @@ jobs:
         run: python tests/mining-hauling8d-browser.py
       - name: Browser ship and cargo controls smoke
         run: python tests/mining-hauling8d-browser.py
+      - name: Browser hotfix authority — truck in ship versus remote saved planet
+        run: python tests/truck-custody8b-browser.py
       - name: Screenshots and failure diagnostics
         if: always()
         uses: actions/upload-artifact@v4
