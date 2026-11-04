@@ -46,7 +46,7 @@ with sync_playwright() as p:
         for opener,dialog,closer in panels:
             assert page.locator('#'+opener).count()==1,opener
             page.locator('#'+opener).evaluate('(el)=>el.click()')
-            assert page.locator('#'+dialog).evaluate('(el)=>!el.hidden'),dialog
+            assert page.locator('#'+dialog).evaluate('(el)=>!el.hidden'), (dialog, 'pageerrors', errors[-5:], 'ui-state', page.evaluate('''()=>({launched:!document.getElementById('launch-dialog').hidden,route:document.querySelector('#ui21-navigation button[aria-current="true"]')?.dataset.route,toolsOpen:document.body.classList.contains('ui20-tools-open')})'''))
             visited.append(dialog)
             page.locator('#'+closer).evaluate('(el)=>el.click()')
             assert page.locator('#'+dialog).evaluate('(el)=>el.hidden'),dialog+' did not close'
