@@ -8219,6 +8219,132 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallStruc
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8G — finite structural repair.
+ * Consumes physically manufactured finished parts, transfers the same mass
+ * of removed damaged hardware into a bounded real 8A ship scrap lot, debits
+ * actual ship electrical work, and retains original 8A structure identity.
+ * This restores structural condition only. It NEVER certifies a fueled rocket,
+ * pressure-tight habitat, breathing air, or qualified propulsion.
+ */
+(function(root){'use strict';
+const clone=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
+const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
+const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const SPECS=Object.freeze({
+ rocket_stage_dry:{parts:{steel_bracket:7.5,copper_busbar:.48,glass_panel:.55},
+  workJ:1250000,gain:.25,station:'rocket_integration'},
+ habitat_envelope:{parts:{steel_bracket:15,glass_panel:1.1,copper_busbar:.48},
+  workJ:1750000,gain:.25,station:'habitat_pad'}
+});
+function prepare(a){
+ const p=a?.physical,m=a?.materials;
+ if(!ident(a?.jobId)||!a.jobId.startsWith('repair8g:')||
+    !ident(a.assetId)||!ident(a.containerId)||!ident(a.bodyId)||
+    !p||p.schema!==1||!Array.isArray(p.assets)||
+    !m||m.schema!==1||!Array.isArray(m.lots)||!Array.isArray(m.operations)||
+    !Array.isArray(m.containers))throw Error('Authoritative repair IDs and 8A owner ledgers required');
+ const target=p.assets.find(x=>x.id===a.assetId);
+ const spec=SPECS[target?.type];
+ if(!spec||target.location?.kind!=='surface'||target.location.bodyId!==a.bodyId||
+    !valid(target.condition)||target.condition<.1)throw Error('Only a damaged, intact on-world manufactured stage or habitat can be repaired');
+ const past=target.state?.repairReceipts||[];
+ if(!Array.isArray(past))throw Error('Corrupt persisted structure repair history');
+ const prior=past.find(x=>x.id===a.jobId);
+ if(prior){
+  if(prior.assetId!==a.assetId||prior.bodyId!==a.bodyId)throw Error('Repair job ID collision');
+  return {duplicate:true,receipt:clone(prior),asset:clone(target)};
+ }
+ if(target.condition>=.999)throw Error('Structure is already fully repaired');
+ if(target.state?.commissioned===true||target.state?.operational===true)
+  throw Error('Structural repair cannot alter active or commissioned equipment');
+ const facility=p.assets.find(x=>x.id===target.state?.assemblyFacilityId);
+ if(!facility||facility.type!=='industrial_plant'||facility.state?.station!==spec.station||
+    facility.state?.enabled===false||!valid(facility.condition)||facility.condition<.5||
+    facility.location?.kind!=='surface'||facility.location.bodyId!==a.bodyId)
+  throw Error('Original physical repair/integration facility required');
+ const container=m.containers.find(x=>x.id===a.containerId&&ident(x.ownerId));
+ if(!container)throw Error('Physical output/source ship container required');
+ if(p.assets.some(x=>x.id===a.jobId)||m.lots.some(x=>x.id==='repair-scrap:'+a.jobId))
+  throw Error('Repair job or salvage lot already allocated');
+ const reserved=new Map();
+ for(const op of m.operations)if(op.status==='RESERVED'){
+  if(!ident(op.lotId)||!valid(op.massKg))throw Error('Invalid pending material reservation');
+  reserved.set(op.lotId,(reserved.get(op.lotId)||0)+op.massKg);
+ }
+ const takes=[],shortages=[];
+ for(const [part,need] of Object.entries(spec.parts)){
+  let left=need;
+  for(const lot of m.lots){
+   if(lot.materialId!==part||lot.containerId!==a.containerId||
+      !valid(lot.grade)||lot.grade<.98||!ident(lot.provenance)||
+      !valid(lot.massKg)||!valid(lot.volumeM3))continue;
+   const held=reserved.get(lot.id)||0;
+   if(held>lot.massKg+EPS)throw Error('Over-reserved structural repair hardware');
+   const qty=Math.min(Math.max(0,lot.massKg-held),left);
+   if(qty>EPS){takes.push({lotId:lot.id,materialId:part,massKg:qty,
+    volumeM3:lot.volumeM3*qty/lot.massKg});left-=qty;}
+   if(left<=EPS)break;
+  }
+  if(left>EPS)shortages.push({materialId:part,missingKg:left});
+ }
+ const e=a.powerReceipt;
+ if(!e||e.status!=='COMMITTED'||e.operationId!==a.jobId||
+    e.sourceId!=='ship-main:engineering-battery'||!valid(e.usedJ)||e.usedJ+EPS<spec.workJ)
+  throw Error('Committed source-owned ship electrical repair debit required');
+ return {target,spec,takes,shortages,kg:Object.values(spec.parts).reduce((s,x)=>s+x,0),
+  volumeM3:takes.reduce((s,x)=>s+x.volumeM3,0)};
+}
+function quote(a){
+ const p=prepare(a);
+ if(p.duplicate)return{duplicate:true,receipt:p.receipt};
+ return{ready:!p.shortages.length,shortages:clone(p.shortages),
+  replacementMassKg:p.kg,energyJ:p.spec.workJ,conditionBefore:p.target.condition,
+  conditionAfter:Math.min(1,p.target.condition+p.spec.gain),
+  salvageMaterialId:'manufacturing_scrap',certifiesOperations:false};
+}
+function repair(a){
+ const p=prepare(a);
+ if(p.duplicate)return{duplicate:true,receipt:p.receipt,
+  physical:clone(a.physical),materials:clone(a.materials)};
+ if(p.shortages.length)throw Error('Missing certified replacement parts: '+
+  p.shortages.map(x=>x.materialId).join(', '));
+ const materials=clone(a.materials),physical=clone(a.physical),
+  before=materials.lots.reduce((s,x)=>s+x.massKg,0)+
+   physical.assets.reduce((s,x)=>s+x.massKg,0);
+ for(const item of p.takes){
+  const lot=materials.lots.find(x=>x.id===item.lotId);
+  const m0=lot.massKg;
+  lot.massKg=Math.max(0,m0-item.massKg);
+  lot.volumeM3=m0?lot.volumeM3*(lot.massKg/m0):0;
+ }
+ materials.lots=materials.lots.filter(x=>x.massKg>EPS);
+ const scrap={id:'repair-scrap:'+a.jobId,materialId:'manufacturing_scrap',
+   containerId:a.containerId,massKg:p.kg,volumeM3:p.volumeM3,
+   grade:.25,provenance:'removed-damaged-physical-hardware:'+a.assetId};
+ materials.lots.push(scrap);
+ // This is a replacement operation: new parts displace equal-mass failed
+ // hardware; structural mass does not grow. Removed hardware is recoverable scrap.
+ const target=physical.assets.find(x=>x.id===a.assetId);
+ const previousCondition=target.condition;
+ target.condition=Math.min(1,target.condition+p.spec.gain);
+ const receipt={id:a.jobId,assetId:a.assetId,bodyId:a.bodyId,status:'COMMITTED',
+  consumedLots:clone(p.takes),salvageLotId:scrap.id,
+  massKg:p.kg,energyJ:p.spec.workJ,conditionBefore:previousCondition,
+  conditionAfter:target.condition,
+  statusNote:'STRUCTURAL_REPAIR_ONLY_NO_PROPULSION_OR_PRESSURE_CERTIFICATION'};
+ target.state.repairReceipts=[...(target.state.repairReceipts||[]),receipt].slice(-100);
+ const checkedMaterials=root.StarfallMaterials8A.create(materials).snapshot();
+ const checkedPhysical=root.StarfallPhysical8A.create(physical).serialize();
+ const after=checkedMaterials.lots.reduce((s,x)=>s+x.massKg,0)+
+  checkedPhysical.assets.reduce((s,x)=>s+x.massKg,0);
+ if(Math.abs(after-before)>EPS)throw Error('Structural repair created or destroyed mass');
+ return{duplicate:false,receipt,asset:clone(target),materials:checkedMaterials,physical:checkedPhysical};
+}
+root.StarfallStructureRepair8G=Object.freeze({SPECS,quote,repair});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallStructureRepair8G;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8G — bounded SI low-speed surface vehicle dynamics kernel.
  * Not wired to world collision, controls, vehicle saves, or 8A custody.
  * Certification must come from verified physical parts, not this model.
@@ -9822,6 +9948,66 @@ function structureStage8G(blueprintId,facilityId){
   ' · not operational until pressure / propulsion validation');
  return result.receipt;
 }
+function structureRepairContext8G(){
+ const c=structureAssemblyContext8G();
+ return {...c,repairCandidates:physical8a.list().filter(a=>
+  ['rocket_stage_dry','habitat_envelope'].includes(a.type)&&
+  a.location?.kind==='surface'&&a.location.bodyId===c.bodyId&&
+  a.condition>=.1&&a.condition<.999).map(a=>({
+   id:a.id,type:a.type,condition:a.condition,facilityId:a.state?.assemblyFacilityId}))};
+}
+function structureRepairSite8G(assetId){
+ const c=structureRepairContext8G(),a=physical8a.get(assetId);
+ if(!a||!c.landed||!c.eva||!c.powered||!shipLocal||!evaLocal||
+  shipBody!==nearest||manufacturedOccupied8G||truckOccupied)
+  throw Error('A powered landed ship, real damaged structure, and EVA are required for structural repairs');
+ if(a.location?.kind!=='surface'||a.location.bodyId!==c.bodyId||!nearest?.radius)
+  throw Error('Damaged structure is not on the current world');
+ const arc=(x,y)=>Math.acos(Math.max(-1,Math.min(1,V.dot(V.norm(x),V.norm(y)))))*nearest.radius;
+ const operatorRange=arc(evaLocal,a.location.local),powerRange=arc(shipLocal,a.location.local);
+ if(operatorRange>35||powerRange>85)
+  throw Error('Repair distance: EVA '+operatorRange.toFixed(1)+' / 35, ship '+
+   powerRange.toFixed(1)+' / 85 scene units. Physically move closer.');
+ return{ctx:c,asset:a};
+}
+function structureRepairQuote8G(assetId){
+ const {ctx,asset}=structureRepairSite8G(assetId),
+  spec=StarfallStructureRepair8G.SPECS[asset.type];
+ if(!spec)throw Error('Unsupported physical repair target');
+ const q=StarfallStructureRepair8G.quote({
+  jobId:'repair8g:preview',assetId,bodyId:ctx.bodyId,
+  containerId:StarfallMining8D.SHIP,materials:materials8a.snapshot(),
+  physical:physical8a.serialize(),
+  powerReceipt:{operationId:'repair8g:preview',status:'COMMITTED',
+   sourceId:'ship-main:engineering-battery',usedJ:spec.workJ}});
+ return {...q,powered:ctx.energyJ>=spec.workJ};
+}
+function structureRepair8G(assetId){
+ const q=structureRepairQuote8G(assetId),{ctx,asset}=structureRepairSite8G(assetId),
+  spec=StarfallStructureRepair8G.SPECS[asset.type];
+ if(!q.ready)throw Error('Missing manufactured repair hardware: '+
+  q.shortages.map(x=>x.materialId+' '+x.missingKg.toFixed(2)+' kg').join(', '));
+ if(!q.powered)throw Error('Physical ship battery lacks '+spec.workJ+' J for repair');
+ let n=1;const inventory=materials8a.snapshot(),assetData=physical8a.serialize();
+ const used=new Set(inventory.lots.map(x=>x.id).filter(x=>x.startsWith('repair-scrap:')).map(x=>x.slice('repair-scrap:'.length)));
+ for(const a of assetData.assets)for(const receipt of a.state?.repairReceipts||[])used.add(receipt.id);
+ while(used.has('repair8g:'+n))n++;
+ const jobId='repair8g:'+n;
+ const result=StarfallStructureRepair8G.repair({
+  jobId,assetId,bodyId:ctx.bodyId,containerId:StarfallMining8D.SHIP,
+  materials:inventory,physical:assetData,
+  powerReceipt:{operationId:jobId,status:'COMMITTED',
+   sourceId:'ship-main:engineering-battery',usedJ:spec.workJ}});
+ const checkedMaterials=StarfallMaterials8A.create(result.materials),
+  checkedPhysical=StarfallPhysical8A.create(result.physical);
+ const ship=vehicleStore.get('ship');
+ if(ship.state.energyJ<spec.workJ)throw Error('Ship battery changed before repair commit');
+ materials8a=checkedMaterials;physical8a=checkedPhysical;
+ vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-spec.workJ});
+ saveFlight();showToast('8G · '+assetId+' structural repair · new condition '+
+  (result.asset.condition*100).toFixed(0)+'% · salvage recovered; still NOT qualified');
+ return result.receipt;
+}
 function frameCargoContext8G(){
  const c=outpostContext(),ship=vehicleStore.get('ship');
  return {bodyId:c.bodyId,landed:!!c.landed&&shipBody===c.body,
@@ -10353,7 +10539,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,structureRepairContext8G,structureRepairQuote8G,structureRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -10369,7 +10555,25 @@ window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestinat
  updateSurveyUI();showToast('Waypoint plotted: '+siteWaypoint.name+' — approach manually.');
  return{bodyId,direction:directionUnit};
 },get target(){return target;},get nearest(){return nearest;},get time(){return simTime;},get engineering(){return engEnabled;},get attitude(){return engAttitude;},setAttitude(v){engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(v)?v:'Manual';SF.save({scienceSettings:{schema:1,flightMode:engEnabled?'Engineering':'Assisted',sas:engAttitude}});},setFlightPhysicsMode,engineeringInfo,get ship(){return engState;},get scenePosition(){return pos;},get landed(){return landed;},get eva(){return eva;},get swimming(){return swimming;},get swimDepthM(){return swimming?swimDepthScene*1000:0;},get truckOccupied(){return truckOccupied;},scienceContext,acquireFieldReading,roverAutonomyPosition,roverDestination,driveRoverToward,science4SetPhysics,get science4Settings(){return{...science4Settings};},get roverPhysicsReport(){return roverPhysicsReport;},truckSystems,truckWinch,truckWinchCancel,truckRecharge,roverRechargeLocal,fieldServiceStatus,fieldRepair,shipServiceSnapshotT13,shipServiceTargetsT13,shipDockConnectT13,shipDockUndockT13,shipDockChargeT13,shipDockReceiveT13,shipThermalObserveT13,get truck(){return{occupied:truckOccupied,local:truckLocal,bodyId:truckBody?.id,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo};}};
-Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{interior:interiorState?{siteId:interiorState.site.id,at:{...interiorState.at}}:null,position:[...pos],altitude,landed,eva,truckOccupied,roverOccupied:false,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],cameraLookElevationDeg:lastPickingCamera&&nearest?Math.asin(V.clamp(V.dot(lastPickingCamera.forward,V.norm(V.sub(pos,nearest.position))),-1,1))*180/Math.PI:null,timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics()};},placeEvaNearManufactured8G(id){
+Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{interior:interiorState?{siteId:interiorState.site.id,at:{...interiorState.at}}:null,position:[...pos],altitude,landed,eva,truckOccupied,roverOccupied:false,hatchCooldown,roverEntryCooldown,portraitLoaded:!!renderer.avatarParts?.body,avatarLoaded:!!renderer.avatarParts?.body,avatarDrawCalls:renderer.avatarDrawCalls,avatarAnimation:renderer.avatarAnimation,rampState:rampTransition?.kind||null,shipAhead:shipBody?V.dot(V.sub(pos,shipWorldState().position),shipWorldState().forward):null,shipSide:shipBody?V.dot(V.sub(pos,shipWorldState().position),V.norm(V.cross(shipWorldState().forward,shipWorldState().up))):null,walkedSinceExit,roverRange:roverBody&&roverWorldState()?V.len(V.sub(pos,roverWorldState().position)):null,warp,target:target.id,body:nearest.id,mode:nearPhase,fps,systems:galaxy.systems.length,worlds:galaxy.allWorlds.length,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,catalogStars:galaxy.skyCatalog.length,loadedCatalogSystems:galaxy.skyCatalog.filter(s=>!s.dormant).length,effectPoints:renderer.effectsRendered,heat,spinAngle:nearest.spinAngle,cameraZoom:camDistance,cameraOrbit:[orbitYaw,orbitPitch],cameraLookElevationDeg:lastPickingCamera&&nearest?Math.asin(V.clamp(V.dot(lastPickingCamera.forward,V.norm(V.sub(pos,nearest.position))),-1,1))*180/Math.PI:null,timeScale,headlights,groundLocal:groundLocal&&[...groundLocal],cameraClearance:nearest?.landable?surfaceData(nearest,camEye||pos).distance-nearest.radius-surfaceData(nearest,camEye||pos).height:null,daylight:renderer.daylightLabel,sunElevation:nearest&&galaxy.byId.get(nearest.systemId)?V.dot(V.norm(V.sub(pos,nearest.position)),V.norm(V.sub(galaxy.byId.get(nearest.systemId).position,nearest.position))):null,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics()};},placeEvaNearDamagedStructure8G(id){
+ if(!landed||!eva||truckOccupied||manufacturedOccupied8G||!nearest?.landable)
+  throw Error('Test-only placement requires physical EVA');
+ const a=physical8a.get(id);
+ if(!a||!['rocket_stage_dry','habitat_envelope'].includes(a.type)||
+    a.location?.kind!=='surface'||a.location.bodyId!==nearest.id)
+  throw Error('No owned on-world structural asset for EVA test placement');
+ if(!shipLocal)throw Error('Test-only EVA placement requires the original landed ship');
+ const separation=Math.acos(Math.max(-1,Math.min(1,V.dot(
+  V.norm(a.location.local),V.norm(shipLocal)))))*nearest.radius;
+ // Place the test EVA 4 scene units toward the ship, never beyond the
+ // existing powered repair umbilical at the far side of the structure.
+ const fraction=Math.min(.5,4/Math.max(separation,1));
+ const local=V.norm(V.add(V.mul(a.location.local,1-fraction),V.mul(shipLocal,fraction))),
+   radial=V.norm(V.rot(local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
+ evaLocal=local;pos=V.add(nearest.position,V.mul(radial,nearest.radius+groundHeight(local,nearest)+EVA_HEIGHT));
+ up=radial;evaForward=[...forward];vertical=0;vel=[0,0,0];
+ roverExitMove=null;rampTransition=null;camEye=null;
+},placeEvaNearManufactured8G(id){
  if(!landed||!eva||truckOccupied||manufacturedOccupied8G||!nearest?.landable)
   throw Error('Require landed EVA and no occupied vehicle');
  const a=physical8a.get(id),w=manufacturedWorld8G(a);
@@ -15417,6 +15621,61 @@ button.addEventListener('click',()=>{try{
 type.addEventListener('change',refresh);pad.addEventListener('change',refresh);
 let at=0;function tick(t){if(t-at>1000){at=t;refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 root.StarfallStructureAssemblyUI8G={refresh};
+})(globalThis);
+
+</script><script>
+/* STARFALL 8G: finite EVA repair for staged rocket and habitat structures.
+ * Pure UI: all ownership, salvage, power and conditions are runtime-authoritative.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host||!root.StarfallStructureRepair8G)return;
+const section=document.createElement('section');section.className='section';section.id='structure-repair8g';
+const title=document.createElement('div');title.className='section-title';
+title.textContent='8G · FINITE STRUCTURAL REPAIR';
+const description=document.createElement('p');description.className='panel-note';
+description.textContent='Repair damaged physical rocket-stage structures or habitat envelopes by exchanging finished 8F parts for the exact same mass of salvage scrap, with a paid ship battery debit. EVA must approach the damage; repair raises only structure condition. No free pressure, oxygen, propellant or flight certification.';
+const pick=document.createElement('select');
+pick.setAttribute('aria-label','Select damaged physical rocket or habitat');
+pick.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;max-width:100%';
+const button=document.createElement('button');button.type='button';button.className='science-action';
+button.textContent='REPLACE DAMAGED STRUCTURAL HARDWARE';
+const result=document.createElement('p');result.className='panel-note';result.setAttribute('role','status');
+result.textContent='Only real damaged structures appear. Repair materials must already be in ship cargo.';
+const details=document.createElement('pre');
+details.style.cssText='white-space:pre-wrap;font:11px/1.45 Consolas,monospace;color:#cad8dc;background:#101b23;border:1px solid #53677566;padding:10px;max-height:220px;overflow:auto';
+const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+row.append(pick,button);section.append(title,description,row,result,details);host.append(section);
+function refresh(){
+ const rt=root.StarfallRuntime,c=rt?.structureRepairContext8G?.();
+ if(!c)return;
+ const all=c.repairCandidates||[],signature=all.map(x=>x.id+':'+x.condition.toFixed(3)).join('|');
+ if(signature!==pick.dataset.signature){const old=pick.value;pick.replaceChildren();
+  for(const x of all){const o=document.createElement('option');o.value=x.id;
+   o.textContent=x.id+' · '+x.type+' · '+Math.round(x.condition*100)+'%';pick.append(o);}
+  if(all.some(x=>x.id===old))pick.value=old;
+  pick.dataset.signature=signature;
+ }
+ let quote=null,reason='';
+ try{if(pick.value)quote=rt.structureRepairQuote8G(pick.value);}
+ catch(e){reason=String(e.message||e);}
+ button.disabled=!quote?.ready||!quote?.powered||!c.landed||!c.eva;
+ details.textContent='TARGET: '+(pick.value||'NO DAMAGED STRUCTURE')+
+  '\nCONDITION: '+(quote?Math.round(quote.conditionBefore*100)+'% -> '+Math.round(quote.conditionAfter*100)+'%':'—')+
+  '\nSINGLE REPAIR WORK: '+(quote?.energyJ||0)+' J ship energy'+
+  '\nREPLACEMENT HARDWARE: '+(quote?.replacementMassKg||0)+' kg'+
+  '\nRECOVERED SALVAGE: '+(quote?.replacementMassKg||0)+' kg real 8A manufacturing_scrap in ship'+
+  (quote?.shortages?.length?'\nMISSING: '+quote.shortages.map(x=>x.materialId+' '+x.missingKg.toFixed(2)+' kg').join(', '):'')+
+  '\nSTATUS: '+(reason||(!pick.value?'REPAIR NOT NEEDED':quote?.ready&&quote?.powered?'READY':'BLOCKED'))+
+  '\nREPAIR DOES NOT COMMISSION A ROCKET ENGINE OR A PRESSURIZED HABITAT';
+}
+button.addEventListener('click',()=>{try{const r=root.StarfallRuntime.structureRepair8G(pick.value);
+ result.textContent='REPAIR COMMITTED: '+r.assetId+' · condition '+Math.round(r.conditionAfter*100)+
+  '% · '+r.massKg+' kg hardware swapped and salvaged · '+r.energyJ+' J paid.';
+ }catch(e){result.textContent='BLOCKED: '+String(e.message||e);}refresh();});
+pick.addEventListener('change',refresh);
+let last=0;function tick(n){if(n-last>1100){last=n;refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
+root.StarfallStructureRepairUI8G={refresh};
 })(globalThis);
 
 </script><script>

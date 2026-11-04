@@ -114,5 +114,79 @@ with sync_playwright() as pw:
         assert persisted['receipts']==2 and persisted['originalTruck']==1,persisted
         assert not errors,errors
         print('PASS 8G Chromium: paid dry rocket + unpressurized habitat physically built, mass conserved, original vehicles retained, save/reload without duplicates')
+        # TEST PROFILE ONLY: damage an existing physical stage and stage 8F
+        # replacement lots in its REAL 8A cargo container; no production seeds.
+        damaged=page.evaluate("""assetId => {
+          const rt=StarfallRuntime,p=rt.physical8a.serialize(),m=rt.materials8a.snapshot(),
+            a=p.assets.find(x=>x.id===assetId),spec=StarfallStructureRepair8G.SPECS[a.type];
+          a.condition=.4;
+          let i=0;for(const [materialId,massKg] of Object.entries(spec.parts))
+            m.lots.push({id:'repair-browser-test:'+(++i),materialId,massKg,
+              volumeM3:massKg*.001,grade:1,containerId:StarfallMining8D.SHIP,
+              provenance:'TEST_FIXTURE_ONLY_MANUFACTURED_REPLACEMENT'});
+          const before=m.lots.reduce((sum,l)=>sum+l.massKg,0)+
+            p.assets.reduce((sum,x)=>sum+x.massKg,0);
+          SF.save({physical8a:p,materials8a:m});
+          window.__STARFALL_IMPORT_PENDING=true;
+          return {assetId,oldCondition:a.condition,before,partsMass:
+            Object.values(spec.parts).reduce((sum,x)=>sum+x,0)};
+        }""",rocket['id'])
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-repair8g")',timeout=45000)
+        page.evaluate("""id => STARFALL_DEBUG.placeEvaNearDamagedStructure8G(id)""",rocket['id'])
+        repairQuote=page.evaluate("""id => StarfallRuntime.structureRepairQuote8G(id)""",rocket['id'])
+        assert repairQuote['ready'] and repairQuote['powered'],repairQuote
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        repairPanel=page.locator('#structure-repair8g')
+        repairPanel.locator('select[aria-label="Select damaged physical rocket or habitat"]').select_option(rocket['id'])
+        repairButton=repairPanel.get_by_role('button',name='REPLACE DAMAGED STRUCTURAL HARDWARE')
+        page.wait_for_timeout(1300)
+        if not repairButton.is_enabled():
+            diagnostic=page.evaluate("""id=>({
+              quote:(()=>{try{return StarfallRuntime.structureRepairQuote8G(id);}
+                catch(error){return {error:String(error.message||error)};}})(),
+              context:StarfallRuntime.structureRepairContext8G(),
+              distances:(()=>{
+                const rt=StarfallRuntime,c=rt.outpostContext(),a=rt.physical8a.get(id),
+                  arc=(u,v)=>Math.acos(Math.max(-1,Math.min(1,
+                    u.reduce((sum,x,i)=>sum+x*v[i],0))))*c.body.radius;
+                return{eva:arc(c.local,a.location.local),ship:arc(c.shipLocal,a.location.local)};
+              })(),
+              ui:document.querySelector('#structure-repair8g pre')?.textContent,
+              selected:document.querySelector('#structure-repair8g select')?.value,
+              buttonDisabled:document.querySelector('#structure-repair8g button')?.disabled
+            })""",rocket['id'])
+            raise AssertionError('Repair action disabled despite source quote: '+str(diagnostic))
+        batteryStart=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
+        repairButton.click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.condition>.6""",
+          arg=rocket['id'],timeout=15000)
+        repaired=page.evaluate("""id => {
+          const rt=StarfallRuntime,p=rt.physical8a.serialize(),m=rt.materials8a.snapshot(),
+            a=p.assets.find(x=>x.id===id);
+          return {condition:a.condition,state:a.state,assetCount:p.assets.filter(x=>x.id===id).length,
+            scratch:m.lots.filter(x=>x.id.startsWith('repair-browser-test:')).length,
+            scrap:m.lots.filter(x=>x.id.startsWith('repair-scrap:')),
+            combinedMass:m.lots.reduce((sum,x)=>sum+x.massKg,0)+
+              p.assets.reduce((sum,x)=>sum+x.massKg,0),
+            truck:p.assets.filter(x=>x.id==='truck-expedition-001').length,
+            battery:rt.vehicleStore.get('ship').state.energyJ};
+        }""",rocket['id'])
+        assert abs(repaired['condition']-.65)<1e-8,repaired
+        assert repaired['state']['launchReady'] is False and repaired['state']['propellantKg']==0
+        assert repaired['scratch']==0 and repaired['assetCount']==1 and repaired['truck']==1
+        assert len(repaired['scrap'])==1 and abs(repaired['scrap'][0]['massKg']-damaged['partsMass'])<1e-6
+        assert abs(repaired['combinedMass']-damaged['before'])<1e-6,'Repair created or destroyed matter'
+        assert abs(batteryStart-repaired['battery']-1250000)<15000,'Repair electricity not debited'
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        storedRepair=page.evaluate("""id => {
+          const rt=StarfallRuntime,a=rt.physical8a.get(id);
+          return {condition:a.condition,receipts:a.state.repairReceipts.length,
+            salvage:rt.materials8a.snapshot().lots.filter(x=>x.id.startsWith('repair-scrap:')).length};
+        }""",rocket['id'])
+        assert abs(storedRepair['condition']-.65)<1e-8 and storedRepair['receipts']==1 and storedRepair['salvage']==1,storedRepair
+        assert not errors,errors
+        print('PASS 8G Chromium: real paid EVA structure repair, replacement-parts debit, conserved 8A salvage, no launch flag, persisted original asset')
     finally:
         browser.close()
