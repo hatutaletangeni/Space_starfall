@@ -5,7 +5,7 @@ if(!host||!root.StarfallAssemblyInspector8G||!root.StarfallAssembly8G)return;
 const panel=document.createElement('section');panel.className='section';panel.id='assembly-inspector8g-panel';
 const h=document.createElement('div');h.className='section-title';h.textContent='8G · VEHICLE ASSEMBLY PREFLIGHT & TRUCK LOCATOR';
 const explain=document.createElement('p');explain.className='panel-note';
-explain.textContent='Read-only engineering inspector. It never creates a vehicle or grants stock. Check the original truck custody and exact missing real components.';
+explain.textContent='Read-only BOM preflight plus a separate paid frame-assembly action. Frames are persistent, conserved and visibly unfinished; they are not drivable vehicles. The original truck remains unchanged.';
 const button=document.createElement('button');button.type='button';button.className='science-action';
 button.textContent='OPEN TRUCK & CARGO INVENTORY';
 const where=document.createElement('p');where.className='panel-note';where.setAttribute('role','status');
