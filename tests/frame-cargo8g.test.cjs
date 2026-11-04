@@ -21,7 +21,7 @@ assert.equal(C.transfer({...a,physical:load.physical}).duplicate,true);
 assert.throws(()=>C.transfer({...a,physical:load.physical,action:'unload'}),/collision/);
 assert.throws(()=>C.transfer({...a,shipLanded:false}),/Surface EVA/);
 assert.throws(()=>C.transfer({...a,powerReceipt:{...e,usedJ:0}}),/electrical/);
-assert.throws(()=>C.transfer({...a,physical:{...p(),assets:[...p().assets,{id:'other',type:'cargo',massKg:2000,volumeM3:3,location:{kind:'ship',slot:'hold'}]}}),/capacity/);
+assert.throws(()=>C.transfer({...a,physical:{...p(),assets:[...p().assets,{id:'other',type:'cargo',massKg:2000,volumeM3:3,location:{kind:'ship',slot:'hold'}}]}}),/capacity/);
 const unloadArgs={...a,physical:load.physical,jobId:'cargo8g:2',action:'unload',powerReceipt:{...e,operationId:'cargo8g:2'},
  unloadLocal:fixed(37),evaLocal:fixed(37)};
 const unload=C.transfer(unloadArgs);
