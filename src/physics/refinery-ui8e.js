@@ -6,7 +6,7 @@ const rt=()=>root.StarfallRuntime, api=root.StarfallRefinery8E;
 const panel=document.createElement('section');panel.className='section';panel.id='refinery8e-panel';
 const title=document.createElement('div');title.className='section-title';title.textContent='REFINERY · SHIP FABRICATION';
 const status=document.createElement('p');status.className='panel-note';status.setAttribute('role','status');
-status.textContent='A compact separator and ice-recovery skid in the ship fabrication workshop. Processes real 8A lots using ship battery power. Advanced smelting and electrolysis are not yet commissioned.';
+status.textContent='Mined and hauled quartz-bearing rock can be separated into silica concentrate, then polished into 99% SiO₂ feedstock. Both stages conserve mass, consume real ship battery energy and retain tailings. 99% SiO₂ is not electronic-grade silicon; advanced plant machinery and gas storage must still be constructed.';
 const select=document.createElement('select');select.setAttribute('aria-label','Select actual material processing operation');
 select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:9px;width:100%';
 for(const [k,r] of Object.entries(api.MODES)){const opt=document.createElement('option');opt.value=k;opt.textContent=r.label+' · '+r.massKg+' kg';select.appendChild(opt);}

@@ -10,6 +10,10 @@ const MODES=Object.freeze({
  iron_sort:{label:'Iron ore concentration',material:'iron_ore',product:'iron_concentrate',residue:'iron_tailings',targetGrade:.60,recovery:.80,massKg:20,powerW:1800,seconds:100,capability:'mechanical_separator'},
  copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
  silica_sort:{label:'Silica beneficiation',material:'silica',product:'silica_concentrate',residue:'silicate_tailings',targetGrade:.95,recovery:.82,massKg:20,powerW:1500,seconds:130,capability:'mechanical_separator'},
+ silica_polish:{label:'Quartz concentrate polishing',material:'silica_concentrate',
+  product:'silicon_dioxide',residue:'silica_polishing_tailings',targetGrade:.99,recovery:.82,
+  massKg:4,powerW:4200,seconds:160,capability:'mechanical_separator',minSourceGrade:.95,
+  requiresProcessProvenance:true},
  ice_recovery:{label:'Heated water extraction',material:'water_ice',product:'water',residue:'hydrated_residue',targetGrade:1,recovery:.80,massKg:10,powerW:3500,seconds:240,capability:'ice_recovery'}
 });
 const EQUIPMENT=Object.freeze({id:'ship-main:fab8e:mki',module:'fabrication',tools:['mechanical_separator','ice_recovery'],location:'ship-main',condition:1});
@@ -23,9 +27,13 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
  if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||!Array.isArray(materials.containers))throw Error('8A material inventory required');
  const lot=materials.lots.find(x=>{
   if(x.materialId!==spec.material||x.containerId!==sourceContainerId)return false;
+  if(spec.minSourceGrade!==undefined&&(!finite(x.grade)||x.grade+EPS<spec.minSourceGrade))return false;
+  if(spec.requiresProcessProvenance&&!String(x.provenance||'').startsWith('process:refine8e:'))return false;
   const reserved=(materials.operations||[]).filter(o=>o.lotId===x.id&&o.status==='RESERVED').reduce((n,o)=>n+o.massKg,0);
   return x.massKg-reserved>=spec.massKg-EPS;
  });
+ if(!lot&&spec.requiresProcessProvenance)throw Error('Need '+spec.massKg+' kg of 8E-process-provenanced '+spec.material+
+  ' with source grade >= '+spec.minSourceGrade+' in the physical ship hold');
  if(!lot)throw Error('Missing '+spec.massKg+' kg of actual '+spec.material+' in ship hold');
  if(!finite(lot.grade)||lot.grade>1)throw Error('Uncalibrated ore grade — prospect and sample first');
  const contained=spec.massKg*lot.grade;
@@ -46,7 +54,9 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
  return {mode,lotId:lot.id,sourceContainerId,outputContainerId,material:spec.material,
   inputKg:spec.massKg,inputGrade:lot.grade,product:spec.product,productKg:outputKg,
   productGrade:spec.targetGrade,residue:spec.residue,residueKg,energyJ:spec.powerW*spec.seconds,
-  seconds:spec.seconds,powerW:spec.powerW,assumptions:'assay-based simplified separation; non-target constituents retained in residue'};
+  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='silica_polish'?
+  'Idealized mechanical quartz upgrading; source must be 8E concentrate. Grade 99% is chemical mass fraction, NOT electronic silicon purity. No silicon metal is produced.' :
+  'assay-based simplified separation; non-target constituents retained in residue'};
 }
 function create(saved){let state=normalize(saved);
  function start({mode,materials,sourceContainerId,outputContainerId,workshopInstalled,shipLanded,shipBodyId,powerEnabled,batteryJ}){
