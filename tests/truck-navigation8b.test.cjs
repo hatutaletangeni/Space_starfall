@@ -11,6 +11,7 @@ assert.equal(output.systemName,'Lyra-884');
 assert.equal(output.bodyId,'star-47-p9');
 assert.equal(output.world.id,'star-47-p9');
 assert.equal(output.system.id,'star-47');
+assert.equal(output.world.kind,'planet');
 assert.equal(galaxy.allWorlds.some(x=>x===output.world),true);
 const snapshot=JSON.stringify(truck);
 assert.equal(Nav.locate(truck,galaxy,42,742).status,'SEED_MISMATCH');
