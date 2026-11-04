@@ -37,6 +37,10 @@ with sync_playwright() as pw:
             p=rt.physical8a.serialize(),ship=StarfallMining8D.SHIP,
             def=StarfallAssembly8G.DEFINITIONS.science_rover;
           if(!c.bodyId||!Array.isArray(c.local))throw Error('Missing EVA surface anchor');
+          // Ship power is OFF by default. Engage the actual existing switch;
+          // no energy is created by this controlled browser fixture.
+          rt.vehicleStore.setPower('ship',true);
+          rt.persistVehicles();
           p.assets.push({id:'8g-test-pad',type:'industrial_plant',massKg:760,volumeM3:2.8,
             condition:1,provenance:'TEST_FIXTURE_ONLY',
             location:{kind:'surface',bodyId:c.bodyId,local:[...c.local]},
