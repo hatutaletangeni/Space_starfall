@@ -11,7 +11,7 @@ const LIMIT=Object.freeze({massKg:3500,volumeM3:155,sceneRangeFromShip:55,
  sceneRangeFromEva:30,workJ:30000,slot:'engineering-frame-cradle'});
 function distance(a,b,r){const dot=a.reduce((n,x,i)=>n+x*b[i],0);return Math.acos(Math.max(-1,Math.min(1,dot)))*r;}
 function transfer({jobId,assetId,action,physical,bodyId,shipLocal,evaLocal,bodyRadius,
-  shipLanded,operatorEVA,powerReceipt,unloadLocal}){
+  shipLanded,operatorEVA,powerReceipt,unloadLocal,materials}){
  if(!id(jobId)||!id(assetId)||!id(bodyId)||!['load','unload'].includes(action))
   throw Error('Invalid 8G cargo operation');
  if(!shipLanded||!operatorEVA||!valid(bodyRadius)||bodyRadius<=0)
@@ -52,7 +52,18 @@ function transfer({jobId,assetId,action,physical,bodyId,shipLocal,evaLocal,bodyR
   // The existing unique 8B truck cargo is unchanged. All real ship-stowed
   // physical objects count toward its mass/volume envelope, including truck.
   const stowed=physical.assets.filter(x=>x.id!==assetId&&x.location?.kind==='ship'&&x.type!=='ship');
-  const mass=stowed.reduce((s,x)=>s+x.massKg,0),volume=stowed.reduce((s,x)=>s+x.volumeM3,0);
+  let mass=stowed.reduce((s,x)=>s+x.massKg,0),volume=stowed.reduce((s,x)=>s+x.volumeM3,0);
+  const shipGas=stowed.filter(x=>x.type==='industrial_vessel');
+  if(shipGas.length){
+   if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||
+     !Array.isArray(materials.containers))throw Error('Physical cargo manifest requires contained gas inventory');
+   for(const vessel of shipGas){
+    const id=vessel.state?.containerId;
+    if(!materials.containers.some(x=>x.id===id&&x.ownerId===vessel.id))
+     throw Error('Gas vessel lacks owned material container');
+    mass+=materials.lots.filter(x=>x.containerId===id).reduce((n,x)=>n+x.massKg,0);
+   }
+  }
   if(mass+asset.massKg>LIMIT.massKg+EPS||volume+asset.volumeM3>LIMIT.volumeM3+EPS)
    throw Error('Engineering cradle exceeds shared rated ship cargo capacity');
   if(stowed.some(x=>x.type==='vehicle_frame'))throw Error('Engineering cradle already occupied by a frame');
