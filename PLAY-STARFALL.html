@@ -7233,6 +7233,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndus
  * No standalone kit acquisition from raw rock, and no imaginary starter chips. */
 (function(root){'use strict';
 const SPECS=Object.freeze({
+ machine_kit_hand_winder:[32,.16,'hand_winder'],
  machine_kit_cnc:[220,.42,'machine'],machine_kit_manual_press:[50,.22,'manual_press'],machine_kit_grinder:[85,.18,'machine'],
  machine_kit_caster:[260,.68,'foundry'],machine_kit_extruder:[160,.30,'machine'],
  machine_kit_winder:[80,.14,'machine'],machine_kit_motor_fixture:[130,.25,'machine'],
@@ -7248,6 +7249,7 @@ const SPECS=Object.freeze({
  vessel_kit_methane:[195,4,'vessel']
 });
 const FRACTIONS=Object.freeze({
+ hand_winder:{steel:.5625,copper:.09375,aluminum:.125,glass:.0625,iron_bracket:.0625,steel_bracket:.09375},
  manual_press:{steel:.66,copper:.12,iron_bracket:.08,glass_panel:.14},
  machine:{steel:.48,copper:.12,aluminum:.08,glass:.04,refractory_block:.10,insulated_wire:.05,electric_motor:.08,control_board:.05},
  electronics:{steel:.36,copper:.17,aluminum:.12,glass:.06,refractory_block:.06,insulated_wire:.08,electric_motor:.06,control_board:.09},
@@ -7290,6 +7292,13 @@ const RECIPES=Object.freeze({
   inputs:{aluminum:2.1},outputs:{aluminum_frame:2},powerW:610,seconds:130,toleranceMm:1.1},
  aluminum_sheet:{category:'lightweight_structure',station:'bench',tool:'hand-shear',
   inputs:{aluminum:1},outputs:{aluminum_sheet:.95},powerW:520,seconds:110,toleranceMm:1},
+ motor_field_coil:{category:'electromagnetic_stock',station:'bench',tool:'hand-winder',
+  inputs:{copper:.70,glass:.10},outputs:{motor_field_coil:.76},
+  powerW:640,seconds:260,toleranceMm:.5},
+ brushed_dc_motor:{category:'electromechanical_prototype',station:'bench',tool:'hand-winder',
+  inputs:{motor_field_coil:.76,steel:.80,iron:.70,aluminum:.40,copper:.24,carbon:.06},
+  outputs:{electric_motor:2.70},powerW:1100,seconds:620,toleranceMm:.5,
+  engineeringNote:'Small wound-field brushed DC motor: copper coil, steel/iron rotor and pole pieces, segmented copper commutator, carbon brushes and aluminum enclosure. Simplified prototype; not a tested rated electric machine.'},
  iron_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{iron:.5},outputs:{iron_bracket:.46},powerW:650,seconds:125,toleranceMm:1.1},
  steel_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{steel:.8},outputs:{steel_bracket:.75},powerW:740,seconds:145,toleranceMm:1},
  glass_panel:{category:'glazing',station:'bench',tool:'glass-cutter',inputs:{glass:.6},outputs:{glass_panel:.55},powerW:380,seconds:110,toleranceMm:1.2},
@@ -7314,7 +7323,7 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const EPS=1e-8;
-const STATIONS=Object.freeze({assembly:{tools:['kit-fixture']},bench:{tools:['hand-shear','bending-brake','glass-cutter']},press:{tools:['manual-press']},foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
+const STATIONS=Object.freeze({assembly:{tools:['kit-fixture']},bench:{tools:['hand-shear','bending-brake','glass-cutter','hand-winder']},press:{tools:['manual-press']},foundry:{tools:['caster']},machine:{tools:['lathe','cnc','grinder']},printer:{tools:['polymer-printer','powder-printer']},wire:{tools:['wire-die']},polymer:{tools:['extruder']},winding:{tools:['coil-winder']},motor:{tools:['motor-fixture']},electronics:{tools:['etching','reflow']},pcb:{tools:['solder-station']},battery:{tools:['cell-assembly']},solar:{tools:['module-laminator']},cleanroom:{tools:['photolithography','ultrapure-process']}});
 // Illustrative process budgets: W and s, not industrial engineering certification.
 // Mass difference is explicitly returned as scrap/consumable remainder, NEVER destroyed silently.
 const RECIPES=Object.freeze({
@@ -7514,6 +7523,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallFacto
 (function(root){'use strict';
 const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const CAPS=Object.freeze({
+ machine_kit_hand_winder:{station:'bench',tools:['hand-winder'],massKg:32,volumeM3:.16,workJ:65000,seconds:135},
  machine_kit_cnc:{station:'machine',tools:['cnc','lathe'],massKg:220,volumeM3:.42,workJ:360000,seconds:300},
  machine_kit_manual_press:{station:'press',tools:['manual-press'],massKg:50,volumeM3:.22,workJ:110000,seconds:160},
  machine_kit_grinder:{station:'machine',tools:['grinder'],massKg:85,volumeM3:.18,workJ:120000,seconds:140},
@@ -9005,7 +9015,8 @@ function industrialAdvance8E(elapsed){
 }
 function factoryMachine8F(recipeId){
  const r=StarfallManufacturing8F.RECIPES[recipeId];if(!r)throw Error('Unknown 8F part recipe');
- if(r.station==='bench'&&modularShip8e.describe('fabrication').status==='INSTALLED')
+ if(r.station==='bench'&&['hand-shear','bending-brake','glass-cutter'].includes(r.tool)&&
+  modularShip8e.describe('fabrication').status==='INSTALLED')
   return {id:'ship-main:fabrication:low-tech-bench',station:'bench',
     tools:['hand-shear','bending-brake','glass-cutter'],installed:true,condition:1};
  // The already installed fabrication room also contains a basic assembly jig.
