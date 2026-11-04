@@ -1,0 +1,24 @@
+name: STARFALL 8G manufactured habitat finite passive ledger
+on:
+  pull_request:
+    paths:
+      - 'src/physics/manufactured-habitat8g.js'
+      - 'tests/manufactured-habitat8g.test.cjs'
+      - '.github/workflows/update-8g-manufactured-habitat.yml'
+  push:
+    branches:
+      - feature/update-8g-finite-manufactured-habitat-monitor
+jobs:
+  manufactured-habitat-passive-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check syntax and strict physical mass/time invariants
+        run: |
+          node --version
+          node --check src/physics/manufactured-habitat8g.js
+          node --check tests/manufactured-habitat8g.test.cjs
+          node --test tests/manufactured-habitat8g.test.cjs
+      - name: Preserve authoritative standalone bundle parity
+        run: python3 tests/standalone-parity.py
