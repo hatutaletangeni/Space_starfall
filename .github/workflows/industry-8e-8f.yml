@@ -16,6 +16,7 @@ on:
       - hotfix/truck-custody-visibility-and-reconciliation
       - feature/update-8f-manual-motor-bootstrap
       - feature/update-8f-vehicle-chassis-components
+      - feature/update-8f-metal-rover-wheel
   pull_request:
     paths:
       - 'src/physics/*8e.js'
@@ -78,12 +79,12 @@ jobs:
           path: PLAY-STARFALL.html
           retention-days: 14
       - name: Commit fresh standalone HTML to test branch
-        if: (github.event_name == 'push' && github.ref_name == 'feature/update-8f-vehicle-chassis-components') || (github.event_name == 'pull_request' && github.head_ref == 'feature/update-8f-vehicle-chassis-components' && github.event.pull_request.head.repo.full_name == github.repository)
+        if: (github.event_name == 'push' && github.ref_name == 'feature/update-8f-metal-rover-wheel') || (github.event_name == 'pull_request' && github.head_ref == 'feature/update-8f-metal-rover-wheel' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           git config user.name "starfall-ci"
           git config user.email "starfall-ci@users.noreply.github.com"
           git add -f PLAY-STARFALL.html
           if ! git diff --cached --quiet; then
             git commit -m "build(8F): publish synchronized manual-motor standalone"
-            git push origin HEAD:feature/update-8f-vehicle-chassis-components
+            git push origin HEAD:feature/update-8f-metal-rover-wheel
           fi
