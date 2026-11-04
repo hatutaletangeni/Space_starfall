@@ -17,7 +17,15 @@ const MODES=Object.freeze({
   product:'carbon',residue:'carbon_ash_tailings',targetGrade:1,recovery:.80,
   targetElementFraction:1,massKg:10,powerW:2600,seconds:230,
   capability:'mechanical_separator'},
-  copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
+  aluminum_sort:{label:'Aluminum ore beneficiation',material:'aluminum_ore',
+  product:'aluminosilicate_concentrate',residue:'aluminum_tailings',
+  targetGrade:.65,recovery:.80,massKg:20,powerW:2100,seconds:160,capability:'mechanical_separator'},
+ aluminosilicate_identification:{label:'Identify hydrated aluminosilicate mineral',
+  material:'aluminosilicate_concentrate',product:'hydrated_aluminosilicate',
+  residue:'aluminosilicate_mineralogy_tailings',targetGrade:1,recovery:.80,
+  massKg:2,powerW:3300,seconds:240,capability:'mechanical_separator',
+  minSourceGrade:.65,requiresProcessProvenance:true},
+ copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
  copper_sulfide_identification:{label:'Identify copper(I) sulfide from copper concentrate',
   material:'copper_concentrate',product:'copper_sulfide',residue:'sulfide_mineralogy_tailings',
   targetGrade:1,targetElementFraction:(2*63.546)/(2*63.546+32.06),
@@ -74,7 +82,9 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
   inputKg:spec.massKg,inputGrade:lot.grade,product:spec.product,productKg:outputKg,
   targetElementFraction:productElementFraction,
   productGrade:spec.targetGrade,residue:spec.residue,residueKg,energyJ:spec.powerW*spec.seconds,
-  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='copper_sulfide_identification'?
+  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='aluminosilicate_identification'?
+  'Idealized separation of a kaolinite-equivalent mineral, Al2Si2O9H4. Synthetic 8C grade is treated as a mineral-richness fraction, not a measured aluminum-element assay. Thermal processing and downstream alumina separation are educational simplifications.' :
+  mode==='copper_sulfide_identification'?
   'Copper assay converted to an idealized chalcocite (Cu2S) phase using its elemental Cu fraction. Assumes sulfide mineralogy; sulfur must be contained in the source rock, not created.' :
   mode==='iron_mineralogy'?
   'Idealized hematite identification from Fe-assayed concentrated rock. Assumes Fe2O3-bearing lithology; requires real upstream concentrate. Fe element conserved, oxygen comes from the original rock. Not proof of mineral identity by spectroscopy.' :

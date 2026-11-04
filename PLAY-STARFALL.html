@@ -6773,7 +6773,15 @@ const MODES=Object.freeze({
   product:'carbon',residue:'carbon_ash_tailings',targetGrade:1,recovery:.80,
   targetElementFraction:1,massKg:10,powerW:2600,seconds:230,
   capability:'mechanical_separator'},
-  copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
+  aluminum_sort:{label:'Aluminum ore beneficiation',material:'aluminum_ore',
+  product:'aluminosilicate_concentrate',residue:'aluminum_tailings',
+  targetGrade:.65,recovery:.80,massKg:20,powerW:2100,seconds:160,capability:'mechanical_separator'},
+ aluminosilicate_identification:{label:'Identify hydrated aluminosilicate mineral',
+  material:'aluminosilicate_concentrate',product:'hydrated_aluminosilicate',
+  residue:'aluminosilicate_mineralogy_tailings',targetGrade:1,recovery:.80,
+  massKg:2,powerW:3300,seconds:240,capability:'mechanical_separator',
+  minSourceGrade:.65,requiresProcessProvenance:true},
+ copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
  copper_sulfide_identification:{label:'Identify copper(I) sulfide from copper concentrate',
   material:'copper_concentrate',product:'copper_sulfide',residue:'sulfide_mineralogy_tailings',
   targetGrade:1,targetElementFraction:(2*63.546)/(2*63.546+32.06),
@@ -6830,7 +6838,9 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
   inputKg:spec.massKg,inputGrade:lot.grade,product:spec.product,productKg:outputKg,
   targetElementFraction:productElementFraction,
   productGrade:spec.targetGrade,residue:spec.residue,residueKg,energyJ:spec.powerW*spec.seconds,
-  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='copper_sulfide_identification'?
+  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='aluminosilicate_identification'?
+  'Idealized separation of a kaolinite-equivalent mineral, Al2Si2O9H4. Synthetic 8C grade is treated as a mineral-richness fraction, not a measured aluminum-element assay. Thermal processing and downstream alumina separation are educational simplifications.' :
+  mode==='copper_sulfide_identification'?
   'Copper assay converted to an idealized chalcocite (Cu2S) phase using its elemental Cu fraction. Assumes sulfide mineralogy; sulfur must be contained in the source rock, not created.' :
   mode==='iron_mineralogy'?
   'Idealized hematite identification from Fe-assayed concentrated rock. Assumes Fe2O3-bearing lithology; requires real upstream concentrate. Fe element conserved, oxygen comes from the original rock. Not proof of mineral identity by spectroscopy.' :
@@ -6908,6 +6918,7 @@ const species=Object.freeze({
  copper:{formula:{Cu:1},phase:'solid'},
  silicon_dioxide:{formula:{Si:1,O:2},phase:'solid'},
  glass:{formula:{Si:1,O:2},phase:'solid'},
+ hydrated_aluminosilicate:{formula:{Al:2,Si:2,O:9,H:4},phase:'solid'},
  aluminum_oxide:{formula:{Al:2,O:3},phase:'solid'},
  aluminum:{formula:{Al:1},phase:'solid'},
  steel:{formula:{Fe:99,C:1},phase:'alloy'} // 99:1 molar formula for recipe accounting, NOT commercial steel grade
@@ -6931,6 +6942,11 @@ const reactions=Object.freeze({
  copper_oxide_reduction:{label:'Copper oxide reduction (ideal)',equation:'2 CuO + C → 2 Cu + CO2',station:'reduction_furnace',
   input:{copper_oxide:2,carbon:1},output:{copper:2,carbon_dioxide:1},powerW:12500,seconds:620,
   requiredTools:['reduction_furnace','gas_capture'],notes:'Requires chemically identified CuO, not generic copper sulfide rock.'},
+ aluminosilicate_calcination:{label:'Hydrated aluminosilicate separation (ideal)',equation:'Al2Si2O9H4 → Al2O3 + 2 SiO2 + 2 H2O',
+  station:'reduction_furnace',input:{hydrated_aluminosilicate:1},
+  output:{aluminum_oxide:1,silicon_dioxide:2,water:2},
+  powerW:18000,seconds:760,requiredTools:['reduction_furnace','calcination_tray'],
+  notes:'Highly idealized modeled mineral separation. Real industrial alumina production needs leaching, separation, caustic handling, reprocessing and energy. This single reaction is atom-balanced but not a validated Bayer process.'},
  aluminum_electrolysis:{label:'Alumina electrolysis (ideal carbon-anode)',equation:'2 Al2O3 + 3 C → 4 Al + 3 CO2',station:'high_temp_cell',
   input:{aluminum_oxide:2,carbon:3},output:{aluminum:4,carbon_dioxide:3},powerW:38000,seconds:1300,
   requiredTools:['high_temp_cell','carbon_anode','gas_capture'],notes:'Ideal overall carbon-anode process; electrolytic voltage and bath losses are approximated.'},
@@ -7091,7 +7107,7 @@ const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ids=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const KITS=Object.freeze({
  plant_kit_electrolyzer:{type:'industrial_plant',station:'electrolyzer',tools:['electrolyzer','gas_separator','hydrogen_tank','oxygen_tank'],massKg:450,volumeM3:1.2,workJ:7e5,radiusScene:5},
- plant_kit_reduction_furnace:{type:'industrial_plant',station:'reduction_furnace',tools:['reduction_furnace','gas_capture','alloy_crucible','sulfide_roaster'],massKg:1100,volumeM3:3.4,workJ:1.5e6,radiusScene:7},
+ plant_kit_reduction_furnace:{type:'industrial_plant',station:'reduction_furnace',tools:['reduction_furnace','gas_capture','alloy_crucible','sulfide_roaster','calcination_tray'],massKg:1100,volumeM3:3.4,workJ:1.5e6,radiusScene:7},
  plant_kit_glass_furnace:{type:'industrial_plant',station:'glass_furnace',tools:['glass_furnace','mold'],massKg:520,volumeM3:1.8,workJ:9e5,radiusScene:5},
  plant_kit_catalytic_reactor:{type:'industrial_plant',station:'catalytic_reactor',tools:['catalytic_reactor','gas_separator','methane_tank'],massKg:640,volumeM3:2,workJ:1e6,radiusScene:6},
  plant_kit_high_temp_cell:{type:'industrial_plant',station:'high_temp_cell',tools:['high_temp_cell','carbon_anode','gas_capture'],massKg:1320,volumeM3:3.6,workJ:2e6,radiusScene:7},
@@ -7221,6 +7237,10 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallKitRe
 const RECIPES=Object.freeze({
  copper_busbar:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.5},outputs:{copper_busbar:.48},powerW:420,seconds:95,toleranceMm:.8},
  copper_contact:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.2},outputs:{copper_contact:.19},powerW:360,seconds:70,toleranceMm:.5},
+ aluminum_frame:{category:'lightweight_structure',station:'bench',tool:'hand-shear',
+  inputs:{aluminum:2.1},outputs:{aluminum_frame:2},powerW:610,seconds:130,toleranceMm:1.1},
+ aluminum_sheet:{category:'lightweight_structure',station:'bench',tool:'hand-shear',
+  inputs:{aluminum:1},outputs:{aluminum_sheet:.95},powerW:520,seconds:110,toleranceMm:1},
  iron_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{iron:.5},outputs:{iron_bracket:.46},powerW:650,seconds:125,toleranceMm:1.1},
  steel_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{steel:.8},outputs:{steel_bracket:.75},powerW:740,seconds:145,toleranceMm:1},
  glass_panel:{category:'glazing',station:'bench',tool:'glass-cutter',inputs:{glass:.6},outputs:{glass_panel:.55},powerW:380,seconds:110,toleranceMm:1.2},
@@ -14057,6 +14077,7 @@ const guide=[
  ['Industry','8E · Iron ore, carbon and alloy production','Survey and mine real iron_ore and carbon_feed deposits through 8C/8D; haul actual lots into the ship. Under Engineer → Refinery, run Iron ore concentration on 20 kg of iron_ore. Then run Identify and recover hematite on 2 kg of authentic 8E iron_concentrate at grade 60% or higher; the Fe assay is converted to modeled Fe₂O₃ using its 69.94% elemental iron fraction. Residue retains unrecovered iron. Separately, run Recover carbon from carbon-bearing rock on 10 kg of naturally sourced carbon_feed. Place a real reduction furnace and an independently rated carbon monoxide pressure vessel. In Chemical Plant Control select Hematite reduction, usually 5 mol per batch, so actual iron oxide + carbon yield iron and captured CO. Then select Iron-carbon alloying at 0.1 mol for a small batch of steel; the furnace must have an alloy crucible. All work is powered, timed and conserved. This is a simplified science model; Fe₂O₃ mineral identity and steel microstructure are not validated industrial assays.','Mine, haul, concentrate and recover both ore and carbon. Build physical furnace and CO tank from certified kits. If a deposit has low assay, perform several real mining and processing cycles; no material is gifted.','Missing iron oxide, carbon, power, physical furnace or CO vessel will block smelting. No CO is vented into an imaginary atmosphere. Alloying consumes more carbon and Fe and produces approximate low-carbon steel, not certified automotive or structural steel.'],
  ['Industry','8E · Copper sulfide roasting to usable copper','Mine and haul a finite 8C copper_ore deposit into the ship. Use Engineer → Refinery → Copper ore concentration (20 kg ore) to recover real copper_concentrate. Then run Identify copper(I) sulfide on 2 kg of 8E-made concentrate of grade 25% Cu or higher. The modeled Cu₂S mass accounts for the copper assay and the sulfur mass presumed already in the assayed rock. Build the real reduction furnace and distinct pressure-rated oxygen, sulfur dioxide and carbon dioxide vessels; oxygen must first be produced by the 8E water electrolyzer from finite recovered water. In Chemical Plant Control, use Copper(I) sulfide oxygen roasting (Cu₂S + 2 O₂ → 2 CuO + SO₂), select 1 mol (or a smaller feasible batch), and capture all SO₂. Then run Copper oxide reduction (2 CuO + C → 2 Cu + CO₂) using actual carbon recovered from 8C carbon_feed, with separate CO₂ capture. All real 8A stock and gas-vessel quantities are debited, and the copper can feed the existing wire-drawing workflow. Chemistry is idealized and Cu₂S mineral identification from coarse 8C assay is an assumption, not a verified XRD result.','Survey and mine sulfide copper ore, haul it, concentrate and identify sulfide, commission a reduction furnace, install rated oxygen/SO₂/CO₂ tanks, use real carbon and electrolysis oxygen.','No oxygen tank or sulfur dioxide capture vessel means the roast cannot start. No carbon or carbon dioxide tank means reduction cannot start. All exhaust remains in owned vessels, not imaginary atmospheric disposal. The process energy and yields are simplified.' ],
  ['Industry','8F · Basic parts and manual press','The existing ship fabrication room now exposes six more real 8F part recipes. Use Engineer → Material Fabrication. Copper busbar and copper contact require previously recovered true copper; iron bracket requires refined iron; steel bracket and manually stamped steel plate require real iron-carbon alloy steel; glass panel requires physically produced glass. The ship bench provides a finite-energy hand shear, bending brake and glass cutter. Each batch produces its requested part and an explicit, physical manufacturing_scrap lot. Build machine_kit_manual_press from 33 kg steel, 6 kg copper, 4 kg already produced iron brackets and 7 kg already produced glass panels. That kit is a 50 kg and 0.22 m³ actual cargo item; install it with Engineer → Physical Machine Installation to activate its manual-press tool and make stamped steel plates from steel. Existing 8A physical machinery, 8E ore products and saved power jobs are reused.','Collect real metal/glass stocks by mining and refinery/plant operations or legitimate stored stock. Manufacture the required number of bracket and panel batches, assemble one certified press kit and install it while landed, powered and at the ship workshop.','This route does not create motors, chips, semiconductors, polymers, aluminum or a fully self-sufficient planet industry. Scrap remains in cargo; equipment installation consumes additional energy and the physical kit only once.'],
+ ['Industry','8E · Aluminum ore to aluminum frames','Survey, mine and haul a finite 8C aluminum_ore lot. Under Engineer → Refinery, run Aluminum ore beneficiation on 20 kg stock to yield 65%-grade aluminosilicate_concentrate and tailings. On 2 kg of valid prior-8E concentrate run Identify hydrated aluminosilicate mineral, making a grade-1 model of Al2Si2O9H4 (kaolinite equivalent) plus tailings. Commission a physical reduction furnace that has its calcination tray. In Chemical Plant Control run Hydrated aluminosilicate separation, selecting a realistic small batch size to produce finite aluminum_oxide, silicon_dioxide and water by an atom-balanced educational reaction. Construct a physical high-temperature electrolytic cell and separate pressure-rated carbon dioxide vessel; recover actual carbon from a surveyed carbon-bearing deposit. Run existing Alumina electrolysis to convert aluminum oxide plus carbon into aluminum and captured CO2. Under Material Fabrication the ship bench can shear 2.1 kg real aluminum into 2 kg aluminum_frame plus 0.1 kg tracked scrap, or 1 kg aluminum into 0.95 kg aluminum_sheet plus tracked scrap. The frame can later supply the existing solar_module assembly when all separate electronic inputs are available.','Physical ore and carbon lots, previously processed concentrate, placed furnace/cell, finite power and actual CO2 vessel are mandatory. No components or chemical reagents are gifted.','This is an atom-balanced but strongly idealized separation: a real kaolinite-equivalent aluminosilicate does not become pure alumina simply by heating. Industrial Bayer-type processing requires additional leaching, separation, caustic recycling and waste management not simulated. Aluminum production is NOT industrially validated, and photovoltaic cells remain a separate advanced-process dependency.'],
  ['Glossary','Engineering terms','Apoapsis: highest orbital point. Periapsis: lowest orbital point. Delta-v: ideal velocity-change capability. TWR: thrust divided by local weight. LOS: line-of-sight radio path. Joule (J): stored energy. Watt (W): energy each second. Telemetry: measured operating data. Calibration: aligning instrument output to a known reference. Biome: environmental region.','None','The game combines physical laws, simplified engineering and clearly fictional warp technology.']
 ];
 const overlay=document.createElement('section');overlay.id='ui21-manual';overlay.hidden=true;overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Starfall Field Manual');
@@ -14332,7 +14353,7 @@ const rt=()=>root.StarfallRuntime, api=root.StarfallRefinery8E;
 const panel=document.createElement('section');panel.className='section';panel.id='refinery8e-panel';
 const title=document.createElement('div');title.className='section-title';title.textContent='REFINERY · SHIP FABRICATION';
 const status=document.createElement('p');status.className='panel-note';status.setAttribute('role','status');
-status.textContent='Finite 8D ores can now be concentrated and identified: iron → modeled hematite, copper sulfide → Cu₂S, carbon-bearing rock → carbon, silica → 99% SiO₂. Every process pays real ship battery energy, produces tailings and retains original inventory mass. Furnace chemistry requires separately installed equipment and captured exhaust.';
+status.textContent='Finite 8D ores can now be concentrated and identified: iron → modeled hematite, copper sulfide → Cu₂S, aluminum ore → hydrated aluminosilicate, carbon-bearing rock → carbon, silica → 99% SiO₂. Every process pays real ship battery energy, produces tailings and retains original inventory mass. Furnace chemistry requires separately installed equipment and captured exhaust.';
 const select=document.createElement('select');select.setAttribute('aria-label','Select actual material processing operation');
 select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:9px;width:100%';
 for(const [k,r] of Object.entries(api.MODES)){const opt=document.createElement('option');opt.value=k;opt.textContent=r.label+' · '+r.massKg+' kg';select.appendChild(opt);}
