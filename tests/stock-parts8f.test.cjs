@@ -11,7 +11,7 @@ const Install=require('../src/physics/machine-install8f.js');
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,a+' != '+b);
 const hold='ship';
 const seed=Stock.create();seed.registerContainer({id:hold,ownerId:'ship-main',maxMassKg:9000,maxVolumeM3:16});
-let i=0;for(const [materialId,massKg] of Object.entries({steel:36,copper:6,iron:5,glass:8})){
+let i=0;for(const [materialId,massKg] of Object.entries({steel:36,copper:6.5,iron:5,glass:8})){
  seed.importLot({id:'certified:'+ ++i,materialId,massKg,grade:1,volumeM3:massKg*.001,
  containerId:hold,provenance:'real-8E-production'});
 }
