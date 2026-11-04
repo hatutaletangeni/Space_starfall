@@ -68,7 +68,7 @@ with sync_playwright() as pw:
         })""")
         quote=page.evaluate("""() => StarfallRuntime.airFractionationQuote8G('air-test-plant','air-test-nitrogen-vessel')""")
         assert quote['ready'] and quote['powered'],quote
-        assert quote['availableAirKg']==StarfallAirFractionation8G.AIR_KG_PER_CELL if False else quote['availableAirKg']==2400
+        assert quote['availableAirKg']==2400,quote
         assert 0<quote['nitrogenKg']<quote['airBatchKg']
         page.locator('#ui21-navigation button[data-route="Engineer"]').click()
         control=page.locator('#air-fractionation8g')
