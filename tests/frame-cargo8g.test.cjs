@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 globalThis.StarfallPhysical8A=require('../src/physics/physical-inventory8a.js');
 const C=require('../src/physics/frame-cargo8g.js');
-const fixed=(p,meters,r=1000)=>[Math.sin(meters/r),Math.cos(meters/r),0];
+const fixed=(meters,r=1000)=>[Math.sin(meters/r),Math.cos(meters/r),0];
 const truck={id:'truck-expedition-001',type:'truck',massKg:1600,volumeM3:13,
  condition:1,location:{kind:'ship',parentId:'ship-main',slot:'starboard-hangar'}};
 const frame={id:'vehicle8g:1',type:'vehicle_frame',massKg:300,volumeM3:1.5,
