@@ -26,7 +26,7 @@ with sync_playwright() as p:
         page=context.new_page()
         errors=[]
         network=[]
-        page.on('pageerror',lambda e:errors.append(str(e)))
+        page.on('pageerror',lambda e:errors.append(str(e.stack or e)))
         page.on('request',lambda r:network.append(r.url) if r.url.startswith(('http://','https://')) else None)
         page.goto(TARGET.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallIntegration && window.StarfallLaunchUI && window.StarfallScienceUI && window.StarfallImagingUI7F)",timeout=30000)
