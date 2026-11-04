@@ -166,6 +166,28 @@ with sync_playwright() as pw:
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.landed && StarfallRuntime.eva',timeout=40000)
         assert page.evaluate("""id => StarfallRuntime.physical8a.get(id)?.state?.operational===true""",frame_id)
+        # Test-only physical placement by the already verified unique frame.
+        # Then use the actual X boarding / WASD input rather than teleporting
+        # the vehicle or modifying the authoritative 8A custody directly.
+        page.evaluate("""id => STARFALL_DEBUG.placeEvaNearManufactured8G(id)""",frame_id)
+        assert page.evaluate("""() => StarfallRuntime.enterManufactured8G()""") is True
+        initial_drive=page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.batteryEnergyJ""",frame_id)
+        page.keyboard.down('w')
+        page.wait_for_timeout(1200)
+        page.keyboard.up('w')
+        driven=page.evaluate("""id => ({
+          occupied:StarfallRuntime.manufacturedOccupied8G,
+          frame:StarfallRuntime.physical8a.get(id),
+          original:StarfallRuntime.physical8a.list().filter(a=>a.id==='truck-expedition-001')
+        })""",frame_id)
+        assert driven['occupied']==frame_id,driven
+        assert driven['frame']['state']['distanceM']>0,driven
+        assert driven['frame']['state']['batteryEnergyJ']<initial_drive,driven
+        assert len(driven['original'])==1 and driven['original'][0]['location']==fixture['truck']
+        assert page.evaluate("""() => StarfallRuntime.exitManufactured8G()""") is True
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        assert page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.distanceM>0""",frame_id)
         assert not errors,errors
         print('PASS 8G Chromium activation: complete manufactured frame calibrated and charged 2.5MJ, distinct rideable vehicle saved without cloning expedition truck')
         assert not errors,errors
