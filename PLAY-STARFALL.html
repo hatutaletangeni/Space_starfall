@@ -7231,11 +7231,15 @@ const KITS=Object.freeze({
  plant_kit_rocket_integration:{type:'industrial_plant',station:'rocket_integration',
   tools:['rocket_stage_fixture','overhead_hoist','tank_alignment','dry_weight_scale'],
   massKg:900,volumeM3:2.9,workJ:2100000,radiusScene:10},
+ plant_kit_air_fractionation:{type:'industrial_plant',station:'air_fractionation',
+  tools:['air_intake','dust_filter','gas_separator','compressor','nitrogen_storage_interface'],
+  massKg:740,volumeM3:2.4,workJ:1350000,radiusScene:8},
  plant_kit_habitat_construction_pad:{type:'industrial_plant',station:'habitat_pad',
   tools:['pressure_section_jig','airlock_alignment','shell_welding_fixture','leak_test_port'],
   massKg:1120,volumeM3:3.7,workJ:2500000,radiusScene:11},
  vessel_kit_hydrogen:{type:'industrial_vessel',materialId:'hydrogen',massKg:160,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
  vessel_kit_oxygen:{type:'industrial_vessel',materialId:'oxygen',massKg:195,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
+ vessel_kit_nitrogen:{type:'industrial_vessel',materialId:'nitrogen',massKg:195,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
  vessel_kit_sulfur_dioxide:{type:'industrial_vessel',materialId:'sulfur_dioxide',
   massKg:210,volumeM3:4,workJ:225000,radiusScene:4,pressurePa:8e6},
  vessel_kit_carbon_monoxide:{type:'industrial_vessel',materialId:'carbon_monoxide',massKg:170,volumeM3:4,workJ:2e5,radiusScene:4,pressurePa:8e6},
@@ -7320,7 +7324,8 @@ const SPECS=Object.freeze({
  plant_kit_vehicle_assembly_pad:[760,2.8,'assembly_pad'],
  plant_kit_rocket_integration:[900,2.9,'rocket_integrator'],
  plant_kit_habitat_construction_pad:[1120,3.7,'habitat_builder'],
- vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],
+ plant_kit_air_fractionation:[740,2.4,'air_separator'],
+ vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],vessel_kit_nitrogen:[195,4,'vessel'],
  vessel_kit_sulfur_dioxide:[210,4,'vessel'],
  vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],
  vessel_kit_methane:[195,4,'vessel']
@@ -7329,6 +7334,7 @@ const FRACTIONS=Object.freeze({
  assembly_pad:{steel:.60,copper:.12,aluminum:.08,glass:.05,refractory_block:.05,insulated_wire:.04,electric_motor:.04,control_board:.02},
  rocket_integrator:{steel:.54,copper:.1,aluminum:.06,glass:.04,refractory_block:.11,insulated_wire:.05,electric_motor:.07,control_board:.03},
  habitat_builder:{steel:.55,copper:.12,aluminum:.07,glass:.05,refractory_block:.06,insulated_wire:.06,electric_motor:.06,control_board:.03},
+ air_separator:{steel:.45,copper:.16,aluminum:.11,glass:.07,refractory_block:.05,insulated_wire:.07,electric_motor:.06,control_board:.03},
  hand_winder:{steel:.5625,copper:.09375,aluminum:.125,glass:.0625,iron_bracket:.0625,steel_bracket:.09375},
  manual_press:{steel:.66,copper:.12,iron_bracket:.08,glass_panel:.14},
  machine:{steel:.48,copper:.12,aluminum:.08,glass:.04,refractory_block:.10,insulated_wire:.05,electric_motor:.08,control_board:.05},
@@ -8351,6 +8357,158 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallHabit
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL Update 8G — finite modeled atmospheric nitrogen separation.
+ * CW01 is an uncertain seeded composition PRIOR, never a measurement. Each
+ * 8C landable planet-fixed cell has a deliberately BOUNDED accessible air
+ * parcel, and every capture permanently debits that parcel in the saved ledger.
+ * No gaseous ship-hold output: nitrogen must enter its actual installed,
+ * pressure-rated 8E nitrogen vessel. No free electricity, matter or nitrogen.
+ */
+(function(root){'use strict';
+const clone=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
+const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const AIR_KG_PER_CELL=2400,BATCH_AIR_KG=20,SEPARATION_EFFICIENCY=.80,
+ WORK_J=810000,STORE_PA=5000000,TEMP_K=293.15,R=8.314462618;
+const MOLE_KG=Object.freeze({N2:.028014,O2:.031998,Ar:.039948,
+ CO2:.0440095,SO2:.064066,CH4:.016043,H2O:.018015,H2:.002016,He:.0040026,NH3:.017031});
+const REQUIRED_TOOLS=Object.freeze(['air_intake','dust_filter','gas_separator','compressor','nitrogen_storage_interface']);
+function arc(a,b,r){return Math.acos(Math.max(-1,Math.min(1,
+ a.reduce((s,x,i)=>s+x*b[i],0))))*r;}
+function radial(x){return Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&
+ Math.abs(Math.hypot(...x)-1)<1e-4;}
+function parcel(body,galaxy,local){
+ if(!body||body.kind!=='planet'||!body.landable||!id(body.id)||!radial(local))
+  throw Error('A landable, non-vacuum planetary surface is required');
+ if(!galaxy||!Number.isSafeInteger(galaxy.seed))throw Error('Galaxy seed required to identify the actual atmosphere model');
+ const cw=root.StarfallCompositionCW01,resources=root.StarfallResources8C;
+ if(!cw?.bodyFor||!resources?.tiles)throw Error('CW01 atmosphere and 8C geospatial sources unavailable');
+ const c=cw.bodyFor(body,galaxy.seed),fractions=c.atmosphereMoleFractions||{};
+ if(c.atmosphereMode!=='seeded atmosphere prior'||!(fractions.N2>=.03))
+  throw Error('No usable modeled molecular nitrogen in this world atmosphere');
+ let total=0;for(const [species,fraction] of Object.entries(fractions)){
+  if(!valid(fraction)||!MOLE_KG[species])throw Error('Unsupported atmospheric species '+species);
+  total+=fraction*MOLE_KG[species];
+ }
+ if(total<=0)throw Error('Invalid modeled atmosphere mixture');
+ const nitrogenMassFraction=fractions.N2*MOLE_KG.N2/total;
+ const cell=resources.tiles(local),cellKey='air8g:'+galaxy.seed+':'+body.id+':'+cell.lat+':'+cell.lon;
+ if(cellKey.length>128)throw Error('Air cell key too long');
+ return {cellKey,bodyId:body.id,nitrogenMoleFraction:fractions.N2,
+ nitrogenMassFraction,airCapacityKg:AIR_KG_PER_CELL,
+ provenance:'CW01 seeded atmospheric prior; unmeasured; finite local 8G accessible model'};
+}
+function create(saved){
+ const state=saved==null?{schema:1,harvests:[]}:clone(saved);
+ if(state.schema!==1||!Array.isArray(state.harvests)||state.harvests.length>100000)
+  throw Error('Invalid 8G atmosphere extraction save');
+ const seen=new Set(),spent=new Map();
+ for(const h of state.harvests){
+  if(!id(h.id)||seen.has(h.id)||!id(h.cellKey)||!id(h.bodyId)||
+   !valid(h.airKg)||!valid(h.nitrogenKg)||!valid(h.ventKg)||
+   Math.abs(h.airKg-h.nitrogenKg-h.ventKg)>EPS||
+   !id(h.vesselAssetId)||!id(h.outputLotId))throw Error('Corrupt atmospheric harvest history');
+  seen.add(h.id);spent.set(h.cellKey,(spent.get(h.cellKey)||0)+h.airKg);
+  if(spent.get(h.cellKey)>AIR_KG_PER_CELL+EPS)throw Error('Corrupt atmospheric depletion exceeds the finite parcel');
+ }
+ function remaining(p){return Math.max(0,AIR_KG_PER_CELL-(spent.get(p.cellKey)||0));}
+ function check(a,needsReceipt=false){
+  if(!a||!id(a.jobId)||!a.jobId.startsWith('air8g:')||!id(a.plantId)||!id(a.vesselId)||
+   !id(a.outputContainerId)||!id(a.bodyId)||!a.body||a.body.id!==a.bodyId||
+   !a.physical||a.physical.schema!==1||!Array.isArray(a.physical.assets)||
+   !a.materials||a.materials.schema!==1||!Array.isArray(a.materials.containers)||
+   !Array.isArray(a.materials.lots)||!Array.isArray(a.materials.operations))
+   throw Error('Physical plant, vessel and 8A inventory authority required');
+  if(!a.shipLanded||!a.operatorEVA||!a.shipPowered||!radial(a.shipLocal)||
+   !radial(a.evaLocal)||!valid(a.bodyRadius)||a.bodyRadius<=0)
+   throw Error('Landed powered ship and EVA operator required for atmospheric separation');
+  const plant=a.physical.assets.find(x=>x.id===a.plantId);
+  if(!plant||plant.type!=='industrial_plant'||plant.condition<.5||
+   plant.location?.kind!=='surface'||plant.location.bodyId!==a.bodyId||
+   plant.state?.station!=='air_fractionation'||plant.state?.enabled!==true||
+   !REQUIRED_TOOLS.every(t=>plant.state?.tools?.includes(t)))
+   throw Error('Installed, fully equipped air fractionation plant required');
+  const vessel=a.physical.assets.find(x=>x.id===a.vesselId);
+  if(!vessel||vessel.type!=='industrial_vessel'||vessel.condition<.5||
+   vessel.location?.kind!=='surface'||vessel.location.bodyId!==a.bodyId||
+   vessel.state?.materialId!=='nitrogen'||vessel.state?.containerId!==a.outputContainerId||
+   vessel.state?.ratedPressurePa<STORE_PA)
+   throw Error('A matching same-world pressure-rated nitrogen vessel is required');
+  const storage=a.materials.containers.find(c=>c.id===a.outputContainerId);
+  if(!storage||storage.ownerId!==vessel.id||!String(storage.kind).includes('gas'))
+   throw Error('Nitrogen destination must be a physically owned gas-vessel 8A container');
+  if(arc(plant.location.local,a.shipLocal,a.bodyRadius)>75||
+    arc(plant.location.local,a.evaLocal,a.bodyRadius)>38||
+    arc(plant.location.local,vessel.location.local,a.bodyRadius)>65)
+   throw Error('Ship, EVA and nitrogen storage vessel out of compressor-hose range');
+  const p=parcel(a.body,a.galaxy,plant.location.local);
+  const available=remaining(p),nitrogenKg=BATCH_AIR_KG*p.nitrogenMassFraction*SEPARATION_EFFICIENCY,
+   ventKg=BATCH_AIR_KG-nitrogenKg,
+   outputVolumeM3=(nitrogenKg/MOLE_KG.N2)*R*TEMP_K/STORE_PA;
+  if(!(nitrogenKg>0&&ventKg>0))throw Error('Invalid nitrogen separation yield');
+  const stored=a.materials.lots.filter(x=>x.containerId===a.outputContainerId);
+  if(stored.some(x=>x.materialId!=='nitrogen'))throw Error('Pressure vessel contaminated with incompatible stock');
+  if(stored.some(x=>!valid(x.massKg)||!valid(x.volumeM3)))throw Error('Invalid vessel stored lot');
+  const kg=stored.reduce((s,x)=>s+x.massKg,0),m3=stored.reduce((s,x)=>s+x.volumeM3,0);
+  const canStore=kg+nitrogenKg<=storage.maxMassKg+EPS&&
+   m3+outputVolumeM3<=storage.maxVolumeM3+EPS;
+  if(needsReceipt){
+   const e=a.energyReceipt;
+   if(!e||e.operationId!==a.jobId||e.sourceId!=='ship-main:engineering-battery'||
+     e.status!=='COMMITTED'||!valid(e.usedJ)||e.usedJ+EPS<WORK_J)
+    throw Error('Committed 810 kJ nitrogen-compressor work receipt required');
+  }
+  return {plant,vessel,p,available,nitrogenKg,ventKg,outputVolumeM3,canStore};
+ }
+ function quote(a){
+  const prior=state.harvests.find(h=>h.id===a?.jobId);
+  if(prior)return{duplicate:true,receipt:clone(prior)};
+  const q=check(a);
+  return {ready:q.available+EPS>=BATCH_AIR_KG&&q.canStore,
+   airBatchKg:BATCH_AIR_KG,availableAirKg:q.available,
+   nitrogenKg:q.nitrogenKg,ventToAtmosphereKg:q.ventKg,
+   outputVolumeM3:q.outputVolumeM3,energyJ:WORK_J,
+   nitrogenMoleFraction:q.p.nitrogenMoleFraction,
+   nitrogenMassFraction:q.p.nitrogenMassFraction,
+   destinationAssetId:q.vessel.id,cellKey:q.p.cellKey,provenance:q.p.provenance,
+   blockedReason:q.available+EPS<BATCH_AIR_KG?'Finite parcel depleted':
+      !q.canStore?'Rated nitrogen vessel at capacity':null};
+ }
+ function capture(a){
+  const prior=state.harvests.find(h=>h.id===a?.jobId);
+  if(prior){
+   if(prior.plantAssetId!==a.plantId||prior.vesselAssetId!==a.vesselId||
+      !a.materials?.lots?.some(l=>l.id===prior.outputLotId))
+    throw Error('Replayed air harvest lacks original authoritative custody');
+   return {duplicate:true,receipt:clone(prior),materials:clone(a.materials),atmosphere:clone(state)};
+  }
+  const q=check(a,true);
+  if(q.available+EPS<BATCH_AIR_KG)throw Error('Modeled planetary air parcel depleted');
+  if(!q.canStore)throw Error('Rated nitrogen vessel lacks remaining gas capacity');
+  const next=clone(a.materials),lotId='nitrogen:'+a.jobId;
+  if(next.lots.some(l=>l.id===lotId))throw Error('Duplicate nitrogen extraction output ID');
+  next.lots.push({id:lotId,materialId:'nitrogen',containerId:a.outputContainerId,
+   massKg:q.nitrogenKg,volumeM3:q.outputVolumeM3,
+   grade:.999,provenance:'atmosphere-8g:'+q.p.cellKey});
+  if(!root.StarfallMaterials8A)throw Error('8A inventory validation unavailable');
+  root.StarfallMaterials8A.create(next);
+  const receipt={id:a.jobId,bodyId:a.bodyId,cellKey:q.p.cellKey,
+   plantAssetId:a.plantId,vesselAssetId:a.vesselId,outputLotId:lotId,
+   airKg:BATCH_AIR_KG,nitrogenKg:q.nitrogenKg,ventKg:q.ventKg,
+   energyJ:WORK_J,status:'COMMITTED',source:'CW01 modeled finite air'};
+  if(Math.abs(receipt.airKg-receipt.nitrogenKg-receipt.ventKg)>EPS)
+   throw Error('Atmospheric intake/vent/output mass balance violated');
+  const updated=clone(state);updated.harvests.push(receipt);
+  return {duplicate:false,receipt,materials:next,atmosphere:updated};
+ }
+ return Object.freeze({quote,capture,remaining,snapshot:()=>clone(state)});
+}
+root.StarfallAirFractionation8G=Object.freeze({create,parcel,
+ AIR_KG_PER_CELL,BATCH_AIR_KG,WORK_J,STORE_PA,REQUIRED_TOOLS});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallAirFractionation8G;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8G — physically accountable component replacement.
  * A real manufactured spare becomes one installed replacement; one old
  * damaged component becomes a same-mass scrap lot in the original hold.
@@ -8700,6 +8858,7 @@ let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(se
 let vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(session.vehicleAssembly8g);
 let manufacturedOccupied8G=null;
 let resources8c=StarfallResources8C.create(session.resources8c);
+let atmosphere8g=StarfallAirFractionation8G.create(session.atmosphere8g);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
 let transformation8e=StarfallTransformation8E.create(session.transformations8e);
 const refinery8e=StarfallRefinery8E.create(session.refinery8e);
@@ -9324,7 +9483,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -10002,6 +10161,50 @@ function fieldRepair8G(assetId){
  saveFlight();showToast('8G · paid field repair '+assetId+'; damaged component returned as scrap');
  return result.receipt;
 }
+function airFractionationContext8G(){
+ const c=assemblyContext8G(),ship=vehicleStore.get('ship');
+ const all=physical8a.list(),local=all.filter(x=>x.location?.kind==='surface'&&x.location.bodyId===c.bodyId);
+ return {...c,plantIds:local.filter(x=>x.type==='industrial_plant'&&
+   x.state?.station==='air_fractionation'&&x.condition>=.5&&x.state?.enabled===true)
+   .map(x=>x.id),
+  vesselIds:local.filter(x=>x.type==='industrial_vessel'&&x.state?.materialId==='nitrogen'&&
+   x.condition>=.5).map(x=>x.id),
+  powerEnabled:!!ship.state.powerEnabled};
+}
+function airFractionationInput8G(plantId,vesselId,jobId){
+ const c=airFractionationContext8G(),vessel=physical8a.get(vesselId),body=nearest;
+ if(!c.landed||!c.eva||!c.powered||!body?.landable||body.kind!=='planet'||
+    shipBody!==body||!shipLocal||!evaLocal||manufacturedOccupied8G||truckOccupied||
+    shipWalking8e)throw Error('Nitrogen collection requires landed ship and powered nearby EVA on a planet');
+ return {jobId,plantId,vesselId,outputContainerId:vessel?.state?.containerId,
+  bodyId:body.id,body,galaxy,physical:physical8a.serialize(),
+  materials:materials8a.snapshot(),shipLocal,evaLocal,bodyRadius:body.radius,
+  shipLanded:c.landed,operatorEVA:c.eva,shipPowered:c.powerEnabled,
+  energyReceipt:{operationId:jobId,sourceId:'ship-main:engineering-battery',
+   status:'COMMITTED',usedJ:StarfallAirFractionation8G.WORK_J}};
+}
+function airFractionationQuote8G(plantId,vesselId){
+ const c=airFractionationContext8G();
+ const q=atmosphere8g.quote(airFractionationInput8G(plantId,vesselId,'air8g:preview'));
+ return {...q,powered:c.energyJ>=q.energyJ};
+}
+function airFractionationCollect8G(plantId,vesselId){
+ const c=airFractionationContext8G(),workJ=StarfallAirFractionation8G.WORK_J;
+ if(c.energyJ<workJ)throw Error('Insufficient 810 kJ real ship-battery work for compression');
+ const prev=atmosphere8g.snapshot();let n=prev.harvests.length+1;
+ while(prev.harvests.some(h=>h.id==='air8g:'+n)||materials8a.inventory().some(l=>l.id==='nitrogen:air8g:'+n))n++;
+ const jobId='air8g:'+n;
+ const result=atmosphere8g.capture(airFractionationInput8G(plantId,vesselId,jobId));
+ const checkedMaterials=StarfallMaterials8A.create(result.materials),
+   checkedAtmosphere=StarfallAirFractionation8G.create(result.atmosphere),
+   ship=vehicleStore.get('ship');
+ if(ship.state.energyJ<workJ)throw Error('Ship energy changed before air separation commit');
+ materials8a=checkedMaterials;atmosphere8g=checkedAtmosphere;
+ vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-workJ});
+ saveFlight();
+ showToast('8G · '+result.receipt.nitrogenKg.toFixed(2)+' kg modeled N₂ stored in rated vessel; 810 kJ paid');
+ return result.receipt;
+}
 function habitatChargeContext8G(){
  const c=assemblyContext8G();
  return {...c,habitats:physical8a.list().filter(a=>a.type==='habitat_envelope'&&
@@ -10649,7 +10852,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -15779,6 +15982,63 @@ act.addEventListener('click',()=>{try{const r=root.StarfallRuntime.habitatCharge
 choose.addEventListener('change',refresh);
 let last=0;function tick(t){if(t-last>1000){last=t;refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 root.StarfallHabitatChargeUI8G={refresh};
+})(globalThis);
+
+</script><script>
+/* 8G — physical atmospheric nitrogen harvesting. CW01 fractions are modeled,
+ * never measured; a fixed finite parcel is debited per surface cell.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host||!root.StarfallAirFractionation8G)return;
+const section=document.createElement('section');section.className='section';section.id='air-fractionation8g';
+const title=document.createElement('div');title.className='section-title';
+title.textContent='8G · FINITE ATMOSPHERIC NITROGEN';
+const intro=document.createElement('p');intro.className='panel-note';
+intro.textContent='On a nitrogen-bearing planet, build an actual 8F air-separation facility and a separate rated nitrogen pressure vessel. Capturing one 20 kg air batch consumes 810 kJ and a finite local modeled air reserve; the recovered N₂ goes only to the rated vessel while other gases are exhausted to the environment. Planet atmospheres are composition priors, NOT surveyed pressure or flight-safety evidence.';
+const plant=document.createElement('select');plant.setAttribute('aria-label','Select physical air separator');
+const vessel=document.createElement('select');vessel.setAttribute('aria-label','Select physical nitrogen vessel');
+for(const x of [plant,vessel])x.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;max-width:100%';
+const collect=document.createElement('button');collect.className='science-action';collect.type='button';
+collect.textContent='SEPARATE 20 KG ATMOSPHERIC AIR (810 kJ)';
+const detail=document.createElement('pre');detail.style.cssText='white-space:pre-wrap;background:#101b23;color:#c8d9de;border:1px solid #53677566;padding:10px;font:11px/1.45 Consolas,monospace;max-height:250px;overflow:auto';
+const status=document.createElement('p');status.className='panel-note';status.setAttribute('role','status');
+status.textContent='Requires actual pressure-rated vessel and finite planetary atmosphere.';
+const row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;gap:8px;align-items:center';
+row.append(plant,vessel,collect);section.append(title,intro,row,detail,status);host.append(section);
+function entries(select,ids){
+ const sig=ids.join('|');if(select.dataset.signature===sig)return;
+ const prev=select.value;select.dataset.signature=sig;select.replaceChildren();
+ for(const id of ids){const o=document.createElement('option');o.value=id;o.textContent=id;select.append(o);}
+ if(ids.includes(prev))select.value=prev;
+}
+function refresh(){
+ const rt=root.StarfallRuntime,c=rt?.airFractionationContext8G?.();
+ if(!c)return;
+ entries(plant,c.plantIds);entries(vessel,c.vesselIds);
+ let q=null,error='';
+ try{if(plant.value&&vessel.value)q=rt.airFractionationQuote8G(plant.value,vessel.value);}
+ catch(e){error=String(e.message||e);}
+ collect.disabled=!q?.ready||!q?.powered||!c.landed||!c.eva;
+ detail.textContent='MODEL: CW01 v1 deterministic uncertain atmosphere prior'+
+  '\nSEPARATOR: '+(plant.value||'NONE BUILT')+
+  '\nRATED N₂ VESSEL: '+(vessel.value||'NONE BUILT')+
+  '\nN₂ MOLE FRACTION: '+(q?(q.nitrogenMoleFraction*100).toFixed(2)+'%':'—')+
+  '\nAVAILABLE CELL AIR: '+(q?q.availableAirKg.toFixed(2)+' kg':'—')+
+  '\nBATCH AIR INPUT: '+(q?.airBatchKg||20)+' kg'+
+  '\nN₂ COMPRESSED IN VESSEL: '+(q?q.nitrogenKg.toFixed(3)+' kg':'—')+
+  '\nSEPARATION VENTED MASS: '+(q?q.ventToAtmosphereKg.toFixed(3)+' kg':'—')+
+  '\nBATTERY ENERGY: 810 kJ'+
+  '\nSTATUS: '+(error||q?.blockedReason||(!q?'INSTALL BOTH PHYSICAL FACILITIES':q.ready&&q.powered?'READY':'SHIP POWER NEEDED'))+
+  '\nIMPORTANT: N₂ is stored in the STATIONARY gas vessel, not teleported to the ship.';
+}
+collect.addEventListener('click',()=>{try{
+ const r=root.StarfallRuntime.airFractionationCollect8G(plant.value,vessel.value);
+ status.textContent='CAPTURED '+r.nitrogenKg.toFixed(3)+' kg nitrogen; '+r.ventKg.toFixed(3)+' kg released as exhaust; '+r.airKg+' kg of local air depleted, '+r.energyJ+' J paid.';
+ }catch(e){status.textContent='BLOCKED: '+String(e.message||e);}refresh();});
+plant.addEventListener('change',refresh);vessel.addEventListener('change',refresh);
+let last=0;function tick(t){if(t-last>1000){last=t;refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
+root.StarfallAirFractionationUI8G={refresh};
 })(globalThis);
 
 </script><script>
