@@ -24,6 +24,12 @@ for(let i=0;i<100;i++){saved.step({throttle:0,brake:1},world,.05);if(saved.snaps
 assert.equal(saved.snapshot().speedMS,0,'Brake must stop rather than reverse vehicle');
 const empty=Drive.create({...hardware,batteryEnergyJ:0});
 assert.equal(empty.step({throttle:1},world,.05).driveN,0,'Empty battery cannot drive');
+const thinBattery=Drive.create({...hardware,batteryEnergyJ:.00001});
+const thin=thinBattery.step({throttle:1},world,.1);
+assert.ok(thin.batteryEnergyJ>=0&&thin.batteryEnergyJ<=.00001);
+assert.ok(thin.speedMS<.001,'A nearly empty pack must not launch the vehicle as if full');
+const startWithEnergy=Drive.create(hardware).step({throttle:1},world,.1);
+assert.ok(startWithEnergy.electricalJ>0,'Starting motor work cannot be free');
 const slippery=Drive.create(hardware).step({throttle:1},{...world,frictionCoefficient:.02},.05);
 assert.ok(slippery.driveN<=slippery.tractionLimitN);
 const slope=Drive.create(hardware).step({throttle:0},{...world,slopeRad:.3},.05);
