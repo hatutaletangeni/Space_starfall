@@ -116,6 +116,7 @@ with sync_playwright() as pw:
         assert persisted=={'frames':1,'receipts':1,'trucks':1},persisted
         assert not errors,errors
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=30000)
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
         cargo=page.locator('#frame-cargo8g')
         frame_id=made['frames'][0]['id']
         cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
@@ -133,6 +134,7 @@ with sync_playwright() as pw:
         assert after_load['cargoMass']>=made['frames'][0]['massKg']
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=40000)
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
         cargo=page.locator('#frame-cargo8g')
         cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
         cargo.get_by_role('button',name='UNLOAD FRAME ONTO CLEAR GROUND').click()
