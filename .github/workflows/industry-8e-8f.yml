@@ -24,6 +24,7 @@ on:
       - release/update-8g-frame-cargo-current-main
       - release/update-8g-driven-manufactured-vehicles
       - feature/update-8g-rocket-habitat-industrial-assembly
+      - release/update-8g-structure-repairs-current-main
   pull_request:
     paths:
       - 'src/physics/*8e.js'
@@ -78,6 +79,9 @@ jobs:
           node --check src/physics/structure-assembly8g.js
           node --check src/physics/structure-assembly-ui8g.js
           node tests/structure-assembly8g.test.cjs
+          node --check src/physics/structure-repair8g.js
+          node --check src/physics/structure-repair-ui8g.js
+          node tests/structure-repair8g.test.cjs
           node tests/industrial-kit-factory8f.test.cjs
           node tests/stock-parts8f.test.cjs
           node tests/industry-crosschain8e-8f.test.cjs
@@ -102,12 +106,12 @@ jobs:
           path: PLAY-STARFALL.html
           retention-days: 14
       - name: Commit fresh standalone HTML to test branch
-        if: github.event_name == 'push' && github.ref_name == 'feature/update-8g-rocket-habitat-industrial-assembly'
+        if: github.event_name == 'push' && github.ref_name == 'release/update-8g-structure-repairs-current-main'
         run: |
           git config user.name "starfall-ci"
           git config user.email "starfall-ci@users.noreply.github.com"
           git add -f PLAY-STARFALL.html
           if ! git diff --cached --quiet; then
             git commit -m "build(8E): publish test standalone [skip ci]"
-            git push origin HEAD:feature/update-8g-rocket-habitat-industrial-assembly
+            git push origin HEAD:release/update-8g-structure-repairs-current-main
           fi
