@@ -8742,7 +8742,7 @@ const EPS=1e-6;
 const LIMIT=Object.freeze({massKg:3500,volumeM3:155,sceneRangeFromShip:55,
  sceneRangeFromEva:30,workJ:30000,slot:'engineering-frame-cradle'});
 function distance(a,b,r){const dot=a.reduce((n,x,i)=>n+x*b[i],0);return Math.acos(Math.max(-1,Math.min(1,dot)))*r;}
-function transfer({jobId,assetId,action,physical,bodyId,shipLocal,evaLocal,bodyRadius,
+function transfer({jobId,assetId,action,physical,materials,bodyId,shipLocal,evaLocal,bodyRadius,
   shipLanded,operatorEVA,powerReceipt,unloadLocal}){
  if(!id(jobId)||!id(assetId)||!id(bodyId)||!['load','unload'].includes(action))
   throw Error('Invalid 8G cargo operation');
@@ -8784,7 +8784,15 @@ function transfer({jobId,assetId,action,physical,bodyId,shipLocal,evaLocal,bodyR
   // The existing unique 8B truck cargo is unchanged. All real ship-stowed
   // physical objects count toward its mass/volume envelope, including truck.
   const stowed=physical.assets.filter(x=>x.id!==assetId&&x.location?.kind==='ship'&&x.type!=='ship');
-  const mass=stowed.reduce((s,x)=>s+x.massKg,0),volume=stowed.reduce((s,x)=>s+x.volumeM3,0);
+  const gasKg=stowed.filter(x=>x.type==='industrial_vessel').reduce((total,vessel)=>{
+   const cid=vessel.state?.containerId;
+   if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||
+       !materials.containers?.some(x=>x.id===cid&&x.ownerId===vessel.id))
+    throw Error('Cannot load a frame without accounting for all onboard rated gas');
+   return total+materials.lots.filter(l=>l.containerId===cid).reduce((n,l)=>n+l.massKg,0);
+  },0);
+  const mass=stowed.reduce((s,x)=>s+x.massKg,0)+gasKg,
+        volume=stowed.reduce((s,x)=>s+x.volumeM3,0);
   if(mass+asset.massKg>LIMIT.massKg+EPS||volume+asset.volumeM3>LIMIT.volumeM3+EPS)
    throw Error('Engineering cradle exceeds shared rated ship cargo capacity');
   if(stowed.some(x=>x.type==='vehicle_frame'))throw Error('Engineering cradle already occupied by a frame');
@@ -9005,7 +9013,9 @@ let equipmentT15=StarfallEquipmentT15.restore(session.equipmentT15);
 let engineeringSystemReport={ship:null,rover:null},engineeringSystemSeconds=0;
 function persistVehicles(){SF.save({engineeringVehicles:vehicleStore.serialize()});}
 function rootSpaceWeather(){return window.StarfallSpaceWeatherLW06;}
-function shipCargoMass8A(){return physical8a.list().filter(a=>a.type!=='ship'&&a.location.kind==='ship'&&a.location.parentId==='ship-main').reduce((sum,a)=>sum+a.massKg,0);}
+function shipCargoMass8A(){return physical8a.list().filter(a=>a.type!=='ship'&&a.location.kind==='ship'&&a.location.parentId==='ship-main').reduce((sum,a)=>sum+a.massKg+
+ (a.type==='industrial_vessel'&&a.state?.containerId?
+  materials8a.used(a.state.containerId).massKg:0),0);}
 function shipConfiguredState(){const x=vehicleStore.get('ship'),s=x.stats;return FP.shipState({dryMassKg:s.dryMassKg+shipCargoMass8A()+materials8a.used(StarfallMining8D.SHIP).massKg+(physical8a.get(START_TRUCK)?.location.kind==='ship'?materials8a.used(StarfallMining8D.TRUCK).massKg:0),fuelKg:x.state.fuelKg,thrustN:s.thrustN,ispS:s.ispS,radiatorAreaM2:s.radiatorAreaM2,emissivity:s.emissivity,temperatureK:x.state.temperatureK});}
 function updateVehicleSystems(dt){
  const elapsed=dt*timeScale;
@@ -10517,7 +10527,7 @@ function frameCargoTransfer8G(action,assetId){
  const n=all.transfers.filter(t=>t.id?.startsWith('frameCargo8g:')).length+1;
  let counter=n;while(all.transfers.some(t=>t.id==='frameCargo8g:'+counter))counter++;
  const jobId='frameCargo8g:'+counter,workJ=StarfallFrameCargo8G.LIMIT.workJ;
- const result=StarfallFrameCargo8G.transfer({jobId,assetId,action,physical:all,bodyId:c.bodyId,
+ const result=StarfallFrameCargo8G.transfer({jobId,assetId,action,physical:all,materials:materials8a.snapshot(),bodyId:c.bodyId,
   shipLocal,evaLocal,bodyRadius:nearest.radius,shipLanded:c.landed,operatorEVA:c.eva,
   unloadLocal,powerReceipt:{operationId:jobId,status:'COMMITTED',
    sourceId:'ship-main:engineering-battery',usedJ:workJ}});
