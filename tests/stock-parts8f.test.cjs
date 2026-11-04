@@ -16,7 +16,7 @@ let i=0;for(const [materialId,massKg] of Object.entries({steel:36,copper:6,iron:
  containerId:hold,provenance:'real-8E-production'});
 }
 let materials=seed.snapshot(),transformations=Transform.create().snapshot(),joules=0;
-const original=materials.lots.reduce((s,l)=>s+l.massKg,0);
+const original=materials.lots.reduce((s,l)=>s+l.massKg,0);let installedKg=0;
 const factory=Factory.create();
 const bench={id:'ship-main:fabrication:low-tech-bench',station:'bench',
  tools:['hand-shear','bending-brake','glass-cutter'],installed:true,condition:1};
@@ -30,7 +30,7 @@ function make(recipeId,machine=bench){
  }
  const done=factory.commit({materials,transformer:Transform.create(transformations),machine});
  materials=done.materials;transformations=done.transformations;factory.apply(done.factory);
- near(materials.lots.reduce((s,l)=>s+l.massKg,0),original);
+ near(materials.lots.reduce((s,l)=>s+l.massKg,0),original-installedKg);
  return done;
 }
 make('copper_busbar');
@@ -57,7 +57,7 @@ const install=Install.install({lotId:manufactured.id,materials,physical:Physical
  assert.deepEqual(install.machine.state.tools,['manual-press']);
  const beforeInstall=original;
  near(install.physical.assets.reduce((s,a)=>s+a.massKg,0)+install.materials.lots.reduce((s,l)=>s+l.massKg,0),beforeInstall);
- materials=install.materials;
+ materials=install.materials;installedKg=50;
  const press={id:install.machine.id,station:'press',tools:['manual-press'],installed:true,condition:1};
  make('stamped_steel_plate',press);
  assert.ok(materials.lots.find(l=>l.materialId==='stamped_steel_plate'));
