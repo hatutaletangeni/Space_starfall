@@ -26,8 +26,10 @@ const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
 const session=SF.load(),saved=session.flightGalaxy;
 let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
-const BAY8B=StarfallCargo8B;let cargo8b=BAY8B.snapshot(saved?.shipCargo8b);
-if(physical8a.get(START_TRUCK)?.location.kind==='surface'&&cargo8b.mode==='secured')cargo8b.mode='ground';
+const BAY8B=StarfallCargo8B;
+const originalTruckCargo8B=StarfallTruckCustody8B.restore(saved?.shipCargo8b,physical8a.get(START_TRUCK),saved?.attached||null);
+let cargo8b=originalTruckCargo8B.cargo;
+if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
 let resources8c=StarfallResources8C.create(session.resources8c);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
@@ -299,6 +301,18 @@ function cargoInteract8B(){
  if(V.len(V.sub(pos,access))>35)return false;
  if(!cargoRampReady8B()){showToast('8B · CARGO RAMP TERRAIN BLOCKED — reland on flatter ground');return true;}
  const a=physical8a.get(START_TRUCK);
+ const reconciled=StarfallTruckCustody8B.restore(cargo8b,a,shipBody?.id||null);
+ if(reconciled.issue==='MISSING'||reconciled.issue==='UNSUPPORTED'){
+  showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody?.id||null));return true;
+ }
+ if(reconciled.issue){
+  cargo8b=reconciled.cargo;
+  showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody?.id||null));
+  saveFlight();return true;
+ }
+ if(a.location.kind==='surface'&&a.location.bodyId!==shipBody.id){
+  showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody.id));return true;
+ }
  if(cargo8b.mode==='secured'&&a?.location.kind==='ship'){
   cargo8b.mode='ramp';cargo8b.pose={x:BAY8B.BAY.centerX,z:11.2,y:BAY8B.height(11.2)};cargo8b.counter++;
   truckBody=shipBody;truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);truckForwardVec=[...shipForwardVec];
