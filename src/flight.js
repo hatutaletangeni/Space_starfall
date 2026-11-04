@@ -1175,7 +1175,7 @@ function assemblyStage8G(blueprintId,facilityId){
  if(!q.ready)throw Error('Missing manufactured parts: '+q.shortages.map(x=>x.materialId+' '+x.missingKg.toFixed(2)+' kg').join(', '));
  if(c.energyJ<200000)throw Error('Assembly requires 200000 J of real ship battery energy');
  const facility=physical8a.get(facilityId),all=physical8a.list();let n=1;
- while(all.some(x=>x.id==='vehicle8g:'+n)||vehicleAssembly8g.snapshot().receipts.some(x=>x.id==='vehicle8g:'+n)))n++;
+ while(all.some(x=>x.id==='vehicle8g:'+n)||vehicleAssembly8g.snapshot().receipts.some(x=>x.id==='vehicle8g:'+n))n++;
  const jobId='vehicle8g:'+n;
  const output=vehicleAssembly8g.stage({jobId,blueprintId,facilityId,containerId:StarfallMining8D.SHIP,
   bodyId:c.bodyId,local:facility.location.local,materials:materials8a.snapshot(),
