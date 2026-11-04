@@ -32,6 +32,7 @@ let cargo8b=originalTruckCargo8B.cargo;
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
 let vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(session.vehicleAssembly8g);
+let manufacturedOccupied8G=null;
 let resources8c=StarfallResources8C.create(session.resources8c);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
 let transformation8e=StarfallTransformation8E.create(session.transformations8e);
@@ -568,6 +569,7 @@ addEventListener('keydown',ev=>{
  if(ev.code==='Escape'&&interiorState){leaveInterior();return;}
  const mapped=controls.press(ev.code);if(!mapped)return;
  if(ev.repeat)return;
+ if(code==='KeyX'&&manufacturedOccupied8G){exitManufactured8G();return;}
  if(code==='KeyX'&&truckOccupied){exitTruck();return;}
  if(code==='KeyX'&&shipWalking8e){interactShip8E();return;}
  if(code==='KeyB'&&eva){if(cargoInteract8B())return;}
@@ -583,7 +585,7 @@ addEventListener('keydown',ev=>{
    const GEO=window.StarfallGeologyLW02,cave=!interiorState&&GEO&&ctx.body?.landable&&ctx.local?
     GEO.sites(ctx.body,GALAXY_SEED).find(site=>GEO.arc(site.local,ctx.local,ctx.body.radius)<7):null;
    if(cave){enterCave(cave);window.StarfallInteriorsUI?.refresh();return;}
-   if(enterTruck())return;window.StarfallInteriorsUI?.interact();return;}
+   if(enterManufactured8G()||enterTruck())return;window.StarfallInteriorsUI?.interact();return;}
  if(['Digit1','Digit2','Digit3'].includes(code))startScan(Number(code.slice(-1))-1);
  if(code==='KeyV'&&(!eva||truckOccupied)){camMode=(camMode+1)%2;camEye=null;showToast(camMode?(truckOccupied?'Truck cab camera':'Ship cockpit camera'):'Chase camera');}
  if(code==='KeyF'){orbitYaw=0;orbitPitch=0;showToast(truckOccupied?'Camera centred behind truck.':eva?'Camera centred behind astronaut.':'Camera centred behind spacecraft.');}
@@ -759,7 +761,8 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
      showToast('8B · WIDE RAMP · Drive forward, park inside, exit X, secure with B');return;
     }
    }
-   if(truckOccupied){
+   if(manufacturedOccupied8G){manufacturedDrive8G(dt,yaw);return;}
+  if(truckOccupied){
     if(yaw)truckForwardVec=V.norm(V.rot(truckForwardVec,radial,yaw*dt*1.13));
    truckForwardVec=V.norm(V.sub(truckForwardVec,V.mul(radial,V.dot(radial,truckForwardVec))));if(V.len(truckForwardVec)<.05)truckForwardVec=V.norm(V.cross(Math.abs(radial[1])>.92?[0,0,1]:[0,1,0],radial));
    const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
@@ -1061,7 +1064,7 @@ function driveRoverToward(dest,dt){if(!roverLocal||!roverBody||roverBody!==neare
 }
 function science4SetPhysics(on){science4Settings.roverPhysics=!!on;SF.save({science4Settings:{...science4Settings}});}
 function outpostContext(){const body=nearest;const local=eva&&evaLocal?evaLocal:roverBody===body&&roverLocal?roverLocal:groundLocal;
- return{body,bodyId:body?.id,landed,eva:eva&&!truckOccupied,truckOccupied,local,shipLocal:shipBody===body?shipLocal:null,roverLocal:roverBody===body?roverLocal:null,position:[...pos],up:[...up],forward:[...(eva?evaForward:forward)],time:simTime};}
+ return{body,bodyId:body?.id,landed,eva:eva&&!truckOccupied&&!manufacturedOccupied8G,truckOccupied,local,shipLocal:shipBody===body?shipLocal:null,roverLocal:roverBody===body?roverLocal:null,position:[...pos],up:[...up],forward:[...(eva?evaForward:forward)],time:simTime};}
 function refineryContext8E(){
  const ship=vehicleStore.get('ship'),room=shipWalking8e?StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z):null;
  const local=shipBody&&nearest===shipBody&&landed;
@@ -1207,6 +1210,89 @@ function assemblyStage8G(blueprintId,facilityId){
  vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-200000});
  saveFlight();showToast('8G · Manufactured non-operational '+blueprintId+' frame '+jobId);
  return output.receipt;
+}
+function manufacturedWorld8G(asset){
+ const b=galaxy.byId.get(asset?.location?.bodyId);
+ if(!b||asset.location.kind!=='surface'||!Array.isArray(asset.location.local))return null;
+ const axis=b.spinAxis||[0,1,0],dir=V.norm(V.rot(asset.location.local,axis,b.spinAngle||0));
+ const h=groundHeight(asset.location.local,b);
+ const tangent=V.norm(V.sub(asset.state?.forward||[0,0,1],V.mul(dir,V.dot(asset.state?.forward||[0,0,1],dir))));
+ return{body:b,up:dir,forward:V.len(tangent)>.01?tangent:V.norm(V.cross([1,0,0],dir)),
+  position:V.add(b.position,V.mul(dir,b.radius+h+2.5))};
+}
+function activateManufactured8G(assetId){
+ const c=assemblyContext8G(),asset=physical8a.get(assetId),ship=vehicleStore.get('ship');
+ if(!c.landed||!c.eva||!c.powered||manufacturedOccupied8G||!asset||asset.type!=='vehicle_frame'||
+  asset.location?.kind!=='surface'||asset.location.bodyId!==c.bodyId)throw Error('Land, power ship and approach an unfinished frame on EVA');
+ const w=manufacturedWorld8G(asset);if(!w||V.len(V.sub(pos,w.position))>35)throw Error('Move within 35 scene units of the frame');
+ if(!shipLocal||Math.acos(Math.max(-1,Math.min(1,V.dot(asset.location.local,shipLocal))))*nearest.radius>80)
+  throw Error('Frame calibration needs ship power within 80 scene units');
+ const facilityId=asset.state?.facilityId,facility=physical8a.get(facilityId);
+ if(!facility||facility.location?.bodyId!==c.bodyId||facility.state?.station!=='vehicle_assembly')
+  throw Error('Original physical assembly pad not available for commissioning');
+ const cost=StarfallVehicleActivation8G.WORK_J;if(ship.state.energyJ<cost)throw Error('2.5 MJ ship battery charge required');
+ const result=StarfallVehicleActivation8G.activate({assetId,physical:physical8a.serialize(),
+  assembly:vehicleAssembly8g.snapshot(),bodyId:c.bodyId,facilityId,
+  powerReceipt:{operationId:'activate:'+assetId,status:'COMMITTED',
+   sourceId:'ship-main:engineering-battery',usedJ:cost}});
+ physical8a=StarfallPhysical8A.create(result.physical);
+ vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-cost});
+ saveFlight();showToast('8G · LOW SPEED PROTOTYPE COMMISSIONED · walk to its chassis and press X');
+ return result.asset;
+}
+function enterManufactured8G(){
+ if(!eva||truckOccupied||manufacturedOccupied8G||interiorState||shipWalking8e||rampTransition)return false;
+ for(const asset of physical8a.list()){
+  if(asset.type!=='vehicle_frame'||asset.state?.operational!==true||
+     asset.location?.kind!=='surface'||asset.location.bodyId!==nearest?.id)continue;
+  const w=manufacturedWorld8G(asset);
+  if(!w||V.len(V.sub(pos,w.position))>7.5)continue;
+  manufacturedOccupied8G=asset.id;evaLocal=[...asset.location.local];evaForward=[...w.forward];
+  pos=[...w.position];up=[...w.up];camEye=null;camDistance=Math.max(camDistance,24);
+  roverEntryCooldown=1.2;showToast('8G · '+asset.id+' · W/S drive · A/D steer · SPACE brake · X exit');
+  return true;
+ }
+ return false;
+}
+function exitManufactured8G(){
+ if(!manufacturedOccupied8G)return false;
+ const a=physical8a.get(manufacturedOccupied8G),w=manufacturedWorld8G(a);
+ manufacturedOccupied8G=null;if(!w)return false;
+ const local=tangentOffsetLocal(w.body,a.location.local,w.forward,-5,-7);
+ evaLocal=local;const dir=V.norm(V.rot(local,w.body.spinAxis||[0,1,0],w.body.spinAngle||0));
+ pos=V.add(w.body.position,V.mul(dir,w.body.radius+groundHeight(local,w.body)+EVA_HEIGHT));
+ evaForward=[...w.forward];up=dir;camEye=null;roverEntryCooldown=1.4;
+ saveFlight();showToast('8G · exited physical prototype');return true;
+}
+function manufacturedDrive8G(dt,yaw){
+ const a=physical8a.get(manufacturedOccupied8G),w=manufacturedWorld8G(a);
+ if(!w||w.body!==nearest||!a.state?.operational){manufacturedOccupied8G=null;return false;}
+ const rad=w.up,v=a.state.drive||{},h=a.state.hardware,
+  state={schema:1,distanceM:Number.isFinite(a.state.distanceM)?a.state.distanceM:v.distanceM||0,
+   speedMS:Number.isFinite(a.state.speedMS)?a.state.speedMS:v.speedMS||0,
+   batteryEnergyJ:Number.isFinite(a.state.batteryEnergyJ)?a.state.batteryEnergyJ:v.batteryEnergyJ||0};
+ let f=w.forward;
+ if(yaw)f=V.norm(V.rot(f,rad,yaw*dt*.75));
+ const drive=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
+ const brake=keys.has('Space')?1:0;
+ const body=P.bodyProfile(w.body),g=Number.isFinite(body.mu/(body.radiusM*body.radiusM))?
+  Math.max(.1,body.mu/(body.radiusM*body.radiusM)):9.81;
+ const dyn=StarfallVehicleDrive8G.create(h,state);
+ const result=dyn.step({throttle:drive,brake},
+  {gravityMS2:g,slopeRad:0,frictionCoefficient:.65},Math.max(.001,Math.min(.1,dt)));
+ const ds=(state.speedMS+result.speedMS)*.5*dt;
+ const right=V.norm(V.cross(f,rad)),ang=ds/Math.max(1,w.body.radius+groundHeight(a.location.local,w.body)+2.5);
+ const dir=V.norm(V.rot(rad,right,-ang));
+ const local=V.rot(dir,w.body.spinAxis||[0,1,0],-(w.body.spinAngle||0));
+ const dh=Math.abs(groundHeight(local,w.body)-groundHeight(a.location.local,w.body));
+ const moveOk=dh<Math.max(.6,Math.abs(ds)*.5);
+ if(moveOk){f=V.norm(V.rot(f,right,-ang));physical8a.setSurface(a.id,w.body.id,local,
+  {speedMS:result.speedMS,batteryEnergyJ:result.batteryEnergyJ,distanceM:result.distanceM,forward:f});}
+ else physical8a.setSurface(a.id,w.body.id,a.location.local,
+  {speedMS:0,batteryEnergyJ:result.batteryEnergyJ,distanceM:state.distanceM,forward:f});
+ const updated=manufacturedWorld8G(physical8a.get(a.id));
+ pos=updated.position;up=updated.up;evaLocal=physical8a.get(a.id).location.local;
+ evaForward=updated.forward;vertical=0;vel=[0,0,0];return true;
 }
 function frameCargoContext8G(){
  const c=outpostContext(),ship=vehicleStore.get('ship');
@@ -1739,7 +1825,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
