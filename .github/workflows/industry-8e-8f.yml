@@ -12,6 +12,7 @@ on:
       - feature/update-8f-basic-stock-parts
       - feature/update-8e-aluminum-ore-to-metal
       - hotfix/truck-cargo-status-launch-dialog
+      - feature/update-8g-pad-inspector-from-main
       - feature/update-8b-truck-ramp-guidance
   pull_request:
     paths:
@@ -46,6 +47,8 @@ jobs:
           node tests/factory8f.test.cjs
           node tests/machine-install8f.test.cjs
           node tests/industrial-site8e.test.cjs
+          node tests/vehicle-assembly-pad8g.test.cjs
+          node tests/assembly-inspector8g.test.cjs
           node tests/industrial-kit-factory8f.test.cjs
           node tests/stock-parts8f.test.cjs
           node tests/industry-crosschain8e-8f.test.cjs
