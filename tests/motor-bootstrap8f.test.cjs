@@ -14,6 +14,7 @@ near(Object.values(bom.inputs).reduce((s,x)=>s+x,0),32);
 assert.equal(bom.outputVolumesM3[kit],.16);
 assert.equal(Object.hasOwn(bom.inputs,'electric_motor'),false,'hand-winder cannot require a motor');
 assert.equal(Object.hasOwn(bom.inputs,'control_board'),false,'no invented electronics');
+assert.equal(Object.hasOwn(bom.inputs,'stocked_chips'),false,'precision semiconductor inventory not conjured');
 const store=Stock.create();
 store.registerContainer({id:'ship',ownerId:'ship-main',maxMassKg:9000,maxVolumeM3:16});
 const seed={steel:18.8,copper:3.94,aluminum:4.4,glass:2.1,iron_bracket:2,steel_bracket:3,iron:.7,carbon:.06};
