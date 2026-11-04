@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {debit}=require('../src/physics/logistics-energy8h.js');
+const original={schema:1,stores:{'starfall-truck':{carrierId:'truck-expedition-001',energyJ:5000,capacityJ:44000000}},receipts:[]};
+const args={state:original,operationId:'8h-load:sample',carrierId:'truck-expedition-001',sourceId:'starfall-truck',usedJ:1200};
+const {state,receipt}=debit(args);
+assert.equal(original.stores['starfall-truck'].energyJ,5000,'input remains unchanged');
+assert.equal(state.stores['starfall-truck'].energyJ,3800);
+assert.equal(receipt.beforeJ-receipt.afterJ,receipt.usedJ);
+assert.equal(state.receipts.length,1);
+assert.throws(()=>debit({...args,state}),/duplicate/);
+assert.throws(()=>debit({...args,usedJ:6000}),/insufficient/);
+assert.throws(()=>debit({...args,carrierId:'different'}),/mismatched/);
+assert.throws(()=>debit({...args,sourceId:'starfall-fake'}),/invalid/);
+assert.throws(()=>debit({...args,usedJ:NaN}),/invalid/);
+assert.throws(()=>debit({...args,state:{...original,schema:2}}),/unsupported/);
+console.log('8H immutable energy debit contract: PASS');
