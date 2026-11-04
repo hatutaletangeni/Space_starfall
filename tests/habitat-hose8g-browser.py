@@ -51,6 +51,19 @@ with sync_playwright() as pw:
                 containerId:ship,grade:1,provenance:'TEST_FIXTURE_ONLY'});
             }
           }
+          // Test-only cylinders are physically separated from each other,
+          // midway between the real manufactured habitat and landed ship.
+          const normalize=x=>{const len=Math.hypot(...x);return x.map(v=>v/len);};
+          const hab=p.assets.find(x=>x.id===id),shipPos=rt.engineeringAssetPoses().shipPose.local;
+          const midpoint=normalize(hab.location.local.map((v,i)=>v+shipPos[i]));
+          const axis=Math.abs(midpoint[0])<.8?[1,0,0]:[0,0,1];
+          const tangent=normalize([midpoint[1]*axis[2]-midpoint[2]*axis[1],
+            midpoint[2]*axis[0]-midpoint[0]*axis[2],
+            midpoint[0]*axis[1]-midpoint[1]*axis[0]]);
+          const cylinderLocal=side=>{
+            const ang=side/c.body.radius;
+            return normalize(midpoint.map((v,i)=>v*Math.cos(ang)+tangent[i]*Math.sin(ang)));
+          };
           const original=p.assets.filter(x=>x.id==='truck-expedition-001'||x.id==='rover-science-001')
               .map(x=>({id:x.id,location:x.location}));
           SF.save({physical8a:p,materials8a:m});
@@ -94,7 +107,7 @@ with sync_playwright() as pw:
             const vesselId='hose-fixture:'+species,cid='vessel8e:'+vesselId;
             p.assets.push({id:vesselId,type:'industrial_vessel',massKg:195,volumeM3:4,
               condition:1,provenance:'TEST_FIXTURE_ONLY_8E_VESSEL',
-              location:{kind:'surface',bodyId:c.bodyId,local:rt.outpostOffset(42,side)},
+              location:{kind:'surface',bodyId:c.bodyId,local:cylinderLocal(side)},
               state:{materialId:species,containerId:cid,ratedPressurePa:8000000,enabled:true}});
             m.containers.push({id:cid,ownerId:vesselId,kind:'gas pressure vessel',
               maxMassKg:1000,maxVolumeM3:4});
