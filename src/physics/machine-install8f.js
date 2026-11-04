@@ -6,6 +6,7 @@
 const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const CAPS=Object.freeze({
  machine_kit_cnc:{station:'machine',tools:['cnc','lathe'],massKg:220,volumeM3:.42,workJ:360000,seconds:300},
+ machine_kit_manual_press:{station:'press',tools:['manual-press'],massKg:50,volumeM3:.22,workJ:110000,seconds:160},
  machine_kit_grinder:{station:'machine',tools:['grinder'],massKg:85,volumeM3:.18,workJ:120000,seconds:140},
  machine_kit_caster:{station:'foundry',tools:['caster'],massKg:260,volumeM3:.68,workJ:420000,seconds:380},
  machine_kit_extruder:{station:'polymer',tools:['extruder'],massKg:160,volumeM3:.30,workJ:250000,seconds:230},
