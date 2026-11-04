@@ -8219,6 +8219,138 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallStruc
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8G — finite initial habitat atmosphere and water charging.
+ * Real 8A ship lots are converted to one physical habitat's contained mass.
+ * T09 is the authoritative gas-law evaluator; this does NOT turn on life
+ * support, produce air, or certify a pressure vessel.
+ */
+(function(root){'use strict';
+const clone=x=>JSON.parse(JSON.stringify(x)),finite=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
+const ID=x=>typeof x==='string'&&x.length>0&&x.length<=128,EPS=1e-6;
+const T=()=>{if(!root.StarfallHabitatT09)throw Error('T09 atmosphere physics not installed');return root.StarfallHabitatT09;};
+const CABIN_VOLUME_M3=25,TEMP_K=293.15,WORK_J=1200000;
+const supplies=()=>{const t=T();
+ return Object.freeze({
+   oxygen:t.gasMoles(21,TEMP_K,CABIN_VOLUME_M3)*.031998,
+   nitrogen:t.gasMoles(78,TEMP_K,CABIN_VOLUME_M3)*.028014,
+   water:20
+ });};
+function evaluate(a,requireReceipt){
+ if(!a||!ID(a.assetId)||!ID(a.bodyId)||!ID(a.containerId)||
+   !a.physical||a.physical.schema!==1||!Array.isArray(a.physical.assets)||
+   !a.materials||a.materials.schema!==1||!Array.isArray(a.materials.lots)||
+   !Array.isArray(a.materials.operations)||!Array.isArray(a.materials.containers))
+  throw Error('Actual 8A habitat and physical material custody required');
+ const asset=a.physical.assets.find(x=>x.id===a.assetId);
+ if(!asset||asset.type!=='habitat_envelope'||asset.location?.kind!=='surface'||
+    asset.location.bodyId!==a.bodyId||asset.provenance!=='structural-8g:'+asset.id)
+   throw Error('An actually manufactured same-world habitat envelope is required');
+ if(!finite(asset.condition)||asset.condition<.9||asset.state?.habitatCharge8g)
+   throw Error('Initial charge requires one intact empty uncharged habitat');
+ if(!a.assembly||a.assembly.schema!==1||!Array.isArray(a.assembly.receipts)||
+   !a.assembly.receipts.some(r=>r.assetId===asset.id&&r.blueprintId==='habitat_shell'&&
+     r.status==='ASSEMBLED_NOT_OPERATIONAL'&&r.bodyId===a.bodyId))
+  throw Error('Original finite habitat construction receipt not found');
+ if(!a.materials.containers.some(c=>c.id===a.containerId&&c.ownerId==='ship-main'))
+  throw Error('All atmosphere and water supplies must originate in ship-owned cargo');
+ const rad=x=>Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&
+  Math.abs(Math.hypot(...x)-1)<1e-4;
+ if(!rad(a.shipLocal)||!rad(a.evaLocal)||!rad(asset.location.local)||
+   !finite(a.bodyRadius)||a.bodyRadius<=0||a.shipLanded!==true||a.operatorEVA!==true||a.shipPowered!==true)
+  throw Error('Powered landed ship and physically positioned EVA operator required');
+ const arc=(x,y)=>Math.acos(Math.max(-1,Math.min(1,x.reduce((s,n,i)=>s+n*y[i],0))))*a.bodyRadius;
+ if(arc(asset.location.local,a.shipLocal)>85||arc(asset.location.local,a.evaLocal)>20)
+  throw Error('Habitat must be within 85 scene units of ship and 20 units of EVA operator');
+ const requirements=supplies(),taken=[],shortages=[];
+ const reserve=new Map();
+ for(const op of a.materials.operations){
+  if(op.status!=='RESERVED')continue;
+  if(!ID(op.lotId)||!finite(op.massKg))throw Error('Invalid 8A reservation');
+  reserve.set(op.lotId,(reserve.get(op.lotId)||0)+op.massKg);
+ }
+ for(const [type,amount] of Object.entries(requirements)){
+  let left=amount;
+  for(const lot of a.materials.lots){
+   if(lot.materialId!==type||lot.containerId!==a.containerId||
+     !ID(lot.id)||!ID(lot.provenance)||!finite(lot.massKg)||!finite(lot.volumeM3)||
+     !finite(lot.grade)||lot.grade<.98)continue;
+   const available=lot.massKg-(reserve.get(lot.id)||0);
+   if(available<=0)continue;
+   const used=Math.min(available,left);
+   if(used>EPS){taken.push({id:lot.id,materialId:type,massKg:used});left-=used;}
+   if(left<EPS)break;
+  }
+  if(left>EPS)shortages.push({materialId:type,missingKg:left});
+ }
+ if(requireReceipt){
+  if(!ID(a.jobId)||!a.jobId.startsWith('habcharge8g:'))throw Error('Missing stable gas charge ID');
+  const e=a.powerReceipt;
+  if(!e||e.operationId!==a.jobId||e.sourceId!=='ship-main:engineering-battery'||
+    e.status!=='COMMITTED'||!finite(e.usedJ)||e.usedJ+EPS<WORK_J)
+   throw Error('Committed 1.2 MJ physical compressor-energy debit required');
+ }
+ return {asset,requirements,taken,shortages};
+}
+function quote(a){
+ const p=evaluate(a,false);
+ const t=T(),totalKg=Object.values(p.requirements).reduce((s,n)=>s+n,0);
+ const preview={kind:'hab',id:a.assetId,bodyId:a.bodyId,
+   habT09:{...t.defaults(0),volumeM3:CABIN_VOLUME_M3,oxygenMol:p.requirements.oxygen/.031998,
+    inertMol:p.requirements.nitrogen/.028014,carbonMol:0,oxygenTankMol:0,
+    inertTankMol:0,scrubberCapacityMol:0,waterL:p.requirements.water,
+    filteredAirMol:0,occupants:0,enabled:false}};
+ const report=t.inspect(preview,null,false);
+ return {ready:p.shortages.length===0,shortages:clone(p.shortages),
+   requirements:clone(p.requirements),totalKg,workJ:WORK_J,
+   estimatedPressureKPa:report.pressureKPa,oxygenPartialKPa:report.oxygenKPa,
+   commissioningRequired:true,habitable:false};
+}
+function charge(a){
+ const p=evaluate(a,true);
+ if(p.shortages.length)throw Error('Missing finite physical atmosphere/water: '+
+   p.shortages.map(x=>x.materialId).join(', '));
+ const before=a.materials.lots.reduce((s,x)=>s+x.massKg,0)+
+   a.physical.assets.reduce((s,x)=>s+x.massKg,0);
+ const materials=clone(a.materials),physical=clone(a.physical);
+ for(const used of p.taken){
+  const lot=materials.lots.find(x=>x.id===used.id),old=lot.massKg;
+  lot.massKg=Math.max(0,old-used.massKg);
+  lot.volumeM3=old>0?lot.volumeM3*(lot.massKg/old):0;
+ }
+ materials.lots=materials.lots.filter(l=>l.massKg>EPS);
+ const t=T(),c=physical.assets.find(x=>x.id===a.assetId),r=p.requirements;
+ const habitat={kind:'hab',id:c.id,bodyId:a.bodyId,enabled:false,condition:c.condition,
+  habT09:{...t.defaults(0),volumeM3:CABIN_VOLUME_M3,tempK:TEMP_K,
+   oxygenMol:r.oxygen/.031998,inertMol:r.nitrogen/.028014,carbonMol:0,
+   oxygenTankMol:0,inertTankMol:0,scrubberCapacityMol:0,filteredAirMol:0,
+   waterL:r.water,occupants:0,enabled:false,seal:.85,awaitingReview:true}};
+ const pressure=t.inspect(habitat,null,false);
+ if(pressure.pressureKPa<70||pressure.pressureKPa>120||pressure.oxygenKPa<16||pressure.oxygenKPa>27)
+  throw Error('Finite gas mass failed T09 pressure/oxygen simulation');
+ const addedMass=Object.values(r).reduce((s,n)=>s+n,0);
+ c.massKg+=addedMass;
+ c.state={...c.state,pressurePa:pressure.pressureKPa*1000,
+   oxygenKg:r.oxygen,inertKg:r.nitrogen,waterKg:r.water,
+   airlockSealed:true,habitable:false,lifeSupportOnline:false,
+   assemblyStatus:'CHARGED_NOT_POWERED_OR_QUALIFIED',
+   habitatCharge8g:{jobId:a.jobId,sourceContainerId:a.containerId,
+     workJ:WORK_J,consumedLots:clone(p.taken),addedMassKg:addedMass,
+     initialPressureKPa:pressure.pressureKPa,initialOxygenKPa:pressure.oxygenKPa},
+   habT09:clone(habitat.habT09)};
+ const after=materials.lots.reduce((s,x)=>s+x.massKg,0)+
+   physical.assets.reduce((s,x)=>s+x.massKg,0);
+ if(Math.abs(before-after)>EPS)throw Error('Habitat charging created or destroyed physical mass');
+ if(!root.StarfallPhysical8A||!root.StarfallMaterials8A)
+  throw Error('8A validators not installed');
+ root.StarfallPhysical8A.create(physical);root.StarfallMaterials8A.create(materials);
+ return {physical,materials,asset:clone(c),
+  receipt:clone(c.state.habitatCharge8g),diagnostics:pressure};
+}
+root.StarfallHabitatCharge8G=Object.freeze({quote,charge,requirements:supplies,WORK_J,CABIN_VOLUME_M3});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallHabitatCharge8G;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8G — physically accountable component replacement.
  * A real manufactured spare becomes one installed replacement; one old
  * damaged component becomes a same-mass scrap lot in the original hold.
@@ -9870,6 +10002,48 @@ function fieldRepair8G(assetId){
  saveFlight();showToast('8G · paid field repair '+assetId+'; damaged component returned as scrap');
  return result.receipt;
 }
+function habitatChargeContext8G(){
+ const c=assemblyContext8G();
+ return {...c,habitats:physical8a.list().filter(a=>a.type==='habitat_envelope'&&
+  a.location?.kind==='surface'&&a.location.bodyId===c.bodyId)
+  .map(a=>({id:a.id,condition:a.condition,
+   charged:!!a.state?.habitatCharge8g,pressureKPa:(a.state?.pressurePa||0)/1000}))};
+}
+function habitatChargeInput8G(assetId,jobId){
+ const c=habitatChargeContext8G();
+ if(!c.landed||!c.eva||!c.powered||!shipLocal||!evaLocal||
+   !nearest?.radius||shipBody!==nearest||manufacturedOccupied8G||truckOccupied||shipWalking8e)
+  throw Error('A powered landed ship and nearby astronaut EVA are required');
+ return {jobId,assetId,bodyId:c.bodyId,containerId:StarfallMining8D.SHIP,
+  materials:materials8a.snapshot(),physical:physical8a.serialize(),assembly:vehicleAssembly8g.snapshot(),
+  bodyRadius:nearest.radius,shipLocal,evaLocal,
+  shipLanded:c.landed,operatorEVA:c.eva,shipPowered:c.powered,
+  powerReceipt:{operationId:jobId,status:'COMMITTED',
+   sourceId:'ship-main:engineering-battery',usedJ:StarfallHabitatCharge8G.WORK_J}};
+}
+function habitatChargeQuote8G(assetId){
+ const c=habitatChargeContext8G(),q=StarfallHabitatCharge8G.quote(
+  habitatChargeInput8G(assetId,'habcharge8g:preview'));
+ return {...q,powered:c.energyJ>=q.workJ};
+}
+function habitatCharge8G(assetId){
+ const c=habitatChargeContext8G();
+ if(c.energyJ<StarfallHabitatCharge8G.WORK_J)
+  throw Error('Ship battery lacks 1.2 MJ of charge/compressor energy');
+ const jobId='habcharge8g:'+assetId+':1',input=habitatChargeInput8G(assetId,jobId);
+ const result=StarfallHabitatCharge8G.charge(input);
+ const newMaterials=StarfallMaterials8A.create(result.materials);
+ const newPhysical=StarfallPhysical8A.create(result.physical);
+ const ship=vehicleStore.get('ship');
+ if(ship.state.energyJ<StarfallHabitatCharge8G.WORK_J)
+  throw Error('Ship battery changed before physical charging commit');
+ materials8a=newMaterials;physical8a=newPhysical;
+ vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-StarfallHabitatCharge8G.WORK_J});
+ saveFlight();
+ showToast('8G · finite O₂/N₂/water installed in '+assetId+' · '+
+   result.diagnostics.pressureKPa.toFixed(1)+' kPa · NO life-support approval');
+ return result.receipt;
+}
 function structureAssemblyContext8G(){
  const c=assemblyContext8G();
  return {...c,pads:physical8a.list().filter(a=>a.type==='industrial_plant'&&
@@ -10475,7 +10649,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -15550,6 +15724,61 @@ button.addEventListener('click',()=>{try{
 type.addEventListener('change',refresh);pad.addEventListener('change',refresh);
 let at=0;function tick(t){if(t-at>1000){at=t;refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 root.StarfallStructureAssemblyUI8G={refresh};
+})(globalThis);
+
+</script><script>
+/* 8G finite physical habitat atmosphere/water installation preflight.
+ * T09 owns the actual gas law; this is not a magic habitable toggle.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host||!root.StarfallHabitatCharge8G)return;
+const panel=document.createElement('section');panel.className='section';panel.id='habitat-charge8g';
+const title=document.createElement('div');title.className='section-title';
+title.textContent='8G · FINITE HABITAT ATMOSPHERE & WATER';
+const help=document.createElement('p');help.className='panel-note';
+help.textContent='Install oxygen, inert nitrogen and water from real grade-certified ship inventory into a manufactured empty habitat. Requires nearby EVA, a powered landed ship and 1.2 MJ compressor energy. T09 calculates pressure from actual gas moles; NO free tank reserves, oxygen generation, scrubber cartridge, sealed-habitat approval or automatic crew safety. Nitrogen must have a real physical source; it is not yet fabricated by 8E.';
+const choose=document.createElement('select');choose.setAttribute('aria-label','Select physical habitat envelope to charge');
+choose.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;max-width:100%';
+const act=document.createElement('button');act.type='button';act.className='science-action';
+act.textContent='INSTALL FINITE AIR & WATER (1.2 MJ)';
+const details=document.createElement('pre');
+details.style.cssText='white-space:pre-wrap;background:#101b23;color:#cad8dc;border:1px solid #53677566;padding:10px;font:11px/1.45 Consolas,monospace;max-height:220px;overflow:auto';
+const status=document.createElement('p');status.className='panel-note';status.setAttribute('role','status');
+status.textContent='Requires physically acquired oxygen, nitrogen, water and the built habitat.';
+panel.append(title,help,choose,act,status,details);host.append(panel);
+function refresh(){
+ const rt=root.StarfallRuntime,c=rt?.habitatChargeContext8G?.();
+ if(!c)return;
+ const sig=c.habitats.map(x=>x.id+':'+x.charged).join('|'),old=choose.value;
+ if(choose.dataset.signature!==sig){choose.dataset.signature=sig;choose.replaceChildren();
+  for(const h of c.habitats){const option=document.createElement('option');option.value=h.id;
+   option.textContent=h.id+(h.charged?' · INITIAL AIR INSTALLED':' · EMPTY SHELL');
+   choose.append(option);}
+  if(c.habitats.some(x=>x.id===old))choose.value=old;}
+ const h=c.habitats.find(x=>x.id===choose.value);
+ let q=null,error='';
+ try{if(h&&!h.charged)q=rt.habitatChargeQuote8G(h.id);}
+ catch(e){error=String(e.message||e);}
+ act.disabled=!h||h.charged||!q?.ready||!q?.powered||!c.landed||!c.eva||!c.powered;
+ details.textContent='HABITAT '+(h?.id||'NONE')+
+  '\nPHYSICAL STATE: '+(!h?'NO ASSET':h.charged?'GAS INSTALLED; LIFE SUPPORT UNQUALIFIED':'EMPTY ENVELOPE')+
+  '\nT09 CABIN VOLUME: '+root.StarfallHabitatCharge8G.CABIN_VOLUME_M3+' m³'+
+  '\nPREDICTED PRESSURE: '+(q?.estimatedPressureKPa?.toFixed(2)||h?.pressureKPa?.toFixed(2)||'—')+' kPa'+
+  '\nPREDICTED O₂ PARTIAL: '+(q?.oxygenPartialKPa?.toFixed(2)||'—')+' kPa'+
+  '\nREQUIRED BATTERY ENERGY: 1.2 MJ'+
+  '\nPHYSICAL CONSUMABLES: '+Object.entries(root.StarfallHabitatCharge8G.requirements())
+    .map(([k,v])=>k+' '+v.toFixed(2)+' kg').join(' · ')+
+  (q?.shortages?.length?'\nSHORTAGES: '+q.shortages.map(x=>x.materialId+' '+x.missingKg.toFixed(2)+' kg').join(', '):'')+
+  '\nSTATUS: '+(error||(!h?'NO HABITAT':h.charged?'ALREADY CHARGED':q?.ready&&q?.powered?'READY TO CHARGE':'WAITING FOR REAL STOCK / ENERGY'))+
+  '\nCREW SAFETY: NOT APPROVED. T09 LIFE SUPPORT MUST BE WIRED, FED AND VALIDATED.';
+}
+act.addEventListener('click',()=>{try{const r=root.StarfallRuntime.habitatCharge8G(choose.value);
+ status.textContent='INSTALLED '+r.addedMassKg.toFixed(2)+' kg of actual O₂/N₂/water. Real ship battery debited '+r.workJ+' J. No generated oxygen, water or habitable status.';
+ }catch(e){status.textContent='BLOCKED: '+String(e.message||e);}refresh();});
+choose.addEventListener('change',refresh);
+let last=0;function tick(t){if(t-last>1000){last=t;refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
+root.StarfallHabitatChargeUI8G={refresh};
 })(globalThis);
 
 </script><script>

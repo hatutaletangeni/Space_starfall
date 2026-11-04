@@ -170,6 +170,67 @@ with sync_playwright() as pw:
         assert abs(restored['condition']-.78)<.0001 and restored['repairs']==1,restored
         assert restored['scrap'] and restored['truck']==1,restored
         assert not errors,errors
-        print('PASS 8G Chromium: paid dry rocket + habitat structural assembly and independent finite rocket-part replacement, saved mass/scrap without fake launch status')
+        # Supply exactly accounted gases and water to the physically built
+        # habitat. This fixture is isolated and never available to players.
+        before_charge=page.evaluate("""id => {
+          const rt=StarfallRuntime,p=rt.physical8a.serialize(),
+            m=rt.materials8a.snapshot(),requirements=StarfallHabitatCharge8G.requirements();
+          for(const [materialId,massKg] of Object.entries(requirements)){
+            m.lots.push({id:'hab-charge-fixture:'+materialId,materialId,massKg,
+              volumeM3:massKg/1000,grade:1,containerId:StarfallMining8D.SHIP,
+              provenance:'TEST_FIXTURE_ONLY_NO_FREE_PRODUCTION'});
+          }
+          SF.save({physical8a:p,materials8a:m});
+          window.__STARFALL_IMPORT_PENDING=true;
+          return{assetId:id,required:requirements,
+            total:p.assets.reduce((s,x)=>s+x.massKg,0)+m.lots.reduce((s,x)=>s+x.massKg,0),
+            assetMass:p.assets.find(x=>x.id===id).massKg};
+        }""",habitat['id'])
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("habitat-charge8g")',timeout=40000)
+        page.evaluate("""id => STARFALL_DEBUG.placeEvaNearRepairAsset8G(id)""",habitat['id'])
+        quote=page.evaluate("""id => StarfallRuntime.habitatChargeQuote8G(id)""",habitat['id'])
+        assert quote['ready'] and quote['powered'],quote
+        assert quote['estimatedPressureKPa']>95 and quote['oxygenPartialKPa']>20,quote
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        charge_panel=page.locator('#habitat-charge8g')
+        charge_panel.locator('select[aria-label="Select physical habitat envelope to charge"]').select_option(habitat['id'])
+        button=charge_panel.get_by_role('button',name='INSTALL FINITE AIR & WATER')
+        assert button.is_enabled(),'T09 charge action disabled despite physical consumables'
+        button.click()
+        page.wait_for_function("""id => !!StarfallRuntime.physical8a.get(id)?.state?.habitatCharge8g""",
+          arg=habitat['id'],timeout=15000)
+        charged=page.evaluate("""id => {
+          const rt=StarfallRuntime,a=rt.physical8a.get(id),
+            m=rt.materials8a.snapshot(),p=rt.physical8a.serialize();
+          const item={kind:'hab',id:a.id,bodyId:a.location.bodyId,enabled:false,
+            condition:a.condition,habT09:a.state.habT09};
+          const t09=StarfallHabitatT09.inspect(item,null,false);
+          return{asset:a,pressure:t09,spares:m.lots.filter(l=>l.id.startsWith('hab-charge-fixture:')),
+            total:p.assets.reduce((s,x)=>s+x.massKg,0)+m.lots.reduce((s,x)=>s+x.massKg,0),
+            originalTruck:rt.physical8a.list().filter(x=>x.id==='truck-expedition-001').length};
+        }""",habitat['id'])
+        assert charged['originalTruck']==1 and len(charged['spares'])==0,charged
+        assert abs(charged['total']-before_charge['total'])<1e-6,charged
+        assert abs(charged['asset']['massKg']-before_charge['assetMass']-
+          sum(before_charge['required'].values()))<1e-6,charged
+        assert 95<charged['pressure']['pressureKPa']<105 and 20<charged['pressure']['oxygenKPa']<22
+        assert not charged['asset']['state']['habitable'] and not charged['pressure']['serviceReady']
+        assert charged['asset']['state']['habT09']['oxygenTankMol']==0
+        assert charged['asset']['state']['habT09']['inertTankMol']==0
+        assert charged['asset']['state']['habT09']['scrubberCapacityMol']==0
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        saved_charge=page.evaluate("""id => {
+          const a=StarfallRuntime.physical8a.get(id);
+          return{massKg:a.massKg,charged:!!a.state.habitatCharge8g,
+            pressurePa:a.state.pressurePa,oxygenKg:a.state.oxygenKg,waterKg:a.state.waterKg,
+            habitable:a.state.habitable};
+        }""",habitat['id'])
+        assert saved_charge['charged'] and saved_charge['pressurePa']>95000
+        assert not saved_charge['habitable']
+        assert abs(saved_charge['massKg']-charged['asset']['massKg'])<1e-6
+        assert not errors,errors
+        print('PASS 8G Chromium: finite T09 oxygen/nitrogen/water charged into built habitat, mass conserved, unsafe life-support state and source stock preserved on reload')
     finally:
         browser.close()
