@@ -119,6 +119,62 @@ with sync_playwright() as pw:
         }""")
         assert twice['count']==2 and len(set(twice['ids']))==2 and twice['lots']==2,twice
         assert abs(twice['remaining']-2360)<1e-6,twice
+        # Move the actual filled, pressure-rated vessel. It stays one 8A asset,
+        # and both nitrogen lots remain in its vessel-owned container. No
+        # nitrogen is transferred into unsecured ship material cargo.
+        page.evaluate("""() => STARFALL_DEBUG.placeEvaNearGasVessel8G('air-test-nitrogen-vessel')""")
+        before_winch=page.evaluate("""() => ({
+          shipCargoKg:StarfallRuntime.shipCargoMass8A(),
+          energyJ:StarfallRuntime.vehicleStore.get('ship').state.energyJ,
+          gas:StarfallRuntime.materials8a.inventory('vessel8e:air-test-nitrogen-vessel')
+        })""")
+        panel=page.locator('#gas-vessel-cargo8g')
+        assert panel.is_visible(),'Missing playable Engineer gas gantry'
+        panel.locator('select[aria-label="Select rated gas vessel cargo"]').select_option('air-test-nitrogen-vessel')
+        load=panel.get_by_role('button',name='WINCH PRESSURE VESSEL INTO SHIP')
+        assert load.is_enabled()
+        load.click()
+        page.wait_for_function("""() => StarfallRuntime.physical8a.get('air-test-nitrogen-vessel')
+          ?.location?.slot==='engineering-gas-cradle'""",timeout=12000)
+        aboard=page.evaluate("""() => {
+          const rt=StarfallRuntime,v=rt.physical8a.get('air-test-nitrogen-vessel'),
+            gas=rt.materials8a.inventory(v.state.containerId);
+          return{vessel:v,gas,flightMassKg:rt.shipCargoMass8A(),
+            powerJ:rt.vehicleStore.get('ship').state.energyJ,
+            truck:rt.physical8a.list().filter(x=>x.id==='truck-expedition-001').length};
+        }""")
+        assert aboard['vessel']['massKg']==195 and aboard['truck']==1,aboard
+        assert aboard['gas']==before_winch['gas']
+        assert abs(aboard['flightMassKg']-before_winch['shipCargoKg']-
+          195-sum(x['massKg'] for x in aboard['gas']))<1e-6,aboard
+        assert abs(before_winch['energyJ']-aboard['powerJ']-120000)<15000,aboard
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('!!StarfallRuntime?.physical8a&&StarfallRuntime.eva',timeout=45000)
+        persisted_gas=page.evaluate("""() => {
+          const rt=StarfallRuntime,v=rt.physical8a.get('air-test-nitrogen-vessel');
+          return{vessel:v,gas:rt.materials8a.inventory(v.state.containerId),
+            mass:rt.shipCargoMass8A(),truck:rt.physical8a.list()
+              .filter(x=>x.id==='truck-expedition-001').length};
+        }""")
+        assert persisted_gas['vessel']['location']['slot']=='engineering-gas-cradle'
+        assert persisted_gas['gas']==aboard['gas'] and persisted_gas['truck']==1
+        assert abs(persisted_gas['mass']-aboard['flightMassKg'])<1e-6
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        panel=page.locator('#gas-vessel-cargo8g')
+        panel.locator('select[aria-label="Select rated gas vessel cargo"]').select_option('air-test-nitrogen-vessel')
+        panel.get_by_role('button',name='UNLOAD PRESSURE VESSEL TO CLEAR SURFACE').click()
+        page.wait_for_function("""() => StarfallRuntime.physical8a.get('air-test-nitrogen-vessel')
+          ?.location?.kind==='surface'""",timeout=12000)
+        unpacked=page.evaluate("""() => {
+          const rt=StarfallRuntime,v=rt.physical8a.get('air-test-nitrogen-vessel');
+          return{bodyId:v.location.bodyId,gas:rt.materials8a.inventory(v.state.containerId),
+            mass:rt.shipCargoMass8A(),original:rt.physical8a.list()
+              .filter(x=>x.id==='truck-expedition-001'||x.id==='rover-science-001')
+              .map(x=>({id:x.id,location:x.location}))};
+        }""")
+        assert unpacked['bodyId']==fixture['bodyId']
+        assert unpacked['gas']==aboard['gas'] and unpacked['original']==fixture['original']
+        assert abs(unpacked['mass']-before_winch['shipCargoKg'])<1e-6
         assert not errors,errors
         print('PASS offline Chromium: CW01 modeled real N2 planet, powered machine + rated vessel, 20 kg finite air depleted, 8A gas lot mass and 810 kJ conserved, original truck and save/reload protected')
     finally:
