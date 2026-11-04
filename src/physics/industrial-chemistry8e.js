@@ -3,7 +3,7 @@
  * vessels are mandatory; this file never grants feedstocks, instruments or energy.
  */
 (function(root){'use strict';
-const atomic=Object.freeze({H:1.008,C:12.011,O:15.999,Fe:55.845,Cu:63.546,Si:28.085,Al:26.982});
+const atomic=Object.freeze({H:1.008,C:12.011,O:15.999,Fe:55.845,Cu:63.546,S:32.06,Si:28.085,Al:26.982});
 const species=Object.freeze({
  water:{formula:{H:2,O:1},phase:'liquid'},
  hydrogen:{formula:{H:2},phase:'gas'},
@@ -15,6 +15,8 @@ const species=Object.freeze({
  hematite:{formula:{Fe:2,O:3},phase:'solid'},
  iron:{formula:{Fe:1},phase:'solid'},
  copper_oxide:{formula:{Cu:1,O:1},phase:'solid'},
+ copper_sulfide:{formula:{Cu:2,S:1},phase:'solid'},
+ sulfur_dioxide:{formula:{S:1,O:2},phase:'gas'},
  copper:{formula:{Cu:1},phase:'solid'},
  silicon_dioxide:{formula:{Si:1,O:2},phase:'solid'},
  glass:{formula:{Si:1,O:2},phase:'solid'},
@@ -33,6 +35,11 @@ const reactions=Object.freeze({
  hematite_reduction:{label:'Hematite carbothermic reduction (ideal)',equation:'Fe2O3 + 3 C → 2 Fe + 3 CO',station:'reduction_furnace',
   input:{hematite:1,carbon:3},output:{iron:2,carbon_monoxide:3},powerW:25000,seconds:900,
   requiredTools:['reduction_furnace','gas_capture'],notes:'Generic iron_ore and iron_concentrate are NOT assumed to be pure hematite; assay/purify first.'},
+ copper_sulfide_roasting:{label:'Copper(I) sulfide oxygen roasting (ideal)',equation:'Cu2S + 2 O2 → 2 CuO + SO2',
+  station:'reduction_furnace',input:{copper_sulfide:1,oxygen:2},
+  output:{copper_oxide:2,sulfur_dioxide:1},powerW:19500,seconds:670,
+  requiredTools:['reduction_furnace','gas_capture','sulfide_roaster'],
+  notes:'Requires previously identified Cu2S and finite oxygen from a real rated vessel; SO2 must be captured in a distinct physical pressure tank.'},
  copper_oxide_reduction:{label:'Copper oxide reduction (ideal)',equation:'2 CuO + C → 2 Cu + CO2',station:'reduction_furnace',
   input:{copper_oxide:2,carbon:1},output:{copper:2,carbon_dioxide:1},powerW:12500,seconds:620,
   requiredTools:['reduction_furnace','gas_capture'],notes:'Requires chemically identified CuO, not generic copper sulfide rock.'},
