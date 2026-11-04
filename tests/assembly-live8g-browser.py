@@ -50,6 +50,9 @@ with sync_playwright() as pw:
             m.lots.push({id:'8g-test-lot:'+(++i),materialId,massKg,volumeM3:massKg*.001,
               containerId:ship,grade:1,provenance:'TEST_FIXTURE_ONLY'});
           SF.save({physical8a:p,materials8a:m});
+          // Stop the old in-memory runtime from overwriting this controlled
+          // import during pagehide. Same rule as the official save restore path.
+          window.__STARFALL_IMPORT_PENDING=true;
           return {bodyId:c.bodyId,truck:p.assets.find(x=>x.id==='truck-expedition-001')?.location,
              expectedKg:Object.values(def.parts).reduce((a,b)=>a+b,0)};
         }""")
