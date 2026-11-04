@@ -6764,7 +6764,16 @@ const clone=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const MODES=Object.freeze({
  iron_sort:{label:'Iron ore concentration',material:'iron_ore',product:'iron_concentrate',residue:'iron_tailings',targetGrade:.60,recovery:.80,massKg:20,powerW:1800,seconds:100,capability:'mechanical_separator'},
- copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
+ iron_mineralogy:{label:'Identify and recover hematite from iron concentrate',material:'iron_concentrate',
+  product:'hematite',residue:'iron_mineralogy_tailings',targetGrade:1,recovery:.80,
+  targetElementFraction:(2*55.845)/(2*55.845+3*15.999),
+  massKg:2,powerW:3200,seconds:240,capability:'mechanical_separator',
+  minSourceGrade:.60,requiresProcessProvenance:true},
+ carbon_recovery:{label:'Recover carbon from carbon-bearing rock',material:'carbon_feed',
+  product:'carbon',residue:'carbon_ash_tailings',targetGrade:1,recovery:.80,
+  targetElementFraction:1,massKg:10,powerW:2600,seconds:230,
+  capability:'mechanical_separator'},
+  copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
  silica_sort:{label:'Silica beneficiation',material:'silica',product:'silica_concentrate',residue:'silicate_tailings',targetGrade:.95,recovery:.82,massKg:20,powerW:1500,seconds:130,capability:'mechanical_separator'},
  silica_polish:{label:'Quartz concentrate polishing',material:'silica_concentrate',
   product:'silicon_dioxide',residue:'silica_polishing_tailings',targetGrade:.99,recovery:.82,
@@ -6795,7 +6804,12 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
  const contained=spec.massKg*lot.grade;
  if(contained<=EPS)throw Error('Ore assay contains no recoverable target material');
  const recovered=contained*spec.recovery;
- const concentrated=spec.targetGrade>0?recovered/spec.targetGrade:0;
+ // For a chemically identified product, grade is a *purity*, whereas the
+ // input's assay records recoverable ELEMENT mass. Hematite is only ~69.94%
+ // Fe by mass; this bound conversion accounts for the oxygen already present
+ // in the assayed iron-bearing rock rather than conjuring extra iron.
+ const productElementFraction=spec.targetElementFraction??spec.targetGrade;
+ const concentrated=productElementFraction>0?recovered/productElementFraction:0;
  // The concentrate cannot contain more valuable material than the ore.
  if(!finite(concentrated)||concentrated>spec.massKg+EPS)throw Error('Input grade cannot be concentrated with this equipment');
  const outputKg=Math.min(spec.massKg,concentrated),residueKg=spec.massKg-outputKg;
@@ -6809,8 +6823,13 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
  if(afterVolume>dest.maxVolumeM3+EPS)throw Error('Output volume limit reached');
  return {mode,lotId:lot.id,sourceContainerId,outputContainerId,material:spec.material,
   inputKg:spec.massKg,inputGrade:lot.grade,product:spec.product,productKg:outputKg,
+  targetElementFraction:productElementFraction,
   productGrade:spec.targetGrade,residue:spec.residue,residueKg,energyJ:spec.powerW*spec.seconds,
-  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='silica_polish'?
+  seconds:spec.seconds,powerW:spec.powerW,assumptions:mode==='iron_mineralogy'?
+  'Idealized hematite identification from Fe-assayed concentrated rock. Assumes Fe2O3-bearing lithology; requires real upstream concentrate. Fe element conserved, oxygen comes from the original rock. Not proof of mineral identity by spectroscopy.' :
+  mode==='carbon_recovery'?
+  'Concentrates finite naturally present carbon mass; does not manufacture coke, graphite or chemicals. Residues retain unrecovered carbon.' :
+  mode==='silica_polish'?
   'Idealized mechanical quartz upgrading; source must be 8E concentrate. Grade 99% is chemical mass fraction, NOT electronic silicon purity. No silicon metal is produced.' :
   'assay-based simplified separation; non-target constituents retained in residue'};
 }
@@ -6840,7 +6859,7 @@ function create(saved){let state=normalize(saved);
   const recipe={station:'ship_fabrication',inputs:{[a.material]:a.inputKg},
    outputs:{[a.product]:a.productKg,[a.residue]:a.residueKg},powerW:a.powerW,seconds:a.seconds};
   const result=transformation.convert({operationId:a.id,recipeId:a.mode,recipe,materials,containerId:a.sourceContainerId,
-   outputContainerId:a.outputContainerId,lotId:a.lotId,outputGrades:{[a.product]:a.productGrade,[a.residue]:Math.max(0,Math.min(1,(a.inputKg*a.inputGrade-a.productKg*a.productGrade)/Math.max(a.residueKg,EPS)))},
+   outputContainerId:a.outputContainerId,lotId:a.lotId,outputGrades:{[a.product]:a.productGrade,[a.residue]:Math.max(0,Math.min(1,(a.inputKg*a.inputGrade-a.productKg*(a.targetElementFraction??a.productGrade))/Math.max(a.residueKg,EPS)))},
    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ},
    station:{id:EQUIPMENT.id,kind:'ship_fabrication',containerId:a.sourceContainerId,condition:1,enabled:true}});
   const receipt={id:a.id,mode:a.mode,status:'COMMITTED',inputKg:a.inputKg,productKg:a.productKg,
@@ -6901,7 +6920,11 @@ const reactions=Object.freeze({
  aluminum_electrolysis:{label:'Alumina electrolysis (ideal carbon-anode)',equation:'2 Al2O3 + 3 C → 4 Al + 3 CO2',station:'high_temp_cell',
   input:{aluminum_oxide:2,carbon:3},output:{aluminum:4,carbon_dioxide:3},powerW:38000,seconds:1300,
   requiredTools:['high_temp_cell','carbon_anode','gas_capture'],notes:'Ideal overall carbon-anode process; electrolytic voltage and bath losses are approximated.'},
- glass_fusing:{label:'Fused silica glass',equation:'SiO2 (solid) → SiO2 (glass)',station:'glass_furnace',
+ steel_alloying:{label:'Iron-carbon alloying (simplified steel)',equation:'99 Fe + C → Fe99C (single idealized alloy unit)',
+  station:'reduction_furnace',input:{iron:99,carbon:1},output:{steel:1},
+  powerW:14500,seconds:480,requiredTools:['reduction_furnace','alloy_crucible'],
+  notes:'Solid solution alloying from actual iron plus carbon. Not industrial specification steel or controlled microstructure.'},
+  glass_fusing:{label:'Fused silica glass',equation:'SiO2 (solid) → SiO2 (glass)',station:'glass_furnace',
   input:{silicon_dioxide:1},output:{glass:1},powerW:6400,seconds:520,
   requiredTools:['glass_furnace','mold'],notes:'Only high-purity source silica; no magical glass from undifferentiated regolith.'}
 });
@@ -7042,7 +7065,7 @@ const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ids=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const KITS=Object.freeze({
  plant_kit_electrolyzer:{type:'industrial_plant',station:'electrolyzer',tools:['electrolyzer','gas_separator','hydrogen_tank','oxygen_tank'],massKg:450,volumeM3:1.2,workJ:7e5,radiusScene:5},
- plant_kit_reduction_furnace:{type:'industrial_plant',station:'reduction_furnace',tools:['reduction_furnace','gas_capture'],massKg:1100,volumeM3:3.4,workJ:1.5e6,radiusScene:7},
+ plant_kit_reduction_furnace:{type:'industrial_plant',station:'reduction_furnace',tools:['reduction_furnace','gas_capture','alloy_crucible'],massKg:1100,volumeM3:3.4,workJ:1.5e6,radiusScene:7},
  plant_kit_glass_furnace:{type:'industrial_plant',station:'glass_furnace',tools:['glass_furnace','mold'],massKg:520,volumeM3:1.8,workJ:9e5,radiusScene:5},
  plant_kit_catalytic_reactor:{type:'industrial_plant',station:'catalytic_reactor',tools:['catalytic_reactor','gas_separator','methane_tank'],massKg:640,volumeM3:2,workJ:1e6,radiusScene:6},
  plant_kit_high_temp_cell:{type:'industrial_plant',station:'high_temp_cell',tools:['high_temp_cell','carbon_anode','gas_capture'],massKg:1320,volumeM3:3.6,workJ:2e6,radiusScene:7},
@@ -13959,6 +13982,7 @@ const guide=[
  ['Industry','8E · Place visible chemical plants and tanks','Engineer → Physical Refinery Placement allows real terrain construction of an electrolyzer, smelter, glass furnace, catalytic reactor, high-temperature cell and pressure vessels from complete certified kit lots. Exit a landed powered ship, walk near the proposed site, set forward/right offsets, then erect a plant. Each installed machine or gas vessel uses a unique saved 8A asset and a visible low-poly model and consumes the kit and ship battery work. Choose a real compatible plant and reaction under Chemical Plant Control to run a timed process. Reactants are physically deducted from certified ship lots; gaseous products require separate installed, rated nearby vessels. No raw ore is magically converted into pure reagents.','Complete certified plant and vessel kit lots already owned in the ship material hold; ship within 75 surface units; EVA operator within 40; sufficient battery energy. To run a reaction, use chemically identified input stock, a correct furnace or electrolyzer and rated output tanks.','No kit, certified chemical feedstock, output tank or power means production cannot start. Gas vessel capacity and elemental conservation are checked. The process uses a temporary ship power umbilical, not a permanent surface grid. Kits still need a normal gameplay acquisition/manufacturing path.'],
  ['Industry','8F · Fabricate installable machinery and plant kits','In Engineer → Material Fabrication, choose a recipe beginning machine_kit_, plant_kit_, or vessel_kit_. The existing ship fabrication module contains a certified assembly fixture (not a metal refinery or semiconductor plant). The fixture can package finished real steel, copper, aluminum, electronics, motors, glass and refractory parts into a physical machine, reactor or pressure-vessel kit. Each of 22 designs has a strict bill of materials, manufacturing time, ship battery energy charge, actual kit dimensions and item identity. Completed kit lots appear in the real ship inventory. Use Engineer → Physical Machine Installation or Engineer → Physical Refinery Placement to consume the kit once and install the asset. The same component mass cannot appear both in cargo and in the erected machine.','First mine, refine or otherwise legitimately source every certified industrial input; ensure ship fabrication and electrical power work, the ship is landed, and its hold has enough free volume for the finished kit.','If the recipe says Missing refined steel, copper, electronics or motor, that material is not magically produced; you must build the preceding chain or transfer legitimately acquired stock. Generic ore is NOT a certified metal. Some advanced inputs cannot yet be produced from mined ore through normal gameplay, so this is not a completed no-cheat industrial progression.'],
  ['Industry','8E · Quartz from mining to glass','A finite, two-stage silica production chain is available in Engineer → Refinery. First mine and haul a surveyed silica / quartz-bearing 8C deposit to the existing 8A ship material hold. Choose Silica beneficiation to turn 20 kg of ore into 95%-grade silica_concentrate and explicit silicate tailings. Next, choose Quartz concentrate polishing: this consumes 4 kg of the real 8E-provenanced concentrate and, using more energy and simulated work, produces 99%-grade silicon_dioxide plus silica_polishing_tailings. Physical mass and grade are conserved; the operation cannot start on unverified non-8E concentrate. A separately erected, powered glass furnace can convert this chemically identified silica into glass. In Chemical Plant Control, choose a 25, 50 or 100 mole batch size that fits the actually held silica; 25 mol works after one polish batch. This 99% SiO2 is neither pure elemental silicon nor semiconductor-grade material.','Survey real silica, drill at a physical 8C deposit, haul 20 kg to your ship, complete the first separation stage, then polish a 4 kg lot. A glass furnace requires its own finite built kit and physical electrical supply.','If the first-stage yield is less than 4 kg, mine more silica and run additional cycles. Insufficient grade, full ship hold, no available battery, missing 8E provenance or no installed glass furnace blocks the next stage. Generic regolith is not assumed to contain saleable quartz.'],
+ ['Industry','8E · Iron ore, carbon and alloy production','Survey and mine real iron_ore and carbon_feed deposits through 8C/8D; haul actual lots into the ship. Under Engineer → Refinery, run Iron ore concentration on 20 kg of iron_ore. Then run Identify and recover hematite on 2 kg of authentic 8E iron_concentrate at grade 60% or higher; the Fe assay is converted to modeled Fe₂O₃ using its 69.94% elemental iron fraction. Residue retains unrecovered iron. Separately, run Recover carbon from carbon-bearing rock on 10 kg of naturally sourced carbon_feed. Place a real reduction furnace and an independently rated carbon monoxide pressure vessel. In Chemical Plant Control select Hematite reduction, usually 5 mol per batch, so actual iron oxide + carbon yield iron and captured CO. Then select Iron-carbon alloying at 0.1 mol for a small batch of steel; the furnace must have an alloy crucible. All work is powered, timed and conserved. This is a simplified science model; Fe₂O₃ mineral identity and steel microstructure are not validated industrial assays.','Mine, haul, concentrate and recover both ore and carbon. Build physical furnace and CO tank from certified kits. If a deposit has low assay, perform several real mining and processing cycles; no material is gifted.','Missing iron oxide, carbon, power, physical furnace or CO vessel will block smelting. No CO is vented into an imaginary atmosphere. Alloying consumes more carbon and Fe and produces approximate low-carbon steel, not certified automotive or structural steel.'],
  ['Glossary','Engineering terms','Apoapsis: highest orbital point. Periapsis: lowest orbital point. Delta-v: ideal velocity-change capability. TWR: thrust divided by local weight. LOS: line-of-sight radio path. Joule (J): stored energy. Watt (W): energy each second. Telemetry: measured operating data. Calibration: aligning instrument output to a known reference. Biome: environmental region.','None','The game combines physical laws, simplified engineering and clearly fictional warp technology.']
 ];
 const overlay=document.createElement('section');overlay.id='ui21-manual';overlay.hidden=true;overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Starfall Field Manual');
@@ -14234,7 +14258,7 @@ const rt=()=>root.StarfallRuntime, api=root.StarfallRefinery8E;
 const panel=document.createElement('section');panel.className='section';panel.id='refinery8e-panel';
 const title=document.createElement('div');title.className='section-title';title.textContent='REFINERY · SHIP FABRICATION';
 const status=document.createElement('p');status.className='panel-note';status.setAttribute('role','status');
-status.textContent='Mined and hauled quartz-bearing rock can be separated into silica concentrate, then polished into 99% SiO₂ feedstock. Both stages conserve mass, consume real ship battery energy and retain tailings. 99% SiO₂ is not electronic-grade silicon; advanced plant machinery and gas storage must still be constructed.';
+status.textContent='Finite 8D ores can now be concentrated and identified: iron-bearing rock → Fe concentrate → modeled hematite, carbon-bearing rock → carbon, silica → 99% SiO₂. Every process pays real ship battery energy, produces tailings and retains original inventory mass. Furnace chemistry requires separately installed equipment and captured exhaust.';
 const select=document.createElement('select');select.setAttribute('aria-label','Select actual material processing operation');
 select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:9px;width:100%';
 for(const [k,r] of Object.entries(api.MODES)){const opt=document.createElement('option');opt.value=k;opt.textContent=r.label+' · '+r.massKg+' kg';select.appendChild(opt);}
@@ -14286,7 +14310,7 @@ const button=t=>{const x=document.createElement('button');x.type='button';x.clas
 const kits=choose(),front=input('Forward',24),right=input('Right',0),build=button('ERECT PHYSICAL PLANT OR VESSEL');
 const buildStatus=p('Choose a finite industrial kit in your ship cargo, exit on EVA, and position beside the construction site. Placement is limited by ship umbilical and clearance.');
 const plants=choose(),reactions=choose(),batchSize=choose(),start=button('START CHEMICAL WORK'),cancel=button('CANCEL JOB (SPENT ENERGY LOST)');
-for(const scale of [25,50,100]){const o=document.createElement('option');o.value=String(scale);o.textContent=scale+' mol feed basis';batchSize.appendChild(o);}
+for(const scale of [0.05,0.1,0.25,1,5,10,25,50,100]){const o=document.createElement('option');o.value=String(scale);o.textContent=scale+' mol feed basis';batchSize.appendChild(o);}
 const processStatus=p('Specialized reactions require certified chemical inputs, correctly placed apparatus, separate rated gas tanks and actual ship energy.');
 const result=document.createElement('pre');result.style.cssText='white-space:pre-wrap;font:11px/1.5 Consolas,monospace;color:#c8d9d9;background:#101b23;border:1px solid #53677566;padding:12px;max-height:300px;overflow:auto';
 for(const [id,spec] of Object.entries(root.StarfallIndustrialChemistry8E.reactions)){const o=document.createElement('option');o.value=id;o.textContent=spec.label;reactions.appendChild(o);}
