@@ -8101,7 +8101,7 @@ function cargoInteract8B(){
   cargo8b.mode='ramp';cargo8b.pose={x:BAY8B.BAY.centerX,z:11.2,y:BAY8B.height(11.2)};cargo8b.counter++;
   truckBody=shipBody;truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);truckForwardVec=[...shipForwardVec];
   physical8a.move(START_TRUCK,{kind:'surface',bodyId:shipBody.id,local:truckLocal},'8b-release:'+cargo8b.counter,{expected:a.location});
-  showToast('8B · Cargo tie-downs released. Approach truck, X to enter, S to reverse down wide ramp.');saveFlight();return true;
+  showToast('8B · TRUCK IS INSIDE STARBOARD BAY AT RAMP MOUTH. It may be hidden by hull: stand at WIDE RIGHT-HAND ramp access, press X to enter, then hold S to reverse it into view.');saveFlight();return true;
  }
  if(cargo8b.mode==='ramp'&&cargo8b.pose.z<=11.6&&a?.location.kind==='surface'){
   if(!BAY8B.fit(a).ok){showToast('8B · TRUCK EXCEEDS CARGO BAY CAPACITY');return true;}
