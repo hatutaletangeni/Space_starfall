@@ -11,6 +11,7 @@ on:
       - feature/update-8e-copper-sulfide-roasting
       - feature/update-8f-basic-stock-parts
       - feature/update-8e-aluminum-ore-to-metal
+      - hotfix/truck-cargo-status-launch-dialog
   pull_request:
     paths:
       - 'src/physics/*8e.js'
@@ -68,12 +69,12 @@ jobs:
           path: PLAY-STARFALL.html
           retention-days: 14
       - name: Commit fresh standalone HTML to test branch
-        if: github.event_name == 'push' && github.ref_name == 'feature/update-8e-aluminum-ore-to-metal'
+        if: github.event_name == 'push' && github.ref_name == 'hotfix/truck-cargo-status-launch-dialog'
         run: |
           git config user.name "starfall-ci"
           git config user.email "starfall-ci@users.noreply.github.com"
           git add -f PLAY-STARFALL.html
           if ! git diff --cached --quiet; then
             git commit -m "build(8E): publish test standalone [skip ci]"
-            git push origin HEAD:feature/update-8e-aluminum-ore-to-metal
+            git push origin HEAD:hotfix/truck-cargo-status-launch-dialog
           fi

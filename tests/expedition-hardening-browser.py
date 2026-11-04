@@ -31,6 +31,11 @@ with sync_playwright() as p:
         page.goto(TARGET.as_uri(),wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallRuntime && window.StarfallIntegration && window.StarfallLaunchUI && window.StarfallScienceUI && window.StarfallImagingUI7F)",timeout=30000)
 
+        # A single expedition truck stays in ship cargo at a fresh launch.
+        # Terrain/slope calculations MUST NOT access a null planet-fixed pose.
+        truck_state=page.evaluate("()=>window.StarfallRuntime.truckSystems()")
+        assert not truck_state['available'] and truck_state['stored'],truck_state
+
         # Actual application event handlers, no stubbed UI state; only invoke DOM
         # elements programmatically if their parent drawer is collapsed.
         panels=[
