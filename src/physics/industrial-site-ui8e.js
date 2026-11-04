@@ -12,12 +12,13 @@ const input=(placeholder,n)=>{const x=document.createElement('input');x.type='nu
 const button=t=>{const x=document.createElement('button');x.type='button';x.className='science-action';x.textContent=t;return x};
 const kits=choose(),front=input('Forward',24),right=input('Right',0),build=button('ERECT PHYSICAL PLANT OR VESSEL');
 const buildStatus=p('Choose a finite industrial kit in your ship cargo, exit on EVA, and position beside the construction site. Placement is limited by ship umbilical and clearance.');
-const plants=choose(),reactions=choose(),start=button('START CHEMICAL WORK'),cancel=button('CANCEL JOB (SPENT ENERGY LOST)');
+const plants=choose(),reactions=choose(),batchSize=choose(),start=button('START CHEMICAL WORK'),cancel=button('CANCEL JOB (SPENT ENERGY LOST)');
+for(const scale of [25,50,100]){const o=document.createElement('option');o.value=String(scale);o.textContent=scale+' mol feed basis';batchSize.appendChild(o);}
 const processStatus=p('Specialized reactions require certified chemical inputs, correctly placed apparatus, separate rated gas tanks and actual ship energy.');
 const result=document.createElement('pre');result.style.cssText='white-space:pre-wrap;font:11px/1.5 Consolas,monospace;color:#c8d9d9;background:#101b23;border:1px solid #53677566;padding:12px;max-height:300px;overflow:auto';
 for(const [id,spec] of Object.entries(root.StarfallIndustrialChemistry8E.reactions)){const o=document.createElement('option');o.value=id;o.textContent=spec.label;reactions.appendChild(o);}
 const row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row.append(kits,front,right,build);
-const row2=document.createElement('div');row2.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row2.append(plants,reactions,start,cancel);
+const row2=document.createElement('div');row2.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row2.append(plants,reactions,batchSize,start,cancel);
 box.append(label('8E · PHYSICAL REFINERY PLACEMENT'),p('Finite kit → installed terrain machine or rated gas vessel. Existing 8A physical assets are rendered directly on the surface. Erection consumes the full kit and ship battery energy.'),row,buildStatus,
  label('8E · CHEMICAL PLANT CONTROL'),p('Chemistry uses one physical station, certified reagents, dedicated pressure-rated gas storage and timed battery work. This is educational idealized chemistry; do not treat it as real industrial equipment engineering.'),row2,processStatus,result);
 host.append(box);
@@ -38,7 +39,7 @@ function refresh(){
   catch(e){siteErr=String(e.message||e);}}
  const c=r.refineryContext8E(),active=r.industrialJob8e.active;
  let processQuote=null,processErr='';
- if(plants.value){try{processQuote=r.industrialQuote8E(reactions.value,plants.value,100);}
+ if(plants.value){try{processQuote=r.industrialQuote8E(reactions.value,plants.value,Number(batchSize.value));}
  catch(e){processErr=String(e.message||e);}}
  build.disabled=!siteQuote?.ready||!c.powerEnabled||!c.shipLanded||!c.energyJ||siteQuote.workJ>c.energyJ;
  start.disabled=!!active||!c.operatorNear||!c.powerEnabled||!processQuote;
@@ -56,9 +57,9 @@ function refresh(){
 function call(action,out){try{const x=action();out.textContent='COMMITTED: '+(x?.id||x?.assetId||'operation');}
  catch(e){out.textContent='BLOCKED: '+String(e.message||e);}refresh();}
 build.addEventListener('click',()=>call(()=>rt().industrialInstall8E(kits.value,+front.value,+right.value),buildStatus));
-start.addEventListener('click',()=>call(()=>rt().industrialStart8E(reactions.value,plants.value,100),processStatus));
+start.addEventListener('click',()=>call(()=>rt().industrialStart8E(reactions.value,plants.value,Number(batchSize.value)),processStatus));
 cancel.addEventListener('click',()=>call(()=>rt().industrialCancel8E(),processStatus));
-for(const el of [kits,front,right,plants,reactions]){el.addEventListener('change',refresh);}
+for(const el of [kits,front,right,plants,reactions,batchSize]){el.addEventListener('change',refresh);}
 function frame(){const n=performance.now();if(n-last>1000){last=n;refresh();}requestAnimationFrame(frame);}frame();
 root.StarfallIndustrialSiteUI8E={refresh};
 })(globalThis);
