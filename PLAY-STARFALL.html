@@ -1847,6 +1847,33 @@ function makeInfrastructureMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
    box(1.9,4,-1.5,2.7,8.0,-.8,metal);
    box(-3.4,1.3,2.1,-2.7,3.7,2.8,gold);
  }
+ if(kind==='rocket_stage_dry'){
+   // Unpropelled dry integration article: four open tank hoops, separate
+   // untested engine chamber and incomplete/nozzle gimbal. NO launch thrust.
+   box(-3,.65,-3,3,1.05,3,dark);
+   for(const y of [2,5,8,11]){
+    box(-2.6,y,-2.7,2.6,y+.25,-2.35,metal);
+    box(-2.6,y,2.35,2.6,y+.25,2.7,metal);
+    box(-2.7,y,-2.4,-2.35,y+.25,2.4,metal);
+    box(2.35,y,-2.4,2.7,y+.25,2.4,metal);
+   }
+   for(const x of [-2.5,2.5])for(const z of [-2.5,2.5])box(x-.17,1,z-.17,x+.17,12,z+.17,gold);
+   box(-1.6,1.3,-1.6,1.6,3.3,1.6,white);
+   box(-1.0,.7,-1.0,1.0,1.3,1.0,metal);
+   box(-1.3,11.4,-1.3,1.3,12.1,1.3,cyan);
+ }
+ if(kind==='habitat_envelope'){
+   // Open structural panels and empty airlock footprint. This is explicitly
+   // NOT a pressurized T09 habitat; no habitable shelter or breathable air.
+   box(-6,.7,-5.2,6,1.05,5.2,metal);
+   for(const x of [-5.7,5.7])for(const z of [-4.9,4.9])box(x-.28,1,z-.28,x+.28,5.8,z+.28,gold);
+   for(const z of [-4.5,4.5])box(-5.6,1,z-.35,5.6,4.8,z+.35,white);
+   for(const x of [-5.5,5.5])box(x-.35,1,-4.4,x+.35,4.8,4.4,white);
+   box(-5.8,5,-5.1,5.8,5.3,5.1,dark);
+   box(-1.7,.8,-6.4,1.7,3.9,-5.1,metal);
+   box(-1.15,1.1,-6.47,1.15,3.4,-6.38,dark);
+   for(const x of [-3.2,0,3.2])box(x-.75,2.4,4.86,x+.75,3.8,4.94,cyan);
+ }
  if(kind==='vehicle_frame'){
    // Exposed staged chassis rather than a fake completed/roadworthy vehicle:
    // open structural members, unpowered hubs and an obvious missing body cabin.
@@ -1906,7 +1933,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -7201,6 +7228,12 @@ const KITS=Object.freeze({
  plant_kit_vehicle_assembly_pad:{type:'industrial_plant',station:'vehicle_assembly',
   tools:['frame_jig','wheel_fixture','torque_wrench','wheel_alignment'],
   massKg:760,volumeM3:2.8,workJ:1800000,radiusScene:8},
+ plant_kit_rocket_integration:{type:'industrial_plant',station:'rocket_integration',
+  tools:['rocket_stage_fixture','overhead_hoist','tank_alignment','dry_weight_scale'],
+  massKg:900,volumeM3:2.9,workJ:2100000,radiusScene:10},
+ plant_kit_habitat_construction_pad:{type:'industrial_plant',station:'habitat_pad',
+  tools:['pressure_section_jig','airlock_alignment','shell_welding_fixture','leak_test_port'],
+  massKg:1120,volumeM3:3.7,workJ:2500000,radiusScene:11},
  vessel_kit_hydrogen:{type:'industrial_vessel',materialId:'hydrogen',massKg:160,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
  vessel_kit_oxygen:{type:'industrial_vessel',materialId:'oxygen',massKg:195,volumeM3:4,workJ:1.8e5,radiusScene:4,pressurePa:8e6},
  vessel_kit_sulfur_dioxide:{type:'industrial_vessel',materialId:'sulfur_dioxide',
@@ -7285,6 +7318,8 @@ const SPECS=Object.freeze({
  plant_kit_glass_furnace:[520,1.8,'furnace'],plant_kit_catalytic_reactor:[640,2,'plant'],
  plant_kit_high_temp_cell:[1320,3.6,'furnace'],
  plant_kit_vehicle_assembly_pad:[760,2.8,'assembly_pad'],
+ plant_kit_rocket_integration:[900,2.9,'rocket_integrator'],
+ plant_kit_habitat_construction_pad:[1120,3.7,'habitat_builder'],
  vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],
  vessel_kit_sulfur_dioxide:[210,4,'vessel'],
  vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],
@@ -7292,6 +7327,8 @@ const SPECS=Object.freeze({
 });
 const FRACTIONS=Object.freeze({
  assembly_pad:{steel:.60,copper:.12,aluminum:.08,glass:.05,refractory_block:.05,insulated_wire:.04,electric_motor:.04,control_board:.02},
+ rocket_integrator:{steel:.54,copper:.1,aluminum:.06,glass:.04,refractory_block:.11,insulated_wire:.05,electric_motor:.07,control_board:.03},
+ habitat_builder:{steel:.55,copper:.12,aluminum:.07,glass:.05,refractory_block:.06,insulated_wire:.06,electric_motor:.06,control_board:.03},
  hand_winder:{steel:.5625,copper:.09375,aluminum:.125,glass:.0625,iron_bracket:.0625,steel_bracket:.09375},
  manual_press:{steel:.66,copper:.12,iron_bracket:.08,glass_panel:.14},
  machine:{steel:.48,copper:.12,aluminum:.08,glass:.04,refractory_block:.10,insulated_wire:.05,electric_motor:.08,control_board:.05},
@@ -7384,6 +7421,46 @@ const RECIPES=Object.freeze({
   inputs:{control_board:.6,copper:.5,insulated_wire:.4},outputs:{motor_controller:1.42},
   powerW:700,seconds:330,toleranceMm:.25,
   engineeringNote:'Assembly of pre-existing manufactured controls, copper and insulation; motor switching, protection and EMC are not certified.'},
+ rocket_tank_section:{category:'rocket_tank_structure',station:'machine',tool:'cnc',
+  inputs:{aluminum:120,steel:12},outputs:{rocket_tank_section:126},powerW:2600,seconds:880,toleranceMm:.6,
+  engineeringNote:'Dry machined tank shell stock only: does not imply welded pressure proof, insulation, propellant compatibility or cryogenic rating.'},
+ rocket_engine_chamber:{category:'rocket_engine_component',station:'foundry',tool:'caster',
+  inputs:{steel:40,copper:8},outputs:{rocket_engine_chamber:45},powerW:3600,seconds:1040,toleranceMm:.5,
+  engineeringNote:'Combustion chamber blank, not an operational chemical engine: cooling, injector, structural rating and hot-fire qualification absent.'},
+ rocket_engine_nozzle:{category:'rocket_engine_component',station:'machine',tool:'cnc',
+  inputs:{refractory_block:22,steel:9},outputs:{rocket_engine_nozzle:29},powerW:2200,seconds:730,toleranceMm:.4,
+  engineeringNote:'Nozzle stock; no regenerative cooling, throat erosion or heat-flux certification.'},
+ rocket_feed_assembly:{category:'rocket_propulsion_component',station:'machine',tool:'lathe',
+  inputs:{steel:19,copper:4,electric_motor:5.4},outputs:{rocket_feed_assembly:27.6},
+  powerW:2050,seconds:910,toleranceMm:.25,
+  engineeringNote:'Unvalidated feed pump/mechanical stock, NOT a cryogenic turbopump or working propellant feed system.'},
+ rocket_valve_set:{category:'rocket_propulsion_component',station:'machine',tool:'lathe',
+  inputs:{steel:9,copper:1},outputs:{rocket_valve_set:9.4},powerW:1700,seconds:515,toleranceMm:.25,
+  engineeringNote:'Finite valve-body stock, not a tested cryogenic seal or pressure-rated actuator.'},
+ rocket_avionics_module:{category:'rocket_control_component',station:'pcb',tool:'solder-station',
+  inputs:{control_board:1.2,insulated_wire:2,copper:.8},outputs:{rocket_avionics_module:3.8},
+  powerW:820,seconds:480,toleranceMm:.35,
+  engineeringNote:'Built from finite pre-existing control boards. No imaginary CPU fabrication or flight-software validation.'},
+ habitat_pressure_section:{category:'habitat_envelope_component',station:'foundry',tool:'caster',
+  inputs:{steel:330,aluminum:20,glass:5},outputs:{habitat_pressure_section:344},
+  powerW:4000,seconds:1740,toleranceMm:1.5,
+  engineeringNote:'Manufactured segment of future pressure envelope. Not sealed, load tested or habitable until assembly and pressure checks.'},
+ habitat_airlock_frame:{category:'habitat_envelope_component',station:'foundry',tool:'caster',
+  inputs:{steel:70,glass_panel:5.5,insulated_wire:1},outputs:{habitat_airlock_frame:73},
+  powerW:2900,seconds:930,toleranceMm:.8,
+  engineeringNote:'Airlock frame: not an operational dual-door pressure lock or tested seal.'},
+ habitat_seal_kit:{category:'habitat_envelope_component',station:'machine',tool:'cnc',
+  inputs:{aluminum:15,glass:3,insulated_wire:4},outputs:{habitat_seal_kit:20.8},
+  powerW:1900,seconds:690,toleranceMm:.35,
+  engineeringNote:'Finite metal/glass/wire seal-mount kit, not an elastic pressure gasket. Proper polymer seals require separate compatible manufacture/import.'},
+ habitat_life_support_rack:{category:'habitat_life_support_component',station:'pcb',tool:'solder-station',
+  inputs:{control_board:1.2,electric_motor:8.1,copper:20,insulated_wire:5,steel:50},
+  outputs:{habitat_life_support_rack:80},powerW:1400,seconds:1120,toleranceMm:.7,
+  engineeringNote:'Physical rack and air-circulation motors, not functioning CO2 scrubbing, oxygen supply, water recovery or T09 certification.'},
+ habitat_power_distribution:{category:'habitat_power_component',station:'pcb',tool:'solder-station',
+  inputs:{control_board:.6,copper:10,insulated_wire:6},
+  outputs:{habitat_power_distribution:16},powerW:900,seconds:540,toleranceMm:.5,
+  engineeringNote:'Finite electrical distribution stock; no power magically appears unless wired to a rated source.'},
   iron_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{iron:.5},outputs:{iron_bracket:.46},powerW:650,seconds:125,toleranceMm:1.1},
  steel_bracket:{category:'structural_stock',station:'bench',tool:'bending-brake',inputs:{steel:.8},outputs:{steel_bracket:.75},powerW:740,seconds:145,toleranceMm:1},
  glass_panel:{category:'glazing',station:'bench',tool:'glass-cutter',inputs:{glass:.6},outputs:{glass_panel:.55},powerW:380,seconds:110,toleranceMm:1.2},
@@ -7884,8 +7961,8 @@ const DEFINITIONS=Object.freeze({
  science_rover:{kind:'rover',massKg:260,volumeM3:1.5,parts:{electric_motor:8.5,control_board:0.6,battery_cell:9.75,beam:28,gear:6.8,bearing:5.1,chassis_rail:47.6,axle_shaft:39.6,leaf_spring:28.2,low_speed_rover_wheel:60.12,brake_rotor:22.2,brake_caliper:18,steering_knuckle:11.1,steering_rack:11.7,motor_controller:1.42},facility:'vehicle_assembly'},
  truck:{kind:'truck',massKg:900,volumeM3:5,parts:{electric_motor:34,control_board:1.2,battery_cell:39,beam:350,gear:13.6,bearing:13.6,chassis_rail:47.6,axle_shaft:26.4,leaf_spring:18.8,low_speed_rover_wheel:40.08,brake_rotor:14.8,brake_caliper:12,steering_knuckle:11.1,steering_rack:11.7,motor_controller:1.42},facility:'vehicle_assembly'},
  satellite_bus:{kind:'satellite',massKg:48,volumeM3:0.6,parts:{control_board:0.6,battery_cell:5.85,solar_module:8.8,beam:19.2},facility:'precision_assembly'},
- habitat_shell:{kind:'habitat',massKg:1100,volumeM3:25,parts:{beam:960,control_board:1.2,solar_module:17.6},facility:'habitat_pad'},
- rocket_stage:{kind:'rocket_stage',massKg:220,volumeM3:3,parts:{beam:96,control_board:0.6,gear:3.4,bearing:1.7},facility:'rocket_integration'}
+ habitat_shell:{kind:'habitat',massKg:985.4,volumeM3:25,parts:{habitat_pressure_section:688,habitat_airlock_frame:73,habitat_seal_kit:20.8,habitat_life_support_rack:80,habitat_power_distribution:16,solar_module:17.6,beam:90},facility:'habitat_pad'},
+ rocket_stage:{kind:'rocket_stage',massKg:304.7,volumeM3:3,parts:{rocket_tank_section:126,rocket_engine_chamber:45,rocket_engine_nozzle:29,rocket_feed_assembly:27.6,rocket_valve_set:9.4,rocket_avionics_module:3.8,battery_cell:3.9,beam:60},facility:'rocket_integration'}
 });
 function create(saved){const state=saved?copy(saved):{schema:1,receipts:[]};if(state.schema!==1||!Array.isArray(state.receipts))throw Error('Invalid assembly history');
 function commission({jobId,blueprintId,facility,materials,partsContainerId,assetState,location,energyReceipt}){
@@ -8014,6 +8091,131 @@ function create(saved){
 }
 root.StarfallVehicleAssemblyContract8G=Object.freeze({create});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallVehicleAssemblyContract8G;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL 8G — honest structural staging: dry rocket stages and unpressurized habitats.
+ * Consumes actual certified 8F parts, paid energy and an installed physical
+ * 8G assembly facility. Objects are NOT operational rockets or habitats.
+ * The source 8A material and asset snapshots are never mutated in-place.
+ */
+(function(root){'use strict';
+const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
+const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const blueprints=Object.freeze({
+ rocket_stage:{type:'rocket_stage_dry',station:'rocket_integration',
+  workJ:3000000,assemblySeconds:1800,minimumClearanceScene:17,
+  state:{operational:false,commissioned:false,launchReady:false,propellantKg:0,
+    pressureValidated:false,hotFireValidated:false,assemblyStatus:'DRY_UNQUALIFIED_STAGE'}},
+ habitat_shell:{type:'habitat_envelope',station:'habitat_pad',
+  workJ:4000000,assemblySeconds:2400,minimumClearanceScene:21,
+  state:{operational:false,commissioned:false,habitable:false,pressurePa:0,
+    oxygenKg:0,waterKg:0,airlockSealed:false,lifeSupportOnline:false,
+    assemblyStatus:'UNPRESSURIZED_ENVELOPE'}}
+});
+const sum=x=>x.reduce((s,l)=>s+l.massKg,0);
+function create(saved){
+ const ledger=saved?copy(saved):{schema:1,receipts:[]};
+ if(ledger.schema!==1||!Array.isArray(ledger.receipts)||
+   new Set(ledger.receipts.map(x=>x.id)).size!==ledger.receipts.length)
+  throw Error('Corrupt 8G assembly receipt history');
+ function prepare(a){
+  const spec=blueprints[a?.blueprintId],def=root.StarfallAssembly8G?.DEFINITIONS?.[a?.blueprintId];
+  if(!spec||!def||def.facility!==spec.station)throw Error('Unsupported structural blueprint');
+  if(!id(a.jobId)||!a.jobId.startsWith('structure8g:')||!id(a.facilityId)||!id(a.bodyId)||!id(a.containerId))
+   throw Error('Missing unique physical structural build IDs');
+  if(!a.materials||a.materials.schema!==1||!Array.isArray(a.materials.lots)||
+   !Array.isArray(a.materials.operations)||!Array.isArray(a.materials.containers)||
+   !a.physical||a.physical.schema!==1||!Array.isArray(a.physical.assets))
+    throw Error('Authoritative 8A material and physical snapshots required');
+  if(!a.materials.containers.some(x=>x.id===a.containerId&&id(x.ownerId)))
+   throw Error('No physical source cargo container');
+  if(!Array.isArray(a.local)||a.local.length!==3||!a.local.every(Number.isFinite)||
+   Math.abs(Math.hypot(...a.local)-1)>1e-4)throw Error('Invalid unit body-fixed construction site');
+  const facility=a.physical.assets.find(x=>x.id===a.facilityId);
+  if(!facility||facility.type!=='industrial_plant'||facility.location?.kind!=='surface'||
+   facility.location.bodyId!==a.bodyId||facility.state?.station!==spec.station||
+   facility.state?.enabled===false||!valid(facility.condition)||facility.condition<.5)
+   throw Error('Installed, operational rocket/habitat construction pad required');
+  if(a.physical.assets.some(x=>x.id===a.jobId))throw Error('Structure asset ID collision');
+  const reserved=new Map(),lotsSeen=new Set();
+  for(const op of a.materials.operations)if(op.status==='RESERVED'){
+   if(!id(op.lotId)||!valid(op.massKg))throw Error('Invalid reservation');
+   reserved.set(op.lotId,(reserved.get(op.lotId)||0)+op.massKg);
+  }
+  for(const l of a.materials.lots){
+   if(!id(l.id)||lotsSeen.has(l.id)||!id(l.materialId)||!valid(l.massKg)||!valid(l.volumeM3))
+    throw Error('Invalid/duplicated material lot');
+   lotsSeen.add(l.id);
+   if((reserved.get(l.id)||0)>l.massKg+EPS)throw Error('Over-reserved materials');
+  }
+  const take=[],shortages=[];
+  for(const [materialId,kg] of Object.entries(def.parts)){
+   let remain=kg;
+   for(const l of a.materials.lots){
+    if(l.containerId!==a.containerId||l.materialId!==materialId||!valid(l.grade)||
+       l.grade<.98||!id(l.provenance))continue;
+    const free=Math.max(0,l.massKg-(reserved.get(l.id)||0));
+    const amount=Math.min(free,remain);
+    if(amount>EPS){take.push({lotId:l.id,materialId,massKg:amount});remain-=amount;}
+    if(remain<=EPS)break;
+   }
+   if(remain>EPS)shortages.push({materialId,missingKg:remain});
+  }
+  const e=a.energyReceipt;
+  if(!e||e.operationId!==a.jobId||e.status!=='COMMITTED'||
+    e.sourceId!=='ship-main:engineering-battery'||!valid(e.usedJ)||e.usedJ+EPS<spec.workJ)
+   throw Error('Committed, properly sourced structural assembly power debit required');
+  return {def,spec,take,shortages,massKg:Object.values(def.parts).reduce((s,n)=>s+n,0)};
+ }
+ function quote(a){
+  const prior=ledger.receipts.find(x=>x.id===a?.jobId);
+  if(prior)return {duplicate:true,receipt:copy(prior)};
+  const p=prepare(a);
+  return {ready:p.shortages.length===0,shortages:copy(p.shortages),
+    massKg:p.massKg,workJ:p.spec.workJ,assemblySeconds:p.spec.assemblySeconds,
+    nonOperational:true,station:p.spec.station};
+ }
+ function stage(a){
+  const prior=ledger.receipts.find(x=>x.id===a?.jobId);
+  if(prior){
+   if(prior.blueprintId!==a.blueprintId||prior.facilityId!==a.facilityId||prior.bodyId!==a.bodyId||
+     !a.physical?.assets?.some(x=>x.id===prior.assetId&&x.provenance==='structural-8g:'+a.jobId))
+    throw Error('Repeated 8G structure ID does not match its original physical receipt');
+   return{duplicate:true,receipt:copy(prior),materials:copy(a.materials),
+     physical:copy(a.physical),assembly:copy(ledger)};
+  }
+  const p=prepare(a);if(p.shortages.length)
+   throw Error('Missing certified structural components: '+p.shortages.map(x=>x.materialId).join(', '));
+  const materials=copy(a.materials),physical=copy(a.physical);
+  const before=sum(materials.lots)+sum(physical.assets);
+  for(const item of p.take){
+   const lot=materials.lots.find(x=>x.id===item.lotId);
+   const prev=lot.massKg;lot.massKg=Math.max(0,prev-item.massKg);
+   lot.volumeM3=prev?lot.volumeM3*lot.massKg/prev:0;
+  }
+  materials.lots=materials.lots.filter(x=>x.massKg>EPS);
+  const asset={id:a.jobId,type:p.spec.type,massKg:p.massKg,
+    volumeM3:p.def.volumeM3,condition:1,provenance:'structural-8g:'+a.jobId,
+    location:{kind:'surface',bodyId:a.bodyId,local:copy(a.local)},
+    components:[{blueprintId:a.blueprintId,parts:copy(p.def.parts)}],
+    state:{...copy(p.spec.state),assemblyFacilityId:a.facilityId,
+      assemblyWorkJ:p.spec.workJ,assemblySeconds:p.spec.assemblySeconds}};
+  physical.assets.push(asset);
+  if(Math.abs(before-sum(materials.lots)-sum(physical.assets))>EPS)
+   throw Error('Structural assembly violated physical mass conservation');
+  const receipt={id:a.jobId,assetId:a.jobId,blueprintId:a.blueprintId,
+   facilityId:a.facilityId,bodyId:a.bodyId,status:'ASSEMBLED_NOT_OPERATIONAL',
+   massKg:p.massKg,energyJ:p.spec.workJ,assemblySeconds:p.spec.assemblySeconds,
+   consumedLots:copy(p.take)};
+  const assembly=copy(ledger);assembly.receipts.push(receipt);
+  return {duplicate:false,receipt,asset,materials,physical,assembly};
+ }
+ return Object.freeze({quote,stage,snapshot:()=>copy(ledger)});
+}
+root.StarfallStructureAssembly8G=Object.freeze({create,BLUEPRINTS:blueprints});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallStructureAssembly8G;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
@@ -9546,6 +9748,80 @@ function manufacturedDrive8G(dt,yaw){
  pos=updated.position;up=updated.up;evaLocal=physical8a.get(a.id).location.local;
  evaForward=updated.forward;vertical=0;vel=[0,0,0];return true;
 }
+function structureAssemblyContext8G(){
+ const c=assemblyContext8G();
+ return {...c,pads:physical8a.list().filter(a=>a.type==='industrial_plant'&&
+  ['rocket_integration','habitat_pad'].includes(a.state?.station)&&
+  a.location?.kind==='surface'&&a.location.bodyId===c.bodyId&&a.condition>=.5&&
+  a.state?.enabled!==false).map(a=>({id:a.id,station:a.state.station}))};
+}
+function structuralBuildSite8G(blueprintId,facilityId){
+ const ctx=structureAssemblyContext8G(),def=StarfallStructureAssembly8G.BLUEPRINTS[blueprintId];
+ if(!def)throw Error('Unknown physical rocket/habitat construction blueprint');
+ if(!ctx.landed||!ctx.eva||!ctx.powered||!shipLocal||!evaLocal||!nearest?.radius||
+    shipBody!==nearest||manufacturedOccupied8G||truckOccupied)
+   throw Error('Exit a powered landed spacecraft on EVA to operate the structure bay');
+ const pad=physical8a.get(facilityId);
+ if(!pad||pad.type!=='industrial_plant'||pad.state?.station!==def.station||
+  pad.location?.kind!=='surface'||pad.location.bodyId!==ctx.bodyId||
+  pad.condition<.5||pad.state?.enabled===false)
+  throw Error('A paid, installed and healthy rocket/habitat integration pad is required on this world');
+ const arc=(a,b)=>Math.acos(Math.max(-1,Math.min(1,V.dot(V.norm(a),V.norm(b)))))*nearest.radius;
+ if(arc(evaLocal,pad.location.local)>48||arc(shipLocal,pad.location.local)>78)
+  throw Error('Operator must stay within 48 surface units of the pad and ship within 78');
+ const objects=physical8a.list().filter(a=>a.location?.kind==='surface'&&a.location.bodyId===ctx.bodyId);
+ const siteItems=window.StarfallOutpostUI?.store?.items||[];
+ for(const [front,right] of [[35,0],[-35,0],[0,35],[0,-35],[44,8],[-44,-8],[8,44],[-8,-44]]){
+  const local=tangentOffsetLocal(nearest,pad.location.local,shipForwardVec||forward,front,right);
+  if(arc(local,shipLocal)>82||arc(local,evaLocal)>65||arc(local,shipLocal)<38)continue;
+  if(objects.some(a=>Array.isArray(a.location.local)&&
+      arc(local,a.location.local)<def.minimumClearanceScene+
+      (a.type==='industrial_plant'?9:a.type==='habitat_envelope'?14:a.type==='rocket_stage_dry'?9:7)))
+   continue;
+  if(siteItems.some(a=>a.bodyId===ctx.bodyId&&Array.isArray(a.local)&&
+      arc(local,a.local)<def.minimumClearanceScene+
+      (window.StarfallOutposts?.SPECS?.[a.kind]?.radius||8)))continue;
+  return local;
+ }
+ throw Error('No physically clear integration footprint near pad, EVA or ship; relocate equipment');
+}
+function structureQuote8G(blueprintId,facilityId){
+ const ctx=structureAssemblyContext8G(),spec=StarfallStructureAssembly8G.BLUEPRINTS[blueprintId],
+  local=structuralBuildSite8G(blueprintId,facilityId);
+ const quote=StarfallStructureAssembly8G.create(vehicleAssembly8g.snapshot()).quote({
+  jobId:'structure8g:preview',blueprintId,facilityId,bodyId:ctx.bodyId,
+  containerId:StarfallMining8D.SHIP,local,materials:materials8a.snapshot(),
+  physical:physical8a.serialize(),
+  energyReceipt:{operationId:'structure8g:preview',status:'COMMITTED',
+   sourceId:'ship-main:engineering-battery',usedJ:spec.workJ}});
+ return {...quote,powered:ctx.energyJ>=spec.workJ,siteLocal:local};
+}
+function structureStage8G(blueprintId,facilityId){
+ const quote=structureQuote8G(blueprintId,facilityId),ctx=structureAssemblyContext8G(),
+   spec=StarfallStructureAssembly8G.BLUEPRINTS[blueprintId];
+ if(!quote.ready)throw Error('Missing real rocket/habitat parts: '+
+  quote.shortages.map(x=>x.materialId+' '+x.missingKg.toFixed(2)+' kg').join(', '));
+ if(!quote.powered)throw Error('Ship battery must supply '+spec.workJ+' J installation power');
+ const all=physical8a.serialize();let n=1;
+ while(all.assets.some(a=>a.id==='structure8g:'+n)||
+   vehicleAssembly8g.snapshot().receipts.some(x=>x.id==='structure8g:'+n))n++;
+ const jobId='structure8g:'+n;
+ const result=StarfallStructureAssembly8G.create(vehicleAssembly8g.snapshot()).stage({
+  jobId,blueprintId,facilityId,bodyId:ctx.bodyId,local:quote.siteLocal,
+  containerId:StarfallMining8D.SHIP,materials:materials8a.snapshot(),physical:all,
+  energyReceipt:{operationId:jobId,status:'COMMITTED',
+   sourceId:'ship-main:engineering-battery',usedJ:spec.workJ}});
+ const checkedMaterials=StarfallMaterials8A.create(result.materials);
+ const checkedPhysical=StarfallPhysical8A.create(result.physical);
+ const ship=vehicleStore.get('ship');
+ if(ship.state.energyJ<spec.workJ)throw Error('Ship energy changed before structural assembly commit');
+ materials8a=checkedMaterials;physical8a=checkedPhysical;
+ vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(result.assembly);
+ vehicleStore.update('ship',{...ship.state,energyJ:ship.state.energyJ-spec.workJ});
+ saveFlight();showToast('8G · '+blueprintId+' physical unqualified structure '+jobId+
+  ' · not operational until pressure / propulsion validation');
+ return result.receipt;
+}
 function frameCargoContext8G(){
  const c=outpostContext(),ship=vehicleStore.get('ship');
  return {bodyId:c.bodyId,landed:!!c.landed&&shipBody===c.body,
@@ -10077,7 +10353,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -10602,7 +10878,7 @@ function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[]
  let drawn=0;
  for(const asset of physical){
   if(drawn>=30)break;
-  if(!['industrial_plant','industrial_vessel','vehicle_frame'].includes(asset.type)||asset.location?.kind!=='surface'||
+  if(!['industrial_plant','industrial_vessel','vehicle_frame','rocket_stage_dry','habitat_envelope'].includes(asset.type)||asset.location?.kind!=='surface'||
     asset.location.bodyId!==ctx.body.id||O.arc(ctx.local,asset.location.local,ctx.body.radius)>90)continue;
   const item=renderLoc({kind:asset.type,bodyId:asset.location.bodyId,local:asset.location.local,facing:[0,0,1]});
   if(item){result.push(item);drawn++;}
@@ -15085,6 +15361,64 @@ panel.append(h,explain,button,where,select,pad,stage,stageStatus,pre);host.appen
 let last=0;function tick(){const t=performance.now();if(t-last>=900){last=t;refresh();}requestAnimationFrame(tick);}tick();
 root.StarfallAssemblyInspectorUI8G={refresh};
 })(globalThis);
+</script><script>
+/* 8G structural fabrication UI: read-only BOM + paid unqualified structural
+ * staging. Neither button launches a rocket nor pressurizes a habitat.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host||!root.StarfallStructureAssembly8G)return;
+const section=document.createElement('section');section.className='section';section.id='structure-assembly8g';
+const heading=document.createElement('div');heading.className='section-title';
+heading.textContent='8G · ROCKET & HABITAT PHYSICAL ASSEMBLY';
+const explanation=document.createElement('p');explanation.className='panel-note';
+explanation.textContent='Fabricate the full finite 8F bill, physically erect a rocket-integration rig or habitat-construction pad, then assemble on EVA from real ship cargo. Builds a DRY UNFUELED stage or UNPRESSURIZED shell. These structures do NOT launch or sustain life until independent propulsion, tank pressure, power, gas and T09 checks pass.';
+const type=document.createElement('select');type.setAttribute('aria-label','Select dry rocket stage or habitat envelope');
+for(const [id,label] of [['rocket_stage','DRY ROCKET STAGE'],['habitat_shell','UNPRESSURIZED HABITAT ENVELOPE']]){
+ const option=document.createElement('option');option.value=id;option.textContent=label;type.append(option);
+}
+const pad=document.createElement('select');pad.setAttribute('aria-label','Select physical rocket or habitat assembly pad');
+const button=document.createElement('button');button.className='science-action';button.type='button';
+button.textContent='ASSEMBLE UNQUALIFIED PHYSICAL STRUCTURE';
+const status=document.createElement('p');status.className='panel-note';status.setAttribute('role','status');
+status.textContent='Select an installed assembly site; no materials or energy are granted by this screen.';
+const detail=document.createElement('pre');detail.style.cssText='white-space:pre-wrap;font:11px/1.45 Consolas,monospace;background:#101b23;color:#cad8dc;border:1px solid #53677566;max-height:250px;overflow:auto;padding:10px';
+const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center';
+for(const el of [type,pad])el.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;max-width:100%';
+row.append(type,pad,button);section.append(heading,explanation,row,status,detail);host.append(section);
+function refresh(){
+ const rt=root.StarfallRuntime,ctx=rt?.structureAssemblyContext8G?.();
+ if(!ctx)return;
+ const selected=root.StarfallStructureAssembly8G.BLUEPRINTS[type.value],padList=(ctx.pads||[]).filter(x=>x.station===selected?.station);
+ const signature=padList.map(x=>x.id).join('|');
+ if(signature!==pad.dataset.signature){const previous=pad.value;pad.dataset.signature=signature;pad.replaceChildren();
+  for(const p of padList){const option=document.createElement('option');option.value=p.id;option.textContent=p.id+' · '+p.station;pad.append(option);}
+  if(padList.some(x=>x.id===previous))pad.value=previous;
+ }
+ let q=null,error='';
+ try{if(pad.value)q=rt.structureQuote8G(type.value,pad.value);}
+ catch(e){error=String(e.message||e);}
+ button.disabled=!q?.ready||!q?.powered||!ctx.landed||!ctx.eva;
+ detail.textContent='BLUEPRINT '+type.value+
+  '\nREQUIRED FACILITY: '+(selected?.station||'NONE')+
+  '\nAVAILABLE SITE: '+(pad.value||'FABRICATE/ERECT A PHYSICAL KIT FIRST')+
+  '\nSHIP BATTERY: '+Math.round(ctx.energyJ)+' J'+
+  '\nWORK: '+(q?.workJ||selected?.workJ||0)+' J / estimated labor '+(q?.assemblySeconds||selected?.assemblySeconds||0)+' s (not timed yet)'+
+  '\nMATERIAL MASS: '+(q?.massKg?.toFixed(2)||'—')+' kg'+
+  '\nPARTS: '+(q?.ready?'FULL CERTIFIED BILL':'MISSING')+
+  (q?.shortages?.length?'\nSHORTAGES: '+q.shortages.map(x=>x.materialId+' '+x.missingKg.toFixed(2)+' kg').join(', '):'')+
+  '\nPREFLIGHT: '+(error||(!pad.value?'NO PHYSICAL FACILITY':q?.ready&&q?.powered?'READY FOR NON-OPERATIONAL ASSEMBLY':'BLOCKED'))+
+  '\nPOST-CONSTRUCTION: NO PRESSURE / NO PROPELLANT / NO AUTOMATIC LAUNCH';
+}
+button.addEventListener('click',()=>{try{
+ const receipt=root.StarfallRuntime.structureStage8G(type.value,pad.value);
+ status.textContent='CONSTRUCTED '+receipt.assetId+' · '+receipt.massKg.toFixed(2)+' kg from real 8F parts · '+receipt.energyJ+' J ship battery spent. UNQUALIFIED: rocket not launchable, habitat not habitable.';
+ }catch(e){status.textContent='BLOCKED: '+String(e.message||e);}refresh();});
+type.addEventListener('change',refresh);pad.addEventListener('change',refresh);
+let at=0;function tick(t){if(t-at>1000){at=t;refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
+root.StarfallStructureAssemblyUI8G={refresh};
+})(globalThis);
+
 </script><script>
 /* 8G gantry controls: physical frames only, separate from original 8B truck. */
 (function(root){'use strict';
