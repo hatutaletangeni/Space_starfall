@@ -69,6 +69,7 @@ near(materials.lots.reduce((s,x)=>s+x.massKg,0)+physics.assets.reduce((s,x)=>s+x
  originalStockMass+originalAssetMass);
 near(poweredJ,kitMade.receipt.energyJ+coil.receipt.energyJ+motor.receipt.energyJ+65000);
 assert.equal(Install.install({lotId:kitLot.id,materials,physical:physics,containerId:'ship',
- assetId:'machine8f:hand-winder',operationId:'install8f:hand-winder'}).duplicate,true);
+ assetId:'machine8f:hand-winder',operationId:'install8f:hand-winder',
+ shipLanded:true,operatorNear:true,workshopInstalled:true,shipPowerEnabled:true,bodyId:'planet'}).duplicate,true);
 assert.equal(physics.assets.filter(x=>x.type==='truck').length,1);
 console.log('PASS 8F: real 32kg no-motor hand winder -> installed bench -> finite wound coil -> 2.7kg brushed DC motor; all mass, power and original truck preserved');
