@@ -503,7 +503,7 @@ function finishScan(){const {index,planet}=scan,s=survey(planet);s.scans=s.scans
 function updateBodyUI(){const b=nearest||target;$('planet-name').textContent=b.name;$('planet-description').textContent=b.type+' '+b.kind+' / '+b.system+' / '+b.gravity.toFixed(2)+' g';$('system-name').textContent=b.system;$('planet-type').textContent=b.type+(b.kind==='moon'?' moon':'');$('planet-gravity').textContent=b.gravity.toFixed(2)+' g';$('planet-atmosphere').textContent=b.atmosphere;$('day-length').textContent=Math.round(b.spinPeriod)+' s';$('credits').textContent=SF.getCredits().toLocaleString()+' CR';updateSurveyUI();}
 let expandedSystemId=null;function drawChart(){const area=$('destinations'),term=($('chart-search')?.value||'').toLowerCase().trim();area.replaceChildren();let shown=0,matched=0;
  const ranked=[...galaxy.systems].sort((a,b)=>V.len(V.sub(a.position,pos))-V.len(V.sub(b.position,pos)));
- for(const sys of ranked){if(term&&!sys.name.toLowerCase().includes(term)&&!sys.star.type.toLowerCase().includes(term)&&!(sys.phenomenon||'').includes(term)&&!sys.planets.some(p=>p.name.toLowerCase().includes(term)||p.type.toLowerCase().includes(term)))continue;
+ for(const sys of ranked){if(term&&!sys.name.toLowerCase().includes(term)&&!sys.star.type.toLowerCase().includes(term)&&!(sys.phenomenon||'').includes(term)&&!sys.planets.some(p=>p.id.toLowerCase().includes(term)||p.name.toLowerCase().includes(term)||p.type.toLowerCase().includes(term)))continue;
   matched++;if(shown>=55)continue;const group=document.createElement('div');group.className='star-system';const header=document.createElement('button');header.className='destination system-head';header.type='button';const dist=V.len(V.sub(pos,sys.position));header.innerHTML='<div class="dest-top"><b></b><span class="distance"></span></div><small></small>';
   header.querySelector('b').textContent='✦ '+sys.name;header.querySelector('.distance').textContent=formatDistance(dist);header.querySelector('small').textContent=sys.star.type+' · '+sys.star.rarity.toUpperCase()+' · '+(sys.dormant?'UNSURVEYED':sys.planets.length+' PLANETS · '+sys.belts.length+' BELTS')+(sys.phenomenon?' · '+sys.phenomenon.toUpperCase():'');group.append(header);
   const sunBtn=document.createElement('button');sunBtn.type='button';sunBtn.className='sun-destination';sunBtn.textContent='◉ PLOT COURSE TO STAR · APPROACH CORONA';sunBtn.onclick=()=>{target=sys.star;galaxy.pinnedSystemId=sys.id;siteWaypoint=null;closeChart();showToast('Stellar approach plotted. The corona is accessible, but dangerous.');};group.append(sunBtn);
@@ -520,6 +520,35 @@ let expandedSystemId=null;function drawChart(){const area=$('destinations'),term
  }
  $('systems-shown').textContent=(term?matched+' MATCHES · ':'')+shown+' SHOWN / '+galaxy.systems.length+' REAL SYSTEMS';
 }
+function truckDestination8B(){
+ return StarfallTruckNavigation8B.locate(physical8a.get(START_TRUCK),galaxy,GALAXY_SEED,saved?.seed);
+}
+function plotTruckDestination8B(){
+ const destination=truckDestination8B();
+ if(destination.status!=='SURFACE'){
+  showToast('TRUCK NAV · '+destination.message);
+  return destination;
+ }
+ // Activate dormant star systems through existing navigation, never teleport.
+ const {world,system}=destination;
+ if(system.dormant)galaxy.activate(system);
+ galaxy.pinnedSystemId=system.id;
+ expandedSystemId=system.id;
+ target=world;
+ siteWaypoint=null;
+ const search=$('chart-search');if(search)search.value=system.name;
+ drawChart();closeChart();
+ showToast('TRUCK ROUTE · '+world.name+' in '+system.name+' plotted. Align with G, fly normally. The original vehicle stays on its saved planet.');
+ return destination;
+}
+const truckLocateControl8B=document.createElement('button');
+truckLocateControl8B.type='button';
+truckLocateControl8B.id='truck-plot-course8b';
+truckLocateControl8B.className='destination';
+truckLocateControl8B.textContent='⌖ LOCATE MY ORIGINAL TRUCK';
+truckLocateControl8B.title='Find the actual saved truck in the active seeded galaxy and plot course (no teleportation)';
+truckLocateControl8B.onclick=plotTruckDestination8B;
+$('chart-search')?.parentElement?.appendChild(truckLocateControl8B);
 function openChart(){drawChart();$('chart').hidden=false;controls.clear();$('chart-search')?.focus();}
 function closeChart(){if($('chart').contains(document.activeElement))document.activeElement.blur();$('chart').hidden=true;}
 $('new-galaxy').onclick=()=>{const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;};
@@ -1606,7 +1635,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
