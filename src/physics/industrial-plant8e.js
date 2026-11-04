@@ -12,7 +12,7 @@ function create(saved){
  const state=saved==null?{schema:1,operations:[]}:copy(saved);
  if(state.schema!==1||!Array.isArray(state.operations)||
   new Set(state.operations.map(o=>o.id)).size!==state.operations.length)throw Error('Invalid 8E plant state');
- function process({id,reactionId,scaleMol=100,materials,sourceContainerId,destinations={},assetState,
+ function process({id,reactionId,scaleMol=100,materials,sourceContainerId,destinations={},reactantSources={},assetState,
     station,energyReceipt,bodyId,temperatureK=293.15,storagePressurePa=5e6}){
   if(!ident(id)||!ident(sourceContainerId))throw Error('Missing job or physical source container');
   const old=state.operations.find(x=>x.id===id);
@@ -34,8 +34,20 @@ function create(saved){
   const taken=[];
   for(const [materialId,quantity] of Object.entries(recipe.inputs)){
    let remaining=quantity;
-   for(const lot of snapshot.lots){
-    if(lot.containerId!==sourceContainerId||lot.materialId!==materialId)continue;
+   const isGas=c.species[materialId]?.phase==='gas';
+  const reagentContainer=isGas?reactantSources[materialId]:sourceContainerId;
+  if(isGas){
+   const vessel=assets.find(x=>x.id===station.reactantAssetIds?.[materialId]);
+   const bin=snapshot.containers.find(x=>x.id===reagentContainer);
+   if(!vessel||vessel.type!=='industrial_vessel'||vessel.condition<.5||
+    vessel.location?.kind!=='surface'||vessel.location.bodyId!==bodyId||
+    vessel.state?.materialId!==materialId||vessel.state?.containerId!==reagentContainer||
+    !bin||!String(bin.kind).includes('gas')||!finite(vessel.state.ratedPressurePa)||
+    vessel.state.ratedPressurePa<storagePressurePa)
+    throw Error('Required pressure-rated reactant vessel missing: '+materialId);
+  }
+  for(const lot of snapshot.lots){
+    if(lot.containerId!==reagentContainer||lot.materialId!==materialId)continue;
     // An exact chemical identifier is not sufficient: raw, low-grade ore cannot be used as pure reagent.
     if(!finite(lot.grade)||lot.grade<.99)continue;
     const reserved=sum(snapshot.operations.filter(op=>op.status==='RESERVED'&&op.lotId===lot.id).map(op=>op.massKg));
@@ -78,7 +90,7 @@ function create(saved){
   }
   for(const d of taken){const before=d.lot.massKg;d.lot.massKg-=d.used;d.lot.volumeM3*=d.lot.massKg/before;}
   snapshot.lots=snapshot.lots.filter(x=>x.massKg>EPS).concat(outputs);
-  const receipt={id,reactionId,stationAssetId:station.physicalAssetId,inputs:copy(recipe.inputs),
+  const receipt={id,reactionId,stationAssetId:station.physicalAssetId,inputs:copy(recipe.inputs),reactantSources:copy(reactantSources),
    outputs:copy(recipe.outputs),energyJ:recipe.energyJ,bodyId,status:'COMMITTED'};
   const operations=copy(state);operations.operations.push(receipt);
   return {duplicate:false,receipt,materials:snapshot,operations};
