@@ -33,6 +33,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - name: JavaScript syntax and industrial contracts
         run: |
           set -eu
@@ -74,12 +76,12 @@ jobs:
           path: PLAY-STARFALL.html
           retention-days: 14
       - name: Commit fresh standalone HTML to test branch
-        if: github.event_name == 'push' && github.ref_name == 'feature/update-8f-manual-motor-bootstrap'
+        if: (github.event_name == 'push' && github.ref_name == 'feature/update-8f-manual-motor-bootstrap') || (github.event_name == 'pull_request' && github.head_ref == 'feature/update-8f-manual-motor-bootstrap' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           git config user.name "starfall-ci"
           git config user.email "starfall-ci@users.noreply.github.com"
           git add -f PLAY-STARFALL.html
           if ! git diff --cached --quiet; then
-            git commit -m "build(8E): publish test standalone [skip ci]"
+            git commit -m "build(8F): publish synchronized manual-motor standalone"
             git push origin HEAD:feature/update-8f-manual-motor-bootstrap
           fi
