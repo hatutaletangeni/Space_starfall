@@ -5,6 +5,7 @@ on:
       - feature/update-8g-live-assembly-runtime
       - release/update-8g-hardware-clearance-current-main
       - release/update-8g-frame-cargo-current-main
+      - feature/update-8g-manufactured-vehicle-activation
   pull_request:
     paths:
       - 'src/physics/*8g.js'
