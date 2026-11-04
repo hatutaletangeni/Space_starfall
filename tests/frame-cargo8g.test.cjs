@@ -36,5 +36,16 @@ const obstructed={...load.physical,assets:[...load.physical.assets,
 assert.throws(()=>C.transfer({...unloadArgs,physical:obstructed}),/obstructed/);
 const remote=JSON.parse(JSON.stringify(a));remote.physical.assets.find(x=>x.id===frame.id).location.local=fixed(100);
 assert.throws(()=>C.transfer(remote),/gantry/);
-assert.throws(()=>C.transfer({...a,physical:{...p(),assets:p().assets.map(x=>x.id===frame.id?{...x,state:{commissioned:true}}:x)}}),/incomplete/);
+assert.throws(()=>C.transfer({...a,physical:{...p(),assets:p().assets.map(x=>x.id===frame.id?{...x,state:{commissioned:true}}:x)}}),/Unverified active/);
+const active={...p(),assets:p().assets.map(x=>x.id===frame.id?
+ {...x,state:{operational:true,commissioned:true,rideable:true,speedMS:0,
+   activationReceipt:{assetId:x.id,energyJ:2500000}}}:x)};
+const packed=C.transfer({...a,physical:active});
+assert.equal(packed.physical.assets.find(x=>x.id===frame.id).state.operational,true);
+assert.equal(packed.physical.assets.find(x=>x.id===frame.id).location.slot,C.LIMIT.slot);
+const restored=C.transfer({...unloadArgs,physical:packed.physical});
+assert.equal(restored.physical.assets.find(x=>x.id===frame.id).state.operational,true);
+assert.throws(()=>C.transfer({...a,physical:{...active,assets:active.assets.map(x=>x.id===frame.id?
+ {...x,state:{...x.state,speedMS:2}}:x)}}),/complete stop/);
+
 console.log('PASS 8G frame cargo: real finite 8A custody, ship capacity, EVA range, energy receipt, unload clearance, idempotence, original truck protected');
