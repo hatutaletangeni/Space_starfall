@@ -111,8 +111,10 @@ with sync_playwright() as pw:
               state:{materialId:species,containerId:cid,ratedPressurePa:8000000,enabled:true}});
             m.containers.push({id:cid,ownerId:vesselId,kind:'gas pressure vessel',
               maxMassKg:1000,maxVolumeM3:4});
+            const molar=species==='oxygen'?.031998:.028014;
+            const gasVolumeM3=(need[species]/molar)*8.314462618*293.15/5e6;
             m.lots.push({id:'hose-test:'+species,materialId:species,
-              massKg:need[species],volumeM3:.02,containerId:cid,grade:1,
+              massKg:need[species],volumeM3:gasVolumeM3,containerId:cid,grade:1,
               provenance:'TEST_FIXTURE_ONLY_PROVENANCE'});
           }
           m.lots.push({id:'hose-test:water',materialId:'water',massKg:need.water,
