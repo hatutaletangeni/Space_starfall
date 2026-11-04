@@ -10,7 +10,7 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,a+' != '+b);
 const materials=Stock.create();
 materials.registerContainer({id:'hold',ownerId:'ship-main',maxMassKg:9000,maxVolumeM3:16});
 let serial=0;
-const initial={steel:40.5,aluminum:4.5};
+const initial={steel:42.5,aluminum:4.5,copper:.8,carbon:.2};
 for(const [materialId,massKg] of Object.entries(initial))materials.importLot({
  id:'finished-metal-'+ ++serial,containerId:'hold',materialId,massKg,
  volumeM3:massKg*.001,grade:1,provenance:'physically-refined-8E'});
@@ -38,7 +38,7 @@ function build(recipeId,machine){
  const done=factory.commit({materials:stock,transformer:Transform.create(conversions),machine});
  stock=done.materials;conversions=done.transformations;factory.apply(done.factory);
  assert.ok(stock.lots.some(l=>l.materialId===recipeId));
- near(stock.lots.reduce((s,l)=>s+l.massKg,0),45);
+ near(stock.lots.reduce((s,l)=>s+l.massKg,0),48);
  return done;
 }
 assert.throws(()=>Factory.quote({recipeId:'wheel_rim',materials:stock,sourceContainerId:'hold',outputContainerId:'hold',machine:tools.fixture}),/tool/);
@@ -53,12 +53,20 @@ build('rolling_wheel_core',tools.fixture);
 const core=stock.lots.find(l=>l.materialId==='rolling_wheel_core');
 near(core.massKg,7.3);assert.equal(core.grade,1);
 assert.equal(stock.lots.some(l=>l.materialId==='wheel_tire'),false);
-assert.equal(factory.receipts.length,6);
+assert.throws(()=>Factory.quote({recipeId:'wheel_bushing',materials:stock,
+ sourceContainerId:'hold',outputContainerId:'hold',machine:tools.fixture}),/tool/);
+build('wheel_bushing',tools.lathe);
+build('wheel_grouser',tools.press);
+const final=build('low_speed_rover_wheel',tools.fixture);
+const metalWheel=stock.lots.find(l=>l.materialId==='low_speed_rover_wheel');
+near(metalWheel.massKg,10.02);assert.equal(metalWheel.grade,1);
+assert.equal(stock.lots.some(l=>l.materialId==='wheel_tire'),false);
+assert.equal(factory.receipts.length,9);
 assert.ok(stock.lots.some(l=>l.materialId==='manufacturing_scrap'));
 const expected=Object.values(Man.RECIPES).length;
 assert.ok(expected>20);
-near(energy,['chassis_rail','wheel_rim','wheel_hub','axle_shaft','leaf_spring','rolling_wheel_core']
+near(energy,['chassis_rail','wheel_rim','wheel_hub','axle_shaft','leaf_spring','rolling_wheel_core','wheel_bushing','wheel_grouser','low_speed_rover_wheel']
  .reduce((s,k)=>s+Man.RECIPES[k].powerW*Man.RECIPES[k].seconds,0));
 const replay=Transform.create(conversions).snapshot();
-assert.equal(replay.operations.length,6);
-console.log('PASS 8F vehicle parts: full paid chassis rail, rim, hub, axle, spring and rigid wheel core; finite material+scrap and tool gating, no truck magically commissioned');
+assert.equal(replay.operations.length,9);
+console.log('PASS 8F vehicle parts: full nine paid jobs: chassis rail, rim/hub, axle, spring, metal wheel bushing+cleats and final low-speed wheel; finite material+scrap and tool gating, no truck magically commissioned');
