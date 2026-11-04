@@ -12,6 +12,7 @@ on:
       - feature/update-8f-basic-stock-parts
       - feature/update-8e-aluminum-ore-to-metal
       - feature/update-8g-physical-vehicle-assembly-pad
+      - feature/update-8g-vehicle-factory-inspector
   pull_request:
     paths:
       - 'src/physics/*8e.js'
@@ -33,7 +34,7 @@ jobs:
       - name: JavaScript syntax and industrial contracts
         run: |
           set -eu
-          for path in src/physics/transformation8e.js src/physics/refinery8e.js src/physics/industrial-chemistry8e.js src/physics/industrial-plant8e.js src/physics/stock-parts8f.js src/physics/kit-recipes8f.js src/physics/manufacturing8f.js src/physics/factory8f.js src/physics/physical-inventory8a.js src/physics/machine-install8f.js src/physics/machine-install-ui8f.js src/physics/industrial-site8e.js src/physics/industrial-site-ui8e.js src/physics/outposts-ui.js src/engine.js src/physics/refinery-ui8e.js src/physics/factory-ui8f.js src/flight.js src/ui21.js; do
+          for path in src/physics/transformation8e.js src/physics/refinery8e.js src/physics/industrial-chemistry8e.js src/physics/industrial-plant8e.js src/physics/assembly8g.js src/physics/assembly-inspector8g.js src/physics/assembly-inspector-ui8g.js src/physics/stock-parts8f.js src/physics/kit-recipes8f.js src/physics/manufacturing8f.js src/physics/factory8f.js src/physics/physical-inventory8a.js src/physics/machine-install8f.js src/physics/machine-install-ui8f.js src/physics/industrial-site8e.js src/physics/industrial-site-ui8e.js src/physics/outposts-ui.js src/engine.js src/physics/refinery-ui8e.js src/physics/factory-ui8f.js src/flight.js src/ui21.js; do
             node --check "$path"
           done
           node tests/refinery8e.test.cjs
@@ -46,6 +47,7 @@ jobs:
           node tests/machine-install8f.test.cjs
           node tests/industrial-site8e.test.cjs
           node tests/vehicle-assembly-pad8g.test.cjs
+          node tests/assembly-inspector8g.test.cjs
           node tests/industrial-kit-factory8f.test.cjs
           node tests/stock-parts8f.test.cjs
           node tests/industry-crosschain8e-8f.test.cjs
@@ -59,7 +61,7 @@ jobs:
           t=Path('PLAY-STARFALL.html').read_text(encoding='utf-8')
           assert not re.search(r'<script\s+src=',t), 'External scripts remain'
           assert not re.search(r'<link\s+rel="stylesheet"\s+href=',t), 'External styles remain'
-          for name in ('StarfallRefinery8E','StarfallIndustrialChemistry8E','StarfallIndustrialPlant8E','StarfallFactory8F','StarfallMachineInstall8F','StarfallMachineInstallUI8F','StarfallIndustrialSite8E','StarfallIndustrialSiteUI8E','StarfallKitRecipes8F','StarfallStockParts8F'):
+          for name in ('StarfallRefinery8E','StarfallIndustrialChemistry8E','StarfallIndustrialPlant8E','StarfallFactory8F','StarfallMachineInstall8F','StarfallMachineInstallUI8F','StarfallIndustrialSite8E','StarfallIndustrialSiteUI8E','StarfallKitRecipes8F','StarfallAssemblyInspector8G','StarfallStockParts8F'):
               assert name in t, f'Missing in standalone: {name}'
           print('Offline code references verified:',len(t),'characters')
           PY
@@ -70,12 +72,12 @@ jobs:
           path: PLAY-STARFALL.html
           retention-days: 14
       - name: Commit fresh standalone HTML to test branch
-        if: github.event_name == 'push' && github.ref_name == 'feature/update-8g-physical-vehicle-assembly-pad'
+        if: github.event_name == 'push' && github.ref_name == 'feature/update-8g-vehicle-factory-inspector'
         run: |
           git config user.name "starfall-ci"
           git config user.email "starfall-ci@users.noreply.github.com"
           git add -f PLAY-STARFALL.html
           if ! git diff --cached --quiet; then
             git commit -m "build(8E): publish test standalone [skip ci]"
-            git push origin HEAD:feature/update-8g-physical-vehicle-assembly-pad
+            git push origin HEAD:feature/update-8g-vehicle-factory-inspector
           fi
