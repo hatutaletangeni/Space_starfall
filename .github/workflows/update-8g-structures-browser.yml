@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/update-8g-rocket-habitat-industrial-assembly
+      - feature/update-8g-finite-field-repair-v2
   pull_request:
     paths:
       - 'src/physics/structure-assembly8g.js'
