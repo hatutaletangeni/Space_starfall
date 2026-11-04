@@ -48,4 +48,20 @@ assert.equal(restored.physical.assets.find(x=>x.id===frame.id).state.operational
 assert.throws(()=>C.transfer({...a,physical:{...active,assets:active.assets.map(x=>x.id===frame.id?
  {...x,state:{...x.state,speedMS:2}}:x)}}),/complete stop/);
 
+// A gas tank is not an empty steel shell: shared frame-cradle capacity
+// counts its contained nitrogen, despite nitrogen being in the tank's 8A
+// material container rather than the unsecured ship hold.
+const storedGasVessel={id:'facility8e:gas',type:'industrial_vessel',massKg:195,volumeM3:4,
+ condition:1,location:{kind:'ship',parentId:'ship-main',slot:'engineering-gas-cradle'},
+ state:{containerId:'vessel8e:facility8e:gas',materialId:'nitrogen',ratedPressurePa:8000000}};
+const gasStored={schema:1,containers:[{id:'vessel8e:facility8e:gas',
+ ownerId:storedGasVessel.id,kind:'gas pressure vessel',maxMassKg:2000,maxVolumeM3:6}],
+ lots:[{id:'nitrogen-batch',containerId:'vessel8e:facility8e:gas',materialId:'nitrogen',
+ massKg:1500,volumeM3:2,grade:1,provenance:'8G modeled air'}],operations:[]};
+const withGasVessel={...p(),assets:[...p().assets,storedGasVessel]};
+assert.throws(()=>C.transfer({...a,physical:withGasVessel}),/contained gas inventory/);
+assert.throws(()=>C.transfer({...a,physical:withGasVessel,materials:gasStored}),/rated ship cargo capacity/);
+const smallGas={...gasStored,lots:[{...gasStored.lots[0],massKg:20,volumeM3:.03}]};
+assert.equal(C.transfer({...a,physical:withGasVessel,materials:smallGas}).physical.assets
+ .find(x=>x.id===frame.id).location.slot,C.LIMIT.slot);
 console.log('PASS 8G frame cargo: real finite 8A custody, ship capacity, EVA range, energy receipt, unload clearance, idempotence, original truck protected');
