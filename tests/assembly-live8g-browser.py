@@ -188,9 +188,9 @@ with sync_playwright() as pw:
         assert driven['frame']['state']['batteryEnergyJ']<initial_drive,driven
         assert len(driven['original'])==1 and driven['original'][0]['location']==fixture['truck']
         # Force an actual complete stop; powered winch may not load moving frames.
-        page.keyboard.down('space')
+        page.keyboard.down('Space')
         page.wait_for_timeout(900)
-        page.keyboard.up('space')
+        page.keyboard.up('Space')
         stopped=page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.speedMS""",frame_id)
         assert abs(stopped)<.05,'Braking did not reach safe loading speed: '+str(stopped)
         assert page.evaluate("""() => StarfallRuntime.exitManufactured8G()""") is True
