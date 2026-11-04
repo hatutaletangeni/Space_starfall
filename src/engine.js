@@ -494,6 +494,33 @@ function makeInfrastructureMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
    box(1.9,4,-1.5,2.7,8.0,-.8,metal);
    box(-3.4,1.3,2.1,-2.7,3.7,2.8,gold);
  }
+ if(kind==='rocket_stage_dry'){
+   // Unpropelled dry integration article: four open tank hoops, separate
+   // untested engine chamber and incomplete/nozzle gimbal. NO launch thrust.
+   box(-3,.65,-3,3,1.05,3,dark);
+   for(const y of [2,5,8,11]){
+    box(-2.6,y,-2.7,2.6,y+.25,-2.35,metal);
+    box(-2.6,y,2.35,2.6,y+.25,2.7,metal);
+    box(-2.7,y,-2.4,-2.35,y+.25,2.4,metal);
+    box(2.35,y,-2.4,2.7,y+.25,2.4,metal);
+   }
+   for(const x of [-2.5,2.5])for(const z of [-2.5,2.5])box(x-.17,1,z-.17,x+.17,12,z+.17,gold);
+   box(-1.6,1.3,-1.6,1.6,3.3,1.6,white);
+   box(-1.0,.7,-1.0,1.0,1.3,1.0,metal);
+   box(-1.3,11.4,-1.3,1.3,12.1,1.3,cyan);
+ }
+ if(kind==='habitat_envelope'){
+   // Open structural panels and empty airlock footprint. This is explicitly
+   // NOT a pressurized T09 habitat; no habitable shelter or breathable air.
+   box(-6,.7,-5.2,6,1.05,5.2,metal);
+   for(const x of [-5.7,5.7])for(const z of [-4.9,4.9])box(x-.28,1,z-.28,x+.28,5.8,z+.28,gold);
+   for(const z of [-4.5,4.5])box(-5.6,1,z-.35,5.6,4.8,z+.35,white);
+   for(const x of [-5.5,5.5])box(x-.35,1,-4.4,x+.35,4.8,4.4,white);
+   box(-5.8,5,-5.1,5.8,5.3,5.1,dark);
+   box(-1.7,.8,-6.4,1.7,3.9,-5.1,metal);
+   box(-1.15,1.1,-6.47,1.15,3.4,-6.38,dark);
+   for(const x of [-3.2,0,3.2])box(x-.75,2.4,4.86,x+.75,3.8,4.94,cyan);
+ }
  if(kind==='vehicle_frame'){
    // Exposed staged chassis rather than a fake completed/roadworthy vehicle:
    // open structural members, unpowered hubs and an obvious missing body cabin.
@@ -553,7 +580,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
