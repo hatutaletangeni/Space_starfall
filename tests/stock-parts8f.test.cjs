@@ -55,7 +55,7 @@ const install=Install.install({lotId:manufactured.id,materials,physical:Physical
  shipLanded:true,operatorNear:true,workshopInstalled:true,shipPowerEnabled:true,bodyId:'world'});
  assert.equal(install.machine.state.station,'press');
  assert.deepEqual(install.machine.state.tools,['manual-press']);
- const beforeInstall=original;
+ const beforeInstall=original+Physical.create().serialize().assets.reduce((s,a)=>s+a.massKg,0);
  near(install.physical.assets.reduce((s,a)=>s+a.massKg,0)+install.materials.lots.reduce((s,l)=>s+l.massKg,0),beforeInstall);
  materials=install.materials;installedKg=50;
  const press={id:install.machine.id,station:'press',tools:['manual-press'],installed:true,condition:1};
