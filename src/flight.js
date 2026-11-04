@@ -1107,7 +1107,18 @@ function industrialEquipment8E(reactionId,assetId){
  if(selected?.type!=='industrial_plant'||selected.state?.station!==recipe.station||
    selected.condition<.5||selected.location.kind!=='surface')
   throw Error('Install a real '+recipe.station+' station before processing');
- const vessels={},destinations={};
+ const vessels={},destinations={},reactantSources={},reactantAssetIds={};
+ for(const materialId of Object.keys(recipe.input)){
+  if(StarfallIndustrialChemistry8E.species[materialId]?.phase!=='gas')continue;
+  const v=physical8a.list().find(a=>a.type==='industrial_vessel'&&a.condition>=.5&&
+   a.state?.materialId===materialId&&a.location?.kind==='surface'&&
+   a.location.bodyId===selected.location.bodyId&&
+   Math.acos(Math.max(-1,Math.min(1,a.location.local.reduce((sum,n,i)=>sum+n*selected.location.local[i],0))))*
+    (nearest?.radius||1)<75);
+  if(!v)throw Error('Install a nearby rated '+materialId+' reactant supply vessel');
+  reactantSources[materialId]=v.state.containerId;
+  reactantAssetIds[materialId]=v.id;
+ }
  for(const [materialId,count] of Object.entries(recipe.output)){
   if(StarfallIndustrialChemistry8E.species[materialId].phase!=='gas'){
    destinations[materialId]=StarfallMining8D.SHIP;continue;
@@ -1123,7 +1134,7 @@ function industrialEquipment8E(reactionId,assetId){
  return {asset:selected,station:{id:selected.id,kind:recipe.station,condition:selected.condition,
   installed:true,enabled:selected.state.enabled!==false,bodyId:selected.location.bodyId,
   sourceContainerId:StarfallMining8D.SHIP,tools:selected.state.tools,physicalAssetId:selected.id,
-  vesselAssetIds:vessels},destinations};
+  vesselAssetIds:vessels,reactantAssetIds},destinations,reactantSources};
 }
 function industrialCandidates8E(){return physical8a.list().filter(a=>a.type==='industrial_plant'&&
  a.location?.kind==='surface'&&a.location.bodyId===nearest?.id).map(a=>({
@@ -1139,7 +1150,8 @@ function industrialQuote8E(reactionId,stationId,scaleMol=100){
  const id='preview8e:temporary';
  StarfallIndustrialPlant8E.create(industrialPlant8e.snapshot()).process({
   id,reactionId,scaleMol,materials:materials8a.snapshot(),sourceContainerId:StarfallMining8D.SHIP,
-  destinations:equipment.destinations,assetState:physical8a.serialize(),station:equipment.station,
+  destinations:equipment.destinations,reactantSources:equipment.reactantSources,
+  assetState:physical8a.serialize(),station:equipment.station,
   energyReceipt:{operationId:id,sourceId:'quote-only-not-debited',usedJ:r.energyJ},bodyId:c.bodyId});
  return {...r,stationId,destinations:equipment.destinations};
 }
@@ -1179,6 +1191,7 @@ function industrialAdvance8E(elapsed){
    const result=StarfallIndustrialPlant8E.create(industrialPlant8e.snapshot()).process({
     id:a.id,reactionId:a.reactionId,scaleMol:a.scaleMol,materials:materials8a.snapshot(),
     sourceContainerId:StarfallMining8D.SHIP,destinations:selected.destinations,
+    reactantSources:selected.reactantSources,
     assetState:physical8a.serialize(),station:selected.station,bodyId:a.bodyId,
     energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ}});
    materials8a=StarfallMaterials8A.create(result.materials);
