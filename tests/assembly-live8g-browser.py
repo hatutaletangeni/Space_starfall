@@ -194,6 +194,30 @@ with sync_playwright() as pw:
         stopped=page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.speedMS""",frame_id)
         assert abs(stopped)<.05,'Braking did not reach safe loading speed: '+str(stopped)
         assert page.evaluate("""() => StarfallRuntime.exitManufactured8G()""") is True
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        cargo=page.locator('#frame-cargo8g')
+        cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
+        cargo.get_by_role('button',name='WINCH FRAME INTO SHIP').click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.location?.slot==='engineering-frame-cradle'""",
+          arg=frame_id,timeout=15000)
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=40000)
+        assert page.evaluate("""id => {
+          const a=StarfallRuntime.physical8a.get(id);
+          return a.location.slot==='engineering-frame-cradle' && a.state.operational===true &&
+            a.state.batteryEnergyJ<2000000;
+        }""",frame_id),'Driven prototype lost custody, operational status or battery during ship load/reload'
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        cargo=page.locator('#frame-cargo8g')
+        cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
+        cargo.get_by_role('button',name='UNLOAD FRAME ONTO CLEAR GROUND').click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.location?.kind==='surface'""",
+          arg=frame_id,timeout=15000)
+        assert page.evaluate("""id => {
+          const a=StarfallRuntime.physical8a.get(id);
+          return a.state.operational===true && a.state.distanceM>0 &&
+            StarfallRuntime.physical8a.list().filter(x=>x.id==='truck-expedition-001').length===1;
+        }""",frame_id),'Unloaded vehicle lost driving progress or original truck ownership'
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
         assert page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.distanceM>0""",frame_id)
