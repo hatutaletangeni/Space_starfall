@@ -147,6 +147,27 @@ with sync_playwright() as pw:
         assert len(after_unload['moves'])==2,after_unload
         assert len(after_unload['trucks'])==1 and after_unload['trucks'][0]['location']==fixture['truck']
         assert after_unload['frame']['state']['operational'] is False
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        activation=page.locator('#vehicle-activation8g')
+        activation.locator('select[aria-label="Select physical manufactured vehicle"]').select_option(frame_id)
+        button=activation.get_by_role('button',name='CALIBRATE & CHARGE')
+        assert button.is_enabled(),'Paid 8G activation control is unexpectedly disabled'
+        button.click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id)?.state?.operational===true""",arg=frame_id,timeout=15000)
+        activated=page.evaluate("""id => {
+          const rt=StarfallRuntime,a=rt.physical8a.get(id);
+          return{asset:a,truck:rt.physical8a.list().filter(x=>x.id==='truck-expedition-001'),
+          shipCharge:rt.vehicleStore.get('ship').state.energyJ};
+        }""",frame_id)
+        assert activated['asset']['state']['rideable'] is True
+        assert activated['asset']['state']['drive']['batteryEnergyJ']==2000000
+        assert activated['asset']['state']['activationReceipt']['energyJ']==2500000
+        assert len(activated['truck'])==1 and activated['truck'][0]['location']==fixture['truck']
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.landed && StarfallRuntime.eva',timeout=40000)
+        assert page.evaluate("""id => StarfallRuntime.physical8a.get(id)?.state?.operational===true""",frame_id)
+        assert not errors,errors
+        print('PASS 8G Chromium activation: complete manufactured frame calibrated and charged 2.5MJ, distinct rideable vehicle saved without cloning expedition truck')
         assert not errors,errors
         print('PASS 8G file:// Chromium: manufactured frame built, conserved, loaded in dedicated cradle, paid energy, restored and unloaded; original truck untouched')
     finally:
