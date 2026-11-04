@@ -57,6 +57,7 @@ jobs:
           node tests/stock-parts8f.test.cjs
           node tests/motor-bootstrap8f.test.cjs
           node tests/vehicle-parts8f.test.cjs
+          node tests/truck-navigation8b.test.cjs
           node tests/industry-crosschain8e-8f.test.cjs
           node tests/industry-models.test.cjs
       - name: Build offline standalone from actual source
