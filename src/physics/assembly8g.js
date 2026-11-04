@@ -5,8 +5,8 @@ const DEFINITIONS=Object.freeze({
  science_rover:{kind:'rover',massKg:260,volumeM3:1.5,parts:{electric_motor:8.5,control_board:0.6,battery_cell:9.75,beam:28,gear:6.8,bearing:5.1,chassis_rail:47.6,axle_shaft:39.6,leaf_spring:28.2,low_speed_rover_wheel:60.12,brake_rotor:22.2,brake_caliper:18,steering_knuckle:11.1,steering_rack:11.7,motor_controller:1.42},facility:'vehicle_assembly'},
  truck:{kind:'truck',massKg:900,volumeM3:5,parts:{electric_motor:34,control_board:1.2,battery_cell:39,beam:350,gear:13.6,bearing:13.6,chassis_rail:47.6,axle_shaft:26.4,leaf_spring:18.8,low_speed_rover_wheel:40.08,brake_rotor:14.8,brake_caliper:12,steering_knuckle:11.1,steering_rack:11.7,motor_controller:1.42},facility:'vehicle_assembly'},
  satellite_bus:{kind:'satellite',massKg:48,volumeM3:0.6,parts:{control_board:0.6,battery_cell:5.85,solar_module:8.8,beam:19.2},facility:'precision_assembly'},
- habitat_shell:{kind:'habitat',massKg:1100,volumeM3:25,parts:{beam:960,control_board:1.2,solar_module:17.6},facility:'habitat_pad'},
- rocket_stage:{kind:'rocket_stage',massKg:220,volumeM3:3,parts:{beam:96,control_board:0.6,gear:3.4,bearing:1.7},facility:'rocket_integration'}
+ habitat_shell:{kind:'habitat',massKg:985.4,volumeM3:25,parts:{habitat_pressure_section:688,habitat_airlock_frame:73,habitat_seal_kit:20.8,habitat_life_support_rack:80,habitat_power_distribution:16,solar_module:17.6,beam:90},facility:'habitat_pad'},
+ rocket_stage:{kind:'rocket_stage',massKg:304.7,volumeM3:3,parts:{rocket_tank_section:126,rocket_engine_chamber:45,rocket_engine_nozzle:29,rocket_feed_assembly:27.6,rocket_valve_set:9.4,rocket_avionics_module:3.8,battery_cell:3.9,beam:60},facility:'rocket_integration'}
 });
 function create(saved){const state=saved?copy(saved):{schema:1,receipts:[]};if(state.schema!==1||!Array.isArray(state.receipts))throw Error('Invalid assembly history');
 function commission({jobId,blueprintId,facility,materials,partsContainerId,assetState,location,energyReceipt}){
