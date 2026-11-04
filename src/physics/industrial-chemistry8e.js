@@ -39,7 +39,11 @@ const reactions=Object.freeze({
  aluminum_electrolysis:{label:'Alumina electrolysis (ideal carbon-anode)',equation:'2 Al2O3 + 3 C → 4 Al + 3 CO2',station:'high_temp_cell',
   input:{aluminum_oxide:2,carbon:3},output:{aluminum:4,carbon_dioxide:3},powerW:38000,seconds:1300,
   requiredTools:['high_temp_cell','carbon_anode','gas_capture'],notes:'Ideal overall carbon-anode process; electrolytic voltage and bath losses are approximated.'},
- glass_fusing:{label:'Fused silica glass',equation:'SiO2 (solid) → SiO2 (glass)',station:'glass_furnace',
+ steel_alloying:{label:'Iron-carbon alloying (simplified steel)',equation:'99 Fe + C → Fe99C (single idealized alloy unit)',
+  station:'reduction_furnace',input:{iron:99,carbon:1},output:{steel:1},
+  powerW:14500,seconds:480,requiredTools:['reduction_furnace','alloy_crucible'],
+  notes:'Solid solution alloying from actual iron plus carbon. Not industrial specification steel or controlled microstructure.'},
+  glass_fusing:{label:'Fused silica glass',equation:'SiO2 (solid) → SiO2 (glass)',station:'glass_furnace',
   input:{silicon_dioxide:1},output:{glass:1},powerW:6400,seconds:520,
   requiredTools:['glass_furnace','mold'],notes:'Only high-purity source silica; no magical glass from undifferentiated regolith.'}
 });
