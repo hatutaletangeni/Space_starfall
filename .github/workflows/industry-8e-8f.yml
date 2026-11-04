@@ -1,0 +1,79 @@
+name: STARFALL industry 8E-8F checks
+on:
+  push:
+    branches:
+      - feature/update-8e-completion-8f-workshops
+      - feature/update-8f-physical-machine-install-standalone
+      - feature/update-8e-physical-plant-testable
+      - feature/update-8f-fabricate-industrial-kits
+      - feature/update-8e-silica-mineral-purification
+      - feature/update-8e-iron-carbon-steel
+      - feature/update-8e-copper-sulfide-roasting
+      - feature/update-8f-basic-stock-parts
+      - feature/update-8e-aluminum-ore-to-metal
+  pull_request:
+    paths:
+      - 'src/physics/*8e.js'
+      - 'src/physics/*8f.js'
+      - 'src/flight.js'
+      - 'src/engine.js'
+      - 'src/physics/outposts-ui.js'
+      - 'index.html'
+      - 'tests/*8e.test.cjs'
+      - 'tests/*8f.test.cjs'
+      - '.github/workflows/industry-8e-8f.yml'
+jobs:
+  industry-contract-and-standalone:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax and industrial contracts
+        run: |
+          set -eu
+          for path in src/physics/transformation8e.js src/physics/refinery8e.js src/physics/industrial-chemistry8e.js src/physics/industrial-plant8e.js src/physics/stock-parts8f.js src/physics/kit-recipes8f.js src/physics/manufacturing8f.js src/physics/factory8f.js src/physics/physical-inventory8a.js src/physics/machine-install8f.js src/physics/machine-install-ui8f.js src/physics/industrial-site8e.js src/physics/industrial-site-ui8e.js src/physics/outposts-ui.js src/engine.js src/physics/refinery-ui8e.js src/physics/factory-ui8f.js src/flight.js src/ui21.js; do
+            node --check "$path"
+          done
+          node tests/refinery8e.test.cjs
+          node tests/silica-chain8e.test.cjs
+          node tests/iron-steel-chain8e.test.cjs
+          node tests/copper-sulfide-chain8e.test.cjs
+          node tests/aluminum-chain8e.test.cjs
+          node tests/industrial-chemistry8e.test.cjs
+          node tests/factory8f.test.cjs
+          node tests/machine-install8f.test.cjs
+          node tests/industrial-site8e.test.cjs
+          node tests/industrial-kit-factory8f.test.cjs
+          node tests/stock-parts8f.test.cjs
+          node tests/industry-crosschain8e-8f.test.cjs
+          node tests/industry-models.test.cjs
+      - name: Build offline standalone from actual source
+        run: |
+          python3 tools/build-standalone.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          t=Path('PLAY-STARFALL.html').read_text(encoding='utf-8')
+          assert not re.search(r'<script\s+src=',t), 'External scripts remain'
+          assert not re.search(r'<link\s+rel="stylesheet"\s+href=',t), 'External styles remain'
+          for name in ('StarfallRefinery8E','StarfallIndustrialChemistry8E','StarfallIndustrialPlant8E','StarfallFactory8F','StarfallMachineInstall8F','StarfallMachineInstallUI8F','StarfallIndustrialSite8E','StarfallIndustrialSiteUI8E','StarfallKitRecipes8F','StarfallStockParts8F'):
+              assert name in t, f'Missing in standalone: {name}'
+          print('Offline code references verified:',len(t),'characters')
+          PY
+      - name: Export rebuilt standalone for manual browser verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-8e-8f-standalone-release-candidate
+          path: PLAY-STARFALL.html
+          retention-days: 14
+      - name: Commit fresh standalone HTML to test branch
+        if: github.event_name == 'push' && github.ref_name == 'feature/update-8e-aluminum-ore-to-metal'
+        run: |
+          git config user.name "starfall-ci"
+          git config user.email "starfall-ci@users.noreply.github.com"
+          git add -f PLAY-STARFALL.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build(8E): publish test standalone [skip ci]"
+            git push origin HEAD:feature/update-8e-aluminum-ore-to-metal
+          fi
