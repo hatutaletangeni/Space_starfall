@@ -147,6 +147,23 @@ with sync_playwright() as p:
     StarfallCommsT03.persist();StarfallLaunchUI.persist();StarfallMissionOperationsUI.persist();
     SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
   }""")
+  # Diagnose the actual durable save before unloading this browser tab.
+  # SF.save may fall back to RAM when a large photo/mission record exceeds
+  # localStorage quota; that must never be misreported as persisted gameplay.
+  durability=page.evaluate("""() => {
+    const raw=localStorage.getItem('starfall_save'),saved=raw?JSON.parse(raw):{};
+    return {rawChars:raw?.length||0,
+      launches:saved.launch7?.launches?.length||0,
+      rovers:saved.launch7?.rovers?.length||0,
+      photos:saved.imaging7f?.photos?.length||0,
+      memoryLaunches:StarfallLaunchUI.store.launches.length,
+      memoryRovers:StarfallLaunchUI.store.rovers.length,
+      storageStatus:SF.storageStatus()};
+  }""")
+  print('T06 save durability before reload:',durability,flush=True)
+  assert durability['launches']>=1 and durability['rovers']>=1,(
+    'Mission was never durably saved before reload; inspect storage quota and pagehide writer',
+    durability)
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRoverT06 && window.StarfallCommsT03)",timeout=45000)
   loaded=page.evaluate("""id=>{

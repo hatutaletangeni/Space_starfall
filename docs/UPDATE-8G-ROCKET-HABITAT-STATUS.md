@@ -1,0 +1,21 @@
+# Update 8G — physical rocket and habitat assembly acceptance and remaining commissioning
+
+## Actual release-candidate features
+- The Rocket Integration Rig (900 kg/2.9 m³) and Habitat Construction Pad (1120 kg/3.7 m³) are genuine finite 8F fabricated kits, consuming steel, aluminum, copper, glass, refractory stock, motors, insulated wiring and manufactured control boards. Their 8E installation is a 1:1 kit-to-physical-machine exchange, paid from the ship battery; they never spawn from an imported blueprint alone.
+- Rocket components fabricated using existing physically installed, compatible 8F machines: dry tank section, combustion chamber blank, nozzle, pump/feed assembly, valve set, avionic control module. Factory processing consumes refined parts, electricity, time, produces modeled output and recoverable manufacturing scrap.
+- Habitat component fabrication: pressure-envelope section, airlock frame, seal-mount hardware, finite life-support equipment rack, electrical distribution, solar and structural stock. These are partial assemblies, not pressure-rated/biologically sufficient systems.
+- The real 8G surface assembly contract requires the exact mass-bearing completed BOM with grade >=0.98, no existing reserved mass, the correct installed and healthy powered assembly site, a valid planet-fixed and collision-free surface location and a committed source-owned electrical debit: 3 MJ for a dry rocket stage or 4 MJ for a habitat envelope. Finished construction consumes each input lot exactly once and preserves total mass. Assets receive unique `structure8g:N` IDs and durable receipts stored in the same 8G save schema as vehicle assembly.
+- Real Engineer action produces distinct visible 3D staged structures on the current body, camera-distance-culls them with the existing infrastructure renderer and preserves them on save/reload without creating a second initial truck or science rover.
+- Actual Chromium tests use isolated distinguishable fixture lots, confirm two physical built structures, exact global stock/asset conservation, 7 MJ installed structural work, original vehicle custody unchanged, and two persistent unique receipts. Production gameplay has **no fixture lots**.
+
+## Explicitly NOT completed / no false claims
+- A `rocket_stage_dry` is **not launch-ready**: no pressure-qualified tank, powered real propellant feed, cryogenic LOX/fuel, complete engine injector, hot-fire validation, thrust proof, assembled fuel transfer or 7B rocket flight-mission manifest has been verified. Do not silently turn it into a stock Launch Lab engine (Aether/Atlas/etc.) or give it unlimited fuel.
+- A `habitat_envelope` is **not habitable**: pressure=0 Pa, oxygen=0, water=0 and life support disabled. It must not appear as an existing T09 `kind=hab` source automatically. T09 `defaults()` currently seeds oxygen, inert gas, gas tanks and water for its *legacy* tutorial habitats; calling it on a newly manufactured envelope without finite 8A lot transfer would conjure consumables.
+- **No instant fixed-upgrade toggle.** Assembly has a declared `assemblySeconds` *work estimate* in receipts, but labor is not yet simulated as an interruptible timed job. No repair-by-replacing-finite-parts workflow for these new structures exists yet.
+- The remaining work before 8G is truly accepted and 8H production logistics begins: pay and test pressure/oxygen/water and wire an actual habitat into T09; construct/qualify and fuel a stage and connect it to 7B force/propellant solver; implement finite replacement-part repair/removal and save-safe assembly jobs; test the full cross-world scenario at 1×/10×/100× and preserve exact original truck ownership.
+
+## QA and science notes
+- Node: `node tests/structure-assembly8g.test.cjs`.
+- Offline browser: `python3 tools/build-standalone.py && python3 tests/standalone-parity.py && python3 tests/structure-assembly8g-browser.py`.
+- Continue running the unchanged core regression gates (ship, autonomous rover T06, ramp/8B, Rocket Lab, UI21, offline 7F).
+- Scene distances are game scene units, **not** measured SI meters; low-poly visualized parts and simplified yield estimates are not aerospace or pressure-vessel safety certifications.
