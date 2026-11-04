@@ -113,6 +113,63 @@ with sync_playwright() as pw:
         assert persisted['structures']==[x['id'] for x in made['built']],persisted
         assert persisted['receipts']==2 and persisted['originalTruck']==1,persisted
         assert not errors,errors
-        print('PASS 8G Chromium: paid dry rocket + unpressurized habitat physically built, mass conserved, original vehicles retained, save/reload without duplicates')
+        # Test-fixture damage to one actually constructed 8G stage; add one
+        # distinguishable genuine-part surrogate only in this isolated test.
+        # Ordinary gameplay never grants stocks or changes condition for free.
+        before_repair=page.evaluate("""id => {
+          const rt=StarfallRuntime,p=rt.physical8a.serialize(),
+            m=rt.materials8a.snapshot(),a=p.assets.find(x=>x.id===id),
+            rule=StarfallFieldRepair8G.REPAIRS[a.type];
+          a.condition=.60;
+          m.lots.push({id:'repair-spare-fixture',materialId:rule.part,
+            massKg:rule.kg,volumeM3:.005,grade:1,
+            containerId:StarfallMining8D.SHIP,provenance:'TEST_FIXTURE_ONLY_8F_SPARE'});
+          const total=p.assets.reduce((n,x)=>n+x.massKg,0)+
+            m.lots.reduce((n,x)=>n+x.massKg,0);
+          SF.save({physical8a:p,materials8a:m});
+          window.__STARFALL_IMPORT_PENDING=true;
+          return{assetId:id,part:rule.part,kg:rule.kg,workJ:rule.workJ,total,
+            shipEnergyJ:rt.vehicleStore.get('ship').state.energyJ};
+        }""",rocket['id'])
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("field-repair8g")',timeout=40000)
+        page.evaluate("""id => STARFALL_DEBUG.placeEvaNearRepairAsset8G(id)""",rocket['id'])
+        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        repair_panel=page.locator('#field-repair8g')
+        repair_panel.locator('select[aria-label="Select damaged manufactured structure"]').select_option(rocket['id'])
+        repair_btn=repair_panel.get_by_role('button',name='REPLACE DAMAGED PHYSICAL PART')
+        assert repair_btn.is_enabled(),'Physical 8G repair control disabled despite actual part and power'
+        repair_btn.click()
+        page.wait_for_function("""id => StarfallRuntime.physical8a.get(id).condition>.60""",
+          arg=rocket['id'],timeout=12000)
+        repaired=page.evaluate("""id => {
+          const rt=StarfallRuntime,a=rt.physical8a.get(id),
+            p=rt.physical8a.serialize(),m=rt.materials8a.snapshot();
+          return{asset:a,
+            scrap:m.lots.find(x=>x.id==='scrap:repair8g:'+id+':1'),
+            spare:m.lots.filter(x=>x.id==='repair-spare-fixture').length,
+            total:p.assets.reduce((n,x)=>n+x.massKg,0)+
+              m.lots.reduce((n,x)=>n+x.massKg,0),
+            shipEnergyJ:rt.vehicleStore.get('ship').state.energyJ,
+            originalTruck:p.assets.filter(x=>x.id==='truck-expedition-001').length};
+        }""",rocket['id'])
+        assert abs(repaired['asset']['condition']-.78)<.0001,repaired
+        assert repaired['scrap'] and abs(repaired['scrap']['massKg']-before_repair['kg'])<1e-7,repaired
+        assert repaired['spare']==0 and repaired['originalTruck']==1,repaired
+        assert abs(repaired['total']-before_repair['total'])<1e-7,repaired
+        assert abs(before_repair['shipEnergyJ']-repaired['shipEnergyJ']-before_repair['workJ'])<15000,repaired
+        assert repaired['asset']['state']['launchReady'] is False
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        restored=page.evaluate("""id => {
+          const a=StarfallRuntime.physical8a.get(id),m=StarfallRuntime.materials8a.snapshot();
+          return{condition:a.condition,repairs:a.state.fieldRepairs8g?.length,
+            scrap:m.lots.some(x=>x.id==='scrap:repair8g:'+id+':1'),
+            truck:StarfallRuntime.physical8a.list().filter(x=>x.id==='truck-expedition-001').length};
+        }""",rocket['id'])
+        assert abs(restored['condition']-.78)<.0001 and restored['repairs']==1,restored
+        assert restored['scrap'] and restored['truck']==1,restored
+        assert not errors,errors
+        print('PASS 8G Chromium: paid dry rocket + habitat structural assembly and independent finite rocket-part replacement, saved mass/scrap without fake launch status')
     finally:
         browser.close()
