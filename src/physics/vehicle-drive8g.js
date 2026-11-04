@@ -40,8 +40,14 @@ function create(h,initial){
    -Math.sign(gradeN)*Math.min(Math.abs(gradeN),rollingLimitN);
   const requestedDriveN=throttle*(h.motorTorqueNm*h.wheelCount/h.wheelRadiusM)*h.drivetrainEfficiency;
   const powerLimitedDriveN=Math.min(Math.abs(requestedDriveN),h.maxMotorPowerW/Math.max(Math.abs(v),.5));
-  const driveAllowed=state.batteryEnergyJ>0;
-  const driveN=driveAllowed?Math.sign(requestedDriveN)*Math.min(powerLimitedDriveN,tractionLimitN):0;
+  // Bound force by available electrical work, including acceleration from rest.
+  // Constant-force work over a finite displacement prevents "free" launch energy.
+  let driveN=state.batteryEnergyJ>0?Math.sign(requestedDriveN)*Math.min(powerLimitedDriveN,tractionLimitN):0;
+  const availableMechanicalJ=state.batteryEnergyJ*h.drivetrainEfficiency;
+  const predictedDisplacement=Math.max(Math.abs(v)*dt,
+    Math.abs(driveN)/mass*dt*dt/2,1e-9);
+  if(Math.abs(driveN)*predictedDisplacement>availableMechanicalJ)
+    driveN=Math.sign(driveN)*availableMechanicalJ/predictedDisplacement;
   let brakeN=0;
   if(brake>0){
    const direction=Math.abs(v)>1e-5?Math.sign(v):Math.sign(driveN+gradeN);
@@ -50,8 +56,8 @@ function create(h,initial){
   // Brakes may stop but must never reverse velocity through an integration step.
   let nextV=v+((driveN+gradeN+resistN+brakeN)/mass)*dt;
   if(brake>0&&v!==0&&Math.sign(nextV)!==Math.sign(v))nextV=0;
-  const electricalPowerW=Math.abs(driveN*v)/h.drivetrainEfficiency;
-  const electricalJ=Math.min(state.batteryEnergyJ,electricalPowerW*dt);
+  const deltaM=Math.abs((v+nextV)*dt/2);
+  const electricalJ=Math.min(state.batteryEnergyJ,Math.abs(driveN)*deltaM/h.drivetrainEfficiency);
   // No regenerative credit is created by friction braking.
   state.batteryEnergyJ=clamp(state.batteryEnergyJ-electricalJ,0,h.batteryCapacityJ);
   state.distanceM+=(v+nextV)*dt/2;
