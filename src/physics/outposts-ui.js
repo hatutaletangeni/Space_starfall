@@ -26,7 +26,7 @@ function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[]
  let drawn=0;
  for(const asset of physical){
   if(drawn>=30)break;
-  if(!['industrial_plant','industrial_vessel'].includes(asset.type)||asset.location?.kind!=='surface'||
+  if(!['industrial_plant','industrial_vessel','vehicle_frame'].includes(asset.type)||asset.location?.kind!=='surface'||
     asset.location.bodyId!==ctx.body.id||O.arc(ctx.local,asset.location.local,ctx.body.radius)>90)continue;
   const item=renderLoc({kind:asset.type,bodyId:asset.location.bodyId,local:asset.location.local,facing:[0,0,1]});
   if(item){result.push(item);drawn++;}
