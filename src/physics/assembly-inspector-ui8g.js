@@ -14,9 +14,26 @@ select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;
 for(const [key,d] of Object.entries(root.StarfallAssembly8G.DEFINITIONS)){
  const x=document.createElement('option');x.value=key;x.textContent=key.replace(/_/g,' ').toUpperCase()+' / '+d.facility;select.append(x);
 }
+const pad=document.createElement('select');pad.setAttribute('aria-label','Physical assembly pad');
+pad.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:9px;max-width:100%';
+const stage=document.createElement('button');stage.type='button';stage.className='science-action';
+stage.textContent='ASSEMBLE REAL FRAME (200 kJ · NOT DRIVABLE)';
+const stageStatus=document.createElement('p');stageStatus.className='panel-note';stageStatus.setAttribute('role','status');
+stageStatus.textContent='Requires powered landed ship, astronaut EVA within 35 m, a physical pad and a certified parts bill. No truck duplication.';
 const pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font:11px/1.55 Consolas,monospace;background:#101b23;color:#c8d9d9;border:1px solid #53677566;padding:12px;max-height:340px;overflow:auto';
 function refresh(){
  const rt=root.StarfallRuntime;if(!rt?.physical8a||!rt?.materials8a)return;
+ const ctx=rt.assemblyContext8G?.(),pads=ctx?.padIds||[],oldPad=pad.value;
+ const current=[...pad.options].map(x=>x.value).join('|'),next=pads.join('|');
+ if(current!==next){pad.replaceChildren();
+  for(const id of pads){const opt=document.createElement('option');opt.value=id;opt.textContent='PAD · '+id;pad.append(opt);}
+  if(pads.includes(oldPad))pad.value=oldPad;}
+ let liveQuote=null,liveError='';
+ try{if(pad.value&&['truck','science_rover'].includes(select.value))liveQuote=rt.assemblyQuote8G(select.value,pad.value);}
+ catch(e){liveError=String(e.message||e);}
+ stage.disabled=!liveQuote?.ready||!ctx?.powered||ctx.energyJ<200000;
+ stage.title=liveQuote?.ready?'Consumes certified parts and 200000 J into one NON-OPERATIONAL frame':liveError||'Missing physical pad or parts';
+
  const truck=rt.physical8a.get('truck-expedition-001'),l=truck?.location;
  where.textContent=!truck?'NO EXPEDITION TRUCK IN CUSTODY — restore previous save rather than spawning another':
   l.kind==='ship'?'TRUCK: SECURED IN STARBOARD CARGO BAY. Land on flat terrain; walk out the aft crew ramp, press B at the right-hand WIDE cargo ramp, X to enter, S to reverse. Rack: '+rt.cargo8b?.mode:
@@ -38,8 +55,17 @@ function refresh(){
  }catch(e){pre.textContent='Inspection unavailable: '+String(e.message||e);}
 }
 button.addEventListener('click',()=>root.StarfallInventoryUI8A?.open?.());
+stage.addEventListener('click',()=>{
+ try{
+  const rt=root.StarfallRuntime,receipt=rt.assemblyStage8G(select.value,pad.value);
+  stageStatus.textContent='ASSEMBLED '+receipt.assetId+' · '+receipt.massKg.toFixed(2)+' kg · '+receipt.status+
+   '. Conserved physical frame; NOT DRIVABLE until steering, brakes, powertrain and 3D collision are validated.';
+ }catch(e){stageStatus.textContent='BLOCKED: '+String(e.message||e);}
+ refresh();
+});
+pad.addEventListener('change',refresh);
 select.addEventListener('change',refresh);
-panel.append(h,explain,button,where,select,pre);host.append(panel);
+panel.append(h,explain,button,where,select,pad,stage,stageStatus,pre);host.append(panel);
 let last=0;function tick(){const t=performance.now();if(t-last>=900){last=t;refresh();}requestAnimationFrame(tick);}tick();
 root.StarfallAssemblyInspectorUI8G={refresh};
 })(globalThis);
