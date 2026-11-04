@@ -1,0 +1,82 @@
+name: STARFALL Update 8 integration release gates
+on:
+  push:
+    branches:
+      - release/update8-industrial-integration-candidate
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - '.github/workflows/update8-integration-release.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  code-regressions-and-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check every source JavaScript file
+        run: |
+          set -eu
+          find src -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Run all repository Node regressions
+        run: |
+          set -eu
+          for test in tests/*.test.cjs; do
+            echo "RUN $test"
+            node "$test"
+          done
+      - name: Validate offline HTML source fidelity
+        run: |
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          result = subprocess.run(['git','diff','--exit-code','--','PLAY-STARFALL.html'],capture_output=True,text=True)
+          if result.returncode:
+              raise SystemExit('FAIL: tracked PLAY-STARFALL.html stale relative to editable source; rebuild and commit before merge')
+          t=Path('PLAY-STARFALL.html').read_text(encoding='utf-8')
+          assert "StarfallStockParts8F" in t
+          assert "aluminosilicate_calcination" in t
+          print('PASS: tracked standalone current, tested and fully embedded')
+          PY
+  offline-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install actual software-WebGL Chromium harness
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Browser smoke original ship and vehicle save identity
+        run: python tests/modular-ship8e-browser.py
+      - name: Browser smoke physical walk and ship ramp
+        run: python tests/modular-ship8e-walk-browser.py
+      - name: Browser smoke physical mining/cargo and UI
+        run: python tests/mining-hauling8d-browser.py
+      - name: Screenshots and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: update8-software-webgl-browser-evidence
+          path: |
+            artifacts/8e-ship-chromium/
+            artifacts/8d-mining-chromium/
+          if-no-files-found: ignore
