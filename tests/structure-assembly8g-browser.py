@@ -146,6 +146,12 @@ with sync_playwright() as pw:
               quote:(()=>{try{return StarfallRuntime.structureRepairQuote8G(id);}
                 catch(error){return {error:String(error.message||error)};}})(),
               context:StarfallRuntime.structureRepairContext8G(),
+              distances:(()=>{
+                const rt=StarfallRuntime,c=rt.outpostContext(),a=rt.physical8a.get(id),
+                  arc=(u,v)=>Math.acos(Math.max(-1,Math.min(1,
+                    u.reduce((sum,x,i)=>sum+x*v[i],0))))*c.body.radius;
+                return{eva:arc(c.local,a.location.local),ship:arc(c.shipLocal,a.location.local)};
+              })(),
               ui:document.querySelector('#structure-repair8g pre')?.textContent,
               selected:document.querySelector('#structure-repair8g select')?.value,
               buttonDisabled:document.querySelector('#structure-repair8g button')?.disabled
