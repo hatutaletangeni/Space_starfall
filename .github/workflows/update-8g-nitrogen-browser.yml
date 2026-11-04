@@ -3,9 +3,13 @@ on:
   push:
     branches:
       - feature/update-8g-finite-nitrogen-air-fractionation
+      - feature/update-8g-rated-gas-vessel-ship-cargo
   pull_request:
     paths:
       - 'src/physics/air-fractionation8g.js'
+      - 'src/physics/gas-vessel-cargo8g.js'
+      - 'src/physics/gas-vessel-cargo-ui8g.js'
+      - 'tests/gas-vessel-cargo8g.test.cjs'
       - 'src/physics/air-fractionation-ui8g.js'
       - 'src/physics/kit-recipes8f.js'
       - 'src/physics/industrial-site8e.js'
@@ -32,6 +36,7 @@ jobs:
           node --check src/physics/air-fractionation8g.js
           node --check src/physics/air-fractionation-ui8g.js
           node tests/air-fractionation8g.test.cjs
+          node tests/gas-vessel-cargo8g.test.cjs
           python3 tools/build-standalone.py
           python3 tests/standalone-parity.py
           python3 tests/air-fractionation8g-browser.py
