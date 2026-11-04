@@ -46,13 +46,13 @@ const independentlyImported=A.create();independentlyImported.registerContainer({
 independentlyImported.importLot({id:'pretend',containerId:ship,materialId:'silica_concentrate',massKg:10,
   volumeM3:.006,grade:1,provenance:'unverified:claim'});
 assert.throws(()=>R.quote('silica_polish',independentlyImported.snapshot(),ship,ship),/provenanced/);
-const recipe=Chem.batch('glass_fusing',100);
+const recipe=Chem.batch('glass_fusing',25);
 const assetState={schema:1,assets:[{id:'real-glass-furnace',type:'industrial_plant',condition:1,
   location:{kind:'surface',bodyId:'world1',local:[0,1,0]}}]};
 const station={id:'real-glass-furnace',physicalAssetId:'real-glass-furnace',
   kind:'glass_furnace',bodyId:'world1',sourceContainerId:ship,enabled:true,installed:true,condition:1,
   tools:['glass_furnace','mold'],vesselAssetIds:{}};
-const converted=Site.create().process({id:'test-glass-1',reactionId:'glass_fusing',scaleMol:100,
+const converted=Site.create().process({id:'test-glass-1',reactionId:'glass_fusing',scaleMol:25,
  materials:inventory,sourceContainerId:ship,destinations:{glass:ship},assetState,station,bodyId:'world1',
  energyReceipt:{operationId:'test-glass-1',sourceId:'ship-battery',usedJ:recipe.energyJ}});
 close(converted.materials.lots.reduce((a,l)=>a+l.massKg,0),20);
