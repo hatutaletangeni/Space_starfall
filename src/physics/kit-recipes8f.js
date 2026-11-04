@@ -13,6 +13,7 @@ const SPECS=Object.freeze({
  plant_kit_glass_furnace:[520,1.8,'furnace'],plant_kit_catalytic_reactor:[640,2,'plant'],
  plant_kit_high_temp_cell:[1320,3.6,'furnace'],
  vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],
+ vessel_kit_sulfur_dioxide:[210,4,'vessel'],
  vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],
  vessel_kit_methane:[195,4,'vessel']
 });
