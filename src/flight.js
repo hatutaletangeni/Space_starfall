@@ -1177,8 +1177,23 @@ function assemblyStage8G(blueprintId,facilityId){
  const facility=physical8a.get(facilityId),all=physical8a.list();let n=1;
  while(all.some(x=>x.id==='vehicle8g:'+n)||vehicleAssembly8g.snapshot().receipts.some(x=>x.id==='vehicle8g:'+n))n++;
  const jobId='vehicle8g:'+n;
+ // Finished frame must occupy its own collision footprint, never the assembly
+ // pad's center. Search a few deterministic tangent offsets; no asset is moved
+ // or matter consumed unless a clear surface destination exists.
+ const surfaceAssets=all.filter(a=>a.location?.kind==='surface'&&a.location.bodyId===c.bodyId);
+ const separation=(a,b)=>Math.acos(Math.max(-1,Math.min(1,V.dot(V.norm(a),V.norm(b)))))*nearest.radius;
+ let assemblyLocal=null;
+ for(const [front,right] of [[20,0],[-20,0],[0,20],[0,-20],[29,12],[-29,-12]]){
+  const local=tangentOffsetLocal(nearest,facility.location.local,shipForwardVec||forward,front,right);
+  if(separation(local,facility.location.local)<15)continue;
+  if(shipLocal&&separation(local,shipLocal)<27)continue;
+  if(surfaceAssets.some(a=>Array.isArray(a.location.local)&&
+   separation(local,a.location.local)<(a.type==='industrial_plant'||a.type==='industrial_vessel'?16:14)))continue;
+  assemblyLocal=local;break;
+ }
+ if(!assemblyLocal)throw Error('No clear chassis assembly bay: move plant or other equipment first');
  const output=vehicleAssembly8g.stage({jobId,blueprintId,facilityId,containerId:StarfallMining8D.SHIP,
-  bodyId:c.bodyId,local:facility.location.local,materials:materials8a.snapshot(),
+  bodyId:c.bodyId,local:assemblyLocal,materials:materials8a.snapshot(),
   physical:physical8a.serialize(),powerReceipt:{operationId:jobId,status:'COMMITTED',
    sourceId:'ship-main:engineering-battery',usedJ:200000}});
  // Validate all next ledgers before modifying runtime state. This is one synchronous
