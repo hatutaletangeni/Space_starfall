@@ -1,0 +1,77 @@
+name: STARFALL 8H real mined ore and paid depot delivery
+on:
+  push:
+    branches:
+      - feature/update-8h-live-mined-ore-dropoff
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  rebuild-standalone:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+      - name: Merge last released game and regenerate entire offline HTML
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git merge -X ours --no-edit origin/main
+          python3 tools/build-standalone.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): synchronize genuine truck ore depot gameplay and offline standalone'
+          fi
+          git push origin HEAD:feature/update-8h-live-mined-ore-dropoff
+          gh workflow run update-8h-live-depot.yml --ref feature/update-8h-live-mined-ore-dropoff
+  verify-generated-head:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Full original 8A/H model checks, source correctness and standalone parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/physics/logistics-dropoff8h.js
+          node --check src/physics/logistics-ui8h.js
+          node --check src/flight.js
+          node --test tests/logistics-dropoff8h.test.cjs
+          node --test tests/logistics-depot8h.test.cjs
+          node --test tests/logistics-battery-bridge8h.test.cjs
+          node --test tests/logistics-durable8h.test.cjs
+          node --test tests/logistics-transaction8h.test.cjs
+          node --test tests/logistics-orders8h.test.cjs
+          node tests/material-ledger8a.test.cjs
+          python3 tests/standalone-parity.py
+      - name: Install real Playwright software WebGL2 browser
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real offline Chromium logistics, source-owned mining, and 8G nonregression
+        run: |
+          python3 tests/logistics-dropoff8h-browser.py
+          python3 tests/logistics-ui8h-browser.py
+          python3 tests/mining-hauling8d-browser.py
+          python3 tests/truck-custody8b-browser.py
+          python3 tests/truck-navigation8b-browser.py
+          python3 tests/gas-vessel-cargo8g-browser.py
+          python3 tests/structure-assembly8g-browser.py
+          python3 tests/habitat-hose8g-browser.py
