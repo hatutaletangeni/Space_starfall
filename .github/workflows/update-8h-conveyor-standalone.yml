@@ -1,0 +1,27 @@
+name: STARFALL 8H conveyor kit standalone build
+on:
+  push:
+    branches:
+      - feature/update-8h-manufactured-conveyor-drive-kit
+permissions:
+  contents: write
+jobs:
+  rebuild-standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild offline standalone from the modified 8F/8E source
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): include finite conveyor kit and original 8E physical installation'
+            git push origin HEAD:feature/update-8h-manufactured-conveyor-drive-kit
+          fi
