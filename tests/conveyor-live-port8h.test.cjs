@@ -98,9 +98,9 @@ test('source flight and Engineer controls use atomic original save and do not by
   'SF.save(patch)','SF.storageStatus().durable',
   'physical8a=StarfallPhysical8A.create','os.store.restore',
   'os.advancePowerTo(simTime)'])assert.ok(body.includes(claim),claim);
- assert.ok(body.indexOf('SF.save(patch)')<body.indexOf('os.store.restore'),
+ assert.ok(body.indexOf('SF.save(patch)')<body.indexOf('os.store.restore(result.outpost5);'),
   'never mutate native outpost before verified source-owner durable transaction');
- assert.ok(body.indexOf('SF.load()')<body.indexOf('os.store.restore'));
+ assert.ok(body.indexOf('SF.load()')<body.indexOf('os.store.restore(result.outpost5);'));
  assert.ok(body.indexOf('physical8a=StarfallPhysical8A.create')>
            body.indexOf('SF.save(patch)'));
  assert.doesNotMatch(body,/T02\.grid\(|\.importLot\(|\.spawn\(|\.setShipPosition\(/);
