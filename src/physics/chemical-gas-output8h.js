@@ -42,6 +42,18 @@ function create(saved){
    throw Error('8H product gas staging requires original paid chemistry and 8A owners');
   const ledger=ledgerApi().create(materials8a),assets=new Map(physical8a.assets.map(a=>[a.id,a])),
    before=mass(materials8a),newJobs=[];
+  // A claimed chemical receipt is not a license to mint source stock.
+  // It MUST be from the actual paid original 8E physical station and
+  // match the authenticated 8H connection IDs written on that receipt.
+  const installed=(a)=>a&&physical8a.transfers?.some(t=>
+    t.action==='INSTALL'&&t.status==='COMMITTED'&&t.assetId===a.id&&
+    name(t.sourceLotId)&&finite(t.massKg)&&Math.abs(t.massKg-a.massKg)<EPS);
+  const station=assets.get(receipt.stationAssetId);
+  if(!installed(station)||station.type!=='industrial_plant'||
+     station.location?.kind!=='surface'||station.location.bodyId!==bodyId||
+     !receipt.physicalGasPorts||
+     JSON.stringify(receipt.physicalGasPorts)!==JSON.stringify(gasManifolds))
+   throw Error('8H chemical gas output missing genuine paid 8E original station receipt and authenticated physical 420W port manifest');
   for(const [species,quantity] of Object.entries(receipt.outputs||{})){
    if(chemistry().species[species]?.phase!=='gas')continue;
    const route=gasManifolds['output:'+species],pipe=assets.get(route?.pipeId),
@@ -52,8 +64,11 @@ function create(saved){
       pipe.state.ratedPressurePa<8e6||pipe.massKg!==320||
       vessel.type!=='industrial_vessel'||vessel.state?.materialId!==species||
       vessel.state.ratedPressurePa<5e6||
-      pipe.location?.bodyId!==bodyId||vessel.location?.bodyId!==bodyId)
-    throw Error('8H unverified source-owned chemical output pressure hardware');
+      pipe.location?.bodyId!==bodyId||vessel.location?.bodyId!==bodyId||
+      pipe.condition<.8||vessel.condition<.8||
+      pipe.state.enabled!==true||vessel.state.enabled!==true||
+      !installed(pipe)||!installed(vessel))
+    throw Error('8H unverified source-owned and paid chemical output pressure hardware');
    const pipeBin=ledger.containers().find(c=>
      c.id===pipe.state.containerId&&c.ownerId===pipe.id&&
      /gas pipe/i.test(c.kind)&&Math.abs(c.maxVolumeM3-.08)<EPS&&
