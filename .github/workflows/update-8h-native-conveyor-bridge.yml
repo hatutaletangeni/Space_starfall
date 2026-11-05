@@ -1,0 +1,29 @@
+name: STARFALL 8H native T02 single-paid conveyor observer
+on:
+  push:
+    branches:
+      - feature/update-8h-live-native-t02-conveyor
+  pull_request:
+    paths:
+      - 'src/physics/conveyor-native-bridge8h.js'
+      - 'tests/conveyor-native-bridge8h.test.cjs'
+      - '.github/workflows/update-8h-native-conveyor-bridge.yml'
+jobs:
+  original-native-grid-once:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Model, original T02 source, exact 8A custody, night, unplug and replay
+        run: |
+          set -euo pipefail
+          node --check src/physics/conveyor-native-bridge8h.js
+          node --test tests/conveyor-native-bridge8h.test.cjs
+          node --test tests/conveyor-packets8h.test.cjs
+          node --test tests/conveyor-bounded-trays8h.test.cjs
+          node --test tests/conveyor-power-port8h.test.cjs
+          node --test tests/logistics-powered-network8h.test.cjs
+          python3 tests/standalone-parity.py
