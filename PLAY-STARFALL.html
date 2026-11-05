@@ -9148,6 +9148,529 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallGasVe
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8H — physical carrier custody contracts, first conservative slice.
+ * This module NEVER moves a ship, truck, world object or planet. It requires
+ * observed source/carrier/destination locations, and the real 8A material
+ * reserve/commit API. Loading/unloading uses an actual carrier-owned 8A
+ * container: there is no direct world-to-world stock teleport.
+ * The runtime controls how actors physically travel and pays their energy.
+ */
+(function(root){'use strict';
+const clone=x=>JSON.parse(JSON.stringify(x)),finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const EPS=1e-7,MAX_ORDERS=500,MAX_RANGE=24;
+const PRESSURE_GASES=new Set(['oxygen','nitrogen','hydrogen','carbon_dioxide','carbon_monoxide','sulfur_dioxide','methane','helium','argon','ammonia']);
+function arc(a,b,r){const dot=a.reduce((s,x,i)=>s+x*b[i],0);
+ return Math.acos(Math.max(-1,Math.min(1,dot)))*r;}
+function validLocal(x){return Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&
+ Math.abs(Math.hypot(...x)-1)<1e-4;}
+function site(x){if(!x||!ident(x.id)||!ident(x.bodyId)||!validLocal(x.local)||
+ !ident(x.containerId))throw Error('8H requires a real source/destination local site and stock container');
+ return x;}
+function carrier(x){if(!x||!ident(x.id)||!ident(x.bodyId)||!validLocal(x.local)||
+ !ident(x.containerId)||!['truck','ship','rover','cargo'].includes(x.kind)||
+ x.operational!==true||x.condition<.2)
+ throw Error('8H needs an operational physical carrier with actual local position');
+ return x;}
+function nearby(actor,point,radius){if(actor.bodyId!==point.bodyId||
+ !finite(radius)||radius<=0||arc(actor.local,point.local,radius)>MAX_RANGE)
+ throw Error('8H loading dock or carrier is not physically nearby on the same world');}
+function stockApi(){if(!root.StarfallMaterials8A?.create)
+ throw Error('8H authoritative 8A material ledger missing');
+ return root.StarfallMaterials8A;}
+function inventory(ledger,containerId){const c=ledger.containers().find(v=>v.id===containerId);
+ if(!c)throw Error('8H physical material container missing');
+ return c;}
+function checkReceipt(receipt,operationId,carrierId,minJ){
+ if(!receipt||receipt.operationId!==operationId||receipt.status!=='COMMITTED'||
+ !ident(receipt.sourceId)||receipt.carrierId!==carrierId||
+ !finite(receipt.usedJ)||receipt.usedJ+EPS<minJ)
+  throw Error('8H physical carrier handling energy has not been paid/verified');
+}
+function create(saved){
+ if(saved!=null&&(!saved||saved.schema!==1||!Array.isArray(saved.orders)))
+  throw Error('8H logistics save schema unsupported');
+ const orders=new Map();
+ for(const raw of saved?.orders||[]){
+  if(!ident(raw.id)||orders.has(raw.id)||!['RESERVED','LOADED','DELIVERED','CANCELLED'].includes(raw.status)||
+     !ident(raw.sourceContainerId)||!ident(raw.destinationContainerId)||
+     !ident(raw.carrierContainerId)||!ident(raw.carrierId)||!ident(raw.lotId)||
+     !ident(raw.bodyId)||!finite(raw.massKg)||raw.massKg<=0||!finite(raw.createdS)||
+     !ident(raw.loadOperationId)||!ident(raw.unloadOperationId))
+    throw Error('Invalid/duplicate 8H logistics order');
+  orders.set(raw.id,clone(raw));
+ }
+ function snapshot(){return{schema:1,orders:[...orders.values()].map(clone)};}
+ function list(){return[...orders.values()].map(clone);}
+ function get(id){return orders.has(id)?clone(orders.get(id)):null;}
+ function reserve({id,source,destination,actor,lotId,massKg,materials,timeS,bodyRadius}){
+  if(!ident(id)||!ident(lotId)||!finite(massKg)||massKg<=0||
+   !finite(timeS)||!finite(bodyRadius)||bodyRadius<=0)
+   throw Error('8H invalid order identity, mass or simulation time');
+  if(orders.has(id))throw Error('8H order ID already exists: cannot duplicate shipment');
+  if(orders.size>=MAX_ORDERS)throw Error('8H order archive limit reached');
+  site(source);site(destination);carrier(actor);
+  if(source.bodyId!==destination.bodyId||source.bodyId!==actor.bodyId)
+   throw Error('8H this physical ground order cannot teleport stock to another world');
+  if(source.containerId===destination.containerId||actor.containerId===source.containerId||
+   actor.containerId===destination.containerId)
+   throw Error('8H distinct source, carrier and destination containers required');
+  nearby(actor,source,bodyRadius);
+  const ledger=stockApi().create(materials);
+  const sourceStock=inventory(ledger,source.containerId),carrierStock=inventory(ledger,actor.containerId);
+  const destinationStock=inventory(ledger,destination.containerId);
+  if(sourceStock.ownerId!==source.id||destinationStock.ownerId!==destination.id||
+     carrierStock.ownerId!==actor.id)
+   throw Error('8H material container ownership does not match physical endpoints');
+  const lot=ledger.inventory(source.containerId).find(x=>x.id===lotId);
+  if(!lot||lot.massKg+EPS<massKg)throw Error('8H source lot unavailable');
+  // Gas from an 8E rated pressure vessel cannot enter the unpressurized
+  // expedition-truck ore hopper or dry-goods depot through this loader.
+  // The existing 8G rated-vessel custody/hose subsystem remains authoritative.
+  if(PRESSURE_GASES.has(lot.materialId) &&
+    [sourceStock,carrierStock,destinationStock].some(c=>
+      /hopper|dry|solid|cargo dock/i.test(c.kind||'')))
+   throw Error('8H pressurized gas requires an approved rated vessel and hose, never a dry cargo hopper');
+  const loadOperationId='8h-load:'+id,unloadOperationId='8h-unload:'+id;
+  // This is a genuine 8A reservation; it locks both source quantity and
+  // bounded carrier destination capacity until explicitly loaded/cancelled.
+  ledger.reserve(loadOperationId,lotId,actor.containerId,massKg);
+  const o={schema:1,id,status:'RESERVED',bodyId:source.bodyId,
+   sourceId:source.id,destinationId:destination.id,carrierId:actor.id,
+   sourceContainerId:source.containerId,destinationContainerId:destination.containerId,
+   carrierContainerId:actor.containerId,lotId,massKg,createdS:timeS,
+   loadOperationId,unloadOperationId,loadJ:1200,unloadJ:1200,
+   loadedAtS:null,deliveredAtS:null,carrierLotId:null};
+  orders.set(id,o);
+  return{order:clone(o),materials:ledger.snapshot()};
+ }
+ function load({id,actor,source,bodyRadius,materials,energyReceipt,timeS}){
+  const o=orders.get(id);if(!o)throw Error('8H order missing');
+  if(o.status==='LOADED'||o.status==='DELIVERED')
+   throw Error('8H duplicate load blocked: cargo already moved');
+  if(o.status!=='RESERVED')throw Error('8H shipment cannot be loaded in this state');
+  carrier(actor);site(source);
+  if(actor.id!==o.carrierId||actor.containerId!==o.carrierContainerId||
+     source.id!==o.sourceId||source.containerId!==o.sourceContainerId||
+     actor.bodyId!==o.bodyId||source.bodyId!==o.bodyId)
+   throw Error('8H source or carrier custody changed');
+  nearby(actor,source,bodyRadius);
+  if(!finite(timeS)||timeS<o.createdS)throw Error('8H reverse loading clock');
+  checkReceipt(energyReceipt,o.loadOperationId,o.carrierId,o.loadJ);
+  const ledger=stockApi().create(materials),op=ledger.operations().find(x=>x.id===o.loadOperationId);
+  if(!op||op.status!=='RESERVED'||op.lotId!==o.lotId||
+     op.destinationId!==o.carrierContainerId||Math.abs(op.massKg-o.massKg)>EPS)
+   throw Error('8H missing or altered real 8A loading reservation');
+  const receipt=ledger.commit(o.loadOperationId);
+  const next={...o,status:'LOADED',loadedAtS:timeS,carrierLotId:receipt.outputLotId};
+  orders.set(id,next);
+  return{order:clone(next),materials:ledger.snapshot(),receipt:clone(receipt)};
+ }
+ function deliver({id,actor,destination,bodyRadius,materials,energyReceipt,timeS}){
+  const o=orders.get(id);if(!o)throw Error('8H order missing');
+  if(o.status==='DELIVERED')throw Error('8H duplicate delivery blocked');
+  if(o.status!=='LOADED')throw Error('8H shipment was not physically loaded');
+  carrier(actor);site(destination);
+  if(actor.id!==o.carrierId||actor.containerId!==o.carrierContainerId||
+     destination.id!==o.destinationId||destination.containerId!==o.destinationContainerId||
+     actor.bodyId!==o.bodyId||destination.bodyId!==o.bodyId)
+   throw Error('8H wrong carrier/world/delivery container');
+  nearby(actor,destination,bodyRadius);
+  if(!finite(timeS)||timeS<o.loadedAtS)throw Error('8H reverse delivery clock');
+  checkReceipt(energyReceipt,o.unloadOperationId,o.carrierId,o.unloadJ);
+  const ledger=stockApi().create(materials);
+  const lot=ledger.inventory(o.carrierContainerId).find(x=>x.id===o.carrierLotId);
+  if(!lot||Math.abs(lot.massKg-o.massKg)>EPS)
+   throw Error('8H original carrier lot was lost, consumed or altered');
+  inventory(ledger,o.destinationContainerId);
+  ledger.reserve(o.unloadOperationId,o.carrierLotId,o.destinationContainerId,o.massKg);
+  const receipt=ledger.commit(o.unloadOperationId);
+  const next={...o,status:'DELIVERED',deliveredAtS:timeS,outputLotId:receipt.outputLotId};
+  orders.set(id,next);
+  return{order:clone(next),materials:ledger.snapshot(),receipt:clone(receipt)};
+ }
+ function cancel({id,materials}){
+  const o=orders.get(id);if(!o||o.status!=='RESERVED')
+   throw Error('8H only an unloaded reservation can be cancelled; loaded cargo must return physically');
+  const ledger=stockApi().create(materials),op=ledger.operations().find(x=>x.id===o.loadOperationId);
+  if(!op||op.status!=='RESERVED')throw Error('8H missing original stock reservation');
+  ledger.cancel(o.loadOperationId);orders.set(id,{...o,status:'CANCELLED'});
+  return{order:get(id),materials:ledger.snapshot()};
+ }
+ return Object.freeze({snapshot,list,get,reserve,load,deliver,cancel});
+}
+const API=Object.freeze({create,MAX_RANGE});
+root.StarfallLogisticsOrders8H=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
+/* STARFALL 8H — immutable T02 vehicle handling debit proposal.
+ * No cargo moves here. Runtime must commit this returned energy state together
+ * with the 8A material snapshot and order snapshot in one save transaction.
+ * A receipt alone is never proof that a source-owned battery was debited.
+ */
+(function(root){'use strict';
+const copy=x=>JSON.parse(JSON.stringify(x));
+const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+function debit({state,operationId,carrierId,sourceId,usedJ}){
+ if(!ident(operationId)||!ident(carrierId)||!['starfall-truck','starfall-ship','starfall-rover'].includes(sourceId)||
+    !valid(usedJ)||usedJ<=0)throw Error('8H invalid vehicle handling debit');
+ if(!state||state.schema!==1||!Array.isArray(state.receipts)||!state.stores||typeof state.stores!=='object')
+  throw Error('8H energy snapshot missing or unsupported');
+ if(state.receipts.some(r=>r.operationId===operationId))
+  throw Error('8H duplicate energy operation blocked');
+ const store=state.stores[sourceId];
+ if(!store||store.carrierId!==carrierId||!valid(store.energyJ)||!valid(store.capacityJ)||
+    store.energyJ>store.capacityJ||store.energyJ<usedJ)
+  throw Error('8H authoritative vehicle battery missing, mismatched or insufficient');
+ const next=copy(state);
+ next.stores[sourceId].energyJ=store.energyJ-usedJ;
+ const receipt={operationId,carrierId,sourceId,usedJ,status:'COMMITTED',
+  beforeJ:store.energyJ,afterJ:next.stores[sourceId].energyJ};
+ next.receipts.push(receipt);
+ return{state:next,receipt:copy(receipt)};
+}
+const API=Object.freeze({debit});
+root.StarfallLogisticsEnergy8H=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
+/* STARFALL 8H — conservative logistics transaction composition.
+ * A load/unload operation pays its source-owned battery proposal and moves the
+ * same physical 8A material lot on CLONES. Caller commits all three returned
+ * snapshots in one durable SF.save; partial results must never be published.
+ * This is a pure model, NOT an invented battery or an automatic vehicle move.
+ */
+(function(root){'use strict';
+const clone=x=>JSON.parse(JSON.stringify(x));
+const finite=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const EPS=1e-7;
+function totalMass(a){
+ if(!a||a.schema!==1||!Array.isArray(a.lots))throw Error('8H original 8A mass ledger missing');
+ return a.lots.reduce((n,l)=>{if(!finite(l.massKg))throw Error('8H invalid source lot mass');return n+l.massKg;},0);
+}
+function transaction({action,orders,materials,energy,orderId,actor,site,bodyRadius,timeS,sourceId}){
+ if(!['LOAD','DELIVER'].includes(action)||!id(orderId)||!finite(timeS)||
+ !finite(bodyRadius)||bodyRadius<=0||!id(sourceId))
+  throw Error('8H physical transaction request invalid');
+ const O=root.StarfallLogisticsOrders8H,E=root.StarfallLogisticsEnergy8H,
+  M=root.StarfallMaterials8A;
+ if(!O?.create||!E?.debit||!M?.create)
+  throw Error('8H physical custody, energy and 8A owners required');
+ const o=O.create(clone(orders)),current=o.get(orderId);
+ if(!current)throw Error('8H order absent');
+ const expected=action==='LOAD'?'RESERVED':'LOADED';
+ if(current.status!==expected)throw Error('8H duplicate or out-of-order cargo transaction blocked');
+ const operationId=action==='LOAD'?current.loadOperationId:current.unloadOperationId;
+ const usedJ=action==='LOAD'?current.loadJ:current.unloadJ;
+ if(!finite(usedJ)||usedJ<=0)throw Error('8H paid handling work missing');
+ if(!actor||actor.id!==current.carrierId)throw Error('8H source-owned carrier identity mismatch');
+ // Reject corrupt stock before considering any debit. Physical position/owner
+ // is rechecked by the order model below; no caller-supplied prepaid receipt.
+ const baseline=totalMass(materials);
+ M.create(clone(materials));
+ const payment=E.debit({state:clone(energy),operationId,
+  carrierId:current.carrierId,sourceId,usedJ});
+ const params={id:orderId,actor,bodyRadius,timeS,materials:clone(materials),
+  energyReceipt:payment.receipt};
+ const moved=action==='LOAD'?o.load({...params,source:site}):
+  o.deliver({...params,destination:site});
+ const afterMass=totalMass(moved.materials);
+ if(Math.abs(baseline-afterMass)>EPS)
+  throw Error('8H physical cargo mass conservation violated');
+ const post=O.create(o.snapshot()).get(orderId);
+ if(post.status!==(action==='LOAD'?'LOADED':'DELIVERED')||
+  moved.receipt.status!=='COMMITTED'||payment.receipt.status!=='COMMITTED'||
+  payment.receipt.operationId!==operationId||
+  moved.receipt.id!==operationId)
+  throw Error('8H source-owned paired receipt mismatch');
+ M.create(moved.materials);
+ if(Math.abs(payment.receipt.beforeJ-payment.receipt.afterJ-usedJ)>EPS)
+  throw Error('8H vehicle power debit not conserved');
+ return Object.freeze({
+  orders:o.snapshot(),materials:moved.materials,energy:payment.state,
+  receipt:clone(moved.receipt),energyReceipt:clone(payment.receipt),
+  action,orderId,chargedJ:usedJ,transferredKg:current.massKg
+ });
+}
+const API=Object.freeze({transaction});
+root.StarfallLogisticsTransaction8H=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL 8H — source-owned existing vehicle batteries, never a free
+ * parallel energy store. Converts real 8E/T12 vehicle snapshots into the 8H
+ * transaction proposal and returns new originals on one all-or-nothing clone.
+ * The caller must persist source vehicle + materials + orders + replay receipts
+ * together; do not mutate runtime objects before durable commit.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const SOURCE=Object.freeze({
+ 'starfall-ship':{id:'ship-main',kind:'ship'},
+ 'starfall-rover':{id:'rover-science-001',kind:'rover'},
+ 'starfall-truck':{id:'truck-expedition-001',kind:'truck'}
+});
+const EPS=1e-7;
+function parse(authority,sourceId,carrierId){
+ if(!authority||!SOURCE[sourceId]||SOURCE[sourceId].id!==carrierId)
+  throw Error('8H carrier is not the actual source-owned expedition vehicle');
+ if(sourceId==='starfall-truck'){
+  const t=authority.truck;
+  if(!t||t.assetId!==carrierId||!valid(t.energyJ)||!valid(t.capacityJ)||
+    t.capacityJ<=0||t.energyJ>t.capacityJ||t.location?.kind!=='surface')
+    throw Error('8H original physical truck battery or surface custody missing');
+  return{energyJ:t.energyJ,capacityJ:t.capacityJ};
+ }
+ const kind=SOURCE[sourceId].kind,v=authority.engineeringVehicles;
+ const state=v?.states?.[kind],definition=v?.definitions?.[kind];
+ if(!v||!Number.isInteger(v.schema)||!definition||!state||
+    !valid(state.energyJ)||!valid(state.health)||state.health<=0||
+    state.energyJ>1e12||!definition.slots?.battery)
+  throw Error('8H original installed ship/rover electrical state missing');
+ // The actual component is in the original authoritative vehicle catalog.
+ if(!root.StarfallVehicles?.evaluate||!root.StarfallVehicles?.components)
+  throw Error('8H engineering battery evaluator missing');
+ const part=root.StarfallVehicles.components[definition.slots.battery];
+ if(!part||part.type!=='battery'||!valid(part.capacityJ)||part.capacityJ<=0||
+   state.energyJ>part.capacityJ+EPS)
+  throw Error('8H original battery slot is not physical/within rated capacity');
+ return{energyJ:state.energyJ,capacityJ:part.capacityJ};
+}
+function execute({authority,receipts,sourceId,orderId,action,orders,materials,actor,site,bodyRadius,timeS}){
+ if(!Array.isArray(receipts)||receipts.length>500||
+    receipts.some(r=>!ident(r.operationId)||r.status!=='COMMITTED'))
+  throw Error('8H replay history invalid; never reset committed source energy');
+ if(!actor||!ident(actor.id)||!ident(sourceId))
+  throw Error('8H source carrier required');
+ const start=parse(authority,sourceId,actor.id);
+ if(receipts.some(r=>r.sourceId===sourceId&&r.carrierId!==actor.id))
+  throw Error('8H existing receipt carrier identity mismatch');
+ const T=root.StarfallLogisticsTransaction8H;
+ if(!T?.transaction)throw Error('8H real 8A transaction not loaded');
+ const energy={schema:1,stores:{[sourceId]:{carrierId:actor.id,
+   energyJ:start.energyJ,capacityJ:start.capacityJ}},receipts:cp(receipts)};
+ const q=T.transaction({action,orders,materials,energy,orderId,actor,site,bodyRadius,timeS,sourceId});
+ if(q.energyReceipt.beforeJ!==start.energyJ||
+   !valid(q.energyReceipt.afterJ)||q.energyReceipt.afterJ>start.energyJ||
+   q.energyReceipt.sourceId!==sourceId||q.energyReceipt.carrierId!==actor.id)
+  throw Error('8H source battery proposal cannot be reconciled with real vehicle');
+ const updated=cp(authority);
+ if(sourceId==='starfall-truck')updated.truck.energyJ=q.energyReceipt.afterJ;
+ else updated.engineeringVehicles.states[SOURCE[sourceId].kind].energyJ=q.energyReceipt.afterJ;
+ const check=parse(updated,sourceId,actor.id);
+ if(Math.abs(check.energyJ-q.energyReceipt.afterJ)>EPS)
+  throw Error('8H authoritative energy reconciliation failed');
+ return Object.freeze({authority:updated,orders:q.orders,materials:q.materials,
+  receipts:q.energy.receipts,energyReceipt:q.energyReceipt,
+  materialReceipt:q.receipt,chargedJ:q.chargedJ,transferredKg:q.transferredKg});
+}
+const API=Object.freeze({execute,parse,SOURCE});
+root.StarfallLogisticsBatteryBridge8H=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL 8H — one durable, fail-closed cargo/energy transaction.
+ * No new carrier, battery, material or dock is created. The caller must
+ * provide an actual 8A physical truck and paid/installed source+destination
+ * with existing owner-matched material containers. Saves once, verifies
+ * persistent readback, and ONLY THEN permits the live runtime to swap owners.
+ * This does not move vehicles or invent a free 8H depot.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x));
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
+const EPS=1e-6;
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function checked(saved,request){
+ if(!saved||!saved.physical8a||!saved.materials8a||!saved.logisticsOrders8h||
+    !Array.isArray(saved.logisticsEnergyReceipts8h)||!saved.flightGalaxy||
+    !saved.engineeringVehicles)throw Error('8H missing authoritative durable game owners');
+ if(!request||!['LOAD','DELIVER'].includes(request.action)||!id(request.orderId)||
+    !valid(request.timeS)||!valid(request.bodyRadius)||request.bodyRadius<=0)
+  throw Error('8H invalid cargo transaction clock or request');
+ if(!root.StarfallPhysical8A?.create||!root.StarfallMaterials8A?.create||
+    !root.StarfallLogisticsBatteryBridge8H?.execute||
+    !root.StarfallLogisticsOrders8H?.create)
+  throw Error('8H all authoritative physical, stock, order and vehicle models required');
+ const phys=root.StarfallPhysical8A.create(saved.physical8a);
+ const truck=phys.get('truck-expedition-001'),pose=saved.flightGalaxy.truckPose;
+ if(!truck||truck.type!=='truck'||truck.condition<.2||
+    truck.location?.kind!=='surface'||!pose||pose.bodyId!==truck.location.bodyId||
+    !Array.isArray(pose.local)||pose.local.length!==3||!pose.local.every(Number.isFinite)||
+    !valid(pose.batteryJ)||!valid(truck.state?.batteryJ)||
+    Math.abs(truck.state.batteryJ-pose.batteryJ)>EPS)
+  throw Error('8H physical truck asset and saved truck battery/position disagree');
+ const angle=(a,b)=>Math.acos(Math.max(-1,Math.min(1,a.reduce((n,x,i)=>n+x*b[i],0))));
+ if(angle(truck.location.local,pose.local)>1e-4)
+  throw Error('8H original truck world pose is not authoritative');
+ const orders=root.StarfallLogisticsOrders8H.create(saved.logisticsOrders8h),o=orders.get(request.orderId);
+ if(!o||o.carrierId!==truck.id||o.carrierContainerId!=='8d:truck-expedition-001:hopper'||
+    o.bodyId!==truck.location.bodyId)
+  throw Error('8H order is not for the real single expedition truck and ore hopper');
+ const materials=root.StarfallMaterials8A.create(saved.materials8a);
+ const hopper=materials.containers().find(x=>x.id===o.carrierContainerId);
+ if(!hopper||hopper.ownerId!==truck.id)
+  throw Error('8H original 8D truck hopper does not own cargo');
+ const assetId=request.action==='LOAD'?o.sourceId:o.destinationId;
+ const containerId=request.action==='LOAD'?o.sourceContainerId:o.destinationContainerId;
+ const dock=phys.get(assetId),container=materials.containers().find(x=>x.id===containerId);
+ if(!dock||!['industrial_plant','industrial_vessel'].includes(dock.type)||
+    dock.condition<.5||dock.state?.enabled===false||
+    dock.location?.kind!=='surface'||dock.location.bodyId!==truck.location.bodyId||
+    !container||container.ownerId!==dock.id)
+  throw Error('8H dock requires existing installed operational surface industrial asset and owned stock container');
+ if(!Array.isArray(dock.location.local)||dock.location.local.length!==3)
+  throw Error('8H installed dock has no real surface location');
+ if(request.bodyId!==truck.location.bodyId)
+  throw Error('8H cannot move material between different planets');
+ const actor={id:truck.id,bodyId:truck.location.bodyId,
+    kind:'truck',local:truck.location.local,containerId:o.carrierContainerId,
+    operational:true,condition:truck.condition};
+ const site={id:dock.id,bodyId:dock.location.bodyId,local:dock.location.local,containerId};
+ return{truck,pose,actor,site};
+}
+function project(saved,request){
+ const ctx=checked(saved,request),B=root.StarfallLogisticsBatteryBridge8H;
+ const originalEnergy=ctx.pose.batteryJ;
+ const authority={truck:{assetId:ctx.truck.id,energyJ:originalEnergy,
+  capacityJ:44000000,location:ctx.truck.location},engineeringVehicles:saved.engineeringVehicles};
+ const q=B.execute({authority,receipts:saved.logisticsEnergyReceipts8h,
+  sourceId:'starfall-truck',action:request.action,orderId:request.orderId,
+  orders:saved.logisticsOrders8h,materials:saved.materials8a,actor:ctx.actor,
+  site:ctx.site,bodyRadius:request.bodyRadius,timeS:request.timeS});
+ const next=cp(saved);
+ next.materials8a=q.materials;next.logisticsOrders8h=q.orders;
+ next.logisticsEnergyReceipts8h=q.receipts;
+ next.flightGalaxy.truckPose.batteryJ=q.authority.truck.energyJ;
+ const a=next.physical8a.assets.find(x=>x.id===ctx.truck.id);
+ if(!a||Math.abs(a.state.batteryJ-originalEnergy)>EPS)
+  throw Error('8H physical truck battery changed before durable commit');
+ a.state.batteryJ=q.authority.truck.energyJ;
+ // Everything returned is owned by a single saved game tree; no mutation to
+ // any input owner. All material amounts were conserved in the 8A model.
+ root.StarfallPhysical8A.create(next.physical8a);
+ root.StarfallMaterials8A.create(next.materials8a);
+ checked(next,{...request,action:request.action}); // validate source battery/physical position
+ return{saved:next,materialReceipt:q.materialReceipt,
+  energyReceipt:q.energyReceipt,chargedJ:q.chargedJ};
+}
+function commit({storage,request}){
+ if(!storage||typeof storage.read!=='function'||typeof storage.write!=='function'||
+   typeof storage.status!=='function')
+  throw Error('8H durable storage read/write/status required');
+ if(storage.status()?.durable!==true)
+  throw Error('8H persistent storage unavailable; refusing to debit matter or energy');
+ const prior=storage.read();
+ if(!prior)throw Error('8H no authoritative saved game to modify');
+ const q=project(prior,request);
+ // Single persisted write; the runtime must use q.saved to update live owners
+ // only AFTER this returns successfully. Failed writes cannot claim a transfer.
+ if(storage.write(q.saved)!==true)
+  throw Error('8H durable cargo/energy save failed; live owners must not change');
+ if(storage.status()?.durable!==true)
+  throw Error('8H storage stopped being durable after cargo transaction');
+ const actual=storage.read();
+ for(const key of ['materials8a','logisticsOrders8h','logisticsEnergyReceipts8h','physical8a'])
+  if(!same(actual?.[key],q.saved[key]))
+   throw Error('8H persisted '+key+' differs from paid cargo transaction');
+ if(!same(actual?.flightGalaxy?.truckPose,q.saved.flightGalaxy.truckPose))
+  throw Error('8H persisted truck battery does not match source-owned debit');
+ return q;
+}
+const API=Object.freeze({project,commit});
+root.StarfallLogisticsDurable8H=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL 8H — register a physical, ALREADY LOADED 8D-mined ore lot
+ * for delivery to an installed manufactured dry depot. No imaginary
+ * pickup/transfer: the original mining drill already put real ore in the
+ * original expedition truck hopper, with an 8D extraction receipt.
+ * This reserves the exact original carrier lot + destination room. Real
+ * loading/unloading work and truck movement remain external/sourced.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
+const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const TRUCK='truck-expedition-001',HOPPER='8d:truck-expedition-001:hopper';
+const GASES=new Set(['oxygen','nitrogen','hydrogen','carbon_dioxide','carbon_monoxide',
+ 'sulfur_dioxide','methane','helium','argon','ammonia']);
+const radiusOk=x=>Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&
+ Math.abs(Math.hypot(...x)-1)<1e-4;
+const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,a.reduce((v,x,i)=>v+x*b[i],0))))*r;
+function reserve({id,lotId,depotId,materials,physical,mining,orders,
+ actor,operatorNear,timeS,bodyRadius}){
+ if(!ident(id)||!id.startsWith('8h-ore:')||!ident(lotId)||!ident(depotId)||
+ !finite(timeS)||!finite(bodyRadius)||bodyRadius<=0)
+  throw Error('8H valid unique ore delivery identifiers and clock required');
+ if(!root.StarfallMaterials8A?.create||!root.StarfallPhysical8A?.create||
+    !root.StarfallLogisticsOrders8H?.create)
+  throw Error('8H original 8A physical, material and logistics owners missing');
+ if(operatorNear!==true)
+  throw Error('8H physical EVA operator must be near original stopped truck');
+ if(!actor||actor.id!==TRUCK||actor.kind!=='truck'||actor.operational!==true||
+  !ident(actor.bodyId)||!radiusOk(actor.local)||actor.containerId!==HOPPER)
+  throw Error('8H requires original operating surface truck and ore hopper');
+ const assets=root.StarfallPhysical8A.create(physical);
+ const truck=assets.get(TRUCK),depot=assets.get(depotId);
+ if(!truck||truck.type!=='truck'||truck.condition<.2||
+  truck.location?.kind!=='surface'||truck.location.bodyId!==actor.bodyId||
+  !radiusOk(truck.location.local)||arc(truck.location.local,actor.local,bodyRadius)>0.01)
+  throw Error('8H actor pose differs from original physical truck');
+ if(!depot||depot.type!=='industrial_plant'||depot.state?.station!=='cargo_depot'||
+  depot.state?.enabled!==true||depot.condition<.5||
+  depot.location?.kind!=='surface'||depot.location.bodyId!==actor.bodyId||
+  !radiusOk(depot.location.local)||!ident(depot.state.containerId))
+  throw Error('8H destination requires installed, operational manufactured dry cargo depot on same world');
+ const ledger=root.StarfallMaterials8A.create(materials);
+ const source=ledger.containers().find(x=>x.id===HOPPER&&x.ownerId===TRUCK);
+ const destination=ledger.containers().find(x=>x.id===depot.state.containerId&&
+  x.ownerId===depot.id&&/dry-solid cargo dock/i.test(x.kind));
+ if(!source||!destination)throw Error('8H source hopper or manufactured dry dock custody missing');
+ const lot=ledger.inventory(HOPPER).find(x=>x.id===lotId);
+ if(!lot||GASES.has(lot.materialId)||!finite(lot.massKg)||lot.massKg<=0||
+  !finite(lot.volumeM3))throw Error('8H original verified solid ore hopper lot missing');
+ if(!mining||mining.schema!==1||!Array.isArray(mining.history))
+  throw Error('8H original 8D mining receipts missing');
+ const drill=mining.history.find(x=>x.type==='DRILL'&&x.status==='COMMITTED'&&
+  lot.id==='mine:'+x.id&&x.destination===HOPPER&&
+  x.source===lot.provenance&&Math.abs(x.massKg-lot.massKg)<EPS);
+ if(!drill)throw Error('8H original physical 8D drill extraction receipt does not own this ore lot');
+ const previous=root.StarfallLogisticsOrders8H.create(orders).snapshot();
+ if(previous.orders.length>=500)throw Error('8H order capacity exceeded');
+ if(previous.orders.some(x=>x.id===id||
+  (x.status==='LOADED'&&x.carrierLotId===lot.id)))
+  throw Error('8H duplicate order or previously reserved ore lot');
+ const unloadOperationId='8h-unload:'+id,loadOperationId='8h-load:'+id;
+ ledger.reserve(unloadOperationId,lot.id,destination.id,lot.massKg);
+ const record={schema:1,id,status:'LOADED',bodyId:actor.bodyId,
+  sourceId:TRUCK,destinationId:depot.id,carrierId:TRUCK,
+  sourceContainerId:HOPPER,destinationContainerId:destination.id,
+  carrierContainerId:HOPPER,lotId:lot.id,carrierLotId:lot.id,
+  massKg:lot.massKg,createdS:timeS,loadedAtS:timeS,
+  deliveredAtS:null,loadOperationId,unloadOperationId,
+  loadJ:0,unloadJ:1200,miningReceiptId:drill.id,
+  provenance:lot.provenance};
+ const next={schema:1,orders:[...previous.orders,record]};
+ root.StarfallLogisticsOrders8H.create(next);
+ return{orders:next,materials:ledger.snapshot(),record:cp(record)};
+}
+root.StarfallLogisticsDropoff8H=Object.freeze({reserve,TRUCK,HOPPER});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallLogisticsDropoff8H;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script><script>
 /* STARFALL — single-scene, procedural multi-system navigation and physical landing.
  * All celestial positions are updated deterministically, and neither warp nor
  * surface contact changes HTML pages, cameras or rendering engines. */
@@ -9181,6 +9704,14 @@ const originalTruckCargo8B=StarfallTruckCustody8B.restore(saved?.shipCargo8b,phy
 let cargo8b=originalTruckCargo8B.cargo;
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
+let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h);
+let logisticsEnergyReceipts8h=(()=>{
+ const r=session.logisticsEnergyReceipts8h;
+ if(r==null)return [];
+ if(!Array.isArray(r)||r.length>500||r.some(x=>!x||typeof x.operationId!=='string'||x.status!=='COMMITTED'))
+  throw Error('8H corrupt authoritative energy receipts — restore the original save');
+ return JSON.parse(JSON.stringify(r));
+})();
 let vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(session.vehicleAssembly8g);
 let manufacturedOccupied8G=null;
 let resources8c=StarfallResources8C.create(session.resources8c);
@@ -9811,7 +10342,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -10993,6 +11524,87 @@ function factoryAdvance8F(elapsed){
   }else if(factorySaveSeconds8F>=2){saveFlight();factorySaveSeconds8F=0;}
  }catch(error){console.warn('8F machine paused:',error);}
 }
+/* 8H: only REAL 8D-extracted ore already in the original truck may
+ * be dispatched to a factory-built empty dry-cargo depot. Orders never move
+ * trucks or material on click: actual driving and physical unloading remain
+ * separate operations with energy charged to the original battery.
+ */
+function logisticsContext8H(){
+ const ctx=miningContext8D(),truck=physical8a.get(START_TRUCK);
+ const onFoot=ctx.truckPresent&&ctx.operatorNear&&!ctx.truckOccupied&&
+  eva&&!interiorState&&!shipWalking8e&&ctx.truckIdle&&!mining8d.active;
+ const depots=physical8a.list().filter(a=>a.type==='industrial_plant'&&
+  a.state?.station==='cargo_depot'&&a.state?.enabled===true&&a.condition>=.5&&
+  a.location?.kind==='surface'&&a.location.bodyId===ctx.bodyId&&
+  materials8a.containers().some(c=>c.id===a.state.containerId&&c.ownerId===a.id&&
+    /dry-solid cargo dock/i.test(c.kind)));
+ const history=mining8d.snapshot().history;
+ const lots=materials8a.inventory(StarfallMining8D.TRUCK).filter(l=>
+  history.some(h=>h.type==='DRILL'&&h.status==='COMMITTED'&&
+   l.id==='mine:'+h.id&&h.destination===StarfallMining8D.TRUCK&&
+   l.provenance===h.source&&Math.abs(l.massKg-h.massKg)<1e-7));
+ return{bodyId:ctx.bodyId,operatorNear:!!onFoot,
+  truckPresent:ctx.truckPresent&&truck?.location?.kind==='surface',
+  energyJ:truckBatteryJ,truckLocal:truckLocal?[...truckLocal]:null,
+  depots:depots.map(a=>({id:a.id,bodyId:a.location.bodyId,
+   local:[...a.location.local],containerId:a.state.containerId,
+   stock:materials8a.used(a.state.containerId)})),
+  lots:lots.map(l=>({...l})),orders:logisticsOrders8h.list()};
+}
+function logisticsReserve8H(lotId,depotId){
+ const c=logisticsContext8H();
+ if(!c.operatorNear||!c.truckPresent||!truckBody||!truckLocal||truckBody!==nearest)
+  throw Error('8H park the original truck, exit on foot, approach it and stop the drill');
+ if(!c.lots.some(l=>l.id===lotId)||!c.depots.some(d=>d.id===depotId))
+  throw Error('8H select an original mined ore lot and a manufactured same-world dry depot');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)throw Error('8H durable local save unavailable');
+ const original=SF.load();
+ let n=logisticsOrders8h.list().length+1;
+ while(logisticsOrders8h.get('8h-ore:'+n))n++;
+ const q=StarfallLogisticsDropoff8H.reserve({id:'8h-ore:'+n,lotId,depotId,
+  materials:materials8a.snapshot(),physical:physical8a.serialize(),
+  mining:mining8d.snapshot(),orders:logisticsOrders8h.snapshot(),
+  actor:{id:START_TRUCK,kind:'truck',bodyId:nearest.id,
+   local:[...truckLocal],containerId:StarfallMining8D.TRUCK,
+   operational:true,condition:physical8a.get(START_TRUCK).condition},
+  operatorNear:true,timeS:simTime,bodyRadius:nearest.radius});
+ if(SF.save({materials8a:q.materials,logisticsOrders8h:q.orders})!==true||
+    SF.storageStatus().durable!==true)
+  throw Error('8H shipment reservation save failed — live material owners unchanged');
+ const durable=SF.load();
+ if(JSON.stringify(durable.materials8a)!==JSON.stringify(q.materials)||
+    JSON.stringify(durable.logisticsOrders8h)!==JSON.stringify(q.orders))
+  throw Error('8H durable reservation readback failed — reopen the saved game before continuing');
+ materials8a=StarfallMaterials8A.create(q.materials);
+ logisticsOrders8h=StarfallLogisticsOrders8H.create(q.orders);
+ showToast('8H · '+q.record.massKg+' kg ore reserved on original truck; drive physically to '+depotId);
+ return q.record;
+}
+function logisticsDeliver8H(orderId){
+ const c=logisticsContext8H(),order=logisticsOrders8h.get(orderId);
+ if(!c.operatorNear||!c.truckPresent||!order||order.status!=='LOADED'||
+  !c.depots.some(d=>d.id===order.destinationId))
+  throw Error('8H on-foot original truck operator and valid loaded same-world depot order required');
+ const depot=physical8a.get(order.destinationId);
+ if(!evaLocal||!depot||depot.location?.bodyId!==nearest.id||
+  StarfallOutposts.arc(evaLocal,depot.location.local,nearest.radius)>15)
+  throw Error('8H EVA operator must walk within 15 scene units of the actual dry depot coupler');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H no durable physical cargo save — no material or Joules debited');
+ const stage=StarfallLogisticsDurable8H.commit({storage:{
+  read:()=>SF.load(),write:v=>SF.save(v),status:()=>SF.storageStatus()},
+  request:{action:'DELIVER',orderId,bodyId:nearest.id,
+   bodyRadius:nearest.radius,timeS:simTime}});
+ materials8a=StarfallMaterials8A.create(stage.saved.materials8a);
+ physical8a=StarfallPhysical8A.create(stage.saved.physical8a);
+ logisticsOrders8h=StarfallLogisticsOrders8H.create(stage.saved.logisticsOrders8h);
+ logisticsEnergyReceipts8h=JSON.parse(JSON.stringify(stage.saved.logisticsEnergyReceipts8h));
+ truckBatteryJ=stage.saved.flightGalaxy.truckPose.batteryJ;
+ showToast('8H · '+stage.materialReceipt.massKg+' kg deposited · '+stage.chargedJ+' J paid by actual truck');
+ return stage.materialReceipt;
+}
 function miningContext8D(){
  const onWorld=landed&&!!nearest?.landable&&!!truckBody&&truckBody===nearest&&!!truckLocal&&cargo8b.mode==='ground';
  const truck=onWorld?truckWorldState():null,ship=shipBody===nearest?shipWorldState():null;
@@ -11281,7 +11893,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsDeliver8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -16835,7 +17447,7 @@ root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Opera
 })(globalThis);
 
 </script><script>
-/* STARFALL 8H — read-only Engineer logistics operations inspector.
+/* STARFALL 8H — physical Engineer logistics orders and custody inspector.
  * No independent inventory, free material, phantom dock or movement controls.
  * All values come from the actual 8A physical/inventory owners and original
  * flight runtime. Active 8H orders are not invented on legacy saves.
@@ -16850,7 +17462,7 @@ panel.setAttribute('aria-label','8H physical logistics and route status');
 const title=document.createElement('div');
 title.className='section-title';title.textContent='8H · PHYSICAL LOGISTICS NETWORK';
 const desc=document.createElement('p');desc.className='panel-note';
-desc.textContent='Actual carrier custody, installed dock inventory and paid operation receipts. No automatic shipment or free depots. Use 8D drilling and physical loading to move existing ore.';
+desc.textContent='Original 8D mined ore can be reserved for a physically installed 8F-manufactured dry depot. Drive the original truck to the dock and exit on foot to unload with 1.2 kJ of actual truck battery. No teleport, free cargo or pressure-gas loading.';
 const status=document.createElement('p');status.id='logistics8h-status';
 status.className='panel-note';status.setAttribute('role','status');
 const readout=document.createElement('pre');readout.id='logistics8h-readout';
@@ -16862,7 +17474,34 @@ locate.textContent='PLOT ORIGINAL TRUCK ROUTE';
 const mining=document.createElement('button');mining.type='button';mining.className='science-action';
 mining.textContent='OPEN REAL MINING / LOADING';
 row.append(locate,mining);
-let last='',lastTick=0;
+const shipments=document.createElement('div');
+shipments.className='obs-tools';
+const ore=document.createElement('select');ore.id='logistics8h-ore-lot';
+ore.setAttribute('aria-label','Original mined ore lot in truck');
+const depot=document.createElement('select');depot.id='logistics8h-depot';
+depot.setAttribute('aria-label','Installed same-world dry cargo depot');
+const dispatch=document.createElement('button');dispatch.type='button';dispatch.className='science-action';
+dispatch.id='logistics8h-dispatch';dispatch.textContent='RESERVE MINED ORE FOR DEPOT';
+const order=document.createElement('select');order.id='logistics8h-loaded-order';
+order.setAttribute('aria-label','Loaded shipment to unload at dock');
+const deliver=document.createElement('button');deliver.type='button';deliver.className='science-action';
+deliver.id='logistics8h-deliver';deliver.textContent='UNLOAD AT DOCK · 1.2 kJ';
+for(const select of [ore,depot,order]){
+ select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
+}
+shipments.append(ore,depot,dispatch,order,deliver);
+let last='',lastTick=0,lastStatusUntil=0;
+const report=message=>{status.textContent=message;lastStatusUntil=performance.now()+4500;};
+const choices=(select,items,empty)=>{
+ const values=items.map(x=>[x.id,x.label]);
+ const signature=JSON.stringify(values);
+ if(select.dataset.signature===signature)return;
+ const original=select.value;select.replaceChildren();
+ if(!values.length){const e=document.createElement('option');e.textContent=empty;e.value='';select.append(e);}
+ for(const [id,label] of values){const opt=document.createElement('option');opt.value=id;opt.textContent=label;select.append(opt);}
+ if(values.some(([id])=>id===original))select.value=original;
+ select.dataset.signature=signature;
+};
 const fmt=n=>Number.isFinite(n)?n.toFixed(2):'—';
 function model(){
  const r=root.StarfallRuntime,physical=r?.physical8a,materials=r?.materials8a;
@@ -16884,7 +17523,7 @@ function model(){
   });
  const hopper=materials.used(root.StarfallMining8D?.TRUCK||'8d:truck-expedition-001:hopper'),
   ship=materials.used(root.StarfallMining8D?.SHIP||'8d:ship-main:materials');
- return {truck,pose,hopper,ship,eligible,jobs,energyReceipts};
+ return {truck,pose,hopper,ship,eligible,jobs,energyReceipts,transport:r.logisticsContext8H?.()||null};
 }
 function refresh(){
  const m=model();if(!m){status.textContent='8H · Awaiting original flight and 8A material runtime.';return;}
@@ -16913,7 +17552,19 @@ function refresh(){
  if(output!==last){last=output;readout.textContent=output;}
  locate.disabled=!t||loc?.kind!=='surface';
  mining.disabled=!root.StarfallMiningUI8D;
- status.textContent='8H · READ-ONLY LIVE CUSTODY. Physical loading and fuel/power are controlled by original systems.';
+ const tctx=m.transport;
+ const lots=tctx?.lots||[],depots=tctx?.depots||[],
+  active=(tctx?.orders||[]).filter(x=>x.status==='LOADED');
+ choices(ore,lots.map(l=>({id:l.id,label:l.materialId+' · '+fmt(l.massKg)+' kg · '+l.provenance})),
+   'No verified 8D ore in truck');
+ choices(depot,depots.map(d=>({id:d.id,label:d.id+' · '+fmt(d.stock?.massKg||0)+' kg stored'})),
+   'No manufactured dry depot on this world');
+ choices(order,active.map(o=>({id:o.id,label:o.id+' · '+fmt(o.massKg)+' kg → '+o.destinationId})),
+   'No loaded shipment');
+ dispatch.disabled=!tctx?.operatorNear||!lots.length||!depots.length;
+ deliver.disabled=!tctx?.operatorNear||!active.length;
+ if(performance.now()>=lastStatusUntil)
+  status.textContent='8H · Reserve real mined stock, drive to the actual depot, park and EVA to unload. All 8A lots and battery Joules stay source-owned.';
 }
 locate.addEventListener('click',()=>{try{
  const r=root.StarfallRuntime;if(!r?.plotTruckDestination8B)throw Error('Actual truck locator unavailable');
@@ -16924,7 +17575,19 @@ mining.addEventListener('click',()=>{try{
  if(!root.StarfallMiningUI8D?.open)throw Error('Real 8D loading console unavailable');
  root.StarfallMiningUI8D.open();
  }catch(e){status.textContent='8H · '+String(e?.message||e);}});
-panel.append(title,desc,status,row,readout);host.append(panel);
+dispatch.addEventListener('click',()=>{try{
+ const rt=root.StarfallRuntime;
+ if(!rt?.logisticsReserve8H)throw Error('8H runtime delivery unavailable');
+ const q=rt.logisticsReserve8H(ore.value,depot.value);
+ refresh();report('8H · Reserved '+fmt(q.massKg)+' kg · '+q.id+'. Physically drive the original truck to '+q.destinationId+'.');
+ }catch(e){report('8H reservation rejected · '+String(e?.message||e));}});
+deliver.addEventListener('click',()=>{try{
+ const rt=root.StarfallRuntime;
+ if(!rt?.logisticsDeliver8H)throw Error('8H source-owned power delivery unavailable');
+ const receipt=rt.logisticsDeliver8H(order.value);
+ refresh();report('8H · Delivered '+fmt(receipt.massKg)+' kg. Physical ore moved and truck battery debited exactly once.');
+ }catch(e){report('8H unloading rejected · '+String(e?.message||e));}});
+panel.append(title,desc,status,row,shipments,readout);host.append(panel);
 function tick(time){
  if(time-lastTick>=650){lastTick=time;try{refresh();}catch(e){
   status.textContent='8H monitor unavailable · '+String(e?.message||e);
