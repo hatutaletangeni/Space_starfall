@@ -58,6 +58,7 @@ jobs:
           node --check src/physics/conveyor-packets8h.js
           node --check src/physics/conveyor-native-bridge8h.js
           node --test tests/conveyor-live8h.test.cjs
+          node --test tests/conveyor-real-placement8h.test.cjs
           node --test tests/conveyor-native-bridge8h.test.cjs
           node --test tests/conveyor-packets8h.test.cjs
           node --test tests/conveyor-bounded-trays8h.test.cjs
