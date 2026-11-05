@@ -36,6 +36,9 @@ with sync_playwright() as p:
         # The marker alone is insufficient proof that the save is still the
         # original fixture; inspect actual persisted mission custody first.
         context.add_init_script("""(()=>{
+          // Never replay the old landed fixture on a true reload. A reload
+          // must prove genuine packet and rover persistence, not reseed it.
+          if(performance.getEntriesByType('navigation')[0]?.type==='reload')return;
           const raw=localStorage.getItem('starfall_save');
           let state=null;try{state=raw?JSON.parse(raw):null;}catch(_){}
           if(state?.commsT03?.packets?.length||state?.launch7?.rovers?.length)return;
