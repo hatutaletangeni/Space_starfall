@@ -21,7 +21,8 @@ test('8F certified conveyor hardware recipe conserves real inputs and uses finit
  assert.equal(recipe.station,'assembly');
  assert.equal(recipe.tool,'kit-fixture');
  assert.equal(recipe.outputs.plant_kit_conveyor_drive,180);
- assert.equal(Object.values(recipe.inputs).reduce((a,b)=>a+b,0),180);
+ assert.ok(Math.abs(Object.values(recipe.inputs).reduce((a,b)=>a+b,0)-180)<1e-7,
+  '8F floating point input mass must conserve exactly within numerical tolerance');
  assert.ok(recipe.inputs.electric_motor>0&&recipe.inputs.insulated_wire>0&&
   recipe.inputs.control_board>0,'no magically fabricated motor or control board');
  const bill=M.RECIPES.plant_kit_conveyor_drive;
@@ -64,6 +65,7 @@ test('no free drive without certified grade, physical clearance, or paid energy'
  const noKit=structuredClone(base);noKit.materials.lots=[];
  assert.throws(()=>Site.install(noKit),/not onboard/);
  const tooClose=structuredClone(base);tooClose.local=direction(.001);
+ tooClose.operatorLocal=direction(.001);
  assert.throws(()=>Site.install(tooClose),/block spacecraft ramps/);
  const duplicateId=structuredClone(base);duplicateId.physical.assets.push({
   id:'facility8e:conveyor-1',type:'industrial_plant',massKg:180,volumeM3:.55,
