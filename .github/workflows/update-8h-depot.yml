@@ -22,15 +22,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 tools/build-standalone.py
-          if git diff --quiet -- PLAY-STARFALL.html; then
-            echo 'Standalone unchanged'
-            exit 0
-          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add PLAY-STARFALL.html
-          git commit -m 'build(8H): synchronize offline depot kit and physical storage'
+          # Integrate released #91 Engineer UI, retaining the feature's own
+          # certified-depot sources where generated bundles overlap. Rebuild
+          # the entire standalone from the merged editable source afterward.
+          git fetch origin main
+          git merge -X ours --no-edit origin/main
+          python3 tools/build-standalone.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): synchronize combined Engineer UI and depot'
+          fi
           git push origin HEAD:feature/update-8h-manufactured-cargo-depot
           gh workflow run update-8h-depot.yml --ref feature/update-8h-manufactured-cargo-depot
   verify-generated-head:
