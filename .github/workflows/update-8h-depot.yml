@@ -40,7 +40,7 @@ jobs:
   verify-generated-head:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,3 +59,15 @@ jobs:
           node --test tests/logistics-orders8h.test.cjs
           node tests/industry-models.test.cjs
           python3 tests/standalone-parity.py
+      - name: Verify merged Engineer UI and actual dry depot in Chromium software WebGL
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+          python3 tests/logistics-ui8h-browser.py
+          python3 tests/assembly-live8g-browser.py
+          python3 tests/structure-assembly8g-browser.py
+          python3 tests/habitat-hose8g-browser.py
+          python3 tests/air-fractionation8g-browser.py
+          python3 tests/gas-vessel-cargo8g-browser.py
+          python3 tests/truck-custody8b-browser.py
+          python3 tests/truck-navigation8b-browser.py
