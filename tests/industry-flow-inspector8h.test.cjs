@@ -150,6 +150,8 @@ test('original Engineer/flight inspector is read-only, source loaded first and U
  for(const v of ['industry8h-refresh','industry8h-stages','industry8h-details',
   'industryFlowContext8H','original driven truck','manual'])
   assert.ok(ui.toLowerCase().includes(v.toLowerCase()),v);
- assert.doesNotMatch(source,/StarfallPowerLedgerT02\.grid\(|\.commit\(|\.reserve\(|\.importLot\(|\.move\(|\.save\(|localStorage/);
+ // Inspect executable code, not header text explaining that this module does NOT commit or use localStorage.
+ const codeOnly=source.replace(/\/\*[\s\S]*?\*\//g,'');
+ assert.doesNotMatch(codeOnly,/StarfallPowerLedgerT02\.grid\(|\.commit\(|\.reserve\(|\.importLot\(|\.move\(|\.save\(|localStorage/);
  assert.doesNotMatch(ui,/\.commit\(|\.reserve\(|\.importLot\(|\.setShipPosition\(/);
 });
