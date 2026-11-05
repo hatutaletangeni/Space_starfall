@@ -27,6 +27,8 @@ function installed(){
 }
 test('outpost Store cannot spawn an independent unpaid conveyor electrical device',()=>{
  assert.equal(O.SPECS.conveyor_drive.watts,250);
+ assert.equal(O.SPECS.conveyor_drive.loadOnly,true,
+  'outpost contract must classify the port as non-constructible');
  const s=new O.Store(742);
  assert.throws(()=>s.add('conveyor_drive',{
   id:bodyId,landable:true,radius:1000},local(.05),[0,0,1],()=>0),/physically manufactured/);
