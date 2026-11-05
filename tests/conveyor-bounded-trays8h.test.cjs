@@ -60,3 +60,13 @@ test('unpaid or unmanufactured kit can never create a conveyor tray',()=>{
  assert.equal(p.materials.containers.length,1);
  assert.equal(p.physical.assets.length,0);
 });
+
+test('exact same paid 8E install cannot allocate a second container after save/reload',()=>{
+ const initial=payload(),once=Site.install(initial);
+ const repeat=Site.install({...payload(),materials:structuredClone(once.materials),
+  physical:structuredClone(once.physical)});
+ assert.equal(repeat.duplicate,true);
+ assert.equal(repeat.materials.containers.filter(c=>c.kind==='guarded dry-solid conveyor tray').length,1);
+ assert.equal(repeat.physical.assets.filter(a=>a.state?.station==='conveyor_drive').length,1);
+ assert.equal(repeat.materials.lots.length,0);
+});
