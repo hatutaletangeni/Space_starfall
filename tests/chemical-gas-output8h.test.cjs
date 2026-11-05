@@ -98,6 +98,35 @@ test('real original 80L manufactured output pipe REFUSES an oversized 100-mol hy
  }),/Output tank full|gas exceeds pipe/i);
  assert.deepEqual(before,f.materials8a,'oversized 100mol must not silently enlarge or consume original 8A stock');
 });
+test('existing original NON-GAS 8E glass furnace remains operable with no output pipe, no phantom 420W load and no material regression',()=>{
+ const f=fixture(),silica=structuredClone(f.materials8a);
+ silica.lots[0].materialId='silicon_dioxide';
+ silica.lots[0].provenance='original-real-purified-silica';
+ const machine=f.physical8a.assets.find(x=>x.id===f.ids.station);
+ machine.state.station='glass_furnace';
+ machine.state.tools=[...Chem.reactions.glass_fusing.requiredTools];
+ const station={...f.stationProof,kind:'glass_furnace',
+  tools:Chem.reactions.glass_fusing.requiredTools,
+  vesselAssetIds:{},gasManifolds:{},gasOutputStaged8H:true};
+ const job='chem8e:real-silica';
+ const proc=Plant.create().process({
+  id:job,reactionId:'glass_fusing',scaleMol:10,materials:silica,
+  sourceContainerId:'8d:ship-main:materials',
+  destinations:{glass:'8d:ship-main:materials'},
+  assetState:f.physical8a,station,bodyId,
+  energyReceipt:{operationId:job,sourceId:'original-ship-battery',
+   usedJ:Chem.batch('glass_fusing',10).energyJ}});
+ assert.equal(proc.receipt.status,'COMMITTED');
+ assert.ok(proc.materials.lots.some(x=>x.materialId==='glass'));
+ close(mass(proc.materials),mass(silica));
+ const q=Gas.create().prepare({materials8a:proc.materials,
+  physical8a:f.physical8a,receipt:proc.receipt,
+  gasManifolds:{},bodyId,bodyRadius:radius,timeS:0});
+ assert.equal(q.changed,false,'valid solid-only 8E job must not create a fake gas pipe');
+ assert.deepEqual(q.materials8a,proc.materials);
+ assert.equal(q.transit.jobs.length,0);
+ assert.equal(q.additionalElectricalDebitJ,0);
+});
 test('real atom-balanced 8E chemical job credits BOTH products only to their finite, source-paid physical 80L 8A pipe—not destination vessels',()=>{
  const f=fixture(),before=structuredClone(f.materials8a),proc=produce(f);
  close(mass(before),mass(proc.materials));
