@@ -1,0 +1,26 @@
+name: STARFALL 8H authoritative vehicle battery custody
+on:
+  pull_request:
+    paths:
+      - 'src/physics/logistics-battery-bridge8h.js'
+      - 'tests/logistics-battery-bridge8h.test.cjs'
+      - '.github/workflows/update-8h-battery-bridge.yml'
+  push:
+    branches:
+      - feature/update-8h-authoritative-battery-adapter
+jobs:
+  source-owned-power-custody:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Real vehicle batteries, paid logistics, mass/replay invariants
+        run: |
+          node --check src/physics/logistics-battery-bridge8h.js
+          node --test tests/logistics-battery-bridge8h.test.cjs
+          node --test tests/logistics-transaction8h.test.cjs
+          node tests/logistics-energy8h.test.js
+          node --test tests/logistics-orders8h.test.cjs
+          node tests/material-ledger8a.test.cjs
+      - name: Preserve the original offline playable artifact
+        run: python3 tests/standalone-parity.py
