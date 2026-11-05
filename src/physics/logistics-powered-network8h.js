@@ -56,19 +56,38 @@ function inspect({physical8a,materials8a,outpost5,powerReport,bodyId,bodyRadius,
  if(!report||report.schema!==1||report.bodyId!==bodyId||!num(report.simulatedAtS)||
     Math.abs(report.simulatedAtS-timeS)>1)
   return fail('STALE_POWER_REPORT','Only the current original T02 grid simulation may authorize power');
+ const adjacency=new Map();
+ for(const wire of outpost5.wires){
+  if(!items.has(wire.a)||!items.has(wire.b))continue;
+  if(!adjacency.has(wire.a))adjacency.set(wire.a,new Set());
+  if(!adjacency.has(wire.b))adjacency.set(wire.b,new Set());
+  adjacency.get(wire.a).add(wire.b);adjacency.get(wire.b).add(wire.a);
+ }
+ const connected=(a,b)=>{
+  const seen=new Set([a]),queue=[a];
+  for(let i=0;i<queue.length;i++){
+   if(queue[i]===b)return true;
+   for(const n of adjacency.get(queue[i])||[])if(!seen.has(n)){
+    seen.add(n);queue.push(n);
+   }
+  }return false;
+ };
  const served=[];
  for(const drive of drives){
   const loadId=drive.state?.t02LoadId;
   if(!ident(loadId)||!items.has(loadId))
    return fail('MISSING_T02_LOAD','A real wired outpost electrical load is required for each conveyor drive');
   const electrical=items.get(loadId),reading=report.byId?.[loadId];
-  if(electrical.enabled===false||electrical.condition<=.02||
-    !reading||reading.power!==true||reading.bodyId!==bodyId||
+  if(electrical.kind!=='conveyor_drive'||electrical.enabled===false||
+    electrical.condition<=.02||!reading||reading.power!==true||
+    reading.bodyId!==bodyId||
     reading.busId==null||!num(reading.servedW)||reading.servedW<150||
     !Array.isArray(reading.sourceIds)||reading.sourceIds.length===0)
    return fail('NO_POWER','Conveyor drive is switched off, underpowered or load-shed');
   // All loads must share one actual bus. T02's own source graph and energy
   // ledger remain authoritative; this check is not a parallel Joule debit.
+  if(!reading.sourceIds.some(id=>items.has(id)&&connected(loadId,id)))
+   return fail('DISCONNECTED_POWER','No physically wired T02 source reaches this conveyor drive');
   served.push({id:loadId,busId:reading.busId,servedW:reading.servedW,
     sourceIds:[...reading.sourceIds]});
  }
