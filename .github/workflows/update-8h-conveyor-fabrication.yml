@@ -1,0 +1,32 @@
+name: STARFALL 8H certified conveyor drive production
+on:
+  push:
+    branches:
+      - feature/update-8h-manufactured-conveyor-drive-kit
+  pull_request:
+    paths:
+      - 'src/physics/kit-recipes8f.js'
+      - 'src/physics/industrial-site8e.js'
+      - 'tests/logistics-conveyor-fabrication8h.test.cjs'
+      - '.github/workflows/update-8h-conveyor-fabrication.yml'
+jobs:
+  finite-conveyor-hardware:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify 8F finite parts bill, 8E physical install, no free electric power
+        run: |
+          set -euo pipefail
+          node --check src/physics/kit-recipes8f.js
+          node --check src/physics/industrial-site8e.js
+          node --test tests/logistics-conveyor-fabrication8h.test.cjs
+          node --test tests/logistics-powered-network8h.test.cjs
+          node --test tests/industrial-site8e.test.cjs
+          node --test tests/industrial-kit-factory8f.test.cjs
+          node --test tests/power-ledger-t02.test.cjs
+      - name: Preserve offline standalone parity
+        run: python3 tests/standalone-parity.py
