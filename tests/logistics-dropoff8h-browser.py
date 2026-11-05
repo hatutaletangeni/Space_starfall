@@ -94,12 +94,27 @@ with sync_playwright() as p:
   assert len(queued['orders'])==1 and len(queued['truck'])==1,queued
   assert not queued['depot'] and abs(queued['energy']-5000000)<1,queued
   assert queued['operations'][-1]['status']=='RESERVED',queued
-  orderid=queued['orders'][0]['id']
+  firstid=queued['orders'][0]['id']
+  ui.locator('#logistics8h-loaded-order').select_option(firstid)
+  ui.locator('#logistics8h-cancel').click()
+  page.wait_for_function("SF.load().logisticsOrders8h?.orders?.[0]?.status==='CANCELLED'",timeout=12000)
+  released=page.evaluate("""()=>{
+   const r=StarfallRuntime,s=SF.load();
+   return{kg:r.materials8a.inventory(StarfallMining8D.TRUCK).reduce((v,l)=>v+l.massKg,0),
+    battery:r.truck.batteryJ,status:s.materials8a.operations.at(-1)?.status,
+    paid:s.logisticsEnergyReceipts8h.length};
+  }""")
+  assert released['kg']==20 and abs(released['battery']-5000000)<1,released
+  assert released['status']=='CANCELLED' and released['paid']==0,released
+  action.click()
+  page.wait_for_function("""()=>SF.load().logisticsOrders8h?.orders?.length===2 &&
+    SF.load().logisticsOrders8h.orders[1].status==='LOADED'""",timeout=12000)
+  orderid=page.evaluate("SF.load().logisticsOrders8h.orders[1].id")
   ui.locator('#logistics8h-loaded-order').select_option(orderid)
   unload=ui.locator('#logistics8h-deliver')
   assert unload.is_enabled()
   unload.click()
-  page.wait_for_function("SF.load().logisticsOrders8h?.orders?.[0]?.status==='DELIVERED'",timeout=15000)
+  page.wait_for_function("SF.load().logisticsOrders8h?.orders?.[1]?.status==='DELIVERED'",timeout=15000)
   done=page.evaluate("""()=>{
    const rt=StarfallRuntime,s=SF.load(),t=rt.physical8a.get('truck-expedition-001');
    return{orders:s.logisticsOrders8h.orders,truckLots:rt.materials8a.inventory(StarfallMining8D.TRUCK),
@@ -107,7 +122,7 @@ with sync_playwright() as p:
     energy:rt.truck.batteryJ,physicalEnergy:t.state.batteryJ,receipts:s.logisticsEnergyReceipts8h,
     storedEnergy:s.flightGalaxy.truckPose.batteryJ};
   }""")
-  assert done['orders'][0]['status']=='DELIVERED' and not done['truckLots'],done
+  assert done['orders'][0]['status']=='CANCELLED' and done['orders'][1]['status']=='DELIVERED' and not done['truckLots'],done
   assert len(done['depotLots'])==1 and abs(done['depotLots'][0]['massKg']-20)<1e-6,done
   assert abs(done['energy']-4998800)<1e-5,done
   assert done['energy']==done['physicalEnergy']==done['storedEnergy'],done
@@ -126,7 +141,7 @@ with sync_playwright() as p:
     .reduce((s,l)=>s+l.massKg,0),orders:r.logisticsContext8H().orders.length,
     receipts:SF.load().logisticsEnergyReceipts8h.length};
   }""")
-  assert abs(saved['truck']-4998800)<1e-5 and saved['ore']==20 and saved['orders']==1 and saved['receipts']==1,saved
+  assert abs(saved['truck']-4998800)<1e-5 and saved['ore']==20 and saved['orders']==2 and saved['receipts']==1,saved
   assert not errors,errors[:12]
   assert not requests,requests[:12]
   print('PASS 8H actual file:// Chromium original truck, mined-ore receipt → reserved lot → physical depot, 1200J battery, exact-once durable save/reload')
