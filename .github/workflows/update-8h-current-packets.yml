@@ -1,0 +1,29 @@
+name: STARFALL 8H physically paid cargo packet model
+on:
+  push:
+    branches:
+      - feature/update-8h-metered-packets-current-main
+  pull_request:
+    paths:
+      - 'src/physics/conveyor-packets8h.js'
+      - 'tests/conveyor-packets8h.test.cjs'
+      - '.github/workflows/update-8h-current-packets.yml'
+jobs:
+  powered-bounded-cargo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve original T00, 8A dry custody and T02 powered flow checks
+        run: |
+          set -euo pipefail
+          node --check src/physics/conveyor-packets8h.js
+          node --test tests/conveyor-packets8h.test.cjs
+          node --test tests/conveyor-bounded-trays8h.test.cjs
+          node --test tests/conveyor-power-port8h.test.cjs
+          node --test tests/logistics-powered-network8h.test.cjs
+          node tests/technology-contracts.test.cjs
+          python3 tests/standalone-parity.py
