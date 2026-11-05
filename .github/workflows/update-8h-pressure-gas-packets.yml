@@ -1,0 +1,79 @@
+name: STARFALL 8H live pressure pipe original 8A gas packets and native T02 one debit
+on:
+  push:
+    branches:
+      - feature/update-8h-source-owned-rated-gas-packets
+  pull_request:
+    paths:
+      - 'src/flight.js'
+      - 'src/physics/outposts-ui.js'
+      - 'src/physics/pressure-gas-packets8h.js'
+      - 'src/physics/pressure-pipe-live-ui8h.js'
+      - 'src/physics/pressure-pipe-power-port8h.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/pressure-gas-packets8h.test.cjs'
+      - 'tests/pressure-pipe-live8h*'
+      - '.github/workflows/update-8h-pressure-gas-packets.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-exact-original-offline:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild source-owned actual file-URL original STARFALL
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): exact original T02 rated-gas live standalone'
+            git push origin HEAD:feature/update-8h-source-owned-rated-gas-packets
+          fi
+  source-owned-gas-custody-real-browser:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Original flight, packet, certified pressure, save, old vehicle and one-grid static/model regressions
+        run: |
+          set -euo pipefail
+          node --check src/flight.js
+          node --check src/physics/outposts-ui.js
+          node --check src/physics/pressure-gas-packets8h.js
+          node --check src/physics/pressure-pipe-live-ui8h.js
+          node --test tests/pressure-pipe-live8h.test.cjs
+          node --test tests/pressure-gas-packets8h.test.cjs
+          node --test tests/pressure-pipe-hardware8h.test.cjs
+          node --test tests/conveyor-live-port8h.test.cjs
+          node --test tests/conveyor-native-bridge8h.test.cjs
+          node --test tests/industrial-site8e.test.cjs
+          node --test tests/logistics-offworld-manifest8h.test.cjs
+          python3 -m py_compile tests/pressure-pipe-live8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Install REAL Chromium with original software WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Original playable file:// flight and 8H Engineer controls never create gas or alter truck
+        run: |
+          python3 tests/pressure-pipe-live8h-browser.py
+          python3 tests/conveyor-live-port8h-browser.py
+          python3 tests/conveyor-live8h-browser.py
+          python3 tests/logistics-offworld-live8h-browser.py
+          python3 tests/truck-custody8b-browser.py
