@@ -24,6 +24,9 @@ const SPECS=Object.freeze({
  // built from finite refined material and manufactured electrical components.
  // No automatic powered movement until a real T02 load is installed/wired.
  plant_kit_conveyor_drive:[180,.55,'assembly_pad'],
+ // Physically certified sealed 8 MPa pressure-line hardware from actual
+ // finished steel, copper, motor and controls. Initially EMPTY, no free gas.
+ plant_kit_pressure_pipeline:[320,.95,'plant'],
  vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],vessel_kit_nitrogen:[195,4,'vessel'],
  vessel_kit_sulfur_dioxide:[210,4,'vessel'],
  vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],
