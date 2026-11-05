@@ -22,7 +22,18 @@ with sync_playwright() as p:
     up:[0,1,0],forward:[1,0,0],landed:true}});
    return SF.load();
   }""")
-  ctx.add_init_script("(()=>{if(sessionStorage.getItem('t09-fixture'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t09-fixture','1');})()")
+  # The sessionStorage marker can vanish across file:// page contexts. Do not
+  # overwrite a genuinely persisted T09 habitat/wire graph with the original
+  # empty landed boot fixture just because that auxiliary marker is missing.
+  # Source-owned outpost data always wins over test initialization.
+  ctx.add_init_script("""(()=>{
+    let prior=null;
+    try{prior=JSON.parse(localStorage.getItem('starfall_save')||'null');}catch(_){}
+    if(prior?.outpost5?.items?.length||prior?.outpost5?.wires?.length)return;
+    if(sessionStorage.getItem('t09-fixture'))return;
+    localStorage.setItem('starfall_save',__T09_SAVED__);
+    sessionStorage.setItem('t09-fixture','1');
+  })()""".replace('__T09_SAVED__',json.dumps(json.dumps(saved))))
   boot.close()
   page=ctx.new_page();errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
