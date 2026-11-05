@@ -7300,12 +7300,17 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
  const m=copy(materials);m.lots=m.lots.filter(x=>x.id!==kitLotId);
  const k=q.spec,isVessel=k.type==='industrial_vessel',
   isCargoDock=k.station==='cargo_depot',
-  containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:null;
+  isDryConveyor=k.station==='conveyor_drive',
+  containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
+    isDryConveyor?'conveyor8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
-  kind:isCargoDock?'sealed dry-solid cargo dock':'gas pressure vessel',
-  // The empty depot is physical hardware, not a prefilled stock source.
-  // Rated 1.6 m3 inside its 1.8 m3 assembled shell; no overfilled room.
-  maxMassKg:isCargoDock?1200:1000,maxVolumeM3:isCargoDock?1.6:k.volumeM3});
+  kind:isCargoDock?'sealed dry-solid cargo dock':
+    isDryConveyor?'guarded dry-solid conveyor tray':'gas pressure vessel',
+  // A paid conveyor has one bounded 40 kg / 0.05 m³ dry tray inside the
+  // physically installed 180 kg drive. ZERO initial material is generated.
+  // It is NOT a pressure-rated pipe or a remote teleporting stock account.
+  maxMassKg:isCargoDock?1200:isDryConveyor?40:1000,
+  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:k.volumeM3});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
   state:{kitMaterialId:q.materialId,station:k.station||null,tools:k.tools||[],
