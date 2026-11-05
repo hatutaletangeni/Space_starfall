@@ -45,6 +45,9 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
     report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
+    // Commit the native owner's truthful end-of-step clock BEFORE any 8H
+    // atomic save. Otherwise reload could re-bill solar/battery Joules.
+    lastPoweredAt[bodyId]=start+(i+1)*total/steps;
     // ONE native T02 grid step has just charged the actual original
     // solar/battery owner. The 8H observer ONLY follows this real report:
     // no second grid debit, invented material or source changes on failure.
