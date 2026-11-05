@@ -9983,6 +9983,203 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8H — first same-system physical ship cargo manifest contract.
+ * The ORIGINAL 8D ship cargo hold remains the single authoritative lot owner.
+ * Registering a manifest only reserves remote destination capacity; neither
+ * loading nor delivery teleports cargo. Flight.js physics must actually fly
+ * away from origin and land at destination before any 8A commit is possible.
+ * Delivery debits the original installed ship battery and conserves 8A mass.
+ * Caller must persist all returned snapshots ATOMICALLY in one SF.save.
+ * No interstellar warp, autonomous flight or live Engineer UI in this slice.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6;
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=96;
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const SHIP='ship-main',HOLD='8d:ship-main:materials';
+const GAS=new Set(['oxygen','nitrogen','hydrogen','helium','argon',
+ 'carbon_dioxide','carbon_monoxide','sulfur_dioxide','methane','ammonia']);
+const vec=x=>Array.isArray(x)&&x.length===3&&x.every(Number.isFinite);
+const unit=x=>vec(x)&&Math.abs(Math.hypot(...x)-1)<1e-4;
+const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,a.reduce((s,x,i)=>s+x*b[i],0))))*r;
+const distance=(a,b)=>Math.hypot(...a.map((x,i)=>x-b[i]));
+function checkWorld(w){
+ if(!w||!id(w.id)||!id(w.systemId)||!finite(w.radius)||w.radius<=0||
+  !vec(w.position)||w.landable!==true)
+  throw Error('8H actual landable deterministic galaxy world required');
+ return w;
+}
+function flightAt(f,world,landed,timeS){
+ if(!f||f.seed!==742||!!f.landed!==landed||!finite(f.time)||
+  Math.abs(f.time-timeS)>1||!vec(f.position))
+  throw Error('8H original seed-742 ship flight state/time mismatch');
+ if(landed){
+  if(f.attached!==world.id||!unit(f.groundDirection))
+   throw Error('8H real ship must have landed and attached to the expected world');
+  const alt=distance(f.position,world.position)-world.radius;
+  if(alt<-100||alt>1000)
+   throw Error('8H ship landing position inconsistent with destination surface');
+ }
+}
+function dryDock(physical8a,materials8a,world,depotId){
+ const p=root.StarfallPhysical8A.create(physical8a),m=root.StarfallMaterials8A.create(materials8a);
+ const d=p.get(depotId);
+ if(!d||d.type!=='industrial_plant'||d.state?.station!=='cargo_depot'||
+  d.state?.enabled!==true||d.condition<.5||
+  d.location?.kind!=='surface'||d.location.bodyId!==world.id||
+  !unit(d.location.local))
+  throw Error('8H offworld delivery requires a REAL installed original dry depot');
+ if(!physical8a.transfers?.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&
+  t.assetId===depotId&&t.sourceLotId&&Math.abs(t.massKg-d.massKg)<EPS))
+  throw Error('8H offworld depot was not physically manufactured and installed');
+ const c=m.containers().find(x=>x.id===d.state.containerId&&x.ownerId===depotId&&
+  /dry-solid cargo dock/i.test(x.kind||''));
+ if(!c)throw Error('8H physically owned destination dry storage missing');
+ return{d,c};
+}
+function cargo(ledger,lotId,massKg){
+ const hold=ledger.containers().find(c=>c.id===HOLD&&c.ownerId===SHIP&&
+  c.maxMassKg<=9000+EPS&&c.maxVolumeM3<=16+EPS);
+ if(!hold)throw Error('8H original 8D ship cargo hold is not present/capacity rated');
+ const lot=ledger.inventory(HOLD).find(x=>x.id===lotId);
+ if(!lot||GAS.has(lot.materialId)||lot.massKg+EPS<massKg||
+  !finite(massKg)||massKg<=0)
+  throw Error('8H original dry 8A lot is not actually secured in ship hold');
+ return lot;
+}
+function create(saved){
+ const state=saved==null?{schema:1,manifests:[]}:cp(saved);
+ if(state.schema!==1||!Array.isArray(state.manifests)||state.manifests.length>200)
+  throw Error('8H invalid offworld manifest archive');
+ if(new Set(state.manifests.map(x=>x.id)).size!==state.manifests.length)
+  throw Error('8H duplicate offworld manifests');
+ for(const m of state.manifests)if(!id(m.id)||m.carrierId!==SHIP||
+  !id(m.lotId)||!id(m.sourceWorldId)||!id(m.destinationWorldId)||
+  m.sourceWorldId===m.destinationWorldId||
+  !['RESERVED','IN_TRANSIT','ARRIVED','DELIVERED','CANCELLED'].includes(m.status)||
+  !finite(m.massKg)||m.massKg<=0||!finite(m.createdS))
+  throw Error('8H corrupt loaded-ship manifest');
+ const snapshot=()=>cp(state),list=()=>cp(state.manifests);
+ const get=id=>state.manifests.find(x=>x.id===id);
+ function register({id:manifestId,lotId,massKg,depotId,originWorld,
+  destinationWorld,physical8a,materials8a,flightGalaxy,timeS}){
+  if(!id(manifestId)||!id(lotId)||!id(depotId)||!finite(massKg)||massKg<=0||
+    !finite(timeS)||get(manifestId)||state.manifests.length>=200)
+   throw Error('8H invalid/replayed original ship manifest');
+  const origin=checkWorld(originWorld),target=checkWorld(destinationWorld);
+  if(origin.id===target.id||origin.systemId!==target.systemId)
+   throw Error('8H first manifest supports real same-system interplanetary shipping ONLY; no free warp');
+  flightAt(flightGalaxy,origin,true,timeS);
+  const l=root.StarfallMaterials8A.create(materials8a);
+  const lot=cargo(l,lotId,massKg),d=dryDock(physical8a,materials8a,target,depotId);
+  const opId='8h-offworld:'+manifestId;
+  l.reserve(opId,lotId,d.c.id,massKg); // capacity lock, NOT a transfer!
+  const manifest={schema:1,id:manifestId,carrierId:SHIP,
+   sourceWorldId:origin.id,destinationWorldId:target.id,
+   sourceSystemId:origin.systemId,destinationSystemId:target.systemId,
+   lotId,massKg,materialId:lot.materialId,depotId,
+   destinationContainerId:d.c.id,reservationId:opId,
+   status:'RESERVED',createdS:timeS,departedS:null,arrivedS:null,deliveredS:null};
+  state.manifests.push(manifest);
+  return{manifest:cp(manifest),manifests:snapshot(),materials8a:l.snapshot(),
+   receipt:{status:'RESERVED',id:manifestId,sourceLotId:lotId,kg:massKg,
+    materialLocation:HOLD,powerCreatedJ:0,movedKg:0}};
+ }
+ function cancel({id:manifestId,flightGalaxy,originWorld,materials8a,timeS}){
+  const m=get(manifestId),origin=checkWorld(originWorld);
+  if(!m||m.status!=='RESERVED'||origin.id!==m.sourceWorldId||
+   !finite(timeS)||timeS<m.createdS)
+   throw Error('8H only an original unlaunched reserved shipment may be cancelled');
+  flightAt(flightGalaxy,origin,true,timeS);
+  const l=root.StarfallMaterials8A.create(materials8a);
+  cargo(l,m.lotId,m.massKg);
+  const op=l.operations().find(x=>x.id===m.reservationId);
+  if(!op||op.status!=='RESERVED')
+   throw Error('8H ship reservation already consumed or missing');
+  l.cancel(m.reservationId);m.status='CANCELLED';
+  return{manifest:cp(m),manifests:snapshot(),materials8a:l.snapshot(),
+   receipt:{id:manifestId,status:'CANCELLED',movedKg:0,usedJ:0}};
+ }
+ function depart({id:manifestId,flightGalaxy,originWorld,materials8a,timeS}){
+  const m=get(manifestId);
+  if(!m||m.status!=='RESERVED')throw Error('8H shipment not newly loaded or already launched');
+  const origin=checkWorld(originWorld);
+  if(origin.id!==m.sourceWorldId||!finite(timeS)||timeS<=m.createdS||
+   !flightGalaxy||flightGalaxy.seed!==742||flightGalaxy.landed!==false||
+   !finite(flightGalaxy.time)||Math.abs(flightGalaxy.time-timeS)>1||
+   !vec(flightGalaxy.position))
+   throw Error('8H original ship must physically launch and advance its real flight clock');
+  if(distance(flightGalaxy.position,origin.position)<origin.radius+100)
+   throw Error('8H ship has not yet cleared the departure atmosphere/surface');
+  const l=root.StarfallMaterials8A.create(materials8a);
+  cargo(l,m.lotId,m.massKg);
+  const op=l.operations().find(x=>x.id===m.reservationId);
+  if(!op||op.status!=='RESERVED'||op.destinationId!==m.destinationContainerId)
+   throw Error('8H original ship cargo/reservation custody lost on departure');
+  m.departedS=timeS;m.status='IN_TRANSIT';
+  return{manifest:cp(m),manifests:snapshot(),materials8a:l.snapshot()};
+ }
+ function arrive({id:manifestId,flightGalaxy,destinationWorld,materials8a,timeS}){
+  const m=get(manifestId),dest=checkWorld(destinationWorld);
+  if(!m||m.status!=='IN_TRANSIT'||dest.id!==m.destinationWorldId||
+   !finite(timeS)||timeS<=m.departedS)
+   throw Error('8H original shipment has not departed for this destination');
+  flightAt(flightGalaxy,dest,true,timeS);
+  const l=root.StarfallMaterials8A.create(materials8a);
+  cargo(l,m.lotId,m.massKg);
+  if(l.operations().find(x=>x.id===m.reservationId)?.status!=='RESERVED')
+   throw Error('8H cargo reservation was spent before physical destination landing');
+  m.arrivedS=timeS;m.status='ARRIVED';
+  return{manifest:cp(m),manifests:snapshot(),materials8a:l.snapshot()};
+ }
+ function deliver({id:manifestId,flightGalaxy,destinationWorld,operatorLocal,
+  onFoot,physical8a,materials8a,engineeringVehicles,energyReceipts,timeS}){
+  const m=get(manifestId),dest=checkWorld(destinationWorld);
+  if(!m||m.status!=='ARRIVED'||dest.id!==m.destinationWorldId||
+   !finite(timeS)||timeS<m.arrivedS||onFoot!==true||!unit(operatorLocal))
+   throw Error('8H destination requires original landed ship and physical EVA operator');
+  flightAt(flightGalaxy,dest,true,timeS);
+  const dock=dryDock(physical8a,materials8a,dest,m.depotId);
+  if(arc(operatorLocal,dock.d.location.local,dest.radius)>20||
+    arc(flightGalaxy.groundDirection,dock.d.location.local,dest.radius)>75)
+   throw Error('8H real landed spacecraft and EVA operator must be at destination dock');
+  const l=root.StarfallMaterials8A.create(materials8a);
+  cargo(l,m.lotId,m.massKg);
+  const op=l.operations().find(x=>x.id===m.reservationId);
+  if(!op||op.status!=='RESERVED'||op.destinationId!==dock.c.id||
+    op.lotId!==m.lotId||Math.abs(op.massKg-m.massKg)>EPS)
+   throw Error('8H original reserved ship lot was changed or already unloaded');
+  if(!Array.isArray(energyReceipts)||!root.StarfallLogisticsBatteryBridge8H?.parse||
+    !root.StarfallLogisticsEnergy8H?.debit)
+   throw Error('8H source-owned ship electrical debit missing');
+  const shipEnergy=root.StarfallLogisticsBatteryBridge8H.parse(
+   {engineeringVehicles},'starfall-ship',SHIP);
+  const usedJ=1200,energy=root.StarfallLogisticsEnergy8H.debit({
+   state:{schema:1,stores:{'starfall-ship':{carrierId:SHIP,
+    energyJ:shipEnergy.energyJ,capacityJ:shipEnergy.capacityJ}},
+    receipts:cp(energyReceipts)},
+   operationId:'8h-offworld-unload:'+manifestId,carrierId:SHIP,
+   sourceId:'starfall-ship',usedJ});
+  const priorMass=l.inventory().reduce((n,x)=>n+x.massKg,0);
+  const receipt=l.commit(m.reservationId);
+  const afterMass=l.inventory().reduce((n,x)=>n+x.massKg,0);
+  if(Math.abs(priorMass-afterMass)>EPS||receipt.outputLotId!=='transfer:'+m.reservationId)
+   throw Error('8H offworld unloading violated original 8A cargo mass conservation');
+  const v=cp(engineeringVehicles);
+  v.states.ship.energyJ=energy.receipt.afterJ;
+  m.deliveredS=timeS;m.status='DELIVERED';
+  return{manifest:cp(m),manifests:snapshot(),materials8a:l.snapshot(),
+   engineeringVehicles:v,energyReceipts:energy.state.receipts,
+   receipt:cp(receipt),energyReceipt:energy.receipt,movedKg:m.massKg,
+   note:'Cargo moved only after original ship landed and 1200 J paid; caller must persist owners together'};
+ }
+ return Object.freeze({snapshot,list,register,cancel,depart,arrive,deliver});
+}
+root.StarfallOffworldManifest8H=Object.freeze({create,SHIP,HOLD});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallOffworldManifest8H;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL — single-scene, procedural multi-system navigation and physical landing.
  * All celestial positions are updated deterministically, and neither warp nor
  * surface contact changes HTML pages, cameras or rendering engines. */
@@ -10018,6 +10215,7 @@ if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored s
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
 let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h);
 let logisticsRoutes8h=StarfallPhysicalRoutes8H.create(session.logisticsRoutes8h);
+let offworldManifests8h=StarfallOffworldManifest8H.create(session.logisticsOffworldManifests8h);
 let logisticsPickupReceipts8h=(()=>{
  const rows=session.logisticsPickupReceipts8h;
  if(rows==null)return [];
@@ -10664,7 +10862,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -12062,6 +12260,119 @@ function logisticsRouteCancel8H(routeId){
   throw Error('8H route cancellation not persisted');
  logisticsRoutes8h=next;return q.route;
 }
+/* 8H offworld gameplay bridge: use the existing original 8D ship hold,
+ * real flight and actual 8A / vehicle Joule owners. A manifest is NEVER a
+ * remote instant transfer. Every state change is saved and read back before
+ * live owners are replaced. No position, thrust or time is changed here.
+ */
+function logisticsOffworldContext8H(){
+ const shipHold=materials8a.inventory(StarfallOffworldManifest8H.HOLD);
+ const currently=landed&&nearest?.landable&&shipBody===nearest&&!!shipLocal;
+ const onFoot=currently&&eva&&!truckOccupied&&!interiorState&&
+  !shipWalking8e&&!manufacturedOccupied8G&&!!evaLocal;
+ const nearShip=onFoot&&StarfallOutposts.arc(evaLocal,shipLocal,nearest.radius)<=75;
+ const physical=physical8a.serialize();
+ const depots=physical8a.list().filter(a=>a.type==='industrial_plant'&&
+  a.state?.station==='cargo_depot'&&a.state.enabled===true&&a.condition>=.5&&
+  a.location?.kind==='surface'&&
+  physical.transfers.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&
+   t.assetId===a.id&&t.sourceLotId&&Math.abs(t.massKg-a.massKg)<1e-6)&&
+  materials8a.containers().some(c=>c.id===a.state.containerId&&c.ownerId===a.id&&
+   /dry-solid cargo dock/i.test(c.kind||''))).map(a=>({
+    id:a.id,bodyId:a.location.bodyId,
+    worldName:galaxy.byId.get(a.location.bodyId)?.name||a.location.bodyId,
+    systemId:galaxy.byId.get(a.location.bodyId)?.systemId||null,
+    containerId:a.state.containerId,
+    storedKg:materials8a.used(a.state.containerId).massKg
+  }));
+ return {shipHold,depots,manifests:offworldManifests8h.list(),
+  currentWorldId:currently?nearest.id:null,shipSystemId:shipBody?.systemId||null,
+  onFoot:!!onFoot,nearShip:!!nearShip,landed:!!landed,timeS:simTime};
+}
+function logisticsOffworldApply8H(action,manifestId,lotId,depotId){
+ if(!['REGISTER','CANCEL','DEPART','ARRIVE','DELIVER'].includes(action))
+  throw Error('8H unknown source-owned offworld operation');
+ const c=logisticsOffworldContext8H();
+ const existing=offworldManifests8h.list().find(x=>x.id===manifestId);
+ if(action==='REGISTER'||action==='CANCEL'||action==='DELIVER'){
+  if(!c.onFoot||!c.nearShip)throw Error('8H park the ORIGINAL landed ship and walk to its physical EVA dock');
+ }
+ if(action==='DEPART'&&landed)throw Error('8H fly the original ship out of atmosphere first');
+ if(action==='ARRIVE'&&(!landed||shipBody!==nearest))
+  throw Error('8H land the original ship at its destination first');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H offworld operation requires durable original save; no stock moved');
+ const saved=SF.load();
+ const next=StarfallOffworldManifest8H.create(saved.logisticsOffworldManifests8h);
+ const flightGalaxy=saved.flightGalaxy;
+ const world=id=>{const w=galaxy.byId.get(id);
+  if(!w?.landable)throw Error('8H destination is not a real landable galaxy world');
+  return {id:w.id,systemId:w.systemId,radius:w.radius,
+   position:[...w.position],landable:true};
+ };
+ const now=simTime;
+ let q;
+ if(action==='REGISTER'){
+  const dest=physical8a.get(depotId);
+  if(!c.currentWorldId||!c.nearShip||!dest?.location?.bodyId||
+     !c.depots.some(x=>x.id===depotId&&x.systemId===shipBody.systemId&&
+       x.bodyId!==c.currentWorldId))
+   throw Error('8H requires a PRE-EXISTING paid manufactured depot on a different world of this real system');
+  const lot=shipHoldFor8H(lotId);
+  let serial=next.list().length+1;
+  while(next.get('8h-manifest:'+serial))serial++;
+  q=next.register({id:'8h-manifest:'+serial,lotId,massKg:lot.massKg,depotId,
+   originWorld:world(c.currentWorldId),destinationWorld:world(dest.location.bodyId),
+   physical8a:saved.physical8a,materials8a:saved.materials8a,
+   flightGalaxy,timeS:now});
+ }else{
+  if(!existing)throw Error('8H original ship manifest ID not found');
+  const common={id:manifestId,flightGalaxy,materials8a:saved.materials8a,timeS:now};
+  if(action==='CANCEL')q=next.cancel({...common,originWorld:world(existing.sourceWorldId)});
+  else if(action==='DEPART')q=next.depart({...common,originWorld:world(existing.sourceWorldId)});
+  else if(action==='ARRIVE')q=next.arrive({...common,
+   destinationWorld:world(existing.destinationWorldId)});
+  else q=next.deliver({...common,destinationWorld:world(existing.destinationWorldId),
+   onFoot:true,operatorLocal:[...evaLocal],physical8a:saved.physical8a,
+   engineeringVehicles:saved.engineeringVehicles,
+   energyReceipts:saved.logisticsEnergyReceipts8h||[]});
+ }
+ const patch={logisticsOffworldManifests8h:q.manifests};
+ if(q.materials8a)patch.materials8a=q.materials8a;
+ if(q.engineeringVehicles)patch.engineeringVehicles=q.engineeringVehicles;
+ if(q.energyReceipts)patch.logisticsEnergyReceipts8h=q.energyReceipts;
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
+  throw Error('8H offworld transaction did not reach durable local storage');
+ const read=SF.load();
+ for(const [k,v] of Object.entries(patch))
+  if(JSON.stringify(read[k])!==JSON.stringify(v))
+   throw Error('8H offworld durable readback mismatch; reload the saved game before continuing');
+ offworldManifests8h=next;
+ if(q.materials8a)materials8a=StarfallMaterials8A.create(q.materials8a);
+ if(q.engineeringVehicles){
+  vehicleStore.update('ship',{...vehicleStore.get('ship').state,
+   energyJ:q.engineeringVehicles.states.ship.energyJ});
+ }
+ if(q.energyReceipts)logisticsEnergyReceipts8h=JSON.parse(JSON.stringify(q.energyReceipts));
+ const state=q.manifest.status;
+ showToast('8H · '+manifestId+' '+state+' — original ship cargo and Joules source-owned');
+ return q.manifest;
+}
+function shipHoldFor8H(lotId){
+ const lot=materials8a.inventory(StarfallOffworldManifest8H.HOLD).find(x=>x.id===lotId);
+ if(!lot||!Number.isFinite(lot.massKg)||lot.massKg<=0)
+  throw Error('8H choose one genuine physically loaded original ship cargo lot');
+ return lot;
+}
+function logisticsOffworldRegister8H(lotId,depotId){
+ const already=offworldManifests8h.list();
+ return logisticsOffworldApply8H('REGISTER','8h-manifest:'+(already.length+1),lotId,depotId);
+}
+function logisticsOffworldCancel8H(id){return logisticsOffworldApply8H('CANCEL',id);}
+function logisticsOffworldDepart8H(id){return logisticsOffworldApply8H('DEPART',id);}
+function logisticsOffworldArrive8H(id){return logisticsOffworldApply8H('ARRIVE',id);}
+function logisticsOffworldDeliver8H(id){return logisticsOffworldApply8H('DELIVER',id);}
 function miningContext8D(){
  const onWorld=landed&&!!nearest?.landable&&!!truckBody&&truckBody===nearest&&!!truckLocal&&cargo8b.mode==='ground';
  const truck=onWorld?truckWorldState():null,ship=shipBody===nearest?shipWorldState():null;
@@ -12352,7 +12663,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -18131,6 +18442,114 @@ function tick(time){
 requestAnimationFrame(tick);
 root.StarfallLogisticsUI8H=Object.freeze({refresh,model,open:()=>{
  root.StarfallUI21?.openRoute?.('Engineer');panel.scrollIntoView({block:'nearest'});refresh();
+}});
+})(globalThis);
+
+</script><script>
+/* STARFALL 8H — original-ship offworld cargo controls, no teleport.
+ * Displays only the real 8A ship hold, existing installed dry destinations
+ * and saved physical-flight manifest milestones. No free stock or propulsion.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]')||
+ document.querySelector('#ui21-pages .ui21-page[data-page="Operate"]');
+if(!host)return;
+const box=document.createElement('section');box.id='offworld-manifest8h-panel';
+box.className='section';box.setAttribute('aria-label','8H original ship offworld cargo manifest');
+const heading=document.createElement('div');heading.className='section-title';
+heading.textContent='8H · PHYSICAL OFFWORLD SHIPMENTS';
+const help=document.createElement('p');help.className='panel-note';
+help.textContent='Load real dry material into the original ship hold using existing physical loading. Reserve only a certified depot already manufactured on another planet of the SAME star system. Manually launch, fly, land and EVA to deliver. No instant cargo, free warp or remote depot creation.';
+const stock=document.createElement('select'),destination=document.createElement('select'),manifest=document.createElement('select');
+stock.id='offworld8h-ship-lot';destination.id='offworld8h-destination';manifest.id='offworld8h-manifest';
+for(const [el,label] of [[stock,'Actual dry material loaded in original ship'],[destination,'Existing installed offworld depot'],[manifest,'Saved original ship manifest']]){
+ el.setAttribute('aria-label',label);
+ el.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
+}
+const reserve=button('RESERVE LOADED SHIP CARGO','offworld8h-register');
+const depart=button('VERIFY REAL DEPARTURE','offworld8h-depart');
+const arrive=button('VERIFY PHYSICAL LANDING','offworld8h-arrive');
+const deliver=button('UNLOAD AT DOCK · 1.2 kJ','offworld8h-deliver');
+const cancel=button('CANCEL BEFORE LAUNCH','offworld8h-cancel');
+function button(label,id){
+ const b=document.createElement('button');b.type='button';b.id=id;
+ b.className='science-action';b.textContent=label;return b;
+}
+const tools=document.createElement('div');tools.className='obs-tools';
+tools.append(stock,destination,reserve);
+const phases=document.createElement('div');phases.className='obs-tools';
+phases.append(manifest,depart,arrive,deliver,cancel);
+const status=document.createElement('p');status.setAttribute('role','status');
+status.className='panel-note';status.id='offworld8h-status';
+const readout=document.createElement('pre');readout.id='offworld8h-readout';
+readout.style.cssText='white-space:pre-wrap;overflow:auto;max-height:260px;background:#101b23;color:#c8d9d9;border:1px solid #53677566;padding:12px;font:11px/1.6 Consolas,monospace';
+box.append(heading,help,tools,phases,status,readout);host.append(box);
+function choices(el,rows,empty){
+ const sig=JSON.stringify(rows);
+ if(el.dataset.signature===sig)return;
+ const prior=el.value;el.replaceChildren();
+ if(!rows.length){let o=document.createElement('option');o.value='';o.textContent=empty;el.append(o);}
+ for(const [id,label] of rows){let o=document.createElement('option');o.value=id;o.textContent=label;el.append(o);}
+ if(rows.some(x=>x[0]===prior))el.value=prior;
+ el.dataset.signature=sig;
+}
+let last='',pendingMessageUntil=0;
+const report=msg=>{status.textContent=msg;pendingMessageUntil=performance.now()+7000;};
+function refresh(){
+ const runtime=root.StarfallRuntime,m=runtime?.logisticsOffworldContext8H?.();
+ if(!m){status.textContent='Original flight/8A offworld manifest runtime not yet available';return;}
+ const safeLots=m.shipHold.filter(l=>![
+  'oxygen','nitrogen','hydrogen','helium','argon','carbon_dioxide',
+  'carbon_monoxide','sulfur_dioxide','methane','ammonia'
+ ].includes(l.materialId)&&l.massKg>0);
+ const depots=m.depots.filter(d=>d.bodyId!==m.currentWorldId&&
+   d.systemId===m.shipSystemId);
+ choices(stock,safeLots.map(l=>[l.id,l.materialId+' · '+l.massKg.toFixed(2)+' kg (original ship)']),'No dry cargo in original ship');
+ choices(destination,depots.map(d=>[d.id,d.worldName+' · '+d.id+
+  ' (current stock '+d.storedKg.toFixed(2)+' kg)']),'No manufactured same-system offworld depot');
+ choices(manifest,m.manifests.map(x=>[x.id,x.id+' · '+x.status+' → '+x.destinationWorldId]),
+  'No saved ship manifest');
+ const selected=m.manifests.find(x=>x.id===manifest.value);
+ reserve.disabled=!m.onFoot||!m.nearShip||!safeLots.length||!depots.length;
+ cancel.disabled=!selected||selected.status!=='RESERVED'||!m.onFoot||!m.nearShip||
+   m.currentWorldId!==selected.sourceWorldId;
+ depart.disabled=!selected||selected.status!=='RESERVED'||m.landed;
+ arrive.disabled=!selected||selected.status!=='IN_TRANSIT'||!m.landed||
+   m.currentWorldId!==selected.destinationWorldId;
+ deliver.disabled=!selected||selected.status!=='ARRIVED'||!m.onFoot||!m.nearShip||
+   m.currentWorldId!==selected.destinationWorldId;
+ const lines=[
+  'ORIGINAL SHIP HOLD     '+m.shipHold.reduce((n,l)=>n+l.massKg,0).toFixed(2)+' kg · '+m.shipHold.length+' source-owned lots',
+  'LIVE SHIP             '+(m.landed?'LANDED':'IN FLIGHT')+
+    ' · '+(m.currentWorldId||'no surface world'),
+  'PHYSICAL EVA          '+(m.nearShip?'at ship':'not at original ship dock'),
+  'EXISTING DEPOTS       '+depots.length+' same-system offworld destinations',
+  'SAVED SHIP MANIFESTS  '+m.manifests.length,
+  ...m.manifests.slice(-12).map(x=>x.id+' · '+x.status+' · '+x.massKg.toFixed(2)+
+   ' kg '+x.materialId+' → '+x.destinationWorldId),
+  'AUTHORITY             8A original ship lot + real flight clock + actual 1,200 J ship battery'
+ ];
+ const out=lines.join('\n');if(out!==last){last=out;readout.textContent=out;}
+ if(performance.now()>=pendingMessageUntil)
+  status.textContent='8H · Shipment milestones require real ship flight, physical landing, and EVA. Nothing is delivered by creating a reservation.';
+}
+function run(operation,fn){
+ try{const result=fn();refresh();report('8H '+operation+' · '+result.id+' '+result.status+'; all owners saved.');}
+ catch(e){report('8H '+operation+' rejected · '+String(e?.message||e));}
+}
+reserve.onclick=()=>run('reservation',()=>root.StarfallRuntime.logisticsOffworldRegister8H(stock.value,destination.value));
+depart.onclick=()=>run('departure',()=>root.StarfallRuntime.logisticsOffworldDepart8H(manifest.value));
+arrive.onclick=()=>run('landing',()=>root.StarfallRuntime.logisticsOffworldArrive8H(manifest.value));
+deliver.onclick=()=>run('unloading',()=>root.StarfallRuntime.logisticsOffworldDeliver8H(manifest.value));
+cancel.onclick=()=>run('cancel',()=>root.StarfallRuntime.logisticsOffworldCancel8H(manifest.value));
+let lastTick=0;function tick(time){
+ if(time-lastTick>750){lastTick=time;try{refresh();}catch(e){
+   status.textContent='8H offworld inspector unavailable · '+String(e?.message||e);
+ }}
+ requestAnimationFrame(tick);
+}requestAnimationFrame(tick);
+root.StarfallOffworldManifestUI8H=Object.freeze({refresh,open:()=>{
+ root.StarfallUI21?.openRoute?.('Engineer');box.scrollIntoView({block:'nearest'});refresh();
 }});
 })(globalThis);
 
