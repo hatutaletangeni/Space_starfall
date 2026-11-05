@@ -189,8 +189,9 @@ with sync_playwright() as p:
    receipts:SF.load().logisticsPickupReceipts8h.length,
    paid:SF.load().logisticsEnergyReceipts8h.length
   })""")
-  assert reloaded['kg']==20 and reloaded['depot']==0 and \\
-    abs(reloaded['energy']-4997600)<1e-5 and reloaded['receipts']==1 and reloaded['paid']==2,reloaded
+  assert (reloaded['kg']==20 and reloaded['depot']==0 and
+    abs(reloaded['energy']-4997600)<1e-5 and reloaded['receipts']==1 and
+    reloaded['paid']==2),reloaded
   assert not errors,errors[:12]
   assert not requests,requests[:12]
   print('PASS 8H real file:// Chromium: original mined-ore truck → manufactured dry depot → paid 1200J unload → paid 1200J pickup into SAME truck, durable reload and no duplicates')
