@@ -1663,41 +1663,63 @@ function frameCargoTransfer8G(action,assetId){
  saveFlight();showToast('8G · FRAME '+action.toUpperCase()+' · paid '+workJ+' J · '+assetId);
  return result.receipt;
 }
+/* Original 8H certified station-to-vessel gas manifold physical proof.
+ * The ORIGINAL native T02 load is already billed by the outpost owner.
+ */
+function industrialManifold8H(station,vessel){
+ const out=window.StarfallOutpostUI;
+ return StarfallIndustrialGasManifold8H.inspect({
+  physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),
+  outpost5:out?.durableSnapshot?.(),
+  powerReport:out?.powerReports?.get(station.location.bodyId),
+  stationId:station.id,vesselId:vessel.id,
+  materialId:vessel.state.materialId,bodyId:station.location.bodyId,
+  bodyRadius:nearest?.radius||0,timeS:simTime});
+}
 function industrialEquipment8E(reactionId,assetId){
  const recipe=StarfallIndustrialChemistry8E.reactions[reactionId];
  if(!recipe)throw Error('Unknown chemical reaction');
  const selected=physical8a.get(assetId);
  if(selected?.type!=='industrial_plant'||selected.state?.station!==recipe.station||
-   selected.condition<.5||selected.location.kind!=='surface')
+    selected.condition<.5||selected.location.kind!=='surface')
   throw Error('Install a real '+recipe.station+' station before processing');
- const vessels={},destinations={},reactantSources={},reactantAssetIds={};
+ const vessels={},destinations={},reactantSources={},reactantAssetIds={},gasManifolds={};
+ const compatible=(materialId)=>physical8a.list().filter(a=>
+   a.type==='industrial_vessel'&&a.condition>=.8&&a.state?.materialId===materialId&&
+   a.location?.kind==='surface'&&a.location.bodyId===selected.location.bodyId);
+ const adjacent=(materialId,side)=>{
+  let lastReason='No correctly rated same-world physical vessel';
+  for(const vessel of compatible(materialId)){
+   try{return{vessel,proof:industrialManifold8H(selected,vessel)};}
+   catch(e){lastReason=String(e.message||e);}
+  }
+  throw Error('8H original '+side+' '+materialId+' gas has no physically connected PAID pipeline: '+lastReason);
+ };
  for(const materialId of Object.keys(recipe.input)){
   if(StarfallIndustrialChemistry8E.species[materialId]?.phase!=='gas')continue;
-  const v=physical8a.list().find(a=>a.type==='industrial_vessel'&&a.condition>=.5&&
-   a.state?.materialId===materialId&&a.location?.kind==='surface'&&
-   a.location.bodyId===selected.location.bodyId&&
-   Math.acos(Math.max(-1,Math.min(1,a.location.local.reduce((sum,n,i)=>sum+n*selected.location.local[i],0))))*
-    (nearest?.radius||1)<75);
-  if(!v)throw Error('Install a nearby rated '+materialId+' reactant supply vessel');
-  reactantSources[materialId]=v.state.containerId;
-  reactantAssetIds[materialId]=v.id;
+  const {vessel,proof}=adjacent(materialId,'reactant');
+  reactantSources[materialId]=vessel.state.containerId;
+  reactantAssetIds[materialId]=vessel.id;
+  gasManifolds['input:'+materialId]={
+    vesselId:vessel.id,pipeId:proof.pipeId,powerPortId:proof.sourcePortId};
  }
- for(const [materialId,count] of Object.entries(recipe.output)){
+ for(const materialId of Object.keys(recipe.output)){
   if(StarfallIndustrialChemistry8E.species[materialId].phase!=='gas'){
    destinations[materialId]=StarfallMining8D.SHIP;continue;
   }
-  const v=physical8a.list().find(a=>a.type==='industrial_vessel'&&a.condition>=.5&&
-   a.state?.materialId===materialId&&a.location?.kind==='surface'&&
-   a.location.bodyId===selected.location.bodyId&&
-   Math.acos(Math.max(-1,Math.min(1,a.location.local.reduce((sum,n,i)=>sum+n*selected.location.local[i],0))))*
-     (nearest?.radius||1)<75);
-  if(!v)throw Error('Build a compatible nearby '+materialId+' gas pressure vessel');
-  vessels[materialId]=v.id;destinations[materialId]=v.state.containerId;
+  const {vessel,proof}=adjacent(materialId,'product');
+  vessels[materialId]=vessel.id;destinations[materialId]=vessel.state.containerId;
+  gasManifolds['output:'+materialId]={
+   vesselId:vessel.id,pipeId:proof.pipeId,powerPortId:proof.sourcePortId};
  }
+ const lineIds=Object.values(gasManifolds).map(x=>x.pipeId);
+ if(new Set(lineIds).size!==lineIds.length)
+  throw Error('8H distinct gas chemical streams require separate real powered pipelines');
  return {asset:selected,station:{id:selected.id,kind:recipe.station,condition:selected.condition,
   installed:true,enabled:selected.state.enabled!==false,bodyId:selected.location.bodyId,
   sourceContainerId:StarfallMining8D.SHIP,tools:selected.state.tools,physicalAssetId:selected.id,
-  vesselAssetIds:vessels,reactantAssetIds},destinations,reactantSources};
+  vesselAssetIds:vessels,reactantAssetIds,gasManifolds},
+  destinations,reactantSources,gasManifolds};
 }
 function industrialCandidates8E(){return physical8a.list().filter(a=>a.type==='industrial_plant'&&
  a.location?.kind==='surface'&&a.location.bodyId===nearest?.id).map(a=>({
@@ -1716,7 +1738,7 @@ function industrialQuote8E(reactionId,stationId,scaleMol=100){
   destinations:equipment.destinations,reactantSources:equipment.reactantSources,
   assetState:physical8a.serialize(),station:equipment.station,
   energyReceipt:{operationId:id,sourceId:'quote-only-not-debited',usedJ:r.energyJ},bodyId:c.bodyId});
- return {...r,stationId,destinations:equipment.destinations};
+ return {...r,stationId,destinations:equipment.destinations,gasManifolds:equipment.gasManifolds};
 }
 function industrialStart8E(reactionId,stationId,scaleMol=100){
  if(industrialJob8e.active)throw Error('Complete or cancel the current chemical job');
@@ -1727,8 +1749,17 @@ function industrialStart8E(reactionId,stationId,scaleMol=100){
  industrialJob8e.serial++;
  industrialJob8e.active={schema:1,id:'chem8e:'+industrialJob8e.serial,
   reactionId,stationId,scaleMol,bodyId:c.bodyId,elapsedS:0,energyJ:0,
-  seconds:q.seconds,powerW:q.powerW};
+  seconds:q.seconds,powerW:q.powerW,gasManifolds:q.gasManifolds};
  saveFlight();return JSON.parse(JSON.stringify(industrialJob8e.active));
+}
+/* Only genuine running source-pinned 8E gas chemistry asks existing T02
+ * to sample short, already-paid pump pulses. The native outpost store still
+ * owns ALL charge; a stopped or solid-only chemical job does not add work.
+ */
+function industrialGasHasActive8H(bodyId){
+ const a=industrialJob8e.active;
+ return !!(a&&a.bodyId===bodyId&&a.gasManifolds&&
+  Object.keys(a.gasManifolds).length>0);
 }
 function industrialCancel8E(){
  if(!industrialJob8e.active)return false;
@@ -1740,6 +1771,10 @@ function industrialAdvance8E(elapsed){
  if(!c.shipLanded||!c.powerEnabled||c.bodyId!==a.bodyId)return;
  try{
   const selected=industrialEquipment8E(a.reactionId,a.stationId);
+  // No old save, wire cut, pump power loss or target swap may silently
+  // allow an unpaid gas batch to finish. Original energy and 8A custody
+  // remain untouched while physical manifold is unverified.
+  if(JSON.stringify(selected.gasManifolds)!==JSON.stringify(a.gasManifolds||{}))return;
   if(!shipLocal||Math.acos(Math.max(-1,Math.min(1,
     shipLocal.reduce((sum,v,i)=>sum+v*selected.asset.location.local[i],0))))*
       (nearest?.radius||1)>80)return; // Physical power umbilical disconnected; preserve paid work.
@@ -2794,7 +2829,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');

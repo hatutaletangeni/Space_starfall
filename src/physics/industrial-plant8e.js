@@ -90,8 +90,15 @@ function create(saved){
   }
   for(const d of taken){const before=d.lot.massKg;d.lot.massKg-=d.used;d.lot.volumeM3*=d.lot.massKg/before;}
   snapshot.lots=snapshot.lots.filter(x=>x.massKg>EPS).concat(outputs);
+  const physicalGasPorts=station.gasManifolds&&typeof station.gasManifolds==='object'?
+    Object.fromEntries(Object.entries(station.gasManifolds).map(([k,v])=>
+     [k,{vesselId:v.vesselId,pipeId:v.pipeId,powerPortId:v.powerPortId}])):null;
   const receipt={id,reactionId,stationAssetId:station.physicalAssetId,inputs:copy(recipe.inputs),reactantSources:copy(reactantSources),
-   outputs:copy(recipe.outputs),energyJ:recipe.energyJ,bodyId,status:'COMMITTED'};
+   outputs:copy(recipe.outputs),energyJ:recipe.energyJ,bodyId,status:'COMMITTED',
+   ...(physicalGasPorts&&Object.keys(physicalGasPorts).length?{
+    physicalGasPorts:copy(physicalGasPorts),
+    gasTransportAccounting:'PAID_ORIGINAL_T02_CERTIFIED_FLANGE_BUT_8A_BATCH_DIRECT_CONTAINER',
+    note:'Gas source and receiving vessel have physically certified rated lines. This receipt DOES NOT prove transient pipe-holdup gas flow during the chemical batch.'}:{})};
   const operations=copy(state);operations.operations.push(receipt);
   return {duplicate:false,receipt,materials:snapshot,operations};
  }
