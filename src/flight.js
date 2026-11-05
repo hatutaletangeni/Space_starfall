@@ -2129,7 +2129,8 @@ function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
  if(StarfallOutposts.arc(ctx.operatorLocal,source.location.local,ctx.bodyRadius)>15)
   throw Error('8H walk within 15 scene units of actual loading dock');
  const os=window.StarfallOutpostUI;
- if(!os?.store||typeof os.advancePowerTo!=='function'||!os.powerReports)
+ if(!os?.store||typeof os.advancePowerTo!=='function'||!os.powerReports||
+  typeof os.durableSnapshot!=='function')
   throw Error('8H actual original T02 outpost clock unavailable');
  // Settle all prior original native energy, then request a zero-dt sampled
  // 48V report at the *current* simulation timestamp. A zero-dt check never
@@ -2142,7 +2143,7 @@ function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
  if(SF.storageStatus().durable!==true)
   throw Error('8H cannot reserve original material with unavailable durable save');
  const saved=SF.load();
- const store={...os.store.serialize(),lastTick:simTime};
+ const store={...os.durableSnapshot(),lastTick:simTime};
  const next=StarfallConveyorPackets8H.create(saved.logisticsConveyorPackets8h);
  let serial=next.list().length+1;
  while(next.list().some(x=>x.id==='8h-packet:'+serial))serial++;
@@ -2150,13 +2151,15 @@ function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
   sourceId,targetId,driveIds:[driveId],massKg,bodyId:ctx.bodyId,
   bodyRadius:ctx.bodyRadius,timeS:simTime,physical8a:saved.physical8a,
   materials8a:saved.materials8a,outpost5:store,powerReport:report});
- const patch={materials8a:q.materials8a,logisticsConveyorPackets8h:q.packets};
+ const patch={materials8a:q.materials8a,logisticsConveyorPackets8h:q.packets,
+  outpost5:store};
  if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
   throw Error('8H source-owned packet reservation not durably saved');
  const read=SF.load();for(const [key,v] of Object.entries(patch))
   if(JSON.stringify(read[key])!==JSON.stringify(v))
    throw Error('8H original packet save readback mismatch; reload before continuing');
  materials8a=StarfallMaterials8A.create(q.materials8a);
+ os.store.lastTick=simTime;
  conveyorPackets8h=next;
  showToast('8H · '+massKg.toFixed(2)+' kg reserved at real conveyor. Wait for paid original 48V pulses.');
  return q.receipt;
@@ -2177,9 +2180,7 @@ function logisticsConveyorNativeTick8H({bodyId,outpost5,powerReport,timeS}={}){
  // Persist its exact updated energy together with 8A dry custody and packet
  // clock, BEFORE swapping live materials. No second grid call or battery debit.
  const patch={materials8a:q.materials8a,logisticsConveyorPackets8h:q.packets,
-  outpost5:{...outpost5,pending:(SF.load().outpost5?.pending||[]),
-   lastPoweredAt:(SF.load().outpost5?.lastPoweredAt||{}),
-   radioEnforced:SF.load().outpost5?.radioEnforced||false}};
+  outpost5};
  if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
   throw Error('8H native T02 conveyor transaction could not be durably committed');
  const read=SF.load();
