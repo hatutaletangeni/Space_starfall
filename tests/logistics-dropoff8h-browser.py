@@ -220,6 +220,9 @@ with sync_playwright() as p:
   plan=page.locator('#logistics8h-route-plan')
   page.locator('#logistics8h-route-first').select_option(fixture['depotId'])
   page.locator('#logistics8h-route-second').select_option(nextStop)
+  # The Engineer panel refreshes periodically; wait for its source-owned
+  # saved physical context instead of asserting during an intermediate frame.
+  page.wait_for_function("()=>!document.querySelector('#logistics8h-route-plan')?.disabled",timeout=15000)
   assert plan.is_enabled(),'Physical two-depot itinerary must be available in Engineer UI'
   plan.click()
   page.wait_for_function("SF.load().logisticsRoutes8h?.routes?.[0]?.status==='ACTIVE'",timeout=12000)
