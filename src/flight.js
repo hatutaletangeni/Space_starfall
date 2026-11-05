@@ -2100,19 +2100,57 @@ function logisticsConveyorContext8H(){
   Math.abs(t.massKg-a.massKg)<1e-6));
  const ctx=outpostContext(),here=ctx.bodyId;
  const depots=certified.filter(a=>a.state.station==='cargo_depot'&&a.location.bodyId===here);
- const drives=certified.filter(a=>a.state.station==='conveyor_drive'&&
-  a.location.bodyId===here&&a.massKg===180&&a.state?.t02LoadId);
+ const paidDrives=certified.filter(a=>a.state.station==='conveyor_drive'&&
+  a.location.bodyId===here&&a.massKg===180);
+ const drives=paidDrives.filter(a=>a.state?.t02LoadId);
+ const unwiredDrives=paidDrives.filter(a=>!a.state?.t02LoadId);
  return{bodyId:here,bodyRadius:ctx.body?.radius||null,
   onFoot:ctx.landed&&ctx.eva&&!truckOccupied&&!shipWalking8e&&
    !interiorState&&!manufacturedOccupied8G,
   operatorLocal:ctx.eva&&ctx.local?[...ctx.local]:null,
   depots:depots.map(a=>({id:a.id,local:[...a.location.local],
     containerId:a.state.containerId,lots:materials8a.inventory(a.state.containerId)})),
+  unwiredDrives:unwiredDrives.map(a=>({id:a.id,local:[...a.location.local],
+    kitMaterialId:a.state.kitMaterialId,massKg:a.massKg})),
   drives:drives.map(a=>({id:a.id,local:[...a.location.local],
     containerId:a.state.containerId,portId:a.state.t02LoadId,
     stock:materials8a.inventory(a.state.containerId)})),
   packets:conveyorPackets8h.list(),timeS:simTime,
   gridReport:window.StarfallOutpostUI?.powerReports?.get(here)||null};
+}
+/* Material-free electrical bookkeeping port for ALREADY paid 8E drive hardware.
+ * This does not gift a wire, source battery, generator or 8A stock.
+ * Original native outpost module remains the single 48V power owner.
+ */
+function logisticsConveyorInstallPort8H(driveId){
+ const ctx=logisticsConveyorContext8H(),os=window.StarfallOutpostUI;
+ if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
+  throw Error('Walk outside a physically landed ship on this world to service the certified conveyor');
+ if(!ctx.unwiredDrives.some(x=>x.id===driveId))
+  throw Error('Select an original paid 180 kg drive with no existing T02 load');
+ if(!os?.store||typeof os.store.restore!=='function'||
+    typeof os.durableSnapshot!=='function'||typeof os.advancePowerTo!=='function')
+  throw Error('Original T02 outpost store is unavailable');
+ const installed=physical8a.serialize(),original=os.durableSnapshot();
+ if(SF.storageStatus().durable!==true)
+  throw Error('Original durable 8A and T02 save unavailable; cannot install port');
+ const result=StarfallConveyorPowerPort8H.attach({
+  physical8a:installed,outpost5:original,driveId,
+  operatorLocal:ctx.operatorLocal,bodyId:ctx.bodyId,
+  bodyRadius:ctx.bodyRadius,timeS:simTime});
+ const portState={...original,...result.outpost5};
+ const patch={physical8a:result.physical8a,outpost5:portState};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
+  throw Error('8H native electrical port was not durably committed');
+ const checked=SF.load();
+ for(const [key,value] of Object.entries(patch))
+  if(JSON.stringify(checked[key])!==JSON.stringify(value))
+   throw Error('8H original physical hardware/T02 port readback mismatch; reload before retrying');
+ physical8a=StarfallPhysical8A.create(result.physical8a);
+ os.store.restore(result.outpost5);
+ os.advancePowerTo(simTime);
+ showToast('8H · '+driveId+' native 250 W T02 load installed; WIRE its port in OUTPOSTS / ENGINEERING');
+ return result.receipt;
 }
 function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
  const ctx=logisticsConveyorContext8H(),phys=physical8a;
@@ -2594,7 +2632,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,logisticsConveyorContext8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
