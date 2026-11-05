@@ -134,7 +134,7 @@ with sync_playwright() as p:
   assert 'UNSAFE_DUPLICATE' not in duplicate,duplicate
   page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
   page.reload(wait_until='domcontentloaded',timeout=90000)
-  page.wait_for_function("StarfallRuntime.logisticsContext8H?.().orders?.[0]?.status==='DELIVERED'",timeout=60000)
+  page.wait_for_function("StarfallRuntime.logisticsContext8H?.().orders?.[1]?.status==='DELIVERED'",timeout=60000)
   saved=page.evaluate("""()=>{
    const r=StarfallRuntime;
    return{truck:r.truck.batteryJ,ore:r.materials8a.inventory('depot8h:facility8e:real-test-depot')
