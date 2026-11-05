@@ -10925,6 +10925,13 @@ function create(saved){
      !name(bodyId)||!finite(bodyRadius)||bodyRadius<=0||!finite(timeS)||
      !materials8a||!physical8a||typeof gasManifolds!=='object')
    throw Error('8H product gas staging requires original paid chemistry and 8A owners');
+  // Original 8E has valid all-solid or liquid-only recipes. Such jobs have
+  // NO physical product-gas movement to reserve, and MUST NOT require a
+  // pump, pipe, phantom gas receipt or new power. Preserve legacy 8E stock.
+  const outputs=Object.keys(receipt.outputs||{}).filter(sp=>
+   chemistry().species[sp]?.phase==='gas');
+  if(!outputs.length)return{changed:false,materials8a,transit:snapshot(),
+   jobs:[],createdKg:0,additionalElectricalDebitJ:0};
   const ledger=ledgerApi().create(materials8a),assets=new Map(physical8a.assets.map(a=>[a.id,a])),
    before=mass(materials8a),newJobs=[];
   // A claimed chemical receipt is not a license to mint source stock.
