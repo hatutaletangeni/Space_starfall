@@ -9,6 +9,7 @@
 const clone=x=>JSON.parse(JSON.stringify(x)),finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const EPS=1e-7,MAX_ORDERS=500,MAX_RANGE=24;
+const PRESSURE_GASES=new Set(['oxygen','nitrogen','hydrogen','carbon_dioxide','carbon_monoxide','sulfur_dioxide','methane','helium','argon','ammonia']);
 function arc(a,b,r){const dot=a.reduce((s,x,i)=>s+x*b[i],0);
  return Math.acos(Math.max(-1,Math.min(1,dot)))*r;}
 function validLocal(x){return Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&
@@ -73,6 +74,13 @@ function create(saved){
    throw Error('8H material container ownership does not match physical endpoints');
   const lot=ledger.inventory(source.containerId).find(x=>x.id===lotId);
   if(!lot||lot.massKg+EPS<massKg)throw Error('8H source lot unavailable');
+  // Gas from an 8E rated pressure vessel cannot enter the unpressurized
+  // expedition-truck ore hopper or dry-goods depot through this loader.
+  // The existing 8G rated-vessel custody/hose subsystem remains authoritative.
+  if(PRESSURE_GASES.has(lot.materialId) &&
+    [sourceStock,carrierStock,destinationStock].some(c=>
+      /hopper|dry|solid|cargo dock/i.test(c.kind||'')))
+   throw Error('8H pressurized gas requires an approved rated vessel and hose, never a dry cargo hopper');
   const loadOperationId='8h-load:'+id,unloadOperationId='8h-unload:'+id;
   // This is a genuine 8A reservation; it locks both source quantity and
   // bounded carrier destination capacity until explicitly loaded/cancelled.
