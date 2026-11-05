@@ -9666,7 +9666,45 @@ function reserve({id,lotId,depotId,materials,physical,mining,orders,
  root.StarfallLogisticsOrders8H.create(next);
  return{orders:next,materials:ledger.snapshot(),record:cp(record)};
 }
-root.StarfallLogisticsDropoff8H=Object.freeze({reserve,TRUCK,HOPPER});
+/* A loaded order is a capacity/stock reservation, not an irreversible
+ * packet movement. Release it only while the original ore is still aboard
+ * the same physical truck; cancellation grants no energy or extra stock.
+ */
+function cancel({id,materials,orders,physical,actor,operatorNear,timeS,bodyRadius}){
+ if(!ident(id)||!finite(timeS)||!finite(bodyRadius)||bodyRadius<=0||
+    operatorNear!==true)
+  throw Error('8H cancellation requires on-foot original truck operator and valid clock');
+ if(!actor||actor.id!==TRUCK||actor.kind!=='truck'||
+    actor.containerId!==HOPPER||!radiusOk(actor.local)||!ident(actor.bodyId))
+  throw Error('8H original truck missing at cancellation');
+ const truck=root.StarfallPhysical8A.create(physical).get(TRUCK);
+ if(!truck||truck.type!=='truck'||truck.condition<.2||
+    truck.location?.kind!=='surface'||truck.location.bodyId!==actor.bodyId||
+    arc(truck.location.local,actor.local,bodyRadius)>0.01)
+  throw Error('8H cancellation truck physical custody/position mismatch');
+ const current=root.StarfallLogisticsOrders8H.create(orders).snapshot(),o=current.orders.find(x=>x.id===id);
+ if(!o||o.status!=='LOADED'||!o.miningReceiptId||o.carrierId!==TRUCK||
+    o.carrierContainerId!==HOPPER||o.carrierLotId!==o.lotId||
+    o.bodyId!==actor.bodyId)
+  throw Error('8H only a real original mined-ore delivery reservation can be cancelled');
+ if(timeS+EPS<o.loadedAtS)throw Error('8H cancellation clock cannot reverse');
+ const ledger=root.StarfallMaterials8A.create(materials);
+ const lot=ledger.inventory(HOPPER).find(x=>x.id===o.lotId);
+ if(!lot||Math.abs(lot.massKg-o.massKg)>EPS)
+  throw Error('8H original loaded ore moved or consumed before cancellation');
+ const op=ledger.operations().find(x=>x.id===o.unloadOperationId);
+ if(!op||op.status!=='RESERVED'||op.lotId!==o.lotId||
+    op.destinationId!==o.destinationContainerId||Math.abs(op.massKg-o.massKg)>EPS)
+  throw Error('8H exact outstanding 8A destination reservation missing');
+ ledger.cancel(o.unloadOperationId);
+ const next={...current,orders:current.orders.map(x=>x.id===id?
+  {...x,status:'CANCELLED',canceledAtS:timeS}:x)};
+ root.StarfallLogisticsOrders8H.create(next);
+ return{orders:next,materials:ledger.snapshot(),
+  receipt:{id,operationId:o.unloadOperationId,status:'CANCELLED',
+   originalLotId:o.lotId,massKg:o.massKg}};
+}
+root.StarfallLogisticsDropoff8H=Object.freeze({reserve,cancel,TRUCK,HOPPER});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallLogisticsDropoff8H;
 })(typeof window!=='undefined'?window:globalThis);
 
