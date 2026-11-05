@@ -48,7 +48,7 @@ function fixture(){
  const outpost5={schema:1,seed:742,serial:1,lastTick:0,items:[{
   id:'real-battery',bodyId:body.id,kind:'battery',local:unit(.005),
   facing:unit(0),height:3,temperatureK:290,condition:1,
-  enabled:true,energyJ:1e6}],wires:[],relays:[],receipts:[]};
+  enabled:true,energyJ:5e6}],wires:[],relays:[],receipts:[]};
  const added=Port.attach({physical8a,materials8a,outpost5,pipelineId:ids[1],
   operatorLocal:unit(0),bodyId:body.id,bodyRadius:body.radius,timeS:0});
  physical8a=added.physical8a;
@@ -95,14 +95,21 @@ test('real paid source vessel→rated 80L physical pipe→different paid rated v
  assert.equal(f.materials8a.operations.find(x=>x.id==='8h-gas:real-gas-1:0').status,'RESERVED');
  assert.equal(f.materials8a.lots[0].containerId,'vessel8e:'+ids[0]);
  let steps=[],pipeS=null;
- for(let t=3;t<=42;t+=3){
+ assert.ok(f.packets.jobs[0].requiredCompressionJ>1e6,
+  'this 420W pump must physically pay >1 MJ to compress 3kg O2 from underfilled vessel');
+ assert.ok(f.packets.jobs[0].remainingS>2000,
+  'a source that actually holds 3kg O2 in 4m³ cannot fill an 80L pipe in 16 seconds on 420W');
+ for(let t=3;t<=6000;t+=3){
   const {q,power}=tick(f,t);
   assert.equal(power.byId[f.portId].servedW,420);
   steps.push(q.stage);
   if(q.stage===1&&!pipeS)pipeS=t;
   if(f.packets.jobs[0].status==='DELIVERED')break;
  }
- assert.ok(pipeS>=15,'must physically traverse source-to-pump distance before first gas hop');
+ assert.ok(pipeS>2000,
+  'original 420W T02 must pay realistic isothermal compression work before source→pipe');
+ assert.ok(f.packets.jobs[0].totalPaidJ>=f.packets.jobs[0].requiredCompressionJ-1e-4,
+  'native T02 must actually have consumed enough energy for original ideal-gas compression');
  assert.ok(steps.includes(0)&&steps.includes(1)&&steps.includes(2));
  assert.equal(f.packets.jobs[0].status,'DELIVERED');
  assert.equal(f.materials8a.lots.length,1);
@@ -115,12 +122,17 @@ test('real paid source vessel→rated 80L physical pipe→different paid rated v
 });
 test('real unplugged native 48V pump stops shipment INSIDE finite rated pipe and replay is inert',()=>{
  const f=fixture();start(f);
- for(let t=3;t<=18;t+=3)tick(f,t);
+ let firstHopAt=null;
+ for(let t=3;t<=6000;t+=3){
+  tick(f,t);
+  if(f.packets.jobs[0].stage===1){firstHopAt=t;break;}
+ }
+ assert.ok(firstHopAt>2000,'original pump must truly pay thermodynamic pressure work');
  assert.equal(f.packets.jobs[0].stage,1);
  assert.equal(f.materials8a.lots[0].containerId,'pressurepipe8h:'+ids[1]);
  const lockedMass=f.materials8a.lots[0].massKg;
  f.native.wires=[];
- const {q,power}=tick(f,21);
+ const {q,power}=tick(f,firstHopAt+3);
  assert.equal(power.byId[f.portId].power,false);
  assert.match(q.status,/PAUSED_/);
  assert.equal(f.materials8a.lots[0].massKg,lockedMass);
@@ -129,7 +141,7 @@ test('real unplugged native 48V pump stops shipment INSIDE finite rated pipe and
  const replay=Gas.create(f.packets).observe({packets:f.packets,
   materials8a:f.materials8a,physical8a:f.physical8a,
   outpost5:f.native.serialize(),powerReport:power,
-  bodyId:body.id,bodyRadius:body.radius,timeS:21});
+  bodyId:body.id,bodyRadius:body.radius,timeS:firstHopAt+3});
  assert.equal(replay.changed,false);
  assert.equal(replay.reason,'DUPLICATE_OR_OLD_T02_TICK');
 });
