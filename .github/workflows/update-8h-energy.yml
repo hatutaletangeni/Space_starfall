@@ -1,0 +1,25 @@
+name: STARFALL 8H energy debit contract
+on:
+  pull_request:
+    paths:
+      - 'src/physics/logistics-energy8h.js'
+      - 'tests/logistics-energy8h.test.js'
+      - '.github/workflows/update-8h-energy.yml'
+  push:
+    branches:
+      - update-8h-t02-energy-transaction-contract
+jobs:
+  logistics-energy-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test immutable battery debit and replay guard
+        run: |
+          node --check src/physics/logistics-energy8h.js
+          node --check tests/logistics-energy8h.test.js
+          node tests/logistics-energy8h.test.js
+          node --test tests/logistics-orders8h.test.cjs
+          node tests/material-ledger8a.test.cjs
+      - name: Verify the existing offline game has not drifted
+        run: python3 tests/standalone-parity.py
