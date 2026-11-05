@@ -10738,8 +10738,11 @@ function inspect(s={}){
     reason:'Materials exist in a container not owned by a paid 8E asset or original expedition vehicle'});
  }
  const worldId=valid(s.bodyId)?s.bodyId:null;
- const onBody=a=>a?.location?.kind==='surface'&&
-   (!worldId||a.location.bodyId===worldId);
+ // No local physical surface exists when piloting in deep space.
+ // Keep all original stock immutable/inspectable, but NEVER falsely certify
+ // a remote packet's flange geometry from a zero/unknown planet radius.
+ const onBody=a=>!!worldId&&a?.location?.kind==='surface'&&
+   a.location.bodyId===worldId;
  const deps=p.assets.filter(a=>onBody(a)&&a.type==='industrial_plant'&&
    a.state?.station==='cargo_depot'&&installed(a)),
   drives=p.assets.filter(a=>onBody(a)&&a.type==='industrial_plant'&&
@@ -10761,7 +10764,7 @@ function inspect(s={}){
   if(!valid(j.id)||jobMap.has((isGas?'G:':'C:')+j.id))
    throw Error('8H duplicate or invalid archived industrial job ID');
   jobMap.add((isGas?'G:':'C:')+j.id);
-  if(worldId&&j.bodyId!==worldId)return;
+  if(!worldId||j.bodyId!==worldId)return;
   const ids=isGas?[j.sourceId,j.pipeId,j.targetId]:
    [j.sourceId,...(j.driveIds||[]),j.targetId];
   const ends=ids.map(id=>assets.get(id));
