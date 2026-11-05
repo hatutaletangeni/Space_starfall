@@ -9,7 +9,8 @@ let tab='build',statusMsg='',previewError='',lastPowerTick=RT.time,receiverResul
 const lastPoweredAt=(saved?.lastPoweredAt&&typeof saved.lastPoweredAt==='object')?{...saved.lastPoweredAt}:{};
 const fmt=(v,p=1)=>Number.isFinite(v)?v.toLocaleString('en-US',{maximumFractionDigits:p}):'—';
 function show(msg,bad=false){statusMsg=msg;const el=$('outpost-status');el.textContent=msg;el.style.color=bad?'#ffad97':'#eac18e';}
-function persist(){SF.save({outpost5:{...store.serialize(),pending:queue.slice(0,120),lastPoweredAt,radioEnforced}});dirty=false;lastFlush=performance.now();}
+function durableSnapshot(){return{...store.serialize(),pending:queue.slice(0,120),lastPoweredAt:{...lastPoweredAt},radioEnforced};}
+function persist(){SF.save({outpost5:durableSnapshot()});dirty=false;lastFlush=performance.now();}
 function renderLoc(item){const b=RT.galaxy.byId.get(item.bodyId);if(!b)return null;const radial=O.rotate(item.local,b.spinAxis||[0,1,0],b.spinAngle||0);const sceneHeight=Starfall3D.groundHeight(item.local,b);const position=c.add(b.position,c.mul(radial,b.radius+sceneHeight+.6));
  const f=O.rotate(item.facing,b.spinAxis||[0,1,0],b.spinAngle||0);return{kind:item.kind,position,up:radial,forward:f};}
 function placementKey(){const ctx=RT.outpostContext();return [ctx.bodyId,$('outpost-type').value,$('outpost-forward').value,$('outpost-right').value].join('|');}
@@ -44,6 +45,18 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
     report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
+    // ONE native T02 grid step has just charged the actual original
+    // solar/battery owner. The 8H observer ONLY follows this real report:
+    // no second grid debit, invented material or source changes on failure.
+    if(report?.dtS>0&&root.StarfallConveyorNativeBridge8H&&
+       RT.logisticsConveyorNativeTick8H){
+      try{
+       const movement=RT.logisticsConveyorNativeTick8H({
+        bodyId,outpost5:durableSnapshot(),powerReport:report,
+        timeS:report.simulatedAtS});
+       if(movement?.changed)dirty=true;
+      }catch(e){console.warn('8H original native conveyor pulse held:',e);}
+    }
     if(root.StarfallHabitatT09){
       const to=start+(i+1)*total/steps;
       for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
@@ -366,5 +379,5 @@ function tick(dt,timeScale){if(document.hidden)return;const time=RT.time;
 addEventListener('pagehide',()=>{if(dirty)persist();});
 function advancePowerTo(atTime,resolve){if(!Number.isFinite(atTime)||atTime<0)return false;const before=store.serialize(),previousTimes={...lastPoweredAt},oldReports=new Map(powerReports),oldTick=lastPowerTick;try{powerTick(0,atTime,resolve);lastPowerTick=atTime;dirty=true;return true;}catch(error){store.restore(before);for(const k of Object.keys(lastPoweredAt))delete lastPoweredAt[k];Object.assign(lastPoweredAt,previousTimes);powerReports=oldReports;lastPowerTick=oldTick;throw error;}}
 root.StarfallPowerInspectorT02={getAssetStatus(id){return root.StarfallPowerLedgerT02?.inspect({id,rt:RT,ui:root.StarfallOutpostUI,launch:root.StarfallLaunchUI})||null;},getBusStatus(bodyId){const r=powerReports.get(bodyId);return r?O.copy(r):null;}};
-root.StarfallOutpostUI={store,tick,advancePowerTo,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
+root.StarfallOutpostUI={store,tick,advancePowerTo,durableSnapshot,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
 })(globalThis);
