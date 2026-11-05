@@ -36,7 +36,12 @@ test('runtime uses original 8A material and active T02 grid ownership for replay
 test('native T02 finishes its real source-owned energy debit only ONCE and persists clock with material',()=>{
  assert.match(outposts,/function durableSnapshot\(\)/);
  assert.match(outposts,/lastPoweredAt:\{\.\.\.lastPoweredAt\}/);
- assert.match(outposts,/lastPoweredAt\[bodyId\]=start\+\(i\+1\)\*total\/steps/);
+ // 8H active packets now receive an exact native END-of-paid-pulse timestamp
+ // rather than the older 600s midpoint stamp; verify both ORIGINAL T02
+ // source clock and atomic source-owner write remain ahead of cargo movement.
+ assert.match(outposts,/const nativeStepEndS=root\.StarfallNativePowerSubsteps8H\.endpoint\(start,plan,i\)/);
+ assert.match(outposts,/lastPoweredAt\[bodyId\]=nativeStepEndS/);
+ assert.match(outposts,/const nativeReportAtS=activePaid8H\?nativeStepEndS:atTime\+past/);
  const stamp=outposts.indexOf('report=store.power('),bridge=outposts.indexOf('RT.logisticsConveyorNativeTick8H(');
  assert.ok(stamp>0&&bridge>stamp,'native original power before conveyor observer');
  assert.match(outposts,/outpost5:durableSnapshot\(\)/);

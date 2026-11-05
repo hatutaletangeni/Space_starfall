@@ -1,0 +1,71 @@
+name: STARFALL 8H bounded original T02 100x dry/gas powered movement
+on:
+  push:
+    branches:
+      - feature/update-8h-bounded-native-timewarp-power
+  pull_request:
+    paths:
+      - 'src/physics/native-power-substeps8h.js'
+      - 'src/physics/outposts-ui.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/active-native-substeps8h*'
+      - '.github/workflows/update-8h-native-bounded-timewarp.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-offline-source:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Exact real complete source to offline standalone
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): original 100x powered packet native T02 standalone parity'
+            git push origin HEAD:feature/update-8h-bounded-native-timewarp-power
+          fi
+  no-second-power-source-and-browser:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Native paid original T02 1x/10x/100x and mass invariants, end-of-step time
+        run: |
+          set -euo pipefail
+          node --check src/physics/native-power-substeps8h.js
+          node --check src/physics/outposts-ui.js
+          node --check src/flight.js
+          node --test tests/active-native-substeps8h.test.cjs
+          node --test tests/conveyor-native-bridge8h.test.cjs
+          node --test tests/pressure-gas-packets8h.test.cjs
+          node --test tests/lossy-tailings-recycling8h.test.cjs
+          node --test tests/logistics-powered-network8h.test.cjs
+          python3 -m py_compile tests/active-native-substeps8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Real original offline Chromium software WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Actual original STARFALL UI/power and source custody checks
+        run: |
+          python3 tests/active-native-substeps8h-browser.py
+          python3 tests/pressure-pipe-live8h-browser.py
+          python3 tests/conveyor-live8h-browser.py
+          python3 tests/lossy-tailings-recycling8h-browser.py
