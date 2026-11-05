@@ -16,8 +16,11 @@ const settings={sourceContainerId:'hold',outputContainerId:'hold',shipLanded:tru
 const almost=(a,b,t=1e-7)=>assert.ok(Math.abs(a-b)<=t,a+' ≠ '+b);
 for(const mode of Object.keys(Ref.MODES)){
  const spec=Ref.MODES[mode],grade=spec.material==='silica_concentrate'?.95:spec.material==='iron_concentrate'?.60:spec.material==='aluminosilicate_concentrate'?.65:spec.material==='copper_concentrate'?.25:spec.material==='water_ice'?.45:.35;
- const ledger=fixtures(spec.material,grade,40,['silica_concentrate','iron_concentrate','copper_concentrate','aluminosilicate_concentrate'].includes(spec.material)?'process:refine8e:fixture':'8c:seed:site'),refiner=Ref.create(),chemical=Chem.create();
- const q=Ref.quote(mode,ledger.snapshot(),'hold','hold');
+ const ledger=fixtures(spec.material,grade,40,spec.requiresProcessProvenance?'process:refine8e:fixture':'8c:seed:site'),
+  proof=spec.priorMode?[{id:'refine8e:fixture',mode:spec.priorMode,status:'COMMITTED',
+   residueKg:40,energyJ:1e6,bodyId:'body_1'}]:[],
+  refiner=Ref.create({schema:1,serial:0,active:null,receipts:proof}),chemical=Chem.create();
+ const q=Ref.quote(mode,ledger.snapshot(),'hold','hold',proof);
  assert.equal(q.inputKg,q.productKg+q.residueKg);
  const started=refiner.start({...settings,mode,materials:ledger.snapshot()});
  assert.equal(started.lotId,'deposit-ore');
@@ -36,7 +39,7 @@ for(const mode of Object.keys(Ref.MODES)){
  const product=restored.inventory('hold').find(l=>l.materialId===spec.product);
  assert.ok(product);almost(product.massKg,q.productKg);almost(product.grade,q.productGrade);
  assert.equal(Ref.create(output.refinery).active,null);
- assert.equal(Ref.create(output.refinery).receipts.length,1);
+ assert.equal(Ref.create(output.refinery).receipts.length,1+proof.length,'original prior process receipt must survive actual recycling');
  const again=Chem.create(output.transformations).convert({operationId:started.id,containerId:'hold',outputContainerId:'hold',materials:output.materials});
  assert.equal(again.duplicate,true);
 }
@@ -57,4 +60,4 @@ for(const mode of Object.keys(Ref.MODES)){
  ledger.reserve('reservation','deposit-ore','other-hold',2);
  assert.throws(()=>Ref.quote('iron_sort',ledger.snapshot(),'hold','hold'),/Missing/);
 }
-console.log('PASS refinery8e: mass, assay, ten recipes, stable receipts, cancellations and finite power');
+console.log('PASS refinery8e: mass, assay, all 8E+8H recipes, stable receipts, cancellations and finite power');
