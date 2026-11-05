@@ -33,9 +33,13 @@ function observe({packets,materials8a,physical8a,outpost5,powerReport,
  if(elapsed<=EPS)return{changed:false,packets:state,materials8a,reason:'REPLAY_OR_OLD_GRID_TICK'};
  if(elapsed>10+EPS||elapsed>powerReport.dtS+EPS){
   // No retroactive instantaneous movement across long unloaded intervals.
-  // Do not alter archive or stock here: await a new short real grid pulse.
-  return{changed:false,packets:state,materials8a,reason:'PAUSED_UNOBSERVED_CLOCK',
-   elapsedS:elapsed};
+  // Rebase ONLY the observed clock, preserving exact original lot custody,
+  // remaining journey time and battery charges made by native T02. Otherwise
+  // an outage or 100x time skip could permanently strand a saved packet.
+  const held=cp(state),job=held.jobs.find(x=>x.id===j.id);
+  job.lastS=timeS;
+  return{changed:true,packets:held,materials8a,reason:'PAUSED_UNOBSERVED_CLOCK',
+   elapsedS:elapsed,additionalElectricalDebitJ:0};
  }
  const ledger=M().create(materials8a),massBefore=ledger.inventory().reduce((sum,x)=>sum+x.massKg,0);
  const report=I().inspect({physical8a,materials8a,outpost5,powerReport,
