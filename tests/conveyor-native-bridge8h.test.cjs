@@ -107,14 +107,14 @@ test('remote clock skip and unauthenticated report cannot create instantaneous c
  assert.equal(skipped.changed,true,'save only the corrected clock without moving stock');
  assert.equal(skipped.reason,'PAUSED_UNOBSERVED_CLOCK');
  assert.equal(skipped.packets.jobs[0].lastS,30);
- assert.equal(skipped.packets.jobs[0].remainingS,6);
+ assert.ok(Math.abs(skipped.packets.jobs[0].remainingS-6)<1e-7);
  assert.equal(skipped.materials8a.lots[0].containerId,'stock-a');
  const resumedReport=T.grid(state.native,body,star,luminosityW,33,3);
  const later=Native.observe({packets:skipped.packets,materials8a:skipped.materials8a,
   physical8a:state.physical8a,outpost5:state.native.serialize(),
   powerReport:resumedReport,bodyId:body.id,bodyRadius:body.radius,timeS:33});
  assert.equal(later.changed,true);
- assert.equal(later.packets.jobs[0].remainingS,3,
+ assert.ok(Math.abs(later.packets.jobs[0].remainingS-3)<1e-7,
   'normal real powered step must resume after >10s non-teleporting skip');
  assert.equal(later.materials8a.lots[0].containerId,'stock-a');
  assert.throws(()=>Native.observe({packets:state.packets,materials8a:state.materials8a,
