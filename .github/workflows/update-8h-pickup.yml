@@ -1,0 +1,25 @@
+name: STARFALL 8H paid original-truck depot pickup
+on:
+  pull_request:
+    paths:
+      - 'src/physics/logistics-pickup8h.js'
+      - 'tests/logistics-pickup8h.test.cjs'
+      - '.github/workflows/update-8h-pickup.yml'
+  push:
+    branches:
+      - feature/update-8h-paid-depot-pickup
+jobs:
+  proven-depot-pickup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Source checks and original 8A/8H stock, energy and replay tests
+        run: |
+          node --check src/physics/logistics-pickup8h.js
+          node --test tests/logistics-pickup8h.test.cjs
+          node --test tests/logistics-dropoff8h.test.cjs
+          node --test tests/logistics-durable8h.test.cjs
+          node --test tests/logistics-transaction8h.test.cjs
+      - name: Existing standalone must remain in source parity
+        run: python3 tests/standalone-parity.py
