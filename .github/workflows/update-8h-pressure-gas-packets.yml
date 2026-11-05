@@ -1,0 +1,32 @@
+name: STARFALL 8H finite rated gas packets original T02 already-paid pressure flow
+on:
+  push:
+    branches:
+      - feature/update-8h-source-owned-rated-gas-packets
+  pull_request:
+    paths:
+      - 'src/physics/pressure-gas-packets8h.js'
+      - 'src/physics/pressure-pipe-power-port8h.js'
+      - 'tests/pressure-gas-packets8h.test.cjs'
+      - '.github/workflows/update-8h-pressure-gas-packets.yml'
+permissions:
+  contents: read
+jobs:
+  source-owned-gas-custody:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native original T02 420W battery paid ONCE, 8A mass and 80L pressure conservation
+        run: |
+          set -euo pipefail
+          node --check src/physics/pressure-gas-packets8h.js
+          node --test tests/pressure-gas-packets8h.test.cjs
+          node --test tests/pressure-pipe-hardware8h.test.cjs
+          node --test tests/conveyor-live-port8h.test.cjs
+          node --test tests/conveyor-native-bridge8h.test.cjs
+          node --test tests/industrial-site8e.test.cjs
+          python3 tests/standalone-parity.py
