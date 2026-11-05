@@ -11619,6 +11619,31 @@ function logisticsReserve8H(lotId,depotId){
  showToast('8H · '+q.record.massKg+' kg ore reserved on original truck; drive physically to '+depotId);
  return q.record;
 }
+function logisticsCancel8H(orderId){
+ const c=logisticsContext8H();
+ if(!c.operatorNear||!c.truckPresent||!truckBody||!truckLocal||truckBody!==nearest)
+  throw Error('8H only the on-foot original truck operator may cancel its still-loaded ore order');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H durable storage unavailable for safe reservation cancellation');
+ const q=StarfallLogisticsDropoff8H.cancel({id:orderId,
+  materials:materials8a.snapshot(),orders:logisticsOrders8h.snapshot(),
+  physical:physical8a.serialize(),actor:{id:START_TRUCK,kind:'truck',
+   bodyId:nearest.id,local:[...truckLocal],
+   containerId:StarfallMining8D.TRUCK,operational:true},
+  operatorNear:true,timeS:simTime,bodyRadius:nearest.radius});
+ if(SF.save({materials8a:q.materials,logisticsOrders8h:q.orders})!==true||
+    SF.storageStatus().durable!==true)
+  throw Error('8H cancellation not durably saved; physical ore remains reserved');
+ const stored=SF.load();
+ if(JSON.stringify(stored.materials8a)!==JSON.stringify(q.materials)||
+    JSON.stringify(stored.logisticsOrders8h)!==JSON.stringify(q.orders))
+  throw Error('8H cancellation readback mismatch; reload original saved owners');
+ materials8a=StarfallMaterials8A.create(q.materials);
+ logisticsOrders8h=StarfallLogisticsOrders8H.create(q.orders);
+ showToast('8H · Reserved ore released for future hauling · no Joules or kilograms created');
+ return q.receipt;
+}
 function logisticsDeliver8H(orderId){
  const c=logisticsContext8H(),order=logisticsOrders8h.get(orderId);
  if(!c.operatorNear||!c.truckPresent||!order||order.status!=='LOADED'||
@@ -11675,6 +11700,8 @@ function miningLoad8D(lotId,massKg=50){
  const ctx=miningContext8D(),lot=materials8a.inventory(StarfallMining8D.TRUCK).find(x=>x.id===lotId);
  if(!lot)throw Error('Choose an actual ore lot loaded in this truck hopper');
  if(massKg>lot.massKg+1e-6)throw Error('Requested mass exceeds the truck ore lot');
+ if(materials8a.operations().some(o=>o.status==='RESERVED'&&o.lotId===lotId))
+  throw Error('Ore reserved for an 8H physical depot: cancel that shipment before operating 8D ship loader');
  const dst=materials8a.used(StarfallMining8D.SHIP);
  if(dst.massKg+massKg>StarfallMining8D.LIMITS.shipMassKg||dst.volumeM3+massKg*lot.volumeM3/lot.massKg>StarfallMining8D.LIMITS.shipVolumeM3)
  throw Error('Ship material cargo store is full');
@@ -11931,7 +11958,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsDeliver8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
