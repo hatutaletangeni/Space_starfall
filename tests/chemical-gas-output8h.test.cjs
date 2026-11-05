@@ -76,8 +76,8 @@ function fixture(){
   native,makeReport};
 }
 function produce(f){
- const r=Chem.batch('water_splitting',100),proc=Plant.create().process({
-  id:'chem8e:1',reactionId:'water_splitting',scaleMol:100,
+ const r=Chem.batch('water_splitting',50),proc=Plant.create().process({
+  id:'chem8e:1',reactionId:'water_splitting',scaleMol:50,
   materials:f.materials8a,sourceContainerId:'8d:ship-main:materials',
   destinations:{hydrogen:'pipe:'+f.ids.pipeH,oxygen:'pipe:'+f.ids.pipeO},
   assetState:f.physical8a,station:f.stationProof,
@@ -85,6 +85,19 @@ function produce(f){
    usedJ:r.energyJ},bodyId});
  return proc;
 }
+test('real original 80L manufactured output pipe REFUSES an oversized 100-mol hydrogen batch, never fabricates larger tank capacity',()=>{
+ const f=fixture(),before=structuredClone(f.materials8a),scaleMol=100;
+ assert.throws(()=>Plant.create().process({
+  id:'chem8e:oversized',reactionId:'water_splitting',scaleMol,
+  materials:before,sourceContainerId:'8d:ship-main:materials',
+  destinations:{hydrogen:'pipe:'+f.ids.pipeH,oxygen:'pipe:'+f.ids.pipeO},
+  assetState:f.physical8a,station:f.stationProof,
+  energyReceipt:{operationId:'chem8e:oversized',
+   sourceId:'ship-main:engineering-battery',
+   usedJ:Chem.batch('water_splitting',scaleMol).energyJ},bodyId
+ }),/Output tank full|gas exceeds pipe/i);
+ assert.deepEqual(before,f.materials8a,'oversized 100mol must not silently enlarge or consume original 8A stock');
+});
 test('real atom-balanced 8E chemical job credits BOTH products only to their finite, source-paid physical 80L 8A pipe—not destination vessels',()=>{
  const f=fixture(),before=structuredClone(f.materials8a),proc=produce(f);
  close(mass(before),mass(proc.materials));
@@ -100,7 +113,7 @@ test('real atom-balanced 8E chemical job credits BOTH products only to their fin
  }
  assert.match(proc.receipt.gasTransportAccounting,/ORIGINAL_80L_PIPE/);
  assert.deepEqual(proc.receipt.physicalGasPorts,f.gasManifolds);
- assert.equal(proc.receipt.energyJ,Chem.batch('water_splitting',100).energyJ);
+ assert.equal(proc.receipt.energyJ,Chem.batch('water_splitting',50).energyJ);
  const staged=Gas.create().prepare({materials8a:proc.materials,
   physical8a:f.physical8a,receipt:proc.receipt,gasManifolds:f.gasManifolds,
   bodyId,bodyRadius:radius,timeS:0});
