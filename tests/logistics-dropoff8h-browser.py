@@ -170,6 +170,8 @@ with sync_playwright() as p:
   }""")
   assert len(collected['truck'])==1 and abs(collected['truck'][0]['massKg']-20)<1e-6,collected
   assert not collected['depot'] and len(collected['pickup'])==1,collected
+  assert collected['pickup'][0]['sourceLotId']==expected['lot'] and \
+    collected['pickup'][0]['destinationLotId']==collected['truck'][0]['id'],collected
   assert len(collected['paid'])==2 and collected['paid'][1]['usedJ']==1200,collected
   assert abs(collected['energy']-4997600)<1e-5,collected
   assert collected['energy']==collected['liveEnergy']==collected['physicalEnergy'],collected
