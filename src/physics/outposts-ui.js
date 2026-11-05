@@ -52,7 +52,7 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
     // solar/battery owner. The 8H observer ONLY follows this real report:
     // no second grid debit, invented material or source changes on failure.
     if(report?.dtS>0&&root.StarfallConveyorNativeBridge8H&&
-       RT.logisticsConveyorNativeTick8H){
+       RT.logisticsConveyorHasActive8H?.(bodyId)&&RT.logisticsConveyorNativeTick8H){
       try{
        const movement=RT.logisticsConveyorNativeTick8H({
         bodyId,outpost5:durableSnapshot(),powerReport:report,
