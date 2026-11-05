@@ -16,10 +16,10 @@ function debit({state,operationId,carrierId,sourceId,usedJ}){
   throw Error('8H duplicate energy operation blocked');
  const store=state.stores[sourceId];
  if(!store||store.carrierId!==carrierId||!valid(store.energyJ)||!valid(store.capacityJ)||
-    store.energyJ>store.capacityJ||store.energyJ+1e-7<usedJ)
+    store.energyJ>store.capacityJ||store.energyJ<usedJ)
   throw Error('8H authoritative vehicle battery missing, mismatched or insufficient');
  const next=copy(state);
- next.stores[sourceId].energyJ=Math.max(0,store.energyJ-usedJ);
+ next.stores[sourceId].energyJ=store.energyJ-usedJ;
  const receipt={operationId,carrierId,sourceId,usedJ,status:'COMMITTED',
   beforeJ:store.energyJ,afterJ:next.stores[sourceId].energyJ};
  next.receipts.push(receipt);
