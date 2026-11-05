@@ -27,5 +27,6 @@ jobs:
           node --test tests/logistics-powered-network8h.test.cjs
           node --test tests/industrial-site8e.test.cjs
           node --test tests/industrial-kit-factory8f.test.cjs
+          node --test tests/power-ledger-t02.test.cjs
       - name: Preserve offline standalone parity
         run: python3 tests/standalone-parity.py
