@@ -1,0 +1,57 @@
+name: STARFALL 8H finite manufactured solid cargo depot
+on:
+  push:
+    branches:
+      - feature/update-8h-manufactured-cargo-depot
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  regenerate-standalone:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild offline HTML from exact new kit and physical dock sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/build-standalone.py
+          if git diff --quiet -- PLAY-STARFALL.html; then
+            echo 'Standalone unchanged'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html
+          git commit -m 'build(8H): synchronize offline depot kit and physical storage'
+          git push origin HEAD:feature/update-8h-manufactured-cargo-depot
+          gh workflow run update-8h-depot.yml --ref feature/update-8h-manufactured-cargo-depot
+  verify-generated-head:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prove finite 8F kit is converted to owned empty 8A depot
+        run: |
+          set -euo pipefail
+          node --check src/physics/logistics-orders8h.js
+          node --check src/physics/kit-recipes8f.js
+          node --check src/physics/industrial-site8e.js
+          node --test tests/logistics-depot8h.test.cjs
+          node --test tests/logistics-orders8h.test.cjs
+          node tests/industry-models.test.cjs
+          python3 tests/standalone-parity.py
