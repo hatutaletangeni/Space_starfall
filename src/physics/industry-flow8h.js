@@ -90,9 +90,32 @@ function inspect(s={}){
   const ids=isGas?[j.sourceId,j.pipeId,j.targetId]:
    [j.sourceId,...(j.driveIds||[]),j.targetId];
   const ends=ids.map(id=>assets.get(id));
-  const validEndpoints=ids.length>=3&&new Set(ids).size===ids.length&&
+  const sameWorld=ids.length>=3&&new Set(ids).size===ids.length&&
    ends.every(a=>a&&installed(a)&&a.location?.kind==='surface'&&
-   a.location.bodyId===j.bodyId);
+   a.location.bodyId===j.bodyId&&Array.isArray(a.location.local));
+  const routeType=sameWorld&&(
+   isGas?
+    ends[0].type==='industrial_vessel'&&ends[2].type==='industrial_vessel'&&
+    ends[1].type==='industrial_plant'&&
+    ends[1].state?.station==='pressure_pipeline'&&
+    ends[1].state?.ratedPressurePa>=8e6&&ends[1].massKg===320&&
+    ends[0].state?.materialId===ends[2].state?.materialId&&
+    ends[0].state?.materialId===j.materialId&&
+    ends[1].state?.kitMaterialId==='plant_kit_pressure_pipeline':
+    ends[0].type==='industrial_plant'&&ends.at(-1).type==='industrial_plant'&&
+    ends[0].state?.station==='cargo_depot'&&
+    ends.at(-1).state?.station==='cargo_depot'&&
+    ends.slice(1,-1).every(a=>a.type==='industrial_plant'&&
+     a.state?.station==='conveyor_drive'&&a.state?.kitMaterialId==='plant_kit_conveyor_drive'&&
+     a.massKg===180));
+  const radius=s.bodyRadius;
+  const connectedGeometry=routeType&&finite(radius)&&radius>0&&
+   ends.slice(1).every((a,i)=>{
+    const dot=ends[i].location.local.reduce((sum,v,k)=>sum+v*a.location.local[k],0);
+    const distance=radius*Math.acos(Math.max(-1,Math.min(1,dot)));
+    return distance>.01&&distance<=12+EPS;
+   });
+  const validEndpoints=routeType&&connectedGeometry;
   const lot=lots.find(x=>x.id===j.currentLotId);
   const actualContainer=lot?.containerId||null;
   const expected=isGas?(j.stage===0?ends[0]?.state?.containerId:
