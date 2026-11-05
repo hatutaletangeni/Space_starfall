@@ -27,6 +27,10 @@ with sync_playwright() as p:
   # empty landed boot fixture just because that auxiliary marker is missing.
   # Source-owned outpost data always wins over test initialization.
   ctx.add_init_script("""(()=>{
+    // A reload is a test of real source persistence. Never re-inject the old
+    // landed boot fixture during navigationType=reload, irrespective of
+    // file-origin sessionStorage/window.name behavior.
+    if(performance.getEntriesByType('navigation')[0]?.type==='reload')return;
     let prior=null;
     try{prior=JSON.parse(localStorage.getItem('starfall_save')||'null');}catch(_){}
     // window.name is page-scoped and survives reload even if file://
