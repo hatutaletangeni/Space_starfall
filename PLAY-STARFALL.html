@@ -10185,6 +10185,372 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallOffwo
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8H — physical/powered conveyor eligibility interlock, zero transfers.
+ * This module never moves ore or invents hardware/energy. A link can be
+ * evaluated only between real installed dry depots via existing, installed
+ * conveyor-drive assets and the ACTUAL T02 48V outpost bus report. Until a
+ * manufactured conveyor drive, physical ports and T02 load integration exist,
+ * the response is NO_CONNECTION. Proximity alone never enables throughput.
+ */
+(function(root){'use strict';
+const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6;
+const ident=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const num=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const unit=x=>Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&Math.abs(Math.hypot(...x)-1)<1e-4;
+const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,a.reduce((n,x,i)=>n+x*b[i],0))))*r;
+const fail=(fault,detail='')=>({schema:1,eligible:false,throughputKgS:0,powerW:0,fault,detail});
+function inspect({physical8a,materials8a,outpost5,powerReport,bodyId,bodyRadius,sourceId,targetId,driveIds,timeS}={}){
+ if(!ident(bodyId)||!num(bodyRadius)||bodyRadius<=0||!num(timeS)||
+   !ident(sourceId)||!ident(targetId)||sourceId===targetId||
+   !Array.isArray(driveIds)||driveIds.length<1||driveIds.length>16||
+   driveIds.some(x=>!ident(x))||new Set(driveIds).size!==driveIds.length)
+  throw Error('8H invalid physical conveyor network request');
+ if(!root.StarfallPhysical8A?.create||!root.StarfallMaterials8A?.create)
+  throw Error('8H authoritative installed machinery and material owners missing');
+ const phys=root.StarfallPhysical8A.create(physical8a),ledger=root.StarfallMaterials8A.create(materials8a);
+ function item(id,station){
+  const a=phys.get(id);
+  if(!a||a.type!=='industrial_plant'||a.state?.station!==station||
+     a.state.enabled!==true||a.condition<.5||a.location?.kind!=='surface'||
+     a.location.bodyId!==bodyId||!unit(a.location.local))
+    return null;
+  // An item listed only in physical assets is not proof that its mass was
+  // manufactured. It MUST have a previously committed 8E consumed-kit install.
+  const installed=physical8a.transfers?.some(t=>t.action==='INSTALL'&&
+   t.status==='COMMITTED'&&t.assetId===id&&ident(t.sourceLotId)&&num(t.massKg)&&
+   Math.abs(t.massKg-a.massKg)<EPS);
+  return installed?a:null;
+ }
+ const from=item(sourceId,'cargo_depot'),to=item(targetId,'cargo_depot');
+ if(!from||!to)return fail('NO_CERTIFIED_DEPOT','Both dry depots must be real installed paid 8E facilities');
+ for(const a of [from,to]){
+  const c=ledger.containers().find(c=>c.id===a.state.containerId&&c.ownerId===a.id&&
+   /dry-solid cargo dock/i.test(c.kind));
+  if(!c)return fail('NO_8A_PORT','Depot is missing its original source-owned dry-material container');
+ }
+ const drives=driveIds.map(x=>item(x,'conveyor_drive'));
+ if(drives.some(x=>!x))return fail('NO_CERTIFIED_CONVEYOR','Missing physically manufactured and installed drive segments');
+ const chain=[from,...drives,to],lengths=[];
+ for(let i=1;i<chain.length;i++){
+  const metres=arc(chain[i-1].location.local,chain[i].location.local,bodyRadius);
+  if(metres>12+EPS)return fail('DISCONNECTED_SEGMENT','Conveyor segments are not physically connected (max 12 m)');
+  lengths.push(metres);
+ }
+ if(!outpost5||!Array.isArray(outpost5.items)||!Array.isArray(outpost5.wires))
+  return fail('NO_T02_WIRING','Original T02 outpost wiring is absent');
+ const items=new Map(outpost5.items.filter(x=>x.bodyId===bodyId).map(x=>[x.id,x]));
+ const report=powerReport;
+ if(!report||report.schema!==1||report.bodyId!==bodyId||!num(report.simulatedAtS)||
+    Math.abs(report.simulatedAtS-timeS)>1)
+  return fail('STALE_POWER_REPORT','Only the current original T02 grid simulation may authorize power');
+ const adjacency=new Map();
+ for(const wire of outpost5.wires){
+  if(!items.has(wire.a)||!items.has(wire.b))continue;
+  if(!adjacency.has(wire.a))adjacency.set(wire.a,new Set());
+  if(!adjacency.has(wire.b))adjacency.set(wire.b,new Set());
+  adjacency.get(wire.a).add(wire.b);adjacency.get(wire.b).add(wire.a);
+ }
+ const connected=(a,b)=>{
+  const seen=new Set([a]),queue=[a];
+  for(let i=0;i<queue.length;i++){
+   if(queue[i]===b)return true;
+   for(const n of adjacency.get(queue[i])||[])if(!seen.has(n)){
+    seen.add(n);queue.push(n);
+   }
+  }return false;
+ };
+ const served=[];
+ for(const drive of drives){
+  const loadId=drive.state?.t02LoadId;
+  if(!ident(loadId)||!items.has(loadId))
+   return fail('MISSING_T02_LOAD','A real wired outpost electrical load is required for each conveyor drive');
+  const electrical=items.get(loadId),reading=report.byId?.[loadId];
+  if(electrical.kind!=='conveyor_drive'||electrical.enabled===false||
+    electrical.condition<=.02||!reading||reading.power!==true||
+    reading.bodyId!==bodyId||
+    reading.busId==null||!num(reading.servedW)||reading.servedW<150||
+    !Array.isArray(reading.sourceIds)||reading.sourceIds.length===0)
+   return fail('NO_POWER','Conveyor drive is switched off, underpowered or load-shed');
+  // All loads must share one actual bus. T02's own source graph and energy
+  // ledger remain authoritative; this check is not a parallel Joule debit.
+  if(!reading.sourceIds.some(id=>items.has(id)&&connected(loadId,id)))
+   return fail('DISCONNECTED_POWER','No physically wired T02 source reaches this conveyor drive');
+  served.push({id:loadId,busId:reading.busId,servedW:reading.servedW,
+    sourceIds:[...reading.sourceIds]});
+ }
+ if(served.some(x=>x.busId!==served[0].busId))
+  return fail('ISOLATED_BUS','Drives do not share one continuous 48V power bus');
+ // A powered route is only ELIGIBLE for a future conveyor packet simulation.
+ // No stock may move until each packet is scheduled, clocked and paid.
+ return{schema:1,eligible:true,throughputKgS:0,powerW:served.reduce((s,x)=>s+x.servedW,0),
+  fault:'TRANSFER_ENGINE_NOT_INSTALLED',bodyId,sourceId,targetId,
+  driveIds:[...driveIds],lengthM:lengths.reduce((s,x)=>s+x,0),
+  totalSegments:lengths.length,sourceLoads:served,observedS:timeS,
+  detail:'Real installed and powered links verified; movement, manufacturing and finite conveyor packets still required'};
+}
+const API=Object.freeze({inspect});
+root.StarfallPoweredNetwork8H=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL 8H — finite, time-stepped dry cargo packets through real conveyor
+ * trays. An actual 8A lot occupies exactly ONE source-owned physical container
+ * at any time; every hop is an 8A reserve+commit, never graph teleportation.
+ * One original T02 grid step pays EVERY wired motor load before a hop.
+ * Caller must atomically persist returned material, outpost and packet owners,
+ * and must not advance T02 a second time for the same simulation interval.
+ * This is a pure release foundation, NOT live flight.js/UI integration.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6;
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=96;
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const DRY_DENIED=new Set(['oxygen','nitrogen','hydrogen','carbon_dioxide',
+ 'carbon_monoxide','sulfur_dioxide','methane','argon','helium','ammonia',
+ 'water','ice','liquid_water']);
+const SPEED_M_S=1,MIN_LEG_S=4,MAX_DT_S=10,MAX_PACKET_KG=40;
+function arc(a,b,r){return Math.acos(Math.max(-1,Math.min(1,a.reduce((n,x,i)=>n+x*b[i],0))))*r;}
+function create(saved){
+ const state=saved==null?{schema:1,jobs:[]}:cp(saved);
+ if(state.schema!==1||!Array.isArray(state.jobs)||state.jobs.length>200)
+  throw Error('8H unsupported conveyor packet archive');
+ for(const j of state.jobs){
+  if(!id(j.id)||!id(j.bodyId)||!id(j.sourceId)||!id(j.targetId)||
+    !id(j.currentLotId)||!Array.isArray(j.driveIds)||j.driveIds.length<1||
+    j.driveIds.length>16||j.driveIds.some(x=>!id(x))||
+    !Number.isInteger(j.cursor)||j.cursor<0||j.cursor>j.driveIds.length+1||
+    !finite(j.massKg)||j.massKg<=0||j.massKg>MAX_PACKET_KG||
+    !finite(j.lastS)||!finite(j.remainingS)||!['ACTIVE','DELIVERED'].includes(j.status)||
+    (j.status==='DELIVERED'&&j.cursor!==j.driveIds.length+1))
+   throw Error('8H corrupt material custody packet');
+ }
+ if(new Set(state.jobs.map(j=>j.id)).size!==state.jobs.length)
+  throw Error('8H duplicate conveyor packet identities');
+ const list=()=>cp(state.jobs),snapshot=()=>cp(state);
+ const byId=x=>state.jobs.find(j=>j.id===x);
+ function equipment(physical8a,materials8a,sourceId,targetId,driveIds,bodyId){
+  if(!root.StarfallPhysical8A?.create||!root.StarfallMaterials8A?.create)
+   throw Error('8H original physical and 8A ledger owners missing');
+  const phys=root.StarfallPhysical8A.create(physical8a),
+   materials=root.StarfallMaterials8A.create(materials8a);
+  const assets=[sourceId,...driveIds,targetId].map(x=>phys.get(x));
+  if(assets.some(a=>!a||a.location?.kind!=='surface'||a.location.bodyId!==bodyId||
+    a.condition<.5||a.state?.enabled!==true))
+   throw Error('8H conveyor stations must be installed, healthy and same-world');
+  if(assets[0].state?.station!=='cargo_depot'||
+    assets.at(-1).state?.station!=='cargo_depot'||
+    assets.slice(1,-1).some(a=>a.state?.station!=='conveyor_drive'||
+     a.state?.kitMaterialId!=='plant_kit_conveyor_drive'||a.massKg!==180))
+   throw Error('8H original certified dry depot and manufactured conveyor drive required');
+  const containers=assets.map((a,i)=>{
+   const c=materials.containers().find(v=>v.id===a.state.containerId&&v.ownerId===a.id);
+   if(!c||!new RegExp(i===0||i===assets.length-1?'dry-solid cargo dock':'dry-solid conveyor tray','i').test(c.kind))
+    throw Error('8H original dry cargo ports and bounded conveyor trays missing');
+   return c;
+  });
+  return{assets,containers,materials};
+ }
+ const paid=(network)=>network.eligible===true&&
+  network.fault==='TRANSFER_ENGINE_NOT_INSTALLED'&&network.throughputKgS===0;
+ function start({id:packetId,sourceLotId,sourceId,targetId,driveIds,massKg,
+   bodyId,bodyRadius,timeS,physical8a,materials8a,outpost5,powerReport}){
+  if(!id(packetId)||!id(sourceLotId)||!id(sourceId)||!id(targetId)||
+   !id(bodyId)||!Array.isArray(driveIds)||driveIds.length<1||
+   driveIds.length>16||driveIds.some(x=>!id(x))||
+   new Set(driveIds).size!==driveIds.length||
+   !finite(massKg)||massKg<=0||massKg>MAX_PACKET_KG||
+   !finite(bodyRadius)||bodyRadius<=0||!finite(timeS))
+   throw Error('8H invalid finite dry cargo packet request');
+  if(byId(packetId)||state.jobs.length>=200||state.jobs.some(x=>x.status==='ACTIVE'))
+   throw Error('8H original conveyor line already busy or packet ID replayed');
+  if(!outpost5||!finite(outpost5.lastTick)||Math.abs(outpost5.lastTick-timeS)>EPS)
+   throw Error('8H original T02 power clock must match reservation clock');
+  const n=root.StarfallPoweredNetwork8H;
+  if(!n?.inspect)throw Error('8H certified installed network interlock unavailable');
+  const inspection=n.inspect({physical8a,materials8a,outpost5,powerReport,
+   sourceId,targetId,driveIds,bodyId,bodyRadius,timeS});
+  if(!paid(inspection))throw Error('8H physically wired and currently T02-powered conveyors required: '+inspection.fault);
+  const {assets,containers,materials}=equipment(physical8a,materials8a,sourceId,targetId,driveIds,bodyId);
+  const lot=materials.inventory(containers[0].id).find(l=>l.id===sourceLotId);
+  if(!lot||DRY_DENIED.has(lot.materialId)||!finite(lot.massKg)||
+    lot.massKg+EPS<massKg)
+   throw Error('8H original dry source lot unavailable or unsafe for conveyor');
+  const availableVolume=lot.volumeM3*massKg/lot.massKg;
+  if(availableVolume>.05+EPS)throw Error('8H physically guarded tray volume too small');
+  materials.reserve('8h-belt:'+packetId+':0',sourceLotId,containers[1].id,massKg);
+  const first=arc(assets[0].location.local,assets[1].location.local,bodyRadius);
+  const job={id:packetId,sourceId,targetId,driveIds:[...driveIds],bodyId,
+   bodyRadius,massKg,materialId:lot.materialId,
+   currentLotId:sourceLotId,cursor:0,remainingS:Math.max(MIN_LEG_S,first/SPEED_M_S),
+   lastS:timeS,status:'ACTIVE',createdS:timeS,completionS:null};
+  state.jobs.push(job);
+  return{packets:snapshot(),materials8a:materials.snapshot(),receipt:{
+   id:packetId,status:'RESERVED',sourceLotId,massKg,
+   firstPhysicalContainer:containers[1].id,energyGrantedJ:0}};
+ }
+ function advance({id:packetId,timeS,dtS,physical8a,materials8a,outpost5,
+   body,starPos,luminosityW,metresPerUnit=1}){
+  const j=byId(packetId);
+  if(!j||j.status!=='ACTIVE')throw Error('8H no active original conveyor packet to advance');
+  if(!finite(timeS)||!finite(dtS)||dtS<=0||dtS>MAX_DT_S||
+   Math.abs(timeS-j.lastS-dtS)>EPS||body?.id!==j.bodyId||
+   !Array.isArray(starPos)||starPos.length!==3||!starPos.every(Number.isFinite)||
+   !finite(luminosityW)||luminosityW<=0||
+   !finite(metresPerUnit)||metresPerUnit<=0||
+   !outpost5||!finite(outpost5.lastTick)||Math.abs(outpost5.lastTick-j.lastS)>EPS)
+   throw Error('8H T02-powered conveyor must advance once per bounded source-owned clock step');
+  if(!root.StarfallOutposts?.Store||!root.StarfallPowerLedgerT02?.grid)
+   throw Error('8H real T02 electrical solver required');
+  const {assets,containers,materials}=equipment(
+    physical8a,materials8a,j.sourceId,j.targetId,j.driveIds,j.bodyId);
+  const originalMass=materials.inventory().reduce((s,x)=>s+x.massKg,0);
+  const store=new root.StarfallOutposts.Store(outpost5.seed,outpost5);
+  const report=root.StarfallPowerLedgerT02.grid(store,body,starPos,luminosityW,timeS,dtS,metresPerUnit);
+  store.lastTick=timeS;
+  const wired=root.StarfallPoweredNetwork8H.inspect({
+   physical8a,materials8a,outpost5:store.serialize(),powerReport:report,
+   bodyId:j.bodyId,bodyRadius:j.bodyRadius,sourceId:j.sourceId,
+   targetId:j.targetId,driveIds:j.driveIds,timeS});
+  const next=cp(j),powerJ=paid(wired)?wired.powerW*dtS:0;
+  let reason=paid(wired)?'MOVING':'PAUSED_'+wired.fault;
+  let receipt=null;
+  if(paid(wired)){
+   next.remainingS=Math.max(0,next.remainingS-dtS);
+   if(next.remainingS<=EPS){
+    const destination=containers[next.cursor+1],
+     opId='8h-belt:'+packetId+':'+next.cursor;
+    try{
+     const source=materials.inventory().find(x=>x.id===next.currentLotId);
+     if(!source||source.containerId!==containers[next.cursor].id||
+       source.materialId!==next.materialId||source.massKg+EPS<next.massKg)
+      throw Error('source lot custody changed');
+     materials.reserve(opId,source.id,destination.id,next.massKg);
+     receipt=materials.commit(opId);
+     next.currentLotId=receipt.outputLotId;
+     next.cursor++;
+     if(next.cursor===containers.length-1){
+      next.status='DELIVERED';next.completionS=timeS;reason='DELIVERED';
+     }else{
+      const dist=arc(assets[next.cursor].location.local,
+       assets[next.cursor+1].location.local,j.bodyRadius);
+      next.remainingS=Math.max(MIN_LEG_S,dist/SPEED_M_S);reason='HOP_COMMITTED';
+     }
+    }catch(e){reason='HELD_CAPACITY_OR_CUSTODY: '+String(e.message||e);}
+   }
+  }
+  next.lastS=timeS;
+  const afterMass=materials.inventory().reduce((s,x)=>s+x.massKg,0);
+  if(Math.abs(afterMass-originalMass)>EPS)
+   throw Error('8H original conveyor mass conservation violated');
+  state.jobs[state.jobs.findIndex(x=>x.id===packetId)]=next;
+  return{packets:snapshot(),materials8a:materials.snapshot(),outpost5:store.serialize(),
+   network:wired,report,status:reason,receipt:receipt?cp(receipt):null,
+   sourceEnergyServedJ:powerJ,stage:next.cursor,remainingS:next.remainingS,
+   materialMassKg:next.massKg,completed:next.status==='DELIVERED'};
+ }
+ return Object.freeze({snapshot,list,start,advance});
+}
+root.StarfallConveyorPackets8H=Object.freeze({create,SPEED_M_S,MAX_DT_S,MAX_PACKET_KG});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallConveyorPackets8H;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL 8H — one-way bridge from the ORIGINAL T02 grid clock to
+ * already-reserved 8A conveyor material. NEVER calls the grid again.
+ *
+ * Original StarfallOutpostUI owns native T02 battery/solar debits. Pass the
+ * report returned by THAT grid step, the corresponding physical outpost
+ * snapshot, and actual 8A/8E owners. Packet dwell time can advance only when
+ * every manufactured drive was served by that native grid. Caller must durably
+ * commit BOTH owners and packet archive in one SF.save before applying live
+ * material. This module never creates hardware, lots, ship energy or time.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-5;
+const num=n=>Number.isFinite(n)&&n>=0;
+const M=()=>root.StarfallMaterials8A;
+const P=()=>root.StarfallConveyorPackets8H;
+const I=()=>root.StarfallPoweredNetwork8H;
+function observe({packets,materials8a,physical8a,outpost5,powerReport,
+ bodyId,bodyRadius,timeS}={}){
+ if(!P()?.create||!M()?.create||!I()?.inspect)
+  throw Error('8H original finite packet, power interlock and material owners required');
+ const state=P().create(packets).snapshot(),active=state.jobs.filter(x=>x.status==='ACTIVE'&&x.bodyId===bodyId);
+ if(!active.length)return{changed:false,packets:state,materials8a,reason:'NO_ACTIVE_PACKET'};
+ if(active.length!==1)throw Error('8H only one source-owned line can progress per original grid tick');
+ const j=active[0];
+ if(!num(timeS)||!num(bodyRadius)||bodyRadius<=0||
+    !powerReport||powerReport.schema!==1||powerReport.bodyId!==bodyId||
+    !num(powerReport.dtS)||powerReport.dtS<=0||
+    !num(powerReport.simulatedAtS)||Math.abs(powerReport.simulatedAtS-timeS)>EPS||
+    !outpost5||outpost5.schema!==1||!Array.isArray(outpost5.items)||
+    !Array.isArray(outpost5.wires))
+  throw Error('8H only native original T02 grid owner can report conveyor motion');
+ const elapsed=timeS-j.lastS;
+ if(elapsed<=EPS)return{changed:false,packets:state,materials8a,reason:'REPLAY_OR_OLD_GRID_TICK'};
+ if(elapsed>10+EPS||elapsed>powerReport.dtS+EPS){
+  // No retroactive instantaneous movement across long unloaded intervals.
+  // Rebase ONLY the observed clock, preserving exact original lot custody,
+  // remaining journey time and battery charges made by native T02. Otherwise
+  // an outage or 100x time skip could permanently strand a saved packet.
+  const held=cp(state),job=held.jobs.find(x=>x.id===j.id);
+  job.lastS=timeS;
+  return{changed:true,packets:held,materials8a,reason:'PAUSED_UNOBSERVED_CLOCK',
+   elapsedS:elapsed,additionalElectricalDebitJ:0};
+ }
+ const ledger=M().create(materials8a),massBefore=ledger.inventory().reduce((sum,x)=>sum+x.massKg,0);
+ const report=I().inspect({physical8a,materials8a,outpost5,powerReport,
+  bodyId,bodyRadius,sourceId:j.sourceId,targetId:j.targetId,
+  driveIds:j.driveIds,timeS});
+ const powered=report.eligible===true&&report.fault==='TRANSFER_ENGINE_NOT_INSTALLED'&&
+  report.throughputKgS===0&&report.sourceLoads?.length===j.driveIds.length;
+ const next=cp(state),job=next.jobs.find(x=>x.id===j.id);
+ let outcome=powered?'MOVING':'PAUSED_'+report.fault,receipt=null;
+ if(powered){
+  job.remainingS=Math.max(0,job.remainingS-elapsed);
+  if(job.remainingS<=EPS){
+   const phys=root.StarfallPhysical8A.create(physical8a);
+   const chain=[j.sourceId,...j.driveIds,j.targetId].map(id=>phys.get(id));
+   if(chain.some(a=>!a||a.location?.bodyId!==bodyId||a.condition<.5||
+     a.state?.enabled!==true))throw Error('8H conveyor physically installed line changed');
+   const from=chain[j.cursor],to=chain[j.cursor+1];
+   if(!from||!to)throw Error('8H packet has no real next physical conveyor port');
+   const src=ledger.inventory().find(x=>x.id===job.currentLotId);
+   if(!src||src.containerId!==from.state.containerId||src.materialId!==job.materialId||
+     src.massKg+EPS<job.massKg)
+    throw Error('8H actual 8A source custody changed before physical hop');
+   const reserveId='8h-belt:'+job.id+':'+job.cursor;
+   try{
+    ledger.reserve(reserveId,src.id,to.state.containerId,job.massKg);
+    receipt=ledger.commit(reserveId);
+    job.currentLotId=receipt.outputLotId;job.cursor++;
+    if(job.cursor===chain.length-1){
+     job.status='DELIVERED';job.completionS=timeS;outcome='DELIVERED';
+    }else{
+     const unit=(a,b)=>Math.acos(Math.max(-1,Math.min(1,a.reduce((sum,v,i)=>sum+v*b[i],0))))*bodyRadius;
+     job.remainingS=Math.max(4,unit(chain[job.cursor].location.local,
+       chain[job.cursor+1].location.local));outcome='HOP_COMMITTED';
+    }
+   }catch(error){outcome='HELD_CAPACITY_OR_CUSTODY: '+String(error.message||error);}
+  }
+ }
+ job.lastS=timeS;
+ const massAfter=ledger.inventory().reduce((sum,x)=>sum+x.massKg,0);
+ if(Math.abs(massAfter-massBefore)>EPS)
+  throw Error('8H original 8A dry conveyor transport mass conservation violated');
+ return{changed:true,packets:next,materials8a:ledger.snapshot(),receipt:receipt?cp(receipt):null,
+  report,status:outcome,sourceEnergyAlreadyPaidJ:powered?report.powerW*elapsed:0,
+  stepS:elapsed,physicalContainerId:ledger.inventory().find(x=>x.id===job.currentLotId)?.containerId||null,
+  // ZERO additional watts and joules charged here: real native T02 grid
+  // already changed the true outpost battery owner before this observation.
+  additionalElectricalDebitJ:0};
+}
+root.StarfallConveyorNativeBridge8H=Object.freeze({observe});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallConveyorNativeBridge8H;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL — single-scene, procedural multi-system navigation and physical landing.
  * All celestial positions are updated deterministically, and neither warp nor
  * surface contact changes HTML pages, cameras or rendering engines. */
@@ -10221,6 +10587,7 @@ let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(se
 let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h);
 let logisticsRoutes8h=StarfallPhysicalRoutes8H.create(session.logisticsRoutes8h);
 let offworldManifests8h=StarfallOffworldManifest8H.create(session.logisticsOffworldManifests8h);
+let conveyorPackets8h=StarfallConveyorPackets8H.create(session.logisticsConveyorPackets8h);
 let logisticsPickupReceipts8h=(()=>{
  const rows=session.logisticsPickupReceipts8h;
  if(rows==null)return [];
@@ -10867,7 +11234,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsConveyorPackets8h:conveyorPackets8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -12270,6 +12637,115 @@ function logisticsRouteCancel8H(routeId){
  * remote instant transfer. Every state change is saved and read back before
  * live owners are replaced. No position, thrust or time is changed here.
  */
+/* 8H native charged-grid conveyor bridge.
+ * T02's ORIGINAL StarfallOutpostUI owns its solar/battery electrical changes.
+ * Its already-paid pulse may grant bounded source-owned 8A material travel.
+ * Never run a second grid, alter vehicle position, or spawn a dry material lot.
+ */
+function logisticsConveyorContext8H(){
+ const assets=physical8a.list().filter(a=>a.type==='industrial_plant'&&
+  a.condition>=.5&&a.state?.enabled===true&&
+  a.location?.kind==='surface'&&['cargo_depot','conveyor_drive'].includes(a.state?.station)&&
+  materials8a.containers().some(c=>c.id===a.state.containerId&&c.ownerId===a.id));
+ const receipts=physical8a.serialize().transfers||[];
+ const certified=assets.filter(a=>receipts.some(t=>t.action==='INSTALL'&&
+  t.status==='COMMITTED'&&t.assetId===a.id&&t.sourceLotId&&
+  Math.abs(t.massKg-a.massKg)<1e-6));
+ const ctx=outpostContext(),here=ctx.bodyId;
+ const depots=certified.filter(a=>a.state.station==='cargo_depot'&&a.location.bodyId===here);
+ const drives=certified.filter(a=>a.state.station==='conveyor_drive'&&
+  a.location.bodyId===here&&a.massKg===180&&a.state?.t02LoadId);
+ return{bodyId:here,bodyRadius:ctx.body?.radius||null,
+  onFoot:ctx.landed&&ctx.eva&&!truckOccupied&&!shipWalking8e&&
+   !interiorState&&!manufacturedOccupied8G,
+  operatorLocal:ctx.eva&&ctx.local?[...ctx.local]:null,
+  depots:depots.map(a=>({id:a.id,local:[...a.location.local],
+    containerId:a.state.containerId,lots:materials8a.inventory(a.state.containerId)})),
+  drives:drives.map(a=>({id:a.id,local:[...a.location.local],
+    containerId:a.state.containerId,portId:a.state.t02LoadId,
+    stock:materials8a.inventory(a.state.containerId)})),
+  packets:conveyorPackets8h.list(),timeS:simTime,
+  gridReport:window.StarfallOutpostUI?.powerReports?.get(here)||null};
+}
+function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
+ const ctx=logisticsConveyorContext8H(),phys=physical8a;
+ if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
+  throw Error('8H conveyor initiation requires a real landed on-foot EVA operator');
+ if(sourceId===targetId||!ctx.depots.some(x=>x.id===sourceId)||
+  !ctx.depots.some(x=>x.id===targetId)||!ctx.drives.some(x=>x.id===driveId))
+  throw Error('8H choose existing separate installed dry depots and one certified drive');
+ const source=phys.get(sourceId),lot=materials8a.inventory(source.state.containerId)
+  .find(x=>x.id===lotId);
+ if(!lot||!Number.isFinite(massKg)||massKg<=0||massKg>40||
+  lot.massKg+1e-7<massKg)
+  throw Error('8H choose a genuine dry original 8A source lot and <=40 kg mass');
+ if(StarfallOutposts.arc(ctx.operatorLocal,source.location.local,ctx.bodyRadius)>15)
+  throw Error('8H walk within 15 scene units of actual loading dock');
+ const os=window.StarfallOutpostUI;
+ if(!os?.store||typeof os.advancePowerTo!=='function'||!os.powerReports||
+  typeof os.durableSnapshot!=='function')
+  throw Error('8H actual original T02 outpost clock unavailable');
+ // Settle all prior original native energy, then request a zero-dt sampled
+ // 48V report at the *current* simulation timestamp. A zero-dt check never
+ // debits battery, creates charge, or advances conveyor position.
+ os.advancePowerTo(simTime);os.advancePowerTo(simTime);
+ const report=os.powerReports.get(ctx.bodyId);
+ if(!report||Math.abs(report.simulatedAtS-simTime)>1e-6||
+  report.dtS!==0)throw Error('8H require current exact original T02 power observation');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H cannot reserve original material with unavailable durable save');
+ const saved=SF.load();
+ const store={...os.durableSnapshot(),lastTick:simTime};
+ const next=StarfallConveyorPackets8H.create(saved.logisticsConveyorPackets8h);
+ let serial=next.list().length+1;
+ while(next.list().some(x=>x.id==='8h-packet:'+serial))serial++;
+ const q=next.start({id:'8h-packet:'+serial,sourceLotId:lotId,
+  sourceId,targetId,driveIds:[driveId],massKg,bodyId:ctx.bodyId,
+  bodyRadius:ctx.bodyRadius,timeS:simTime,physical8a:saved.physical8a,
+  materials8a:saved.materials8a,outpost5:store,powerReport:report});
+ const patch={materials8a:q.materials8a,logisticsConveyorPackets8h:q.packets,
+  outpost5:store};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
+  throw Error('8H source-owned packet reservation not durably saved');
+ const read=SF.load();for(const [key,v] of Object.entries(patch))
+  if(JSON.stringify(read[key])!==JSON.stringify(v))
+   throw Error('8H original packet save readback mismatch; reload before continuing');
+ materials8a=StarfallMaterials8A.create(q.materials8a);
+ os.store.lastTick=simTime;
+ conveyorPackets8h=next;
+ showToast('8H · '+massKg.toFixed(2)+' kg reserved at real conveyor. Wait for paid original 48V pulses.');
+ return q.receipt;
+}
+function logisticsConveyorNativeTick8H({bodyId,outpost5,powerReport,timeS}={}){
+ if(!bodyId||!powerReport||!(powerReport.dtS>0))
+  return{changed:false,reason:'NO_REAL_PAID_TICK'};
+ const active=conveyorPackets8h.list().filter(j=>j.status==='ACTIVE'&&j.bodyId===bodyId);
+ if(!active.length)return{changed:false,reason:'NO_ACTIVE_PACKET'};
+ const body=galaxy.byId.get(bodyId);
+ if(!body?.landable)return{changed:false,reason:'NO_PHYSICAL_BODY'};
+ const q=StarfallConveyorNativeBridge8H.observe({
+  packets:conveyorPackets8h.snapshot(),materials8a:materials8a.snapshot(),
+  physical8a:physical8a.serialize(),outpost5,powerReport,
+  bodyId,bodyRadius:body.radius,timeS});
+ if(!q.changed)return q;
+ // The original outpost has already consumed the native source Joules ONCE.
+ // Persist its exact updated energy together with 8A dry custody and packet
+ // clock, BEFORE swapping live materials. No second grid call or battery debit.
+ const patch={materials8a:q.materials8a,logisticsConveyorPackets8h:q.packets,
+  outpost5};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
+  throw Error('8H native T02 conveyor transaction could not be durably committed');
+ const read=SF.load();
+ for(const [key,v] of Object.entries(patch))
+  if(JSON.stringify(read[key])!==JSON.stringify(v))
+   throw Error('8H source-owned native power / material write mismatch');
+ materials8a=StarfallMaterials8A.create(q.materials8a);
+ conveyorPackets8h=StarfallConveyorPackets8H.create(q.packets);
+ if(q.receipt)showToast('8H · physical 8A conveyor hop '+q.receipt.massKg+
+  ' kg · original 48V motor power paid once');
+ return q;
+}
 function logisticsOffworldContext8H(){
  const shipHold=materials8a.inventory(StarfallOffworldManifest8H.HOLD);
  const currently=landed&&nearest?.landable&&shipBody===nearest&&!!shipLocal;
@@ -12668,7 +13144,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,logisticsConveyorContext8H,logisticsConveyorStart8H,logisticsConveyorNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -13197,7 +13673,8 @@ let tab='build',statusMsg='',previewError='',lastPowerTick=RT.time,receiverResul
 const lastPoweredAt=(saved?.lastPoweredAt&&typeof saved.lastPoweredAt==='object')?{...saved.lastPoweredAt}:{};
 const fmt=(v,p=1)=>Number.isFinite(v)?v.toLocaleString('en-US',{maximumFractionDigits:p}):'—';
 function show(msg,bad=false){statusMsg=msg;const el=$('outpost-status');el.textContent=msg;el.style.color=bad?'#ffad97':'#eac18e';}
-function persist(){SF.save({outpost5:{...store.serialize(),pending:queue.slice(0,120),lastPoweredAt,radioEnforced}});dirty=false;lastFlush=performance.now();}
+function durableSnapshot(){return{...store.serialize(),pending:queue.slice(0,120),lastPoweredAt:{...lastPoweredAt},radioEnforced};}
+function persist(){SF.save({outpost5:durableSnapshot()});dirty=false;lastFlush=performance.now();}
 function renderLoc(item){const b=RT.galaxy.byId.get(item.bodyId);if(!b)return null;const radial=O.rotate(item.local,b.spinAxis||[0,1,0],b.spinAngle||0);const sceneHeight=Starfall3D.groundHeight(item.local,b);const position=c.add(b.position,c.mul(radial,b.radius+sceneHeight+.6));
  const f=O.rotate(item.facing,b.spinAxis||[0,1,0],b.spinAngle||0);return{kind:item.kind,position,up:radial,forward:f};}
 function placementKey(){const ctx=RT.outpostContext();return [ctx.bodyId,$('outpost-type').value,$('outpost-forward').value,$('outpost-right').value].join('|');}
@@ -13232,6 +13709,21 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
     report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
+    // Commit the native owner's truthful end-of-step clock BEFORE any 8H
+    // atomic save. Otherwise reload could re-bill solar/battery Joules.
+    lastPoweredAt[bodyId]=start+(i+1)*total/steps;
+    // ONE native T02 grid step has just charged the actual original
+    // solar/battery owner. The 8H observer ONLY follows this real report:
+    // no second grid debit, invented material or source changes on failure.
+    if(report?.dtS>0&&root.StarfallConveyorNativeBridge8H&&
+       RT.logisticsConveyorNativeTick8H){
+      try{
+       const movement=RT.logisticsConveyorNativeTick8H({
+        bodyId,outpost5:durableSnapshot(),powerReport:report,
+        timeS:report.simulatedAtS});
+       if(movement?.changed)dirty=true;
+      }catch(e){console.warn('8H original native conveyor pulse held:',e);}
+    }
     if(root.StarfallHabitatT09){
       const to=start+(i+1)*total/steps;
       for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
@@ -13554,7 +14046,7 @@ function tick(dt,timeScale){if(document.hidden)return;const time=RT.time;
 addEventListener('pagehide',()=>{if(dirty)persist();});
 function advancePowerTo(atTime,resolve){if(!Number.isFinite(atTime)||atTime<0)return false;const before=store.serialize(),previousTimes={...lastPoweredAt},oldReports=new Map(powerReports),oldTick=lastPowerTick;try{powerTick(0,atTime,resolve);lastPowerTick=atTime;dirty=true;return true;}catch(error){store.restore(before);for(const k of Object.keys(lastPoweredAt))delete lastPoweredAt[k];Object.assign(lastPoweredAt,previousTimes);powerReports=oldReports;lastPowerTick=oldTick;throw error;}}
 root.StarfallPowerInspectorT02={getAssetStatus(id){return root.StarfallPowerLedgerT02?.inspect({id,rt:RT,ui:root.StarfallOutpostUI,launch:root.StarfallLaunchUI})||null;},getBusStatus(bodyId){const r=powerReports.get(bodyId);return r?O.copy(r):null;}};
-root.StarfallOutpostUI={store,tick,advancePowerTo,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
+root.StarfallOutpostUI={store,tick,advancePowerTo,durableSnapshot,scene,preview,canCommandRover,get powerReports(){return powerReports;},get queue(){return queue;},linkFor,refresh,persist};
 })(globalThis);
 
 </script><script>
@@ -18555,6 +19047,105 @@ let lastTick=0;function tick(time){
 }requestAnimationFrame(tick);
 root.StarfallOffworldManifestUI8H=Object.freeze({refresh,open:()=>{
  root.StarfallUI21?.openRoute?.('Engineer');box.scrollIntoView({block:'nearest'});refresh();
+}});
+})(globalThis);
+
+</script><script>
+/* STARFALL 8H — real Engineer panel for source-owned powered dry conveyor.
+ * The original ship / truck / EVA controls are untouched. Starting a packet
+ * reserves existing dry 8A stock; ONLY future real native T02 paid grid ticks
+ * may transfer one physically travelled hop at a time into existing hardware.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host)return;
+const panel=document.createElement('section');panel.className='section';
+panel.id='conveyor8h-live-panel';panel.setAttribute('aria-label','8H physical conveyor controls');
+const heading=document.createElement('div');heading.className='section-title';
+heading.textContent='8H · LIVE POWERED CONVEYOR ROUTE';
+const intro=document.createElement('p');intro.className='panel-note';
+intro.textContent='Existing manufactured dry depot → real 180 kg conveyor drive with one owned 40 kg tray → separate manufactured dry depot. Physically install and wire its 250 W T02 motor. Start a genuine dry lot on EVA; one original T02 grid step pays power before each timed material hop. An unplug or blackout pauses actual stock in place.';
+const source=document.createElement('select');source.id='conveyor8h-source';
+const target=document.createElement('select');target.id='conveyor8h-target';
+const drive=document.createElement('select');drive.id='conveyor8h-drive';
+const lot=document.createElement('select');lot.id='conveyor8h-source-lot';
+const kg=document.createElement('input');kg.type='number';kg.id='conveyor8h-kg';
+kg.value='12';kg.min='.01';kg.max='40';kg.step='.01';
+for(const [s,title] of [[source,'Existing dry source depot'],[target,'Existing dry destination depot'],[drive,'Installed 180kg T02-wired conveyor drive'],[lot,'Real original 8A source material lot']]){
+ s.setAttribute('aria-label',title);
+ s.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
+}
+kg.setAttribute('aria-label','Packet mass in kilograms, maximum 40');
+kg.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;width:100px';
+const start=document.createElement('button');start.id='conveyor8h-start';
+start.type='button';start.className='science-action';
+start.textContent='START PHYSICAL POWER-PAID PACKET';
+const fields=document.createElement('div');fields.className='obs-tools';
+fields.append(source,lot,drive,target,kg,start);
+const status=document.createElement('p');status.className='panel-note';
+status.id='conveyor8h-status';status.setAttribute('role','status');
+const readout=document.createElement('pre');readout.id='conveyor8h-readout';
+readout.style.cssText='white-space:pre-wrap;overflow:auto;max-height:310px;background:#101b23;color:#c8d9d9;border:1px solid #53677566;padding:12px;font:11px/1.6 Consolas,monospace';
+panel.append(heading,intro,fields,status,readout);host.append(panel);
+function choices(el,rows,empty){
+ const signature=JSON.stringify(rows);if(el.dataset.signature===signature)return;
+ const selected=el.value;el.replaceChildren();
+ if(!rows.length){const opt=document.createElement('option');opt.value='';
+  opt.textContent=empty;el.append(opt);}
+ for(const [id,name] of rows){const opt=document.createElement('option');
+  opt.value=id;opt.textContent=name;el.append(opt);}
+ if(rows.some(x=>x[0]===selected))el.value=selected;
+ el.dataset.signature=signature;
+}
+let last='',lastTick=0,reportUntil=0;
+function report(message){status.textContent=message;reportUntil=performance.now()+7000;}
+function refresh(){
+ const rt=root.StarfallRuntime,ctx=rt?.logisticsConveyorContext8H?.();
+ if(!ctx){status.textContent='Original T02/8A conveyor runtime unavailable';return;}
+ const depots=ctx.depots,drives=ctx.drives;
+ choices(source,depots.map(x=>[x.id,x.id+' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' kg dry']), 'No certified source dry depot');
+ const current=depots.find(x=>x.id===source.value),materialLots=current?.lots||[];
+ choices(lot,materialLots.map(l=>[l.id,l.materialId+' · '+l.massKg.toFixed(2)+' kg · '+l.provenance]),'No real dry stock in source');
+ choices(drive,drives.map(x=>[x.id,x.id+' · native T02 motor '+x.portId]),'No installed 250W drive');
+ choices(target,depots.filter(x=>x.id!==source.value).map(x=>[x.id,x.id+' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' kg stored']), 'No second manufactured dry depot');
+ const active=ctx.packets.some(p=>p.status==='ACTIVE');
+ const selectedLot=materialLots.find(x=>x.id===lot.value);
+ start.disabled=!ctx.onFoot||!selectedLot||depots.length<2||!drive.value||
+  !target.value||active||!ctx.gridReport||Number(kg.value)>selectedLot.massKg||
+  !(Number(kg.value)>0&&Number(kg.value)<=40);
+ const lines=[
+  'REAL BODY            '+(ctx.bodyId||'NO LANDABLE WORLD'),
+  'EVA AT SOURCE        '+(ctx.onFoot?'ON FOOT; APPROACH ORIGINAL DOCK':'REQUIRES REAL EVA'),
+  'CERTIFIED DRY DEPOTS '+depots.length+' · CERTIFIED T02 DRIVES '+drives.length,
+  'LIVE GRID            '+(ctx.gridReport?.servedW??0).toFixed(1)+' W actual served; '+(ctx.gridReport?.shed?.length||0)+' shed',
+  'SAVED 8H PACKETS     '+ctx.packets.length,
+  ...ctx.packets.slice(-10).map(p=>p.id+' · '+p.status+' · stage '+p.cursor+
+   '/'+(p.driveIds.length+1)+' · '+p.massKg.toFixed(2)+' kg · remaining '+
+   p.remainingS.toFixed(2)+' s · original lot '+p.currentLotId),
+  'SAFETY               No automatic stock creation / no remote transfer / no second battery debit',
+  'CONTROLS             Use native time scale 1×/10×/100×; unplugged T02 power pauses physical stock'
+ ];
+ const output=lines.join('\n');if(output!==last){last=output;readout.textContent=output;}
+ if(performance.now()>=reportUntil)
+  status.textContent='Choose actual dry stock in a manufactured depot, a physically adjacent installed drive and separate depot. EVA near source to reserve; future native powered ticks move ore.';
+}
+source.addEventListener('change',()=>{lot.dataset.signature='';target.dataset.signature='';refresh();});
+start.addEventListener('click',()=>{try{
+ const rt=root.StarfallRuntime;if(!rt?.logisticsConveyorStart8H)
+  throw Error('8H native T02-powered runtime unavailable');
+ const q=rt.logisticsConveyorStart8H(lot.value,source.value,drive.value,
+  target.value,Number(kg.value));
+ refresh();report('8H original dry cargo '+q.massKg+' kg RESERVED; drive power will advance actual physical tray on native T02 time.');
+ }catch(error){report('8H conveyor start rejected · '+String(error.message||error));}});
+function tick(now){
+ if(now-lastTick>750){lastTick=now;try{refresh();}catch(error){
+  status.textContent='8H genuine conveyor inspector unavailable · '+String(error.message||error);
+ }}
+ requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+root.StarfallConveyorLiveUI8H=Object.freeze({refresh,open:()=>{
+ root.StarfallUI21?.openRoute?.('Engineer');panel.scrollIntoView({block:'nearest'});refresh();
 }});
 })(globalThis);
 
