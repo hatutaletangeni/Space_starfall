@@ -31,7 +31,7 @@ function attach({physical8a,outpost5,driveId,operatorLocal,bodyId,bodyRadius,tim
   throw Error('8H original consumed-kit conveyor installation receipt missing');
  if(a.state.t02LoadId)
   throw Error('8H drive electrical port already installed; no duplicate load');
- if(!outpost5||outpost5.schema!==1||!Number.isInteger(outpost5.seed)||
+ if(!outpost5||outpost5.schema!==1||!Number.isInteger(outpost5.seed)||outpost5.seed<0||
   !Array.isArray(outpost5.items)||!Array.isArray(outpost5.wires))
   throw Error('8H original T02 outpost store not initialized');
  const portId='8h-port:'+driveId;
