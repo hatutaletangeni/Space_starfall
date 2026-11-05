@@ -194,6 +194,53 @@ with sync_playwright() as p:
   assert (reloaded['kg']==20 and reloaded['depot']==0 and
     abs(reloaded['energy']-4997600)<1e-5 and reloaded['receipts']==1 and
     reloaded['paid']==2),reloaded
+  # A test-only SECOND empty manufactured dock is introduced in this controlled
+  # fixture; production never spawns a depot from the route planner.
+  nextStop=page.evaluate("""()=>{
+    const r=StarfallRuntime,save=SF.load(),secondId='facility8e:route-test-second',
+      stockId='depot8h:'+secondId,body=r.nearest;
+    const phys=JSON.parse(JSON.stringify(save.physical8a));
+    const materials=JSON.parse(JSON.stringify(save.materials8a));
+    const secondLocal=r.outpostOffset(160,0);
+    phys.assets.push({id:secondId,type:'industrial_plant',massKg:480,
+      volumeM3:1.8,condition:1,provenance:'TEST_FIXTURE_ONLY_SECOND_FINITE_KIT',
+      location:{kind:'surface',bodyId:body.id,local:secondLocal},
+      state:{station:'cargo_depot',enabled:true,containerId:stockId}});
+    materials.containers.push({id:stockId,ownerId:secondId,
+      kind:'sealed dry-solid cargo dock',maxMassKg:1200,maxVolumeM3:1.6});
+    StarfallPhysical8A.create(phys);StarfallMaterials8A.create(materials);
+    if(!SF.save({physical8a:phys,materials8a:materials}))throw Error('Fixture save failure');
+    return secondId;
+  }""")
+  page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+  page.reload(wait_until='domcontentloaded',timeout=90000)
+  page.wait_for_function("StarfallRuntime.logisticsContext8H?.().depots?.length===2",timeout=60000)
+  page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  plan=page.locator('#logistics8h-route-plan')
+  page.locator('#logistics8h-route-first').select_option(fixture['depotId'])
+  page.locator('#logistics8h-route-second').select_option(nextStop)
+  assert plan.is_enabled(),'Physical two-depot itinerary must be available in Engineer UI'
+  plan.click()
+  page.wait_for_function("SF.load().logisticsRoutes8h?.routes?.[0]?.status==='ACTIVE'",timeout=12000)
+  active=page.evaluate("SF.load().logisticsRoutes8h.routes[0]")
+  assert active['nextIndex']==0 and len(active['stops'])==2,active
+  assert active['carrierId']=='truck-expedition-001',active
+  page.locator('#logistics8h-route-arrive').click()
+  page.wait_for_function("SF.load().logisticsRoutes8h?.routes?.[0]?.nextIndex===1",timeout=12000)
+  # A menu selection never moves the actual expedition truck to the second dock.
+  rejected=page.evaluate("""()=>{
+    const rt=StarfallRuntime,id=SF.load().logisticsRoutes8h.routes[0].id;
+    try{rt.logisticsRouteArrive8H(id);return 'UNSAFE_TELEPORT';}
+    catch(e){return String(e.message||e);}
+  }""")
+  assert rejected!='UNSAFE_TELEPORT',rejected
+  page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+  page.reload(wait_until='domcontentloaded',timeout=90000)
+  page.wait_for_function("StarfallRuntime.logisticsContext8H?.().routes?.[0]?.nextIndex===1",timeout=60000)
+  routeAfter=page.evaluate("SF.load().logisticsRoutes8h.routes[0]")
+  assert routeAfter['status']=='ACTIVE' and routeAfter['nextIndex']==1,routeAfter
+  assert routeAfter['stops'][1]['status']=='PENDING',routeAfter
   assert not errors,errors[:12]
   assert not requests,requests[:12]
   print('PASS 8H real file:// Chromium: original mined-ore truck → manufactured dry depot → paid 1200J unload → paid 1200J pickup into SAME truck, durable reload and no duplicates')
