@@ -2,7 +2,6 @@
 """T13 real Chromium file:// regression. Controlled landed-fixture setup, real
 in-game owners and integrated DOM; no claim of physical landing/flight test.
 """
-import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 url=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').as_uri()
@@ -22,18 +21,13 @@ with sync_playwright() as p:
     groundDirection:[0,1,0],forward:[0,0,1],up:[0,1,0],landed:true}});
    return SF.load();
   }""")
-  # Install the landed fixture EXACTLY ONCE for this fresh file:// page.
-  # A context.add_init_script would run again on EVERY reload and could
-  # reintroduce stale orbital/undocked records when the file-origin storage
-  # marker is isolated. Remove this CDP new-document script immediately after
-  # the intended initial bootstrap; never rewrite the paid T13 save on reload.
-  boot.close()
-  page=ctx.new_page();page.on('pageerror',lambda e:errors.append(str(e)))
-  cdp=ctx.new_cdp_session(page)
-  initial_script="localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");"
-  fixture=cdp.send('Page.addScriptToEvaluateOnNewDocument',{'source':initial_script})
-  page.goto(url,wait_until='domcontentloaded',timeout=90000)
-  cdp.send('Page.removeScriptToEvaluateOnNewDocument',{'identifier':fixture['identifier']})
+  # Use the SAME real file:// page to bootstrap the landed flight from the
+  # real browser save. Suppress only the obsolete orbital pagehide write
+  # during this controlled test-fixture reload. Unlike context init scripts,
+  # this never rewrites the later physical docking receipt on genuine reload.
+  boot.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+  page=boot
+  page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallShipT13&&window.StarfallRuntime&&window.StarfallScienceUI&&window.StarfallLaunchUI)",timeout=45000)
   initial=page.evaluate("""()=>{
    const rt=StarfallRuntime;
