@@ -1,0 +1,26 @@
+name: STARFALL 8H durable physical truck transactions
+on:
+  pull_request:
+    paths:
+      - 'src/physics/logistics-durable8h.js'
+      - 'tests/logistics-durable8h.test.cjs'
+      - '.github/workflows/update-8h-durable.yml'
+  push:
+    branches:
+      - feature/update-8h-durable-logistics-commit
+jobs:
+  durable-custody-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate physical truck and actual material plus battery single-write
+        run: |
+          node --check src/physics/logistics-durable8h.js
+          node --check tests/logistics-durable8h.test.cjs
+          node --test tests/logistics-durable8h.test.cjs
+          node --test tests/logistics-battery-bridge8h.test.cjs
+          node --test tests/logistics-transaction8h.test.cjs
+          node --test tests/logistics-orders8h.test.cjs
+      - name: Verify playable source and standalone still match
+        run: python3 tests/standalone-parity.py
