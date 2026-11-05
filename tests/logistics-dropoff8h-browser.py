@@ -142,8 +142,57 @@ with sync_playwright() as p:
     receipts:SF.load().logisticsEnergyReceipts8h.length};
   }""")
   assert abs(saved['truck']-4998800)<1e-5 and saved['ore']==20 and saved['orders']==2 and saved['receipts']==1,saved
+  # Physical reverse leg, using the SAME actual Engineer panel and original
+  # stopped truck. No invented ore: source must be the committed depot lot.
+  page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
+  page.wait_for_function("StarfallRuntime.logisticsContext8H().pickupLots.length===1",timeout=20000)
+  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  pick=page.locator('#logistics8h-pickup-lot')
+  assert pick.count()==1,'Original Engineer pickup selector absent'
+  expected=page.evaluate("""()=>{
+   const s=StarfallRuntime.logisticsContext8H(),l=s.pickupLots[0];
+   return {lot:l.id,depot:l.depotId,kg:l.massKg,battery:s.energyJ};
+  }""")
+  assert expected['kg']==20 and abs(expected['battery']-4998800)<1e-5,expected
+  pick.select_option(__import__('json').dumps([expected['lot'],expected['depot']],separators=(',',':')))
+  pickup=page.locator('#logistics8h-pickup')
+  assert pickup.is_enabled(),'Depot pickup action not ready when real EVA/truck dock present'
+  pickup.click()
+  page.wait_for_function("SF.load().logisticsPickupReceipts8h?.length===1",timeout=18000)
+  collected=page.evaluate("""()=>{
+    const r=StarfallRuntime,s=SF.load(),t=r.physical8a.get('truck-expedition-001');
+    return {truck:r.materials8a.inventory(StarfallMining8D.TRUCK),
+     depot:r.materials8a.inventory('depot8h:facility8e:real-test-depot'),
+     pickup:s.logisticsPickupReceipts8h,
+     energy:s.flightGalaxy.truckPose.batteryJ,
+     liveEnergy:r.truck.batteryJ,physicalEnergy:t.state.batteryJ,
+     paid:s.logisticsEnergyReceipts8h};
+  }""")
+  assert len(collected['truck'])==1 and abs(collected['truck'][0]['massKg']-20)<1e-6,collected
+  assert not collected['depot'] and len(collected['pickup'])==1,collected
+  assert len(collected['paid'])==2 and collected['paid'][1]['usedJ']==1200,collected
+  assert abs(collected['energy']-4997600)<1e-5,collected
+  assert collected['energy']==collected['liveEnergy']==collected['physicalEnergy'],collected
+  replay=page.evaluate("""x=>{
+   try{StarfallRuntime.logisticsPickup8H(x.lot,x.depot);return 'UNSAFE_DUPLICATE';}
+   catch(e){return String(e.message||e);}
+  }""",expected)
+  assert replay!='UNSAFE_DUPLICATE',replay
+  page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+  page.reload(wait_until='domcontentloaded',timeout=90000)
+  page.wait_for_function("SF.load().logisticsPickupReceipts8h?.length===1",timeout=60000)
+  reloaded=page.evaluate("""()=>({
+   kg:StarfallRuntime.materials8a.inventory(StarfallMining8D.TRUCK)
+      .reduce((s,l)=>s+l.massKg,0),
+   depot:StarfallRuntime.materials8a.inventory('depot8h:facility8e:real-test-depot').length,
+   energy:StarfallRuntime.truck.batteryJ,
+   receipts:SF.load().logisticsPickupReceipts8h.length,
+   paid:SF.load().logisticsEnergyReceipts8h.length
+  })""")
+  assert reloaded['kg']==20 and reloaded['depot']==0 and \\
+    abs(reloaded['energy']-4997600)<1e-5 and reloaded['receipts']==1 and reloaded['paid']==2,reloaded
   assert not errors,errors[:12]
   assert not requests,requests[:12]
-  print('PASS 8H actual file:// Chromium original truck, mined-ore receipt → reserved lot → physical depot, 1200J battery, exact-once durable save/reload')
+  print('PASS 8H real file:// Chromium: original mined-ore truck → manufactured dry depot → paid 1200J unload → paid 1200J pickup into SAME truck, durable reload and no duplicates')
  finally:
   browser.close()
