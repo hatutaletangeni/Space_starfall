@@ -13,7 +13,8 @@ const body={id:'star-0-p0',systemId:'star-0',kind:'moon',radius:1000,
 const unit=t=>[Math.cos(t),Math.sin(t),0],star=[-1000000,0,0],luminosityW=1e18;
 function fixture(){
  const asset=(id,station,theta,mass,containerId,loadId)=>({
-  id,type:'industrial_plant',massKg:mass,condition:1,location:{
+  id,type:'industrial_plant',massKg:mass,volumeM3:station==='conveyor_drive'?.55:1.8,
+  condition:1,location:{
    kind:'surface',bodyId:body.id,local:unit(theta)},
   state:{station,enabled:true,containerId,
    kitMaterialId:station==='conveyor_drive'?'plant_kit_conveyor_drive':'plant_kit_cargo_depot',
