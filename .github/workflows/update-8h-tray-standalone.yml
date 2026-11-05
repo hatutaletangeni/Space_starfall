@@ -1,0 +1,27 @@
+name: STARFALL 8H bounded conveyor-tray offline game rebuild
+on:
+  push:
+    branches:
+      - feature/update-8h-bounded-conveyor-trays
+permissions:
+  contents: write
+jobs:
+  rebuild-standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Regenerate genuine playable source bundle
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): sync finite installed guarded conveyor tray storage'
+            git push origin HEAD:feature/update-8h-bounded-conveyor-trays
+          fi
