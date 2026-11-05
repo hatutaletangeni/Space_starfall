@@ -2796,10 +2796,41 @@
         "integrationProven": "NOT VERIFIED",
         "manualRunProven": "NOT VERIFIED"
       }
+    },
+    {
+      "id": "outpost:conveyor_drive",
+      "originalAssetId": "conveyor_drive",
+      "label": "Certified conveyor drive electrical load (load-only)",
+      "category": "constructible",
+      "sourcePath": "src/physics/outposts.js",
+      "sourceLine": 16,
+      "ownerStore": "StarfallOutposts.Store / SF.outpost5 (schema 1)",
+      "stateSchema": "Source owner schema, model definition separate from runtime",
+      "creationSource": "Only paid 8E installation of a 180kg plant_kit_conveyor_drive binds the zero-extra-mass T02 outpost power port; not a free build-menu item",
+      "powerSource": "Real same-world original T02 48 V electrically connected bus",
+      "consumption": "250 W rated T02 load, 0 J independent storage, no generated power, mass 0 kg separate from authoritative 180 kg installed drive",
+      "inputs": "One verified 8E manufactured and installed conveyor-drive asset, original outpost wiring, real supplied source Joules",
+      "outputs": "T02 load diagnostics and metered connected power; no cargo output or movement until finite 8H packet solver",
+      "controlMethod": "Native T02 enabled / load-shedding / connection semantics, not a standalone free conveyor constructor",
+      "hardwarePreconditions": "Real original installed 180kg conveyor_drive machine and matching bound T02 load port, same planet and wired power source",
+      "dependencies": "src/physics/outposts.js; src/physics/industrial-site8e.js; src/physics/power-ledger-t02.js",
+      "safetyLimits": "48 V / 500 A T02 group bus, source-bounded consumption, no independent 0kg material fabrication, no unpowered cargo motion",
+      "faultModes": "No installation, disabled load, missing source, short/open wiring, battery exhausted, load shedding",
+      "fidelity": "Existing finite T02 electrical load; full conveyor transport still separate 8H development",
+      "saveMigrationOwner": "Original StarfallOutposts.Store / SF.outpost5 outpost item and original 8E physical installation receipt",
+      "userVisibleProof": "T02 Power interface displays a real equipment load only after physical conveyor installation; not independently buildable",
+      "automatedTests": "Original T02 tests; 8H conveyor installation tests; T00 source catalog drift checks",
+      "remainingUnverified": "Real powered finite throughput packets, materials interface and continuous end-to-end human gameplay not yet proven",
+      "status": {
+        "uiPresent": "SOURCE PRESENT",
+        "modelSimulated": "PARTIAL",
+        "integrationProven": "NOT VERIFIED",
+        "manualRunProven": "NOT VERIFIED"
+      }
     }
   ],
   "categoryCounts": {
-    "constructible": 8,
+    "constructible": 9,
     "vehicle-component": 35,
     "scientific-instrument": 8,
     "rocket-engine": 3,
