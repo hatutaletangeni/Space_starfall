@@ -39,15 +39,29 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
   // Rehydrate distant sites by analytic elapsed time. Sample changing rotation at up to
   // 12 points, cap an individual catch-up to one simulated day to avoid long stalls.
   if(Number.isFinite(lastPoweredAt[bodyId])&&lastPoweredAt[bodyId]>atTime+1e-8)continue;const start=Number.isFinite(lastPoweredAt[bodyId])?lastPoweredAt[bodyId]:atTime;
-  const total=Math.max(0,Math.min(86400,atTime-start)),steps=total>0?Math.min(12,Math.max(1,Math.ceil(total/600))):1;
+  // Original T02 source does ALL real electrical billing. For an ACTIVE
+  // source-owned 8H gas/dry packet only, subdivide its original grid pulse
+  // to <=10s, bounded at 48 solves. Legacy worlds and ordinary solar/battery
+  // sites retain the exact original <=12-sample coarse power path.
+  const activePaid8H=!!(
+    (root.StarfallConveyorNativeBridge8H&&RT.logisticsConveyorHasActive8H?.(bodyId))||
+    (root.StarfallPressureGasPackets8H&&RT.logisticsPressureHasActive8H?.(bodyId)));
+  const plan=root.StarfallNativePowerSubsteps8H.plan({
+    elapsedS:Math.max(0,atTime-start),activePaid8H});
+  const total=plan.totalS,steps=plan.steps;
   let report=null;for(let i=0;i<steps;i++){
     const past=(i+.5)*total/steps-total;
     const offsetSpin=2*Math.PI*past/Math.max(1,body.spinPeriod);
     const virtualBody={...body,spinAngle:(body.spinAngle||0)+offsetSpin};
-    report=store.power(virtualBody,star.position,luminosity,atTime+past,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
+    // Midpoint sun-angle sampling is preserved. For actual active native
+    // conveyor/gas jobs the report timestamp is the physical END of the
+    // paid interval, not the midpoint of a separately charged time block.
+    const nativeStepEndS=root.StarfallNativePowerSubsteps8H.endpoint(start,plan,i);
+    const nativeReportAtS=activePaid8H?nativeStepEndS:atTime+past;
+    report=store.power(virtualBody,star.position,luminosity,nativeReportAtS,total/steps,P.SCENE_METERS_PER_UNIT,occluders,(local,t)=>root.StarfallEvents?.skyTransmission(body,local,t,RT.galaxy.seed)??1);
     // Commit the native owner's truthful end-of-step clock BEFORE any 8H
     // atomic save. Otherwise reload could re-bill solar/battery Joules.
-    lastPoweredAt[bodyId]=start+(i+1)*total/steps;
+    lastPoweredAt[bodyId]=nativeStepEndS;
     // ONE native T02 grid step has just charged the actual original
     // solar/battery owner. The 8H observer ONLY follows this real report:
     // no second grid debit, invented material or source changes on failure.
