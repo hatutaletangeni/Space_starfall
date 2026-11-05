@@ -1,0 +1,61 @@
+name: STARFALL 8H physically paid 8MPa gas pipeline and 420W native load
+on:
+  push:
+    branches:
+      - feature/update-8h-certified-pressure-pipe-hardware
+  pull_request:
+    paths:
+      - 'src/physics/kit-recipes8f.js'
+      - 'src/physics/industrial-site8e.js'
+      - 'src/physics/outposts.js'
+      - 'src/physics/pressure-pipe-power-port8h.js'
+      - 'PLAY-STARFALL.html'
+      - 'tests/pressure-pipe-hardware8h.test.cjs'
+      - '.github/workflows/update-8h-rated-gas-pipe-hardware.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-standalone:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Exact source-owned single-file game rebuild
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): exact certified 8MPa gas pipeline standalone source'
+            git push origin HEAD:feature/update-8h-certified-pressure-pipe-hardware
+          fi
+  paid-physical-pressure-line:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Model original paid BOM, T02 battery, empty pipe, no free 8A gas and original industrial regressions
+        run: |
+          set -euo pipefail
+          node --check src/physics/outposts.js
+          node --check src/physics/industrial-site8e.js
+          node --check src/physics/kit-recipes8f.js
+          node --check src/physics/pressure-pipe-power-port8h.js
+          node --test tests/pressure-pipe-hardware8h.test.cjs
+          node --test tests/conveyor-real-placement8h.test.cjs
+          node --test tests/conveyor-live-port8h.test.cjs
+          node --test tests/conveyor-power-port8h.test.cjs
+          node --test tests/conveyor-packets8h.test.cjs
+          node --test tests/industrial-site8e.test.cjs
+          node --test tests/kit-recipes8f.test.cjs
+          python3 tests/standalone-parity.py
