@@ -14,7 +14,10 @@ assert.equal(data.schemaVersion,1);
 assert.equal(data.baseline.commit,'3b4cddd84197716f55183de9eb5431de416f44c7');
 assert.equal(data.baseline.branch,'feature/update-7f-expedition-hardening');
 const categories={
- constructible: Object.keys(globalThis.StarfallOutposts.SPECS),
+ // Non-constructible T02 electrical ports are bound to physically paid 8E
+ // hardware, never independent free outpost construction.
+ constructible: Object.keys(globalThis.StarfallOutposts.SPECS).filter(k=>
+  globalThis.StarfallOutposts.SPECS[k].loadOnly!==true),
  'vehicle-component': Object.keys(globalThis.StarfallVehicles.components),
  'scientific-instrument': Object.keys(globalThis.StarfallFieldScience.INSTRUMENTS),
  'rocket-engine': Object.keys(globalThis.StarfallLaunch.ENGINES),
