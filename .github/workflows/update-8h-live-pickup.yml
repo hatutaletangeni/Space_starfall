@@ -1,0 +1,70 @@
+name: STARFALL 8H original truck depot pickup real browser
+on:
+  push:
+    branches:
+      - feature/update-8h-live-depot-pickup-ui
+  pull_request:
+    paths:
+      - 'src/physics/logistics-pickup8h.js'
+      - 'src/flight.js'
+      - 'src/physics/logistics-ui8h.js'
+      - 'tests/logistics-dropoff8h-browser.py'
+      - 'tests/logistics-pickup8h.test.cjs'
+      - 'PLAY-STARFALL.html'
+      - '.github/workflows/update-8h-live-pickup.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-standalone:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Regenerate actual offline game from source without changing main
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): sync real original-truck depot pickup to standalone'
+            git push origin HEAD:feature/update-8h-live-depot-pickup-ui
+          fi
+  original-truck-round-trip:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify source, exact original 8A mass and paid Joules, standalone parity
+        run: |
+          set -euo pipefail
+          node --check src/flight.js
+          node --check src/physics/logistics-ui8h.js
+          node --check src/physics/logistics-pickup8h.js
+          node --test tests/logistics-pickup8h.test.cjs
+          node --test tests/logistics-dropoff8h.test.cjs
+          node --test tests/logistics-durable8h.test.cjs
+          python3 -m py_compile tests/logistics-dropoff8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Install genuine Chromium and software WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Exercise real Engineer UI and source-owned truck-depot-truck loop
+        run: |
+          python3 tests/logistics-dropoff8h-browser.py
+          python3 tests/logistics-ui8h-browser.py
+          python3 tests/mining-hauling8d-browser.py
+          python3 tests/truck-custody8b-browser.py
