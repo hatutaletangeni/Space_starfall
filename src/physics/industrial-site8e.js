@@ -21,6 +21,9 @@ const KITS=Object.freeze({
  plant_kit_air_fractionation:{type:'industrial_plant',station:'air_fractionation',
   tools:['air_intake','dust_filter','gas_separator','compressor','nitrogen_storage_interface'],
   massKg:740,volumeM3:2.4,workJ:1350000,radiusScene:8},
+ plant_kit_cargo_depot:{type:'industrial_plant',station:'cargo_depot',
+  tools:['dry_cargo_locker','calibrated_scale','mechanical_coupler','stock_manifest'],
+  massKg:480,volumeM3:1.8,workJ:950000,radiusScene:6},
  plant_kit_habitat_construction_pad:{type:'industrial_plant',station:'habitat_pad',
   tools:['pressure_section_jig','airlock_alignment','shell_welding_fixture','leak_test_port'],
   massKg:1120,volumeM3:3.7,workJ:2500000,radiusScene:11},
@@ -72,9 +75,14 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
    throw Error('Insufficient actual installation power debit');
  if(physical.assets.some(a=>a.id===assetId))throw Error('Duplicate facility asset ID');
  const m=copy(materials);m.lots=m.lots.filter(x=>x.id!==kitLotId);
- const k=q.spec,containerId=k.type==='industrial_vessel'?'vessel8e:'+assetId:null;
+ const k=q.spec,isVessel=k.type==='industrial_vessel',
+  isCargoDock=k.station==='cargo_depot',
+  containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
-  kind:'gas pressure vessel',maxMassKg:1000,maxVolumeM3:k.volumeM3});
+  kind:isCargoDock?'sealed dry-solid cargo dock':'gas pressure vessel',
+  // The empty depot is physical hardware, not a prefilled stock source.
+  // Rated 1.6 m3 inside its 1.8 m3 assembled shell; no overfilled room.
+  maxMassKg:isCargoDock?1200:1000,maxVolumeM3:isCargoDock?1.6:k.volumeM3});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
   state:{kitMaterialId:q.materialId,station:k.station||null,tools:k.tools||[],
