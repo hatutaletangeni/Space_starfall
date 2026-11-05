@@ -2248,7 +2248,7 @@ function logisticsConveyorNativeTick8H({bodyId,outpost5,powerReport,timeS}={}){
 function industryFlowContext8H(){
  const o=outpostContext(),out=window.StarfallOutpostUI;
  const industry=StarfallIndustryFlow8H.inspect({
-  bodyId:o.bodyId,
+  bodyId:o.bodyId,bodyRadius:o.body?.radius||0,
   physical8a:physical8a.serialize(),
   materials8a:materials8a.snapshot(),
   outpost5:out?.durableSnapshot?.()||{schema:1,items:[],wires:[]},
