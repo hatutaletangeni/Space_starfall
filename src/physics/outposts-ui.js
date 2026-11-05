@@ -60,6 +60,19 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
        if(movement?.changed)dirty=true;
       }catch(e){console.warn('8H original native conveyor pulse held:',e);}
     }
+    // This uses the SAME authentic T02 report and already-charged original
+    // solar/battery owner. Never run another grid or create free gas. Each
+    // original 8A physical gas hop and the exact outpost power state are
+    // saved together by the source-owned flight transaction.
+    if(report?.dtS>0&&root.StarfallPressureGasPackets8H&&
+       RT.logisticsPressureHasActive8H?.(bodyId)&&RT.logisticsPressureNativeTick8H){
+      try{
+       const gas=RT.logisticsPressureNativeTick8H({
+        bodyId,outpost5:durableSnapshot(),powerReport:report,
+        timeS:report.simulatedAtS});
+       if(gas?.changed)dirty=true;
+      }catch(e){console.warn('8H original paid rated gas pump held:',e);}
+    }
     if(root.StarfallHabitatT09){
       const to=start+(i+1)*total/steps;
       for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
