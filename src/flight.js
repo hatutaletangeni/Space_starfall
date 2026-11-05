@@ -1100,7 +1100,7 @@ function refineryContext8E(){
   energyJ:Math.max(0,ship.state.energyJ),active:refinery8e.active};
 }
 function refineryQuote8E(mode){
- return StarfallRefinery8E.quote(mode,materials8a.snapshot(),StarfallMining8D.SHIP,StarfallMining8D.SHIP);
+ return StarfallRefinery8E.quote(mode,materials8a.snapshot(),StarfallMining8D.SHIP,StarfallMining8D.SHIP,refinery8e.receipts);
 }
 function refineryStart8E(mode){
  const c=refineryContext8E();if(!c.operatorNear)throw Error('Approach landed ship workshop or walk to fabrication room');

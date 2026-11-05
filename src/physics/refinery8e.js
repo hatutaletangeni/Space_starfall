@@ -26,6 +26,21 @@ const MODES=Object.freeze({
   massKg:2,powerW:3300,seconds:240,capability:'mechanical_separator',
   minSourceGrade:.65,requiresProcessProvenance:true},
  copper_sort:{label:'Copper ore concentration',material:'copper_ore',product:'copper_concentrate',residue:'copper_tailings',targetGrade:.25,recovery:.70,massKg:20,powerW:2200,seconds:160,capability:'mechanical_separator'},
+ // 8H: genuinely lossy secondary beneficiation of already-made 8E waste.
+ // There is no universal scrap→pure metal recipe. Source must be a REAL
+ // earlier 8E iron_sort/copper_sort residue lot and its persisted assay.
+ // 35%/18% of residual contained metal is recovered into lower-throughput
+ // concentrates; the rest remains explicit lower-grade SPENT tailings in 8A.
+ iron_tailings_reclaim:{label:'8H RECYCLE · iron tailings, 35% residual Fe recovery',
+  material:'iron_tailings',product:'iron_concentrate',
+  residue:'spent_iron_tailings',targetGrade:.60,recovery:.35,
+  massKg:2,powerW:4800,seconds:300,capability:'mechanical_separator',
+  requiresProcessProvenance:true,priorMode:'iron_sort'},
+ copper_tailings_reclaim:{label:'8H RECYCLE · copper tailings, 18% residual Cu recovery',
+  material:'copper_tailings',product:'copper_concentrate',
+  residue:'spent_copper_tailings',targetGrade:.25,recovery:.18,
+  massKg:5,powerW:5200,seconds:450,capability:'mechanical_separator',
+  requiresProcessProvenance:true,priorMode:'copper_sort'},
  copper_sulfide_identification:{label:'Identify copper(I) sulfide from copper concentrate',
   material:'copper_concentrate',product:'copper_sulfide',residue:'sulfide_mineralogy_tailings',
   targetGrade:1,targetElementFraction:(2*63.546)/(2*63.546+32.06),
@@ -44,7 +59,7 @@ function normalize(saved){if(saved==null)return{schema:1,serial:0,active:null,re
  (saved.active!==null&&saved.active!==undefined&&(!Number.isSafeInteger(saved.active.serial)||!MODES[saved.active.mode]||!finite(saved.active.elapsedS)||!finite(saved.active.energyJ))))throw Error('Corrupt refinery save — restore old save rather than clear stocks');
  if(new Set(saved.receipts.map(x=>x.id)).size!==saved.receipts.length)throw Error('Duplicate refinery receipts');
  return clone(saved);}
-function quote(mode,materials,sourceContainerId,outputContainerId){
+function quote(mode,materials,sourceContainerId,outputContainerId,provenanceReceipts=null){
  const spec=MODES[mode];if(!spec)throw Error('Unknown refining process');
  if(!materials||materials.schema!==1||!Array.isArray(materials.lots)||!Array.isArray(materials.containers))throw Error('8A material inventory required');
  const lot=materials.lots.find(x=>{
@@ -54,9 +69,22 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
   const reserved=(materials.operations||[]).filter(o=>o.lotId===x.id&&o.status==='RESERVED').reduce((n,o)=>n+o.massKg,0);
   return x.massKg-reserved>=spec.massKg-EPS;
  });
- if(!lot&&spec.requiresProcessProvenance)throw Error('Need '+spec.massKg+' kg of 8E-process-provenanced '+spec.material+
-  ' with source grade >= '+spec.minSourceGrade+' in the physical ship hold');
+ if(!lot&&spec.requiresProcessProvenance)throw Error('Need '+spec.massKg+' kg of real 8E-process-provenanced '+spec.material+
+  ' in the physically held ship stock; previous refining receipt and recoverable assay required');
  if(!lot)throw Error('Missing '+spec.massKg+' kg of actual '+spec.material+' in ship hold');
+ if(spec.priorMode){
+  // Text beginning "process:" is NOT proof of a real previous operation.
+  // The original source-owned 8E refinery receipt must identify the exact
+  // operation that generated this physically stored residue and its recipe.
+  // A legacy committed iron_sort/copper_sort receipt is valid after migration.
+  const preceding=String(lot.provenance).slice('process:'.length);
+  if(!String(lot.provenance).startsWith('process:refine8e:')||
+    !Array.isArray(provenanceReceipts)||
+    !provenanceReceipts.some(p=>p.id===preceding&&p.mode===spec.priorMode&&
+     p.status==='COMMITTED'&&finite(p.residueKg)&&p.residueKg>=spec.massKg-EPS))
+   throw Error('8H tailings reclaim needs a matching durable original '+spec.priorMode+
+    ' production receipt — a typed string cannot substitute for real prior residue');
+ }
  if(!finite(lot.grade)||lot.grade>1)throw Error('Uncalibrated ore grade — prospect and sample first');
  const contained=spec.massKg*lot.grade;
  if(contained<=EPS)throw Error('Ore assay contains no recoverable target material');
@@ -92,6 +120,8 @@ function quote(mode,materials,sourceContainerId,outputContainerId){
   'Concentrates finite naturally present carbon mass; does not manufacture coke, graphite or chemicals. Residues retain unrecovered carbon.' :
   mode==='silica_polish'?
   'Idealized mechanical quartz upgrading; source must be 8E concentrate. Grade 99% is chemical mass fraction, NOT electronic silicon purity. No silicon metal is produced.' :
+  mode==='iron_tailings_reclaim'||mode==='copper_tailings_reclaim'?
+  'Lossy SECONDARY separation from an already produced, original 8E-process-provenanced tailings lot. Uses its actual remaining recoverable iron/copper assay, preserves spent tailings and their remaining lower metal grade, consumes paid ship electrical joules and finite process seconds. Not a chemical reduction, purity shortcut or 100% recycling guarantee.' :
   'assay-based simplified separation; non-target constituents retained in residue'};
 }
 function create(saved){let state=normalize(saved);
@@ -100,7 +130,7 @@ function create(saved){let state=normalize(saved);
   if(!workshopInstalled)throw Error('Ship fabrication module not installed or commissioned');
   if(!shipLanded||!shipBodyId)throw Error('Ship processor requires a landed, stable spacecraft');
   if(!powerEnabled||!finite(batteryJ)||batteryJ<=0)throw Error('Ship electrical bus has no available energy');
-  const q=quote(mode,materials,sourceContainerId,outputContainerId);
+  const q=quote(mode,materials,sourceContainerId,outputContainerId,state.receipts);
   state.serial++;state.active={...q,id:'refine8e:'+state.serial,serial:state.serial,bodyId:shipBodyId,elapsedS:0,energyJ:0};
   return clone(state.active);
  }
@@ -114,7 +144,7 @@ function create(saved){let state=normalize(saved);
  }
  function commit(materials,transformation){const a=state.active;if(!a||a.elapsedS+EPS<a.seconds)throw Error('Incomplete refining cycle');
   const spec=MODES[a.mode];if(!spec)throw Error('Unknown process');
-  const q=quote(a.mode,materials,a.sourceContainerId,a.outputContainerId);
+  const q=quote(a.mode,materials,a.sourceContainerId,a.outputContainerId,state.receipts);
   // Grade and lot pinned at start; fail closed if stocks changed while processing.
   if(q.lotId!==a.lotId||Math.abs(q.inputGrade-a.inputGrade)>EPS)throw Error('Original feedstock changed during refinery work');
   const recipe={station:'ship_fabrication',inputs:{[a.material]:a.inputKg},
@@ -124,7 +154,12 @@ function create(saved){let state=normalize(saved);
    energyReceipt:{operationId:a.id,sourceId:'ship-main:engineering-battery',usedJ:a.energyJ},
    station:{id:EQUIPMENT.id,kind:'ship_fabrication',containerId:a.sourceContainerId,condition:1,enabled:true}});
   const receipt={id:a.id,mode:a.mode,status:'COMMITTED',inputKg:a.inputKg,productKg:a.productKg,
-    residueKg:a.residueKg,product:a.product,energyJ:a.energyJ,bodyId:a.bodyId,lotId:a.lotId};
+    residueKg:a.residueKg,product:a.product,energyJ:a.energyJ,bodyId:a.bodyId,lotId:a.lotId,
+    ...(a.mode.endsWith('_tailings_reclaim')?{
+     recycler:'original-8E-mki-mechanical-separator',sourceResidue:a.material,
+     spentMaterial:a.residue,inputElementGrade:a.inputGrade,
+     recoveredElementFraction:spec.recovery,unrecoveredMassKg:a.residueKg,
+     conservationModel:'element-assay-secondary-mechanical-beneficiation'}:{})};
   // Validate the complete 8A inventory BEFORE retiring a working machine job.
   if(root.StarfallMaterials8A?.create)root.StarfallMaterials8A.create(result.materials);
   state.receipts.push(receipt);state.active=null;
