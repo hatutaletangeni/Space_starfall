@@ -10263,6 +10263,416 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallConve
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 8H — finite, factory-paid 8 MPa pressure-pipe T02 service
+ * port. A REAL 320kg 8F-built 8E-installed sealed line and EMPTY original
+ * 8A gas hold-up container are mandatory. T02 port is massless bookkeeping
+ * only; no wire, solar charge, gas, pressure, or pump work is granted.
+ * Caller must durably save BOTH original physical and T02 owners together.
+ */
+(function(root){'use strict';
+const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6;
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=90;
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const unit=x=>Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&
+ Math.abs(Math.hypot(...x)-1)<1e-4;
+const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,
+ a.reduce((n,x,i)=>n+x*b[i],0))))*r;
+const SPEC=Object.freeze({kit:'plant_kit_pressure_pipeline',station:'pressure_pipeline',
+ massKg:320,ratedPressurePa:8e6,powerW:420,maxHoldupM3:.08,maxHoldupKg:25,
+ maxServiceDistanceScene:15});
+function attach({physical8a,materials8a,outpost5,pipelineId,
+ operatorLocal,bodyId,bodyRadius,timeS}={}){
+ if(!id(pipelineId)||!id(bodyId)||!unit(operatorLocal)||
+  !finite(bodyRadius)||bodyRadius<=0||!finite(timeS))
+  throw Error('8H rated gas pipeline requires real local EVA maintenance');
+ if(root.StarfallOutposts?.SPECS?.pressure_pipeline_pump?.watts!==SPEC.powerW||
+  !root.StarfallOutposts?.Store||!root.StarfallPhysical8A?.create||
+  !root.StarfallMaterials8A?.create)
+  throw Error('8H original 8A rated line and original T02 420W load model required');
+ const physical=root.StarfallPhysical8A.create(physical8a),
+  materials=root.StarfallMaterials8A.create(materials8a);
+ const machine=physical.get(pipelineId);
+ if(!machine||machine.type!=='industrial_plant'||
+    machine.state?.station!==SPEC.station||
+    machine.state?.kitMaterialId!==SPEC.kit||
+    machine.condition<.8||machine.state?.enabled!==true||
+    machine.massKg!==SPEC.massKg||machine.location?.kind!=='surface'||
+    machine.location.bodyId!==bodyId||!unit(machine.location.local)||
+    !finite(machine.state.ratedPressurePa)||
+    machine.state.ratedPressurePa<SPEC.ratedPressurePa)
+  throw Error('8H requires intact physically manufactured certified 8 MPa 320kg pressure-pipeline');
+ if(arc(machine.location.local,operatorLocal,bodyRadius)>SPEC.maxServiceDistanceScene)
+  throw Error('8H EVA operator must service the actual rated pipeline manifold locally');
+ if(!physical8a.transfers?.some(t=>t.action==='INSTALL'&&
+    t.status==='COMMITTED'&&t.assetId===machine.id&&
+    id(t.sourceLotId)&&Math.abs(t.massKg-SPEC.massKg)<EPS))
+  throw Error('8H original consumed 8F pressure-line installation kit receipt missing');
+ const c=materials.containers().find(c=>c.id===machine.state.containerId&&
+   c.ownerId===machine.id&&/gas pipe/.test(c.kind)&&
+   Math.abs(c.maxMassKg-SPEC.maxHoldupKg)<EPS&&
+   Math.abs(c.maxVolumeM3-SPEC.maxHoldupM3)<EPS);
+ if(!c)throw Error('8H gas pipeline has no original EMPTY bounded rated 8A holdup');
+ if(materials.inventory(c.id).length||
+    materials.operations().some(op=>op.status==='RESERVED'&&
+      materials.inventory().some(l=>l.id===op.lotId&&l.containerId===c.id)))
+  throw Error('8H install original electrical service on EMPTY depressurized pipeline');
+ if(machine.state.t02LoadId)
+  throw Error('8H original rated pump electrical load already commissioned');
+ if(!outpost5||outpost5.schema!==1||!Number.isSafeInteger(outpost5.seed)||
+   outpost5.seed<0||!Array.isArray(outpost5.items)||
+   !Array.isArray(outpost5.wires))
+  throw Error('8H original T02 outpost store missing');
+ const portId='8h-pipe-port:'+pipelineId;
+ if(outpost5.items.some(x=>x.id===portId)||outpost5.items.length>=320)
+  throw Error('8H pressure-pipeline T02 port collision / bus structure limit');
+ const owner=copy(outpost5);owner.items.push({
+  id:portId,bodyId,kind:'pressure_pipeline_pump',
+  local:[...machine.location.local],facing:[0,0,1],height:1,
+  energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]});
+ const native=new root.StarfallOutposts.Store(outpost5.seed,owner);
+ if(!native.items.some(x=>x.id===portId&&x.kind==='pressure_pipeline_pump'&&
+      x.energyJ===0))
+  throw Error('8H native original 420W pressure-pipe load did not restore');
+ const next=copy(physical8a),asset=next.assets.find(x=>x.id===pipelineId);
+ if(!asset)throw Error('8H source-owned original pressure line missing');
+ asset.state.t02LoadId=portId;
+ root.StarfallPhysical8A.create(next);
+ return{physical8a:next,outpost5:native.serialize(),materials8a:materials.snapshot(),
+  receipt:{schema:1,status:'INSTALLED_NOT_WIRED',pipelineId,portId,bodyId,
+   timeS,powerW:SPEC.powerW,ratedPressurePa:SPEC.ratedPressurePa,
+   energyProducedJ:0,gasCreatedKg:0,gasTransferredKg:0,wireCreated:false,
+   note:'No gas, wire or Joules granted. Original T02 48V bus must be physically wired.'}};
+}
+root.StarfallPressurePipePowerPort8H=Object.freeze({SPEC,attach});
+if(typeof module!=='undefined'&&module.exports)
+ module.exports=root.StarfallPressurePipePowerPort8H;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL Update 8H — physically confined, source-owned compressed gas
+ * packets. A full shipment has TWO real charged, timed custody hops:
+ * installed 8E rated vessel → manufactured EMPTY 80 L pipe → separate
+ * installed 8E rated vessel. Only original 8A reserve+commit moves gas.
+ *
+ * Original T02 (not this module) owns power, solar, battery and the clock.
+ * observe() consumes its ALREADY-PAID 420 W native report; it NEVER runs grid
+ * or grants free Joules. Returned 8A, packet and the already-charged original
+ * outpost5 must be atomically persisted by caller before live state swapping.
+ *
+ * Ideal-gas isothermal 293.15 K pressure is an educational model, not a
+ * pressure-vessel design standard. No simulated hidden leakage or magically
+ * unaccounted gas: damaged pumps HOLD closed, with gas trapped physically.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6,R=8.314462618,
+ TEMP_K=293.15,MAX_DT_S=10,MAX_PACKET_KG=5,MAX_LEG_M=12,
+ PUMP_W=420,ISOTHERMAL_EFFICIENCY=.65,FLOW_M_S=.7,FLOW_KG_S=.3;
+const MOL=Object.freeze({
+ oxygen:.031998,nitrogen:.028014,hydrogen:.00201588,methane:.016043,
+ carbon_dioxide:.0440095,carbon_monoxide:.0280101,sulfur_dioxide:.064066
+});
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=112;
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const unit=x=>Array.isArray(x)&&x.length===3&&x.every(Number.isFinite)&&
+ Math.abs(Math.hypot(...x)-1)<1e-4;
+const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,
+ a.reduce((sum,x,i)=>sum+x*b[i],0))))*r;
+function pressure(lots,containerM3,more={}){
+ if(!finite(containerM3)||containerM3<=0)
+  throw Error('8H pressure calculation requires finite physical gas volume');
+ let n=0;
+ for(const lot of lots){const mm=MOL[lot.materialId];
+  if(!mm||!finite(lot.massKg)||!finite(lot.volumeM3))
+   throw Error('8H source owner contains unsupported or invalid gas');
+  n+=lot.massKg/mm;
+ }
+ if(more.materialId){if(!MOL[more.materialId]||!finite(more.massKg))
+  throw Error('8H unsupported gas or invalid packet mass');
+  n+=more.massKg/MOL[more.materialId];
+ }
+ return n*R*TEMP_K/containerM3;
+}
+/* Minimum physically paid reversible ideal-gas work, divided by a realistic
+ * simplified 65% pump electrical efficiency (not a certification claim).
+ * Actual original T02 consumes PUMP_W every served interval. Time cannot
+ * move stock until the native battery/solar source paid at least this work.
+ */
+function compressionJ(materialId,massKg,sourcePa,receiverPa){
+ if(!MOL[materialId]||!finite(massKg)||massKg<=0||
+  !finite(sourcePa)||!finite(receiverPa))
+  throw Error('8H compressed gas electrical work requires valid pressure');
+ const inlet=Math.max(1,sourcePa),outlet=Math.max(1,receiverPa);
+ return massKg/MOL[materialId]*R*TEMP_K*
+  Math.max(0,Math.log(outlet/inlet))/ISOTHERMAL_EFFICIENCY;
+}
+function legSeconds(meters,massKg,workJ){
+ if(!finite(meters)||!finite(massKg)||!finite(workJ))
+  throw Error('8H gas pump has invalid real distance, packet or electrical work');
+ return Math.max(4,meters/FLOW_M_S+massKg/FLOW_KG_S,workJ/PUMP_W);
+}
+function create(saved){
+ const state=saved==null?{schema:1,jobs:[]}:cp(saved);
+ if(state.schema!==1||!Array.isArray(state.jobs)||state.jobs.length>200)
+  throw Error('8H invalid original compressed gas packet archive');
+ const ids=new Set();
+ for(const j of state.jobs){
+  if(!id(j.id)||ids.has(j.id)||!id(j.bodyId)||!id(j.sourceId)||
+   !id(j.pipeId)||!id(j.targetId)||!id(j.currentLotId)||
+   !id(j.materialId)||!MOL[j.materialId]||
+   !finite(j.massKg)||j.massKg<=0||j.massKg>MAX_PACKET_KG||
+   !Number.isInteger(j.stage)||j.stage<0||j.stage>2||
+   !finite(j.remainingS)||!finite(j.lastS)||
+   (j.requiredCompressionJ!=null&&!finite(j.requiredCompressionJ))||
+   (j.totalPaidJ!=null&&!finite(j.totalPaidJ))||
+   !['ACTIVE','DELIVERED'].includes(j.status)||
+   (j.status==='DELIVERED'&&j.stage!==2))
+    throw Error('8H corrupt finite pressure packet custody');
+  ids.add(j.id);
+ }
+ function snapshot(){return cp(state);}
+ function list(){return cp(state.jobs);}
+ function installed(physical8a,materials8a,bodyId,bodyRadius,
+    sourceId,pipeId,targetId){
+  if(!root.StarfallPhysical8A?.create||!root.StarfallMaterials8A?.create)
+   throw Error('8H original 8A material/physical owners missing');
+  if(!id(bodyId)||!finite(bodyRadius)||bodyRadius<=0||
+    ![sourceId,pipeId,targetId].every(id)||
+    new Set([sourceId,pipeId,targetId]).size!==3)
+   throw Error('8H gas route requires distinct same-world physical assets');
+  const phys=root.StarfallPhysical8A.create(physical8a),
+   ledger=root.StarfallMaterials8A.create(materials8a),
+   assets=[sourceId,pipeId,targetId].map(x=>phys.get(x));
+  if(assets.some(a=>!a||a.location?.kind!=='surface'||
+    a.location.bodyId!==bodyId||!unit(a.location.local)||
+    a.condition<.8||a.state?.enabled!==true))
+   throw Error('8H rated vessel/pipe damaged, disabled, mobile or not on original world');
+  const [src,pipe,dst]=assets;
+  if(src.type!=='industrial_vessel'||dst.type!=='industrial_vessel'||
+     pipe.type!=='industrial_plant'||pipe.state?.station!=='pressure_pipeline'||
+     pipe.state?.kitMaterialId!=='plant_kit_pressure_pipeline'||
+     pipe.massKg!==320||pipe.state?.ratedPressurePa<8e6||
+     !id(pipe.state?.t02LoadId))
+    throw Error('8H genuine rated source/destination pressure vessels and installed 320kg T02 pump required');
+  if(!MOL[src.state?.materialId]||
+    src.state?.materialId!==dst.state?.materialId||
+    src.state.ratedPressurePa<5e6||dst.state.ratedPressurePa<5e6||
+    !finite(src.state.ratedPressurePa)||!finite(dst.state.ratedPressurePa))
+   throw Error('8H matching supported gas, rated source and rated destination required');
+  for(const a of assets){
+   if(!physical8a?.transfers?.some(t=>t.action==='INSTALL'&&
+     t.status==='COMMITTED'&&t.assetId===a.id&&id(t.sourceLotId)&&
+     finite(t.massKg)&&Math.abs(t.massKg-a.massKg)<EPS))
+    throw Error('8H certified, actually consumed installation kit receipt missing');
+  }
+  const containers=assets.map((a,i)=>ledger.containers().find(c=>
+   c.id===a.state.containerId&&c.ownerId===a.id&&
+   (i===1?/gas pipe/i:/gas/i).test(c.kind)));
+  if(containers.some(x=>!x))
+   throw Error('8H original source-owned 8A gas vessel/pipe hold-up container missing');
+  if(Math.abs(containers[1].maxMassKg-25)>EPS||
+    Math.abs(containers[1].maxVolumeM3-.08)>EPS)
+   throw Error('8H pressure pipe cannot exceed its certified physical 25kg/80L hold-up');
+  const lengths=[
+   arc(src.location.local,pipe.location.local,bodyRadius),
+   arc(pipe.location.local,dst.location.local,bodyRadius)];
+  if(lengths.some(x=>x>MAX_LEG_M+EPS||x<.01))
+   throw Error('8H rated flanged gas ports physically disconnected (>12 scene units)');
+  for(const a of [src,dst]){
+   const bin=containers[a===src?0:2],ls=ledger.inventory(bin.id);
+   if(ls.some(x=>x.materialId!==src.state.materialId||
+      !finite(x.volumeM3)||x.volumeM3<0))
+    throw Error('8H source/destination vessel gas mixed or contaminated');
+   if(pressure(ls,Math.max(a.volumeM3,.001))>a.state.ratedPressurePa+EPS)
+    throw Error('8H source or destination gas vessel exceeds certified physical pressure');
+  }
+  const resident=ledger.inventory(containers[1].id);
+  if(resident.some(x=>x.materialId!==src.state.materialId))
+   throw Error('8H pipe has incompatible previous gas, must be emptied first');
+  if(pressure(resident,containers[1].maxVolumeM3)>pipe.state.ratedPressurePa+EPS)
+   throw Error('8H gas pipe pressure exceeds original mechanical rating');
+  return{ledger,assets,containers,lengths,materialId:src.state.materialId};
+ }
+ function powered({outpost5,powerReport,pipe,bodyId,timeS}){
+  if(!outpost5||outpost5.schema!==1||!Array.isArray(outpost5.items)||
+    !Array.isArray(outpost5.wires)||!powerReport||
+    powerReport.schema!==1||powerReport.bodyId!==bodyId||
+    !finite(powerReport.simulatedAtS)||Math.abs(powerReport.simulatedAtS-timeS)>EPS)
+   return{eligible:false,fault:'NO_AUTHENTIC_NATIVE_T02_REPORT'};
+  const portId=pipe.state?.t02LoadId;
+  const item=outpost5.items.find(x=>x.id===portId&&x.bodyId===bodyId);
+  const report=powerReport.byId?.[portId];
+  if(!item||item.kind!=='pressure_pipeline_pump'||
+     item.enabled!==true||item.condition<.8||
+     !unit(item.local)||arc(item.local,pipe.location.local,1)>.01||
+     !report||report.power!==true||report.bodyId!==bodyId||
+     !finite(report.servedW)||report.servedW<420-EPS||
+     !Array.isArray(report.sourceIds)||!report.sourceIds.length||
+     report.busId==null)
+   return{eligible:false,fault:'PUMP_LOAD_UNPOWERED_OR_DAMAGED'};
+  const nodes=new Map(outpost5.items.filter(x=>x.bodyId===bodyId).map(x=>[x.id,x]));
+  const adj=new Map();
+  for(const wire of outpost5.wires)if(nodes.has(wire.a)&&nodes.has(wire.b)){
+   if(!adj.has(wire.a))adj.set(wire.a,[]);
+   if(!adj.has(wire.b))adj.set(wire.b,[]);
+   adj.get(wire.a).push(wire.b);adj.get(wire.b).push(wire.a);
+  }
+  const seen=new Set([portId]),queue=[portId];
+  for(let i=0;i<queue.length;i++)for(const v of adj.get(queue[i])||[])
+   if(!seen.has(v)){seen.add(v);queue.push(v);}
+  if(!report.sourceIds.some(x=>seen.has(x)&&nodes.has(x)&&
+    ['solar','battery','generator'].includes(nodes.get(x).kind)))
+   return{eligible:false,fault:'NO_WIRED_PAID_T02_SOURCE'};
+  return{eligible:true,fault:null,powerW:report.servedW,loadId:portId,
+   busId:report.busId,sourceIds:[...report.sourceIds]};
+ }
+ function start({id:jobId,sourceLotId,sourceId,pipeId,targetId,
+   massKg,bodyId,bodyRadius,timeS,physical8a,materials8a,
+   outpost5,powerReport,operatorLocal}={}){
+  if(!id(jobId)||!id(sourceLotId)||!finite(massKg)||
+    massKg<=0||massKg>MAX_PACKET_KG||!finite(timeS)||!unit(operatorLocal))
+   throw Error('8H requires bounded, on-foot local pressure gas packet');
+  if(state.jobs.some(j=>j.id===jobId)||state.jobs.length>=200||
+     state.jobs.some(j=>j.status==='ACTIVE'))
+   throw Error('8H already pumping gas or packet identity replay');
+  if(!outpost5||!finite(outpost5.lastTick)||
+     Math.abs(outpost5.lastTick-timeS)>EPS)
+   throw Error('8H original T02 source clock must equal physical gas reservation time');
+  const route=installed(physical8a,materials8a,bodyId,bodyRadius,
+   sourceId,pipeId,targetId),[src,pipe,dst]=route.assets,
+   [srcBin,pipeBin,dstBin]=route.containers;
+  if(arc(pipe.location.local,operatorLocal,bodyRadius)>15)
+   throw Error('8H operator must physically stand within 15 scene units of real pipe');
+  const source=route.ledger.inventory(srcBin.id).find(x=>x.id===sourceLotId);
+  if(!source||source.materialId!==route.materialId||
+    source.massKg+EPS<massKg||!finite(source.grade)||source.grade<.98)
+   throw Error('8H missing genuinely produced certified single-species source gas');
+  if(route.ledger.inventory(pipeBin.id).length)
+   throw Error('8H pipeline must be genuinely EMPTY before a new gas packet');
+  const pipeVolume=source.volumeM3*massKg/source.massKg;
+  if(pipeVolume>pipeBin.maxVolumeM3+EPS||massKg>pipeBin.maxMassKg)
+   throw Error('8H actual finite 80L/25kg pipeline cannot hold this compressed volume');
+  const p=pressure([],pipeBin.maxVolumeM3,{materialId:source.materialId,massKg});
+  if(p>pipe.state.ratedPressurePa+EPS)
+   throw Error('8H isothermal line packet pressure exceeds 8MPa pipe rating');
+  const receiverPressure=pressure(route.ledger.inventory(dstBin.id),
+   Math.max(dst.volumeM3,.001),{materialId:source.materialId,massKg});
+  if(receiverPressure>dst.state.ratedPressurePa+EPS)
+   throw Error('8H destination vessel would exceed its rated pressure');
+  const inletPa=pressure(route.ledger.inventory(srcBin.id),Math.max(src.volumeM3,.001));
+  const workJ=compressionJ(source.materialId,massKg,inletPa,p);
+  // 8A validates both real original lot mass and free physical tray capacity.
+  route.ledger.reserve('8h-gas:'+jobId+':0',source.id,pipeBin.id,massKg);
+  const report=powered({outpost5,powerReport,pipe,bodyId,timeS});
+  if(!report.eligible)
+   throw Error('8H gas pump requires actual current native T02 420W wiring: '+report.fault);
+  const j={id:jobId,sourceId,pipeId,targetId,bodyId,
+   materialId:source.materialId,massKg,currentLotId:source.id,
+   stage:0,lastS:timeS,remainingS:legSeconds(route.lengths[0],massKg,workJ),
+   requiredCompressionJ:workJ,totalPaidJ:0,
+   initialSourcePressurePa:inletPa,finalPipePressurePa:p,
+   status:'ACTIVE',createdS:timeS,completionS:null};
+  state.jobs.push(j);
+  return{packets:snapshot(),materials8a:route.ledger.snapshot(),
+   receipt:{id:jobId,status:'RESERVED',sourceLotId:source.id,
+    materialId:j.materialId,massKg,gasCreatedKg:0,
+    initialPipePressurePa:p,minCompressionWorkJ:workJ,
+    minPoweredSeconds:workJ/PUMP_W,
+    energizedByNativeT02:report.loadId}};
+ }
+ function observe({packets,materials8a,physical8a,outpost5,powerReport,
+   bodyId,bodyRadius,timeS}={}){
+  const engine=create(packets),original=engine.snapshot();
+  const active=original.jobs.filter(j=>j.status==='ACTIVE'&&j.bodyId===bodyId);
+  if(!active.length)return{changed:false,reason:'NO_ACTIVE_GAS_PACKET',packets:original,materials8a};
+  if(active.length!==1)throw Error('8H multiple same-world source gas jobs cannot share pump');
+  const job=active[0];
+  if(!finite(timeS)||!finite(bodyRadius)||bodyRadius<=0||!powerReport||
+    !finite(powerReport.dtS)||powerReport.dtS<=0||
+    !finite(powerReport.simulatedAtS)||Math.abs(powerReport.simulatedAtS-timeS)>EPS||
+    powerReport.bodyId!==bodyId)
+   throw Error('8H actual native T02 paid gas clock report required');
+  const dt=timeS-job.lastS;
+  if(dt<=EPS)return{changed:false,reason:'DUPLICATE_OR_OLD_T02_TICK',
+   packets:original,materials8a};
+  const next=cp(original),current=next.jobs.find(x=>x.id===job.id);
+  if(dt>MAX_DT_S+EPS||dt>powerReport.dtS+EPS){
+   current.lastS=timeS;
+   return{changed:true,reason:'PAUSED_UNOBSERVED_CLOCK',
+    packets:next,materials8a,additionalElectricalDebitJ:0};
+  }
+  const route=installed(physical8a,materials8a,bodyId,bodyRadius,
+   current.sourceId,current.pipeId,current.targetId);
+  const [src,pipe,dst]=route.assets,[srcBin,pipeBin,dstBin]=route.containers;
+  const poweredReport=powered({outpost5,powerReport,pipe,bodyId,timeS});
+  const massBefore=route.ledger.inventory().reduce((s,x)=>s+x.massKg,0);
+  let status=poweredReport.eligible?'MOVING':'PAUSED_'+poweredReport.fault,
+   receipt=null,pressurePa=pressure(route.ledger.inventory(pipeBin.id),pipeBin.maxVolumeM3);
+  if(poweredReport.eligible){
+   current.totalPaidJ=(current.totalPaidJ||0)+poweredReport.powerW*dt;
+   current.remainingS=Math.max(0,current.remainingS-dt);
+   if(current.remainingS<=EPS){
+    const from=current.stage===0?srcBin:pipeBin,
+     to=current.stage===0?pipeBin:dstBin;
+    const lot=route.ledger.inventory(from.id).find(x=>x.id===current.currentLotId);
+    if(!lot||lot.materialId!==current.materialId||
+      lot.massKg+EPS<current.massKg)
+     throw Error('8H original compressed gas custody lot changed unexpectedly');
+    const extraPressure=pressure(route.ledger.inventory(to.id),
+     to===pipeBin?pipeBin.maxVolumeM3:Math.max(dst.volumeM3,.001),
+     {materialId:current.materialId,massKg:current.massKg});
+    const rating=to===pipeBin?pipe.state.ratedPressurePa:dst.state.ratedPressurePa;
+    if(extraPressure>rating+EPS)
+     status='HELD_DESTINATION_PRESSURE_RATING';
+    else if(current.stage===0&&
+       current.totalPaidJ+1e-4<current.requiredCompressionJ)
+     status='HELD_UNPAID_COMPRESSION_WORK';
+    else{
+     try{
+      const opId='8h-gas:'+current.id+':'+current.stage;
+      route.ledger.reserve(opId,lot.id,to.id,current.massKg);
+      receipt=route.ledger.commit(opId);
+      current.currentLotId=receipt.outputLotId;current.stage++;
+      pressurePa=pressure(route.ledger.inventory(pipeBin.id),pipeBin.maxVolumeM3);
+      if(current.stage===2){current.status='DELIVERED';
+       current.completionS=timeS;status='DELIVERED';}
+      else{
+       const downstreamPressure=pressure(route.ledger.inventory(dstBin.id),
+        Math.max(dst.volumeM3,.001),{materialId:current.materialId,
+         massKg:current.massKg});
+       const pipePressure=pressure(route.ledger.inventory(pipeBin.id),
+        pipeBin.maxVolumeM3);
+       const additionalWork=compressionJ(current.materialId,current.massKg,
+        pipePressure,downstreamPressure);
+       current.requiredCompressionJ+=additionalWork;
+       current.remainingS=legSeconds(route.lengths[1],current.massKg,additionalWork);
+       status='PHYSICAL_PIPE_HOP_COMMITTED';
+      }
+     }catch(e){status='HELD_CAPACITY_OR_CUSTODY: '+String(e.message||e);}
+    }
+   }
+  }
+  current.lastS=timeS;
+  const after=route.ledger.inventory().reduce((s,x)=>s+x.massKg,0);
+  if(Math.abs(after-massBefore)>EPS)
+   throw Error('8H gas source-owned original 8A mass conservation violated');
+  return{changed:true,packets:next,materials8a:route.ledger.snapshot(),
+   status,receipt:receipt?cp(receipt):null,pipePressurePa:pressurePa,
+   stage:current.stage,remainingS:current.remainingS,
+   materialMassKg:current.massKg,
+   originalGridAlreadyPaidJ:poweredReport.eligible?poweredReport.powerW*dt:0,
+   cumulativeOriginalElectricalDebitJ:current.totalPaidJ||0,
+   minimumThermodynamicCompressionWorkJ:current.requiredCompressionJ||0,
+   additionalElectricalDebitJ:0,gasCreatedKg:0,gasVentedKg:0};
+ }
+ return Object.freeze({snapshot,list,start,observe});
+}
+root.StarfallPressureGasPackets8H=Object.freeze({
+ create,pressure,compressionJ,legSeconds,MOL,TEMP_K,PUMP_W,MAX_DT_S,MAX_PACKET_KG});
+if(typeof module!=='undefined'&&module.exports)
+ module.exports=root.StarfallPressureGasPackets8H;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8H — physical/powered conveyor eligibility interlock, zero transfers.
  * This module never moves ore or invents hardware/energy. A link can be
  * evaluated only between real installed dry depots via existing, installed
@@ -10666,6 +11076,7 @@ let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h
 let logisticsRoutes8h=StarfallPhysicalRoutes8H.create(session.logisticsRoutes8h);
 let offworldManifests8h=StarfallOffworldManifest8H.create(session.logisticsOffworldManifests8h);
 let conveyorPackets8h=StarfallConveyorPackets8H.create(session.logisticsConveyorPackets8h);
+let pressureGasPackets8h=StarfallPressureGasPackets8H.create(session.logisticsPressureGasPackets8h);
 let logisticsPickupReceipts8h=(()=>{
  const rows=session.logisticsPickupReceipts8h;
  if(rows==null)return [];
@@ -11312,7 +11723,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsConveyorPackets8h:conveyorPackets8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsConveyorPackets8h:conveyorPackets8h.snapshot(),logisticsPressureGasPackets8h:pressureGasPackets8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -12865,6 +13276,143 @@ function logisticsConveyorNativeTick8H({bodyId,outpost5,powerReport,timeS}={}){
   ' kg · original 48V motor power paid once');
  return q;
 }
+/* 8H live source-owned rated compressed-gas pipeline.
+ * Uses original physically fabricated 8E vessels/320kg pipe, original 8A
+ * certified compressed stock, one real paid native T02 load, and durable
+ * actual saved power state. Never teleports gas or runs a second grid.
+ */
+function logisticsPressureContext8H(){
+ const ctx=outpostContext(),bodyId=ctx.bodyId,
+  all=physical8a.list(),receipts=physical8a.serialize().transfers||[],
+  containers=materials8a.containers();
+ const certified=all.filter(a=>a.location?.kind==='surface'&&
+  a.location.bodyId===bodyId&&a.condition>=.8&&a.state?.enabled===true&&
+  receipts.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&
+   t.assetId===a.id&&t.sourceLotId&&Math.abs(t.massKg-a.massKg)<1e-6)&&
+  containers.some(c=>c.id===a.state.containerId&&c.ownerId===a.id));
+ const pipes=certified.filter(a=>a.type==='industrial_plant'&&
+  a.state?.station==='pressure_pipeline'&&
+  a.state?.kitMaterialId==='plant_kit_pressure_pipeline'&&
+  a.massKg===320&&a.state.ratedPressurePa>=8e6).map(a=>({
+  id:a.id,location:[...a.location.local],
+  portId:a.state.t02LoadId||null,
+  contents:materials8a.inventory(a.state.containerId),
+  maxPressurePa:a.state.ratedPressurePa,
+  condition:a.condition}));
+ const vessels=certified.filter(a=>a.type==='industrial_vessel'&&
+  a.state?.ratedPressurePa>=5e6&&
+  StarfallPressureGasPackets8H.MOL[a.state.materialId]).map(a=>({
+   id:a.id,materialId:a.state.materialId,
+   contents:materials8a.inventory(a.state.containerId),
+   location:[...a.location.local],ratedPressurePa:a.state.ratedPressurePa,
+   volumeM3:a.volumeM3}));
+ return{bodyId,bodyRadius:ctx.body?.radius||0,
+  onFoot:ctx.landed&&ctx.eva&&!truckOccupied&&!shipWalking8e&&
+   !interiorState&&!manufacturedOccupied8G,
+  operatorLocal:ctx.eva&&ctx.local?[...ctx.local]:null,
+  pipes,vessels,packets:pressureGasPackets8h.list(),timeS:simTime,
+  gridReport:window.StarfallOutpostUI?.powerReports?.get(bodyId)||null};
+}
+function logisticsPressureInstallPort8H(pipeId){
+ const ctx=logisticsPressureContext8H(),os=window.StarfallOutpostUI;
+ if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
+  throw Error('8H only actual on-foot EVA operator can commission pressure-pipe electrical port');
+ if(!ctx.pipes.some(x=>x.id===pipeId&&!x.portId))
+  throw Error('8H select a real paid and uncommissioned 320kg rated pressure pipe');
+ if(!os?.store?.restore||!os?.durableSnapshot||!os?.advancePowerTo)
+  throw Error('8H original native 48V T02 owner unavailable');
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H original save is not durable; cannot commission pump');
+ const original=physical8a.serialize(),outpost=os.durableSnapshot();
+ const q=StarfallPressurePipePowerPort8H.attach({
+  physical8a:original,materials8a:materials8a.snapshot(),outpost5:outpost,
+  pipelineId:pipeId,operatorLocal:ctx.operatorLocal,bodyId:ctx.bodyId,
+  bodyRadius:ctx.bodyRadius,timeS:simTime});
+ const patch={physical8a:q.physical8a,outpost5:{...outpost,...q.outpost5}};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
+  throw Error('8H physical pressure-line and original T02 port not durably saved');
+ const stored=SF.load();
+ for(const [key,value] of Object.entries(patch))
+  if(JSON.stringify(stored[key])!==JSON.stringify(value))
+   throw Error('8H original 8A physical and native T02 write mismatch');
+ physical8a=StarfallPhysical8A.create(q.physical8a);
+ os.store.restore(q.outpost5);
+ os.advancePowerTo(simTime);
+ showToast('8H · 420 W pressure pump port physically installed (UNWIRED); connect original T02 source');
+ return q.receipt;
+}
+function logisticsPressureStart8H(lotId,sourceId,pipeId,targetId,massKg){
+ const ctx=logisticsPressureContext8H(),os=window.StarfallOutpostUI;
+ if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
+  throw Error('8H board or land real ship and walk EVA to the rated pipe');
+ const pipe=ctx.pipes.find(x=>x.id===pipeId);
+ if(!pipe?.portId||!ctx.vessels.some(x=>x.id===sourceId)||
+  !ctx.vessels.some(x=>x.id===targetId)||sourceId===targetId)
+  throw Error('8H select real source and destination gas vessels and one commissioned rated pump');
+ if(StarfallOutposts.arc(ctx.operatorLocal,pipe.location,ctx.bodyRadius)>15)
+  throw Error('8H real EVA operator must stand within 15 scene units of pressure pipe manifold');
+ if(!Number.isFinite(massKg)||massKg<=0||massKg>5)
+  throw Error('8H finite rated gas packet must be 0-5kg');
+ if(!os?.durableSnapshot||!os?.advancePowerTo||!os?.powerReports)
+  throw Error('8H original native 48V source grid unavailable');
+ os.advancePowerTo(simTime);os.advancePowerTo(simTime);
+ const report=os.powerReports.get(ctx.bodyId);
+ if(!report||report.dtS!==0||Math.abs(report.simulatedAtS-simTime)>1e-6)
+  throw Error('8H require real exact current native T02 pressure-pump report');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H actual paid gas reservation cannot commit without durable source save');
+ const snapshot=SF.load(),outpost={...os.durableSnapshot(),lastTick:simTime};
+ const api=StarfallPressureGasPackets8H.create(snapshot.logisticsPressureGasPackets8h);
+ let serial=api.list().length+1;
+ while(api.list().some(x=>x.id==='8h-pressure:'+serial))serial++;
+ const q=api.start({id:'8h-pressure:'+serial,sourceLotId:lotId,
+  sourceId,pipeId,targetId,massKg,bodyId:ctx.bodyId,bodyRadius:ctx.bodyRadius,
+  timeS:simTime,physical8a:snapshot.physical8a,
+  materials8a:snapshot.materials8a,outpost5:outpost,
+  powerReport:report,operatorLocal:ctx.operatorLocal});
+ const patch={materials8a:q.materials8a,
+  logisticsPressureGasPackets8h:q.packets,outpost5:outpost};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
+  throw Error('8H original rated gas 8A reservation not durably committed');
+ const read=SF.load();
+ for(const [key,v] of Object.entries(patch))
+  if(JSON.stringify(read[key])!==JSON.stringify(v))
+   throw Error('8H rated gas original source owner readback mismatch');
+ materials8a=StarfallMaterials8A.create(q.materials8a);
+ pressureGasPackets8h=StarfallPressureGasPackets8H.create(q.packets);
+ os.store.lastTick=simTime;
+ showToast('8H · original '+massKg.toFixed(2)+'kg compressed '+q.receipt.materialId+
+  ' RESERVED for real T02 powered pipe');
+ return q.receipt;
+}
+function logisticsPressureHasActive8H(bodyId){
+ return pressureGasPackets8h.list().some(j=>j.status==='ACTIVE'&&j.bodyId===bodyId);
+}
+function logisticsPressureNativeTick8H({bodyId,outpost5,powerReport,timeS}={}){
+ if(!bodyId||!powerReport||!(powerReport.dtS>0)||
+  !logisticsPressureHasActive8H(bodyId))
+  return{changed:false,reason:'NO_REAL_PAID_GAS_PUMP_TICK'};
+ const body=galaxy.byId.get(bodyId);
+ if(!body?.landable)throw Error('8H rated gas pump cannot operate off a real planet');
+ const q=StarfallPressureGasPackets8H.create(pressureGasPackets8h.snapshot())
+  .observe({packets:pressureGasPackets8h.snapshot(),
+   materials8a:materials8a.snapshot(),physical8a:physical8a.serialize(),
+   outpost5,powerReport,bodyId,bodyRadius:body.radius,timeS});
+ if(!q.changed)return q;
+ const patch={materials8a:q.materials8a,
+  logisticsPressureGasPackets8h:q.packets,outpost5};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)
+  throw Error('8H original rated gas pipe cannot commit source owner and native energy');
+ const read=SF.load();
+ for(const [key,v] of Object.entries(patch))
+  if(JSON.stringify(read[key])!==JSON.stringify(v))
+   throw Error('8H actual compressed gas native T02 paid transaction readback mismatch');
+ materials8a=StarfallMaterials8A.create(q.materials8a);
+ pressureGasPackets8h=StarfallPressureGasPackets8H.create(q.packets);
+ if(q.receipt)showToast('8H · '+q.materialMassKg+' kg compressed gas physical pipe hop · energy paid once');
+ return q;
+}
 function logisticsOffworldContext8H(){
  const shipHold=materials8a.inventory(StarfallOffworldManifest8H.HOLD);
  const currently=landed&&nearest?.landable&&shipBody===nearest&&!!shipLocal;
@@ -13263,7 +13811,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -13842,6 +14390,19 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
         timeS:report.simulatedAtS});
        if(movement?.changed)dirty=true;
       }catch(e){console.warn('8H original native conveyor pulse held:',e);}
+    }
+    // This uses the SAME authentic T02 report and already-charged original
+    // solar/battery owner. Never run another grid or create free gas. Each
+    // original 8A physical gas hop and the exact outpost power state are
+    // saved together by the source-owned flight transaction.
+    if(report?.dtS>0&&root.StarfallPressureGasPackets8H&&
+       RT.logisticsPressureHasActive8H?.(bodyId)&&RT.logisticsPressureNativeTick8H){
+      try{
+       const gas=RT.logisticsPressureNativeTick8H({
+        bodyId,outpost5:durableSnapshot(),powerReport:report,
+        timeS:report.simulatedAtS});
+       if(gas?.changed)dirty=true;
+      }catch(e){console.warn('8H original paid rated gas pump held:',e);}
     }
     if(root.StarfallHabitatT09){
       const to=start+(i+1)*total/steps;
@@ -19293,6 +19854,135 @@ function tick(now){
 }
 requestAnimationFrame(tick);
 root.StarfallConveyorLiveUI8H=Object.freeze({refresh,open:()=>{
+ root.StarfallUI21?.openRoute?.('Engineer');panel.scrollIntoView({block:'nearest'});refresh();
+}});
+})(globalThis);
+
+</script><script>
+/* STARFALL 8H — actual original Engineer panel for finite rated 8MPa
+ * source vessel→fabricated 80L pipe→other physical rated vessel. Existing
+ * outpost wiring supplies ORIGINAL 420W T02 power. UI cannot grant gas.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host)return;
+const panel=document.createElement('section');
+panel.className='section';panel.id='pressure8h-live-panel';
+panel.setAttribute('aria-label','8H physical rated gas pipeline controls');
+const title=document.createElement('div');title.className='section-title';
+title.textContent='8H · PHYSICAL RATED PRESSURE PIPE';
+const description=document.createElement('p');description.className='panel-note';
+description.textContent='Actual certified gas vessel → manufactured 320 kg 8 MPa pressure pipe with EMPTY 80 L/25 kg hold-up → separate certified gas vessel. A real 420 W T02 pump must be installed, connected to an original battery/solar source, and served on every timed hop. No free gas, Joules, tank, pipe or remote transfer.';
+const helper=document.createElement('p');helper.className='panel-note';
+helper.textContent='EVA STEP 1: Manufacture and physically install certified 320 kg pipe (8F → 8E), place matching real rated gas vessels 9.5–12 scene units from each flange. STEP 2: Walk within 15 units of pipe; install its 420 W electrical port. STEP 3: Use NATIVE OUTPOST / ENGINEERING to wire the new 8h-pipe-port module to a previously built original T02 battery/solar source. STEP 4: Select real certified gas source stock and destination vessel; initiate a ≤5 kg packet. Loss of power/damage pauses gas physically inside its original container. This ideal-gas teaching model is not a real pressure-system design certification.';
+const select=(id,label)=>{
+ const s=document.createElement('select');s.id=id;s.setAttribute('aria-label',label);
+ s.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;max-width:100%';
+ return s;};
+const pipe=select('pressure8h-pipe','Original installed 320kg rated pump pipe');
+const src=select('pressure8h-source','Source rated gas vessel');
+const dst=select('pressure8h-dest','Separate destination rated gas vessel');
+const lot=select('pressure8h-lot','Actual source gas lot');
+const mass=document.createElement('input');mass.id='pressure8h-mass';mass.type='number';
+mass.min='.001';mass.max='5';mass.step='.01';mass.value='3';
+mass.setAttribute('aria-label','Finite gas packet mass kilograms, up to 5 kg');
+mass.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;width:95px';
+const button=t=>{const el=document.createElement('button');
+ el.type='button';el.className='science-action';el.textContent=t;return el;};
+const install=button('INSTALL ORIGINAL 420 W PUMP PORT');install.id='pressure8h-install-port';
+const open=button('OPEN NATIVE T02 WIRING');open.id='pressure8h-open-wiring';
+const start=button('START REAL PAID GAS PIPE PACKET');start.id='pressure8h-start';
+const place=document.createElement('div');place.className='obs-tools';
+place.append(pipe,install,open);
+const controls=document.createElement('div');controls.className='obs-tools';
+controls.append(src,lot,dst,mass,start);
+const status=document.createElement('p');status.className='panel-note';
+status.id='pressure8h-status';status.setAttribute('role','status');
+const readout=document.createElement('pre');readout.id='pressure8h-readout';
+readout.style.cssText='white-space:pre-wrap;overflow:auto;max-height:320px;background:#101b23;color:#c8d9d9;border:1px solid #53677566;padding:12px;font:11px/1.6 Consolas,monospace';
+panel.append(title,description,helper,place,controls,status,readout);host.append(panel);
+let last='',lastTick=0,statusUntil=0;
+function report(message){status.textContent=message;statusUntil=performance.now()+9000;}
+function options(el,rows,empty){
+ const sig=JSON.stringify(rows);
+ if(sig===el.dataset.sig)return;
+ const value=el.value;el.replaceChildren();
+ if(rows.length===0){let o=document.createElement('option');o.value='';
+  o.textContent=empty;el.appendChild(o);}
+ for(const [id,label] of rows){const o=document.createElement('option');
+  o.value=id;o.textContent=label;el.appendChild(o);}
+ if(rows.some(row=>row[0]===value))el.value=value;
+ el.dataset.sig=sig;
+}
+function refresh(){
+ const ctx=root.StarfallRuntime?.logisticsPressureContext8H?.();
+ if(!ctx){status.textContent='Real pressure pipeline runtime not yet available';return;}
+ const pipes=ctx.pipes||[],vessels=ctx.vessels||[];
+ options(pipe,pipes.map(x=>[x.id,x.id+' · '+(x.portId?'420W PORT INSTALLED':'ELECTRICAL PORT NOT INSTALLED')]),
+  'No manufactured 8MPa pressure pipeline');
+ const current=pipes.find(x=>x.id===pipe.value);
+ options(src,vessels.filter(x=>x.contents.length).map(x=>[x.id,
+  x.id+' · '+x.materialId+' · '+x.contents.reduce((s,a)=>s+a.massKg,0).toFixed(2)+' kg']),
+  'No certified original gas stock in a rated vessel');
+ const s=vessels.find(x=>x.id===src.value),
+  stock=s?.contents.filter(x=>x.materialId===s.materialId)||[];
+ options(lot,stock.map(x=>[x.id,x.materialId+' · '+x.massKg.toFixed(3)+' kg · '+x.provenance]),
+  'No physically produced source gas');
+ options(dst,vessels.filter(x=>x.id!==src.value&&x.materialId===s?.materialId)
+   .map(x=>[x.id,x.id+' · matched certified '+x.materialId+' gas storage']),
+  'No different same-gas rated destination');
+ const active=ctx.packets.some(j=>j.status==='ACTIVE');
+ const picked=stock.find(x=>x.id===lot.value),n=Number(mass.value);
+ install.disabled=!ctx.onFoot||!current||!!current.portId;
+ open.disabled=!document.querySelector('#outpost-open');
+ start.disabled=!ctx.onFoot||!current?.portId||!s||!dst.value||
+  !picked||!(n>0&&n<=5&&n<=picked.massKg)||active||!ctx.gridReport;
+ const pressure=x=>{try{return root.StarfallPressureGasPackets8H
+  .pressure(x.contents,.08)/1e6;}catch(_){return NaN;}};
+ const lines=[
+  'REAL WORLD         '+(ctx.bodyId||'NONE · LAND ORIGINAL SHIP'),
+  'OPERATOR           '+(ctx.onFoot?'REAL EVA ACTIVE · APPROACH PIPE':'REQUIRES REAL EVA'),
+  'CERTIFIED VESSELS  '+vessels.length+' · PHYSICAL 8MPa PIPES '+pipes.length,
+  'INSTALLED PUMP     '+(current?.portId||'NONE · NO ELECTRICAL LOAD'),
+  'PIPE CHARGE        '+(current?current.contents.reduce((sum,x)=>sum+x.massKg,0).toFixed(3):'0')+' kg / maximum 25 kg',
+  'PIPE PRESSURE      '+(current?pressure(current).toFixed(3):'0')+' MPa / certified 8 MPa',
+  'POWER              '+(ctx.gridReport?'ORIGINAL NATIVE T02 OBSERVED':'NO PAID ORIGINAL GRID REPORT'),
+  'RESERVED PACKETS   '+ctx.packets.length,
+  ...ctx.packets.slice(-9).map(j=>j.id+' '+j.status+' '+j.massKg.toFixed(3)+' kg '+j.materialId+
+    ' · stage '+j.stage+'/2 · '+j.remainingS.toFixed(2)+' seconds left · 8A LOT '+j.currentLotId),
+  'PHYSICS            293.15 K ideal gas law and 8MPa vessel check, not production pressure certification',
+  'ACCOUNTING         Native source pays 420W once, no free gas/wiring/energy, no background travel'
+ ];
+ const printed=lines.join('\n');if(printed!==last){readout.textContent=printed;last=printed;}
+ if(performance.now()>statusUntil)
+  status.textContent='Service the ACTUAL powered pipe on EVA; each real gas lot moves only after a paid native grid interval.';
+}
+src.addEventListener('change',()=>{lot.dataset.sig='';dst.dataset.sig='';refresh();});
+install.addEventListener('click',()=>{try{
+ const rt=root.StarfallRuntime;
+ if(!rt?.logisticsPressureInstallPort8H)throw Error('Original real pipe servicing unavailable');
+ const q=rt.logisticsPressureInstallPort8H(pipe.value);
+ refresh();report('Genuine 420W T02 pump port '+q.portId+' installed with ZERO FREE ENERGY. Now use original Outposts/Engineering to physically wire it before moving gas.');
+ }catch(e){report('PRESSURE INSTALL BLOCKED: '+String(e.message||e));}});
+open.addEventListener('click',()=>{
+ const original=document.querySelector('#outpost-open');
+ if(original){original.click();report('Connect new 8h-pipe-port:<manufactured pipe asset ID> to an ORIGINAL solar/battery source in native T02 wiring, no free source can be made.');}
+ else report('Original Outposts/Engineering electrical UI not available');});
+start.addEventListener('click',()=>{try{
+ const rt=root.StarfallRuntime;
+ if(!rt?.logisticsPressureStart8H)throw Error('Real source-owned paid pressure gas flow unavailable');
+ const q=rt.logisticsPressureStart8H(lot.value,src.value,pipe.value,dst.value,Number(mass.value));
+ refresh();report(q.massKg.toFixed(3)+' kg '+q.materialId+
+  ' ORIGINAL SOURCE GAS RESERVED; wait for actual paid T02 pump time and both physical hops.');
+ }catch(e){report('RATED GAS FLOW BLOCKED: '+String(e.message||e));}});
+function tick(now){
+ if(now-lastTick>850){lastTick=now;try{refresh();}catch(e){
+  status.textContent='8H source-owned pressure inspector paused: '+String(e.message||e);
+ }}
+ requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+root.StarfallPressurePipeLiveUI8H=Object.freeze({refresh,open:()=>{
  root.StarfallUI21?.openRoute?.('Engineer');panel.scrollIntoView({block:'nearest'});refresh();
 }});
 })(globalThis);
