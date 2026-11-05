@@ -126,6 +126,20 @@ test('gas actually trapped inside certified 80-litre pipe remains its 8A lot and
  assert.equal(fail.connections[0].sourcePaid,false);
  assert.ok(fail.faults.some(x=>x.code==='BROKEN_CUSTODY_LINK'));
 });
+test('in deep space, preserve all remote stored 8A lots but never claim a local powered conveyor or flag it falsely broken',()=>{
+ const {s,ore}=base();
+ s.conveyorPackets.jobs=[{id:'8h:distant-but-valid',bodyId,
+  sourceId:depot,driveIds:[drive],targetId:depotTarget,
+  currentLotId:ore.id,materialId:ore.materialId,massKg:10,
+  cursor:0,remainingS:15,status:'ACTIVE'}];
+ s.bodyId=null;s.bodyRadius=0;
+ const source=structuredClone(s),x=Flow.inspect(s);
+ assert.deepEqual(s,source,'world unload must NEVER mutate the original authoritative packet or ore');
+ assert.equal(x.totals.totalMassKg,22,'real offworld ore continues to exist in its actual surface owner');
+ assert.equal(x.totals.realDepots,0,'no current body means no LOCAL certified depot');
+ assert.equal(x.connections.length,0,'remote packets are preserved but cannot be geometrically verified without a loaded world');
+ assert.ok(!x.faults.some(f=>f.code==='BROKEN_CUSTODY_LINK'),'do not misreport a real distant route as broken due to unknown radius');
+});
 test('original nearby manufactured hardware without installation receipt never qualifies for industrial flow',()=>{
  const {s}=base();
  s.physical8a.transfers=[];
