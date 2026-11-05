@@ -13,7 +13,7 @@ panel.setAttribute('aria-label','8H physical logistics and route status');
 const title=document.createElement('div');
 title.className='section-title';title.textContent='8H · PHYSICAL LOGISTICS NETWORK';
 const desc=document.createElement('p');desc.className='panel-note';
-desc.textContent='Original 8D mined ore can be reserved for a physically installed 8F-manufactured dry depot. Drive the original truck to the dock and exit on foot to unload with 1.2 kJ of actual truck battery. No teleport, free cargo or pressure-gas loading.';
+desc.textContent='Original 8D mined ore can be reserved for a physically installed 8F-manufactured dry depot. Drive the original truck to the dock and exit on foot to unload with 1.2 kJ of actual truck battery. No teleport, free cargo or pressure-gas loading. Physically return to a depot to recover delivered dry stock into the truck for another paid 1.2 kJ.';
 const status=document.createElement('p');status.id='logistics8h-status';
 status.className='panel-note';status.setAttribute('role','status');
 const readout=document.createElement('pre');readout.id='logistics8h-readout';
@@ -37,12 +37,16 @@ const order=document.createElement('select');order.id='logistics8h-loaded-order'
 order.setAttribute('aria-label','Loaded shipment to unload at dock');
 const deliver=document.createElement('button');deliver.type='button';deliver.className='science-action';
 deliver.id='logistics8h-deliver';deliver.textContent='UNLOAD AT DOCK · 1.2 kJ';
+const pickupPicker=document.createElement('select');pickupPicker.id='logistics8h-pickup-lot';
+pickupPicker.setAttribute('aria-label','Originally delivered dry cargo held by physical depot');
+const pickup=document.createElement('button');pickup.type='button';pickup.className='science-action';
+pickup.id='logistics8h-pickup';pickup.textContent='LOAD DEPOT STOCK INTO TRUCK · 1.2 kJ';
 const cancel=document.createElement('button');cancel.type='button';cancel.className='science-action';
 cancel.id='logistics8h-cancel';cancel.textContent='CANCEL RESERVED DELIVERY';
-for(const select of [ore,depot,order]){
+for(const select of [ore,depot,order,pickupPicker]){
  select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
 }
-shipments.append(ore,depot,dispatch,order,deliver,cancel);
+shipments.append(ore,depot,dispatch,order,deliver,cancel,pickupPicker,pickup);
 let last='',lastTick=0,lastStatusUntil=0;
 const report=message=>{status.textContent=message;lastStatusUntil=performance.now()+4500;};
 const choices=(select,items,empty)=>{
@@ -64,6 +68,7 @@ function model(){
  const s=root.SF?.load?.()||{};
  const jobs=Array.isArray(s.logisticsOrders8h?.orders)?s.logisticsOrders8h.orders:[];
  const energyReceipts=Array.isArray(s.logisticsEnergyReceipts8h)?s.logisticsEnergyReceipts8h:[];
+ const pickupReceipts=Array.isArray(s.logisticsPickupReceipts8h)?s.logisticsPickupReceipts8h:[];
  const holders=materials.containers(),assets=physical.list();
  const eligible=assets.filter(a=>a.location?.kind==='surface'&&
   ['industrial_plant','industrial_vessel'].includes(a.type)&&a.condition>=.5&&
@@ -76,7 +81,8 @@ function model(){
   });
  const hopper=materials.used(root.StarfallMining8D?.TRUCK||'8d:truck-expedition-001:hopper'),
   ship=materials.used(root.StarfallMining8D?.SHIP||'8d:ship-main:materials');
- return {truck,pose,hopper,ship,eligible,jobs,energyReceipts,transport:r.logisticsContext8H?.()||null};
+ return {truck,pose,hopper,ship,eligible,jobs,energyReceipts,pickupReceipts,
+  transport:r.logisticsContext8H?.()||null};
 }
 function refresh(){
  const m=model();if(!m){status.textContent='8H · Awaiting original flight and 8A material runtime.';return;}
@@ -99,6 +105,7 @@ function refresh(){
   '8H ORDERS          '+m.jobs.length+' saved orders',
   ...(jobs.length?jobs:['NO 8H ORDERS YET — NO INVENTORY GENERATED']),
   'PAID RECEIPTS      '+m.energyReceipts.length+' (persistent receipts)',
+  'DEPOT PICKUPS      '+m.pickupReceipts.length+' (source-backed 1.2 kJ receipts)',
   'SAFETY             No instant planetary shipments; no unsecured gas in hopper.'
  ];
  const output=lines.join('\n');
@@ -106,17 +113,21 @@ function refresh(){
  locate.disabled=!t||loc?.kind!=='surface';
  mining.disabled=!root.StarfallMiningUI8D;
  const tctx=m.transport;
- const lots=tctx?.lots||[],depots=tctx?.depots||[],
+ const lots=tctx?.lots||[],depots=tctx?.depots||[],pickupLots=tctx?.pickupLots||[],
   active=(tctx?.orders||[]).filter(x=>x.status==='LOADED');
  choices(ore,lots.map(l=>({id:l.id,label:l.materialId+' · '+fmt(l.massKg)+' kg · '+l.provenance})),
    'No verified 8D ore in truck');
  choices(depot,depots.map(d=>({id:d.id,label:d.id+' · '+fmt(d.stock?.massKg||0)+' kg stored'})),
    'No manufactured dry depot on this world');
+ choices(pickupPicker,pickupLots.map(l=>({id:JSON.stringify([l.id,l.depotId]),
+   label:l.materialId+' · '+fmt(l.massKg)+' kg from '+l.depotId})),
+   'No proven dry depot stock to recover');
  choices(order,active.map(o=>({id:o.id,label:o.id+' · '+fmt(o.massKg)+' kg → '+o.destinationId})),
    'No loaded shipment');
  dispatch.disabled=!tctx?.operatorNear||!lots.length||!depots.length;
  deliver.disabled=!tctx?.operatorNear||!active.length;
  cancel.disabled=!tctx?.operatorNear||!active.length;
+ pickup.disabled=!tctx?.operatorNear||!pickupLots.length||tctx.energyJ<1200;
  if(performance.now()>=lastStatusUntil)
   status.textContent='8H · Reserve real mined stock, drive to the actual depot, park and EVA to unload. All 8A lots and battery Joules stay source-owned.';
 }
@@ -141,6 +152,14 @@ deliver.addEventListener('click',()=>{try{
  const receipt=rt.logisticsDeliver8H(order.value);
  refresh();report('8H · Delivered '+fmt(receipt.massKg)+' kg. Physical ore moved and truck battery debited exactly once.');
  }catch(e){report('8H unloading rejected · '+String(e?.message||e));}});
+pickup.addEventListener('click',()=>{try{
+ const rt=root.StarfallRuntime;
+ if(!rt?.logisticsPickup8H)throw Error('8H physical depot pickup runtime unavailable');
+ const [lotId,depotId]=JSON.parse(pickupPicker.value);
+ const receipt=rt.logisticsPickup8H(lotId,depotId);
+ refresh();report('8H · Collected '+fmt(receipt.massKg)+' kg from '+depotId+
+  ' into original truck hopper, paid '+fmt(receipt.energyJ)+' J once.');
+ }catch(e){report('8H pickup rejected · '+String(e?.message||e));}});
 cancel.addEventListener('click',()=>{try{
  const rt=root.StarfallRuntime;
  if(!rt?.logisticsCancel8H)throw Error('8H live cancellation unavailable');
