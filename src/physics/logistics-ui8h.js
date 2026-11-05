@@ -47,6 +47,23 @@ for(const select of [ore,depot,order,pickupPicker]){
  select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
 }
 shipments.append(ore,depot,dispatch,order,deliver,cancel,pickupPicker,pickup);
+const routePanel=document.createElement('div');routePanel.className='obs-tools';
+const firstStop=document.createElement('select');firstStop.id='logistics8h-route-first';
+const secondStop=document.createElement('select');secondStop.id='logistics8h-route-second';
+firstStop.setAttribute('aria-label','First existing manufactured dry depot waypoint');
+secondStop.setAttribute('aria-label','Second existing manufactured dry depot waypoint');
+const routePlan=document.createElement('button');routePlan.type='button';
+routePlan.id='logistics8h-route-plan';routePlan.className='science-action';
+routePlan.textContent='PLAN TWO PHYSICAL DEPOT STOPS';
+const routeArrive=document.createElement('button');routeArrive.type='button';
+routeArrive.id='logistics8h-route-arrive';routeArrive.className='science-action';
+routeArrive.textContent='CONFIRM PHYSICAL ARRIVAL AT NEXT DEPOT';
+const routeCancel=document.createElement('button');routeCancel.type='button';
+routeCancel.id='logistics8h-route-cancel';routeCancel.className='science-action';
+routeCancel.textContent='CANCEL CURRENT ROUTE';
+for(const select of [firstStop,secondStop])
+ select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
+routePanel.append(firstStop,secondStop,routePlan,routeArrive,routeCancel);
 let last='',lastTick=0,lastStatusUntil=0;
 const report=message=>{status.textContent=message;lastStatusUntil=performance.now()+4500;};
 const choices=(select,items,empty)=>{
@@ -106,6 +123,9 @@ function refresh(){
   ...(jobs.length?jobs:['NO 8H ORDERS YET — NO INVENTORY GENERATED']),
   'PAID RECEIPTS      '+m.energyReceipts.length+' (persistent receipts)',
   'DEPOT PICKUPS      '+m.pickupReceipts.length+' (source-backed 1.2 kJ receipts)',
+  ...(m.transport?.routes||[]).filter(r=>r.status==='ACTIVE').map(r=>
+    'PHYSICAL ROUTE     '+r.id+' · stop '+(r.nextIndex+1)+' / '+r.stops.length+
+    ' → '+r.stops[r.nextIndex]?.depotId+' (drive original truck; no auto-moving)'),
   'SAFETY             No instant planetary shipments; no unsecured gas in hopper.'
  ];
  const output=lines.join('\n');
@@ -124,6 +144,14 @@ function refresh(){
    'No proven dry depot stock to recover');
  choices(order,active.map(o=>({id:o.id,label:o.id+' · '+fmt(o.massKg)+' kg → '+o.destinationId})),
    'No loaded shipment');
+ choices(firstStop,depots.map(d=>({id:d.id,label:'Stop 1 · '+d.id})),
+  'No manufactured depot');
+ choices(secondStop,depots.map(d=>({id:d.id,label:'Stop 2 · '+d.id})),
+  'No second manufactured depot');
+ const activeRoute=(tctx?.routes||[]).find(r=>r.status==='ACTIVE');
+ routePlan.disabled=!tctx?.operatorNear||depots.length<2||!!activeRoute;
+ routeArrive.disabled=!tctx?.operatorNear||!activeRoute;
+ routeCancel.disabled=!tctx?.operatorNear||!activeRoute;
  dispatch.disabled=!tctx?.operatorNear||!lots.length||!depots.length;
  deliver.disabled=!tctx?.operatorNear||!active.length;
  cancel.disabled=!tctx?.operatorNear||!active.length;
@@ -160,13 +188,32 @@ pickup.addEventListener('click',()=>{try{
  refresh();report('8H · Collected '+fmt(receipt.massKg)+' kg from '+depotId+
   ' into original truck hopper, paid '+fmt(receipt.energyJ)+' J once.');
  }catch(e){report('8H pickup rejected · '+String(e?.message||e));}});
+routePlan.addEventListener('click',()=>{try{
+ const r=root.StarfallRuntime;if(!r?.logisticsRoutePlan8H)throw Error('8H physical route runtime unavailable');
+ if(firstStop.value===secondStop.value)throw Error('Choose two different manufactured depots');
+ const plan=r.logisticsRoutePlan8H([firstStop.value,secondStop.value]);
+ refresh();report('8H route '+plan.id+' planned. DRIVE the original truck to '+plan.stops[0].depotId+'. No automatic travel.');
+ }catch(e){report('8H route planning rejected · '+String(e?.message||e));}});
+routeArrive.addEventListener('click',()=>{try{
+ const r=root.StarfallRuntime,active=r?.logisticsContext8H?.().routes?.find(x=>x.status==='ACTIVE');
+ if(!active)throw Error('No active original-truck route');
+ const seen=r.logisticsRouteArrive8H(active.id);
+ refresh();report('8H verified physical visit '+(seen.receipt.stopIndex+1)+
+  ' at '+seen.receipt.depotId+(seen.route.status==='COMPLETED'?' · route complete':' · drive to next depot'));
+ }catch(e){report('8H waypoint rejected · '+String(e?.message||e));}});
+routeCancel.addEventListener('click',()=>{try{
+ const r=root.StarfallRuntime,active=r?.logisticsContext8H?.().routes?.find(x=>x.status==='ACTIVE');
+ if(!active)throw Error('No active original-truck route');
+ r.logisticsRouteCancel8H(active.id);
+ refresh();report('8H route cancelled; no matter or energy moved.');
+ }catch(e){report('8H route cancellation rejected · '+String(e?.message||e));}});
 cancel.addEventListener('click',()=>{try{
  const rt=root.StarfallRuntime;
  if(!rt?.logisticsCancel8H)throw Error('8H live cancellation unavailable');
  const receipt=rt.logisticsCancel8H(order.value);
  refresh();report('8H · Released original '+fmt(receipt.massKg)+' kg ore reservation with NO stock or energy debit.');
  }catch(e){report('8H cancellation rejected · '+String(e?.message||e));}});
-panel.append(title,desc,status,row,shipments,readout);host.append(panel);
+panel.append(title,desc,status,row,shipments,routePanel,readout);host.append(panel);
 function tick(time){
  if(time-lastTick>=650){lastTick=time;try{refresh();}catch(e){
   status.textContent='8H monitor unavailable · '+String(e?.message||e);
