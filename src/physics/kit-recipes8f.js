@@ -20,6 +20,10 @@ const SPECS=Object.freeze({
  // A sealed dry-goods depot is first fabricated from actual certified 8F parts.
  // Packaged machinery mass remains 480 kg; initially contains ZERO cargo.
  plant_kit_cargo_depot:[480,1.8,'assembly_pad'],
+ // A single conveyor drive and short mechanically supported belt section,
+ // built from finite refined material and manufactured electrical components.
+ // No automatic powered movement until a real T02 load is installed/wired.
+ plant_kit_conveyor_drive:[180,.55,'assembly_pad'],
  vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],vessel_kit_nitrogen:[195,4,'vessel'],
  vessel_kit_sulfur_dioxide:[210,4,'vessel'],
  vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],
