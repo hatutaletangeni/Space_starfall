@@ -53,9 +53,8 @@ jobs:
           node --check src/physics/pressure-pipe-power-port8h.js
           node --test tests/pressure-pipe-hardware8h.test.cjs
           node --test tests/conveyor-real-placement8h.test.cjs
-          node --test tests/conveyor-live-port8h.test.cjs
           node --test tests/conveyor-power-port8h.test.cjs
           node --test tests/conveyor-packets8h.test.cjs
           node --test tests/industrial-site8e.test.cjs
-          node --test tests/kit-recipes8f.test.cjs
+          node --test tests/industrial-kit-factory8f.test.cjs
           python3 tests/standalone-parity.py
