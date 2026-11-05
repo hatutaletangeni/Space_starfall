@@ -5523,7 +5523,7 @@ const SPECS=Object.freeze({
  storage:{label:'Sample storage',radius:4,watts:70,capacityJ:0,solarW:0,weightKg:2000,height:3.4,priority:2,records:60},
  // T02 bookkeeping port attached ONLY to a paid 8E-installed 8H drive.
  // Zero independent construction mass: the existing 180kg drive is authoritative.
- conveyor_drive:{label:'Certified conveyor drive electrical load',radius:1,watts:250,capacityJ:0,
+ conveyor_drive:{label:'Certified conveyor drive electrical load',loadOnly:true,radius:1,watts:250,capacityJ:0,
   solarW:0,weightKg:0,height:1,priority:2},
  antenna:{label:'Radio antenna',radius:3,watts:165,capacityJ:0,solarW:0,weightKg:580,height:10,priority:2,rangeScene:120000,bandwidthBps:250000},
  connector:{label:'Power junction',radius:1.9,watts:5,capacityJ:0,solarW:0,weightKg:145,height:1.4,priority:0}
