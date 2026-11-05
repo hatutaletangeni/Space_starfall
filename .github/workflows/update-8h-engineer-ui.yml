@@ -1,0 +1,63 @@
+name: STARFALL 8H Engineer standalone rebuild and real-browser verification
+on:
+  push:
+    branches:
+      - feature/update-8h-engineer-logistics-readout
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  regenerate-standalone:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Build reproducible offline game and commit generated artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/build-standalone.py
+          if git diff --quiet -- PLAY-STARFALL.html; then
+            echo 'Standalone already up to date'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html
+          git commit -m 'build(8H): synchronize offline standalone with Engineer logistics readout'
+          git push origin HEAD:feature/update-8h-engineer-logistics-readout
+          # GITHUB_TOKEN-generated pushes do not trigger new normal push
+          # workflows; explicit dispatch validates the new committed head.
+          gh workflow run update-8h-engineer-ui.yml --ref feature/update-8h-engineer-logistics-readout
+  verify-final-generated-head:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate all JavaScript and offline source-to-bundle parity
+        run: |
+          set -euo pipefail
+          find src -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do node --check "$file"; done
+          python3 tests/standalone-parity.py
+          node --test tests/logistics-orders8h.test.cjs
+          node --test tests/logistics-transaction8h.test.cjs
+          node --test tests/logistics-battery-bridge8h.test.cjs
+      - name: Install actual browser and software WebGL2 driver
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Exercise real source-owned 8H Engineer panel in file:// Chromium
+        run: python tests/logistics-ui8h-browser.py
