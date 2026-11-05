@@ -1,0 +1,73 @@
+name: STARFALL 8H actual original material flow and production-chain inspector
+on:
+  push:
+    branches:
+      - feature/update-8h-actual-industry-flow-inspector
+  pull_request:
+    paths:
+      - 'src/physics/industry-flow8h.js'
+      - 'src/physics/industry-flow-live-ui8h.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/industry-flow-inspector8h*'
+      - '.github/workflows/update-8h-industry-flow-inspector.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-exact-source-owned-offline:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild actual complete offline game to source parity
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): original industry flow source-owned offline parity'
+            git push origin HEAD:feature/update-8h-actual-industry-flow-inspector
+          fi
+  proof-of-no-free-manufacturing:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Read-only original custody, route geometry, 8E/8F/8G and exact-source static verification
+        run: |
+          set -euo pipefail
+          node --check src/physics/industry-flow8h.js
+          node --check src/physics/industry-flow-live-ui8h.js
+          node --check src/flight.js
+          node --test tests/industry-flow-inspector8h.test.cjs
+          node --test tests/pressure-pipe-live8h.test.cjs
+          node --test tests/pressure-gas-packets8h.test.cjs
+          node --test tests/conveyor-live8h.test.cjs
+          node --test tests/logistics-offworld-manifest8h.test.cjs
+          python3 -m py_compile tests/industry-flow-inspector8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Install original actual offline Chromium software WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real original offline UI / source inventory, power, truck, ship and production regressions
+        run: |
+          python3 tests/industry-flow-inspector8h-browser.py
+          python3 tests/pressure-pipe-live8h-browser.py
+          python3 tests/conveyor-live8h-browser.py
+          python3 tests/logistics-offworld-live8h-browser.py
+          python3 tests/truck-custody8b-browser.py

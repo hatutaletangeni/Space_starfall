@@ -2240,6 +2240,30 @@ function logisticsConveyorNativeTick8H({bodyId,outpost5,powerReport,timeS}={}){
  * certified compressed stock, one real paid native T02 load, and durable
  * actual saved power state. Never teleports gas or runs a second grid.
  */
+/* Read ONLY from authoritative 8A cargo, manufacturing, 8C finite
+ * depletion, paid T02 outpost and actual original vehicle/flight operations.
+ * A surface depot is NOT connected to the ship's smelter by a UI graph:
+ * original truck pickup + driven transit + 8D ship loader remain mandatory.
+ */
+function industryFlowContext8H(){
+ const o=outpostContext(),out=window.StarfallOutpostUI;
+ const industry=StarfallIndustryFlow8H.inspect({
+  bodyId:o.bodyId,bodyRadius:o.body?.radius||0,
+  physical8a:physical8a.serialize(),
+  materials8a:materials8a.snapshot(),
+  outpost5:out?.durableSnapshot?.()||{schema:1,items:[],wires:[]},
+  conveyorPackets:conveyorPackets8h.snapshot(),
+  pressurePackets:pressureGasPackets8h.snapshot(),
+  logisticsOrders:logisticsOrders8h.list(),
+  offworldManifests:offworldManifests8h.list(),
+  miningHistory:mining8d.snapshot().history,
+  refineryJob:refinery8e.active,
+  factoryJob:factory8f.active,
+  factoryReceipts:factory8f.receipts?.length||0,
+  surveys:resources8c.observations().length
+ });
+ return industry;
+}
 function logisticsPressureContext8H(){
  const ctx=outpostContext(),bodyId=ctx.bodyId,
   all=physical8a.list(),receipts=physical8a.serialize().transfers||[],
@@ -2770,7 +2794,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');

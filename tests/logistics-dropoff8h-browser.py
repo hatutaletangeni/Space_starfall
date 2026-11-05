@@ -156,6 +156,14 @@ with sync_playwright() as p:
   assert expected['kg']==20 and abs(expected['battery']-4998800)<1e-5,expected
   pick.select_option(__import__('json').dumps([expected['lot'],expected['depot']],separators=(',',':')))
   pickup=page.locator('#logistics8h-pickup')
+  # Original UI renders source-owned 8A/8D pickup preconditions at a bounded
+  # 650ms cadence. Wait for its next real state refresh after select_option;
+  # do NOT bypass original EVA/truck/stock checks or force-enable the button.
+  page.wait_for_function("""()=>{
+    const c=StarfallRuntime.logisticsContext8H();
+    return !!(c.operatorNear&&c.pickupLots.length&&c.energyJ>=1200&&
+      !document.querySelector('#logistics8h-pickup')?.disabled);
+  }""",timeout=15000)
   assert pickup.is_enabled(),'Depot pickup action not ready when real EVA/truck dock present'
   pickup.click()
   page.wait_for_function("SF.load().logisticsPickupReceipts8h?.length===1",timeout=18000)
