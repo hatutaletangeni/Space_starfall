@@ -1,0 +1,81 @@
+name: STARFALL 8H real native T02 powered conveyor gameplay
+on:
+  push:
+    branches:
+      - feature/update-8h-live-conveyor-vertical
+  pull_request:
+    paths:
+      - 'src/flight.js'
+      - 'src/physics/outposts-ui.js'
+      - 'src/physics/logistics-conveyor-live-ui8h.js'
+      - 'src/physics/conveyor-packets8h.js'
+      - 'src/physics/conveyor-native-bridge8h.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/conveyor-live8h*'
+      - '.github/workflows/update-8h-live-conveyor-vertical.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-offline:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild the unchanged original single-file game's exact source
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): exact native powered conveyor standalone parity'
+            git push origin HEAD:feature/update-8h-live-conveyor-vertical
+          fi
+  exact-native-grid-and-browser:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Original source syntax, immutable physical custody, power and automation regressions
+        run: |
+          set -euo pipefail
+          node --check src/flight.js
+          node --check src/physics/outposts-ui.js
+          node --check src/physics/logistics-conveyor-live-ui8h.js
+          node --check src/physics/conveyor-packets8h.js
+          node --check src/physics/conveyor-native-bridge8h.js
+          node --test tests/conveyor-live8h.test.cjs
+          node --test tests/conveyor-real-placement8h.test.cjs
+          node --test tests/conveyor-native-bridge8h.test.cjs
+          node --test tests/conveyor-packets8h.test.cjs
+          node --test tests/conveyor-bounded-trays8h.test.cjs
+          node --test tests/logistics-powered-network8h.test.cjs
+          node --test tests/conveyor-power-port8h.test.cjs
+          node --test tests/logistics-offworld-manifest8h.test.cjs
+          node tests/technology-contracts.test.cjs
+          python3 -m py_compile tests/conveyor-live8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Install real software WebGL2 Chromium
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real file Chromium source owner, truck, offworld and Engineer regressions
+        run: |
+          python3 tests/conveyor-live8h-browser.py
+          python3 tests/logistics-offworld-live8h-browser.py
+          python3 tests/logistics-ui8h-browser.py
+          python3 tests/mining-hauling8d-browser.py
+          python3 tests/truck-custody8b-browser.py
