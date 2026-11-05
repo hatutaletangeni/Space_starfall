@@ -71,7 +71,7 @@ function create(saved){
  for(const m of state.manifests)if(!id(m.id)||m.carrierId!==SHIP||
   !id(m.lotId)||!id(m.sourceWorldId)||!id(m.destinationWorldId)||
   m.sourceWorldId===m.destinationWorldId||
-  !['RESERVED','IN_TRANSIT','ARRIVED','DELIVERED'].includes(m.status)||
+  !['RESERVED','IN_TRANSIT','ARRIVED','DELIVERED','CANCELLED'].includes(m.status)||
   !finite(m.massKg)||m.massKg<=0||!finite(m.createdS))
   throw Error('8H corrupt loaded-ship manifest');
  const snapshot=()=>cp(state),list=()=>cp(state.manifests);
@@ -99,6 +99,21 @@ function create(saved){
   return{manifest:cp(manifest),manifests:snapshot(),materials8a:l.snapshot(),
    receipt:{status:'RESERVED',id:manifestId,sourceLotId:lotId,kg:massKg,
     materialLocation:HOLD,powerCreatedJ:0,movedKg:0}};
+ }
+ function cancel({id:manifestId,flightGalaxy,originWorld,materials8a,timeS}){
+  const m=get(manifestId),origin=checkWorld(originWorld);
+  if(!m||m.status!=='RESERVED'||origin.id!==m.sourceWorldId||
+   !finite(timeS)||timeS<m.createdS)
+   throw Error('8H only an original unlaunched reserved shipment may be cancelled');
+  flightAt(flightGalaxy,origin,true,timeS);
+  const l=root.StarfallMaterials8A.create(materials8a);
+  cargo(l,m.lotId,m.massKg);
+  const op=l.operations().find(x=>x.id===m.reservationId);
+  if(!op||op.status!=='RESERVED')
+   throw Error('8H ship reservation already consumed or missing');
+  l.cancel(m.reservationId);m.status='CANCELLED';
+  return{manifest:cp(m),manifests:snapshot(),materials8a:l.snapshot(),
+   receipt:{id:manifestId,status:'CANCELLED',movedKg:0,usedJ:0}};
  }
  function depart({id:manifestId,flightGalaxy,originWorld,materials8a,timeS}){
   const m=get(manifestId);
@@ -173,7 +188,7 @@ function create(saved){
    receipt:cp(receipt),energyReceipt:energy.receipt,movedKg:m.massKg,
    note:'Cargo moved only after original ship landed and 1200 J paid; caller must persist owners together'};
  }
- return Object.freeze({snapshot,list,register,depart,arrive,deliver});
+ return Object.freeze({snapshot,list,register,cancel,depart,arrive,deliver});
 }
 root.StarfallOffworldManifest8H=Object.freeze({create,SHIP,HOLD});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallOffworldManifest8H;
