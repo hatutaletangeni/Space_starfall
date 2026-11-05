@@ -1,0 +1,29 @@
+name: STARFALL 8H original truck multi-stop physical routes
+on:
+  push:
+    branches:
+      - feature/update-8h-physical-multistop-route-ledger
+  pull_request:
+    paths:
+      - 'src/physics/logistics-routes8h.js'
+      - 'tests/logistics-routes8h.test.cjs'
+      - '.github/workflows/update-8h-routes.yml'
+jobs:
+  physical-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Original 8A vehicle and depot itinerary conservation tests
+        run: |
+          set -euo pipefail
+          node --check src/physics/logistics-routes8h.js
+          node --test tests/logistics-routes8h.test.cjs
+          node --test tests/logistics-pickup8h.test.cjs
+          node --test tests/logistics-dropoff8h.test.cjs
+          node --test tests/logistics-orders8h.test.cjs
+      - name: Preserve released standalone parity
+        run: python3 tests/standalone-parity.py
