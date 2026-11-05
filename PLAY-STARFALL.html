@@ -5525,6 +5525,9 @@ const SPECS=Object.freeze({
  // Zero independent construction mass: the existing 180kg drive is authoritative.
  conveyor_drive:{label:'Certified conveyor drive electrical load',loadOnly:true,radius:1,watts:250,capacityJ:0,
   solarW:0,weightKg:0,height:1,priority:2},
+ // Zero extra mass; actual original 8E certified 320kg gas pipe owns hardware.
+ pressure_pipeline_pump:{label:'Certified rated gas pipe 420W T02 load',loadOnly:true,
+  radius:1,watts:420,capacityJ:0,solarW:0,weightKg:0,height:1,priority:2},
  antenna:{label:'Radio antenna',radius:3,watts:165,capacityJ:0,solarW:0,weightKg:580,height:10,priority:2,rangeScene:120000,bandwidthBps:250000},
  connector:{label:'Power junction',radius:1.9,watts:5,capacityJ:0,solarW:0,weightKg:145,height:1.4,priority:0}
 });
@@ -5559,7 +5562,9 @@ class Store{
  constructor(seed,saved){this.seed=seed;this.items=[];this.wires=[];this.relays=[];this.receipts=[];this.serial=0;this.messages=[];this.lastTick=0;this.restore(saved);}
  restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;const ids=new Set();this.items=(Array.isArray(saved.items)?saved.items:[]).map(cleanItem).filter(x=>{if(!x||ids.has(x.id))return false;ids.add(x.id);return true;});this.wires=(Array.isArray(saved.wires)?saved.wires:[]).filter(x=>x&&ids.has(x.a)&&ids.has(x.b)&&x.a!==x.b).map(x=>({a:x.a,b:x.b}));this.relays=(Array.isArray(saved.relays)?saved.relays:[]).filter(x=>typeof x.id==='string'&&typeof x.bodyId==='string'&&Number.isFinite(x.phase)&&Number.isFinite(x.altitude)).map(x=>({...x,altitude:clamp(x.altitude,300,12000),periodS:clamp(x.periodS||1200,120,1e8),axis:saneDir(x.axis||[0,1,0])}));this.receipts=(Array.isArray(saved.receipts)?saved.receipts:[]).filter(x=>x.id&&x.labId&&x.observationId);this.serial=clamp(Number(saved.serial)||0,0,1e7);this.lastTick=Math.max(0,Number(saved.lastTick)||0);}
  serialize(){return{schema:1,seed:this.seed,serial:this.serial,items:copy(this.items),wires:copy(this.wires),relays:copy(this.relays),receipts:copy(this.receipts),lastTick:this.lastTick};}
- add(kind,body,local,forward,heightAt,protectedAreas=[]){if(kind==='conveyor_drive')throw Error('8H conveyor T02 port requires a physically manufactured and installed 8E drive');if(this.items.length>=320)throw Error('Global structure limit reached');const p=placement({kind,body,local,heightAt,structures:this.items,protectedAreas}),id='outpost-'+this.seed+'-'+(++this.serial);const item={id,bodyId:body.id,kind,local:p.local,facing:saneDir(forward),height:p.height,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]};if(kind==='antenna'&&root.StarfallAntennaT04)item.radioT04=root.StarfallAntennaT04.repair(null);if(kind==='hab'&&root.StarfallHabitatT09)root.StarfallHabitatT09.ensure(item,root.StarfallRuntime?.time||0);if(kind==='battery')item.energyJ=SPECS.battery.capacityJ*.5;this.items.push(item);return{item:copy(item),slope:p.slopeDeg};}
+ add(kind,body,local,forward,heightAt,protectedAreas=[]){if(kind==='conveyor_drive')throw Error('8H conveyor T02 port requires a physically manufactured and installed 8E drive');
+ if(kind==='pressure_pipeline_pump')
+  throw Error('8H pressure pipeline T02 port requires paid manufactured 8E hardware');if(this.items.length>=320)throw Error('Global structure limit reached');const p=placement({kind,body,local,heightAt,structures:this.items,protectedAreas}),id='outpost-'+this.seed+'-'+(++this.serial);const item={id,bodyId:body.id,kind,local:p.local,facing:saneDir(forward),height:p.height,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]};if(kind==='antenna'&&root.StarfallAntennaT04)item.radioT04=root.StarfallAntennaT04.repair(null);if(kind==='hab'&&root.StarfallHabitatT09)root.StarfallHabitatT09.ensure(item,root.StarfallRuntime?.time||0);if(kind==='battery')item.energyJ=SPECS.battery.capacityJ*.5;this.items.push(item);return{item:copy(item),slope:p.slopeDeg};}
  remove(id){if(!this.items.some(x=>x.id===id))return false;this.items=this.items.filter(x=>x.id!==id);this.wires=this.wires.filter(x=>x.a!==id&&x.b!==id);/* Keep original science receipt provenance after dismantling a lab. */return true;}
  link(a,b,body){const x=this.items.find(i=>i.id===a),y=this.items.find(i=>i.id===b);if(!x||!y||a===b||x.bodyId!==y.bodyId||x.bodyId!==body.id)throw Error('Connect two modules on the same body');if(arc(x.local,y.local,body.radius)>80)throw Error('Cable exceeds 80 scene units');if(this.wires.some(w=>(w.a===a&&w.b===b)||(w.a===b&&w.b===a)))return false;if(this.wires.length>=600)throw Error('Cable limit');this.wires.push({a,b});return true;}
  configureRadio(id,options){const item=this.items.find(x=>x.id===id);if(!item||item.kind!=='antenna'||!root.StarfallAntennaT04)throw Error('Select a real antenna and initialize T04 hardware');return root.StarfallAntennaT04.configure(item,options);}
@@ -7247,6 +7252,13 @@ const KITS=Object.freeze({
  plant_kit_conveyor_drive:{type:'industrial_plant',station:'conveyor_drive',
   tools:['belt_drive','support_idler','drive_guard','power_disconnect'],
   massKg:180,volumeM3:.55,workJ:410000,radiusScene:3},
+ // Certified pressure-rated pair of short lines around a source-owned 420W
+ // electric pump, relief valve and flow meter. No operating pipe until T02
+ // electrical port is installed and wired and real gas packet verified.
+ plant_kit_pressure_pipeline:{type:'industrial_plant',station:'pressure_pipeline',
+  tools:['seamless_steel_tube','rated_flange','isolation_valve','electric_pump',
+   'pressure_regulator','relief_valve','flow_meter','leak_monitor'],
+  massKg:320,volumeM3:.95,workJ:720000,radiusScene:3.5,pressurePa:8e6},
  plant_kit_habitat_construction_pad:{type:'industrial_plant',station:'habitat_pad',
   tools:['pressure_section_jig','airlock_alignment','shell_welding_fixture','leak_test_port'],
   massKg:1120,volumeM3:3.7,workJ:2500000,radiusScene:11},
@@ -7301,16 +7313,18 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
  const k=q.spec,isVessel=k.type==='industrial_vessel',
   isCargoDock=k.station==='cargo_depot',
   isDryConveyor=k.station==='conveyor_drive',
+  isPressureLine=k.station==='pressure_pipeline',
   containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
-    isDryConveyor?'conveyor8h:'+assetId:null;
+    isDryConveyor?'conveyor8h:'+assetId:
+    isPressureLine?'pressurepipe8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
   kind:isCargoDock?'sealed dry-solid cargo dock':
-    isDryConveyor?'guarded dry-solid conveyor tray':'gas pressure vessel',
-  // A paid conveyor has one bounded 40 kg / 0.05 m³ dry tray inside the
-  // physically installed 180 kg drive. ZERO initial material is generated.
-  // It is NOT a pressure-rated pipe or a remote teleporting stock account.
-  maxMassKg:isCargoDock?1200:isDryConveyor?40:1000,
-  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:k.volumeM3});
+    isDryConveyor?'guarded dry-solid conveyor tray':
+    isPressureLine?'sealed 8MPa gas pipe hold-up':'gas pressure vessel',
+  // Paid 8E drives and certified rated pipes have EMPTY physical interiors.
+  // 8H pipeline maximum hold-up 80 litres and 25 kg, never free gas.
+  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:1000,
+  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:k.volumeM3});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
   state:{kitMaterialId:q.materialId,station:k.station||null,tools:k.tools||[],
@@ -7355,6 +7369,9 @@ const SPECS=Object.freeze({
  // built from finite refined material and manufactured electrical components.
  // No automatic powered movement until a real T02 load is installed/wired.
  plant_kit_conveyor_drive:[180,.55,'assembly_pad'],
+ // Physically certified sealed 8 MPa pressure-line hardware from actual
+ // finished steel, copper, motor and controls. Initially EMPTY, no free gas.
+ plant_kit_pressure_pipeline:[320,.95,'plant'],
  vessel_kit_hydrogen:[160,4,'vessel'],vessel_kit_oxygen:[195,4,'vessel'],vessel_kit_nitrogen:[195,4,'vessel'],
  vessel_kit_sulfur_dioxide:[210,4,'vessel'],
  vessel_kit_carbon_monoxide:[170,4,'vessel'],vessel_kit_carbon_dioxide:[195,4,'vessel'],

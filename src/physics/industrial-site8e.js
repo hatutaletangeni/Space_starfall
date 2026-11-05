@@ -30,6 +30,13 @@ const KITS=Object.freeze({
  plant_kit_conveyor_drive:{type:'industrial_plant',station:'conveyor_drive',
   tools:['belt_drive','support_idler','drive_guard','power_disconnect'],
   massKg:180,volumeM3:.55,workJ:410000,radiusScene:3},
+ // Certified pressure-rated pair of short lines around a source-owned 420W
+ // electric pump, relief valve and flow meter. No operating pipe until T02
+ // electrical port is installed and wired and real gas packet verified.
+ plant_kit_pressure_pipeline:{type:'industrial_plant',station:'pressure_pipeline',
+  tools:['seamless_steel_tube','rated_flange','isolation_valve','electric_pump',
+   'pressure_regulator','relief_valve','flow_meter','leak_monitor'],
+  massKg:320,volumeM3:.95,workJ:720000,radiusScene:3.5,pressurePa:8e6},
  plant_kit_habitat_construction_pad:{type:'industrial_plant',station:'habitat_pad',
   tools:['pressure_section_jig','airlock_alignment','shell_welding_fixture','leak_test_port'],
   massKg:1120,volumeM3:3.7,workJ:2500000,radiusScene:11},
@@ -84,16 +91,18 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
  const k=q.spec,isVessel=k.type==='industrial_vessel',
   isCargoDock=k.station==='cargo_depot',
   isDryConveyor=k.station==='conveyor_drive',
+  isPressureLine=k.station==='pressure_pipeline',
   containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
-    isDryConveyor?'conveyor8h:'+assetId:null;
+    isDryConveyor?'conveyor8h:'+assetId:
+    isPressureLine?'pressurepipe8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
   kind:isCargoDock?'sealed dry-solid cargo dock':
-    isDryConveyor?'guarded dry-solid conveyor tray':'gas pressure vessel',
-  // A paid conveyor has one bounded 40 kg / 0.05 m³ dry tray inside the
-  // physically installed 180 kg drive. ZERO initial material is generated.
-  // It is NOT a pressure-rated pipe or a remote teleporting stock account.
-  maxMassKg:isCargoDock?1200:isDryConveyor?40:1000,
-  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:k.volumeM3});
+    isDryConveyor?'guarded dry-solid conveyor tray':
+    isPressureLine?'sealed 8MPa gas pipe hold-up':'gas pressure vessel',
+  // Paid 8E drives and certified rated pipes have EMPTY physical interiors.
+  // 8H pipeline maximum hold-up 80 litres and 25 kg, never free gas.
+  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:1000,
+  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:k.volumeM3});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
   state:{kitMaterialId:q.materialId,station:k.station||null,tools:k.tools||[],
