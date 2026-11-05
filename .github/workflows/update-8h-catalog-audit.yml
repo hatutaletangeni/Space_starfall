@@ -1,0 +1,22 @@
+name: STARFALL T00 conveyor load catalog audit
+on:
+  push:
+    branches:
+      - fix/update-8h-t00-conveyor-load-catalog
+  pull_request:
+    paths:
+      - 'tests/technology-contracts.json'
+      - '.github/workflows/update-8h-catalog-audit.yml'
+jobs:
+  verify-native-250w-load-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assert T00 static catalog equals actual original outpost electrical source
+        run: |
+          node -e "const c=require('./tests/technology-contracts.json');const o=require('./src/physics/outposts.js');const x=c.inventory.filter(a=>a.category==='constructible').map(a=>a.originalAssetId).sort();if(x.join(',')!==Object.keys(o.SPECS).sort().join(','))process.exit(1);if(c.categoryCounts.constructible!==x.length)process.exit(2)"
+          node tests/technology-contracts.test.cjs
