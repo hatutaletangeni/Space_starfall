@@ -26,7 +26,12 @@ with sync_playwright() as p:
     up:[0,1,0],landed:true}});
    return SF.load();
   }""")
-  context.add_init_script("(()=>{if(sessionStorage.getItem('t06-landed-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");sessionStorage.setItem('t06-landed-initialized','1');})()")
+  # file:// Chromium may reinitialize sessionStorage on hard page.reload().
+  # An init script that checks ONLY sessionStorage can silently RE-INJECT the
+  # original blank rover fixture over a genuinely durable mission on reload.
+  # Use a persistent, test-only localStorage marker, written/read back BEFORE
+  # source boot. Keep every original final rover, camera and ACK assertion.
+  context.add_init_script("(()=>{const m='starfall-t06-fixture-seeded';if(localStorage.getItem(m)==='1')return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");localStorage.setItem(m,'1');if(localStorage.getItem(m)!=='1')throw Error('T06 fixture marker not durable');})()")
   boot.close()
   page=context.new_page()
   page.on('pageerror',lambda e:errors.append(str(e)))
