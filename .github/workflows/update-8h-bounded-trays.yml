@@ -1,0 +1,31 @@
+name: STARFALL 8H bounded manufactured dry conveyor trays
+on:
+  push:
+    branches:
+      - feature/update-8h-bounded-conveyor-trays
+  pull_request:
+    paths:
+      - 'src/physics/industrial-site8e.js'
+      - 'tests/conveyor-bounded-trays8h.test.cjs'
+      - '.github/workflows/update-8h-bounded-trays.yml'
+      - 'PLAY-STARFALL.html'
+jobs:
+  finite-conveyor-tray:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real 180kg hardware, EMPTY 40kg tray, 8A capacity and source isolation
+        run: |
+          set -euo pipefail
+          node --check src/physics/industrial-site8e.js
+          node --test tests/conveyor-bounded-trays8h.test.cjs
+          node --test tests/conveyor-power-port8h.test.cjs
+          node --test tests/logistics-conveyor-fabrication8h.test.cjs
+          node --test tests/logistics-powered-network8h.test.cjs
+          node --test tests/material-ledger8a.test.cjs
+      - name: Original offline standalone remains source aligned
+        run: python3 tests/standalone-parity.py
