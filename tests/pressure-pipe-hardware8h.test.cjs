@@ -41,7 +41,8 @@ test('8F made physical pressure pipeline from real mass-conserving components, 8
  const f=original(),pump=f.installed.physical.assets[0];
  assert.equal(f.recipe.outputs.plant_kit_pressure_pipeline,320);
  assert.ok(f.recipe.inputs.steel>0&&f.recipe.inputs.electric_motor>0);
- assert.equal(Object.values(f.recipe.inputs).reduce((s,v)=>s+v,0),320);
+ assert.ok(Math.abs(Object.values(f.recipe.inputs).reduce((s,v)=>s+v,0)-320)<1e-8,
+  'all finished physical components conserve exact 320kg within floating precision');
  assert.equal(f.quote.workJ,720000);
  assert.equal(f.installed.materials.lots.length,0);
  assert.equal(pump.massKg,320);
