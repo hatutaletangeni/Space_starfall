@@ -14,7 +14,8 @@
  */
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6,R=8.314462618,
- TEMP_K=293.15,MAX_DT_S=10,MAX_PACKET_KG=5,MAX_LEG_M=12;
+ TEMP_K=293.15,MAX_DT_S=10,MAX_PACKET_KG=5,MAX_LEG_M=12,
+ PUMP_W=420,ISOTHERMAL_EFFICIENCY=.65,FLOW_M_S=.7,FLOW_KG_S=.3;
 const MOL=Object.freeze({
  oxygen:.031998,nitrogen:.028014,hydrogen:.00201588,methane:.016043,
  carbon_dioxide:.0440095,carbon_monoxide:.0280101,sulfur_dioxide:.064066
@@ -40,6 +41,24 @@ function pressure(lots,containerM3,more={}){
  }
  return n*R*TEMP_K/containerM3;
 }
+/* Minimum physically paid reversible ideal-gas work, divided by a realistic
+ * simplified 65% pump electrical efficiency (not a certification claim).
+ * Actual original T02 consumes PUMP_W every served interval. Time cannot
+ * move stock until the native battery/solar source paid at least this work.
+ */
+function compressionJ(materialId,massKg,sourcePa,receiverPa){
+ if(!MOL[materialId]||!finite(massKg)||massKg<=0||
+  !finite(sourcePa)||!finite(receiverPa))
+  throw Error('8H compressed gas electrical work requires valid pressure');
+ const inlet=Math.max(1,sourcePa),outlet=Math.max(1,receiverPa);
+ return massKg/MOL[materialId]*R*TEMP_K*
+  Math.max(0,Math.log(outlet/inlet))/ISOTHERMAL_EFFICIENCY;
+}
+function legSeconds(meters,massKg,workJ){
+ if(!finite(meters)||!finite(massKg)||!finite(workJ))
+  throw Error('8H gas pump has invalid real distance, packet or electrical work');
+ return Math.max(4,meters/FLOW_M_S+massKg/FLOW_KG_S,workJ/PUMP_W);
+}
 function create(saved){
  const state=saved==null?{schema:1,jobs:[]}:cp(saved);
  if(state.schema!==1||!Array.isArray(state.jobs)||state.jobs.length>200)
@@ -52,6 +71,8 @@ function create(saved){
    !finite(j.massKg)||j.massKg<=0||j.massKg>MAX_PACKET_KG||
    !Number.isInteger(j.stage)||j.stage<0||j.stage>2||
    !finite(j.remainingS)||!finite(j.lastS)||
+   (j.requiredCompressionJ!=null&&!finite(j.requiredCompressionJ))||
+   (j.totalPaidJ!=null&&!finite(j.totalPaidJ))||
    !['ACTIVE','DELIVERED'].includes(j.status)||
    (j.status==='DELIVERED'&&j.stage!==2))
     throw Error('8H corrupt finite pressure packet custody');
@@ -186,6 +207,8 @@ function create(saved){
    Math.max(dst.volumeM3,.001),{materialId:source.materialId,massKg});
   if(receiverPressure>dst.state.ratedPressurePa+EPS)
    throw Error('8H destination vessel would exceed its rated pressure');
+  const inletPa=pressure(route.ledger.inventory(srcBin.id),Math.max(src.volumeM3,.001));
+  const workJ=compressionJ(source.materialId,massKg,inletPa,p);
   // 8A validates both real original lot mass and free physical tray capacity.
   route.ledger.reserve('8h-gas:'+jobId+':0',source.id,pipeBin.id,massKg);
   const report=powered({outpost5,powerReport,pipe,bodyId,timeS});
@@ -193,13 +216,17 @@ function create(saved){
    throw Error('8H gas pump requires actual current native T02 420W wiring: '+report.fault);
   const j={id:jobId,sourceId,pipeId,targetId,bodyId,
    materialId:source.materialId,massKg,currentLotId:source.id,
-   stage:0,lastS:timeS,remainingS:Math.max(4,route.lengths[0]+massKg/0.5),
+   stage:0,lastS:timeS,remainingS:legSeconds(route.lengths[0],massKg,workJ),
+   requiredCompressionJ:workJ,totalPaidJ:0,
+   initialSourcePressurePa:inletPa,finalPipePressurePa:p,
    status:'ACTIVE',createdS:timeS,completionS:null};
   state.jobs.push(j);
   return{packets:snapshot(),materials8a:route.ledger.snapshot(),
    receipt:{id:jobId,status:'RESERVED',sourceLotId:source.id,
     materialId:j.materialId,massKg,gasCreatedKg:0,
-    initialPipePressurePa:p,energizedByNativeT02:report.loadId}};
+    initialPipePressurePa:p,minCompressionWorkJ:workJ,
+    minPoweredSeconds:workJ/PUMP_W,
+    energizedByNativeT02:report.loadId}};
  }
  function observe({packets,materials8a,physical8a,outpost5,powerReport,
    bodyId,bodyRadius,timeS}={}){
@@ -230,6 +257,7 @@ function create(saved){
   let status=poweredReport.eligible?'MOVING':'PAUSED_'+poweredReport.fault,
    receipt=null,pressurePa=pressure(route.ledger.inventory(pipeBin.id),pipeBin.maxVolumeM3);
   if(poweredReport.eligible){
+   current.totalPaidJ=(current.totalPaidJ||0)+poweredReport.powerW*dt;
    current.remainingS=Math.max(0,current.remainingS-dt);
    if(current.remainingS<=EPS){
     const from=current.stage===0?srcBin:pipeBin,
@@ -244,6 +272,9 @@ function create(saved){
     const rating=to===pipeBin?pipe.state.ratedPressurePa:dst.state.ratedPressurePa;
     if(extraPressure>rating+EPS)
      status='HELD_DESTINATION_PRESSURE_RATING';
+    else if(current.stage===0&&
+       current.totalPaidJ+1e-4<current.requiredCompressionJ)
+     status='HELD_UNPAID_COMPRESSION_WORK';
     else{
      try{
       const opId='8h-gas:'+current.id+':'+current.stage;
@@ -253,8 +284,18 @@ function create(saved){
       pressurePa=pressure(route.ledger.inventory(pipeBin.id),pipeBin.maxVolumeM3);
       if(current.stage===2){current.status='DELIVERED';
        current.completionS=timeS;status='DELIVERED';}
-      else{current.remainingS=Math.max(4,route.lengths[1]+current.massKg/0.5);
-       status='PHYSICAL_PIPE_HOP_COMMITTED';}
+      else{
+       const downstreamPressure=pressure(route.ledger.inventory(dstBin.id),
+        Math.max(dst.volumeM3,.001),{materialId:current.materialId,
+         massKg:current.massKg});
+       const pipePressure=pressure(route.ledger.inventory(pipeBin.id),
+        pipeBin.maxVolumeM3);
+       const additionalWork=compressionJ(current.materialId,current.massKg,
+        pipePressure,downstreamPressure);
+       current.requiredCompressionJ+=additionalWork;
+       current.remainingS=legSeconds(route.lengths[1],current.massKg,additionalWork);
+       status='PHYSICAL_PIPE_HOP_COMMITTED';
+      }
      }catch(e){status='HELD_CAPACITY_OR_CUSTODY: '+String(e.message||e);}
     }
    }
@@ -268,12 +309,14 @@ function create(saved){
    stage:current.stage,remainingS:current.remainingS,
    materialMassKg:current.massKg,
    originalGridAlreadyPaidJ:poweredReport.eligible?poweredReport.powerW*dt:0,
+   cumulativeOriginalElectricalDebitJ:current.totalPaidJ||0,
+   minimumThermodynamicCompressionWorkJ:current.requiredCompressionJ||0,
    additionalElectricalDebitJ:0,gasCreatedKg:0,gasVentedKg:0};
  }
  return Object.freeze({snapshot,list,start,observe});
 }
 root.StarfallPressureGasPackets8H=Object.freeze({
- create,pressure,MOL,TEMP_K,MAX_DT_S,MAX_PACKET_KG});
+ create,pressure,compressionJ,legSeconds,MOL,TEMP_K,PUMP_W,MAX_DT_S,MAX_PACKET_KG});
 if(typeof module!=='undefined'&&module.exports)
  module.exports=root.StarfallPressureGasPackets8H;
 })(typeof globalThis!=='undefined'?globalThis:this);
