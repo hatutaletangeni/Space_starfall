@@ -29,10 +29,18 @@ with sync_playwright() as p:
   ctx.add_init_script("""(()=>{
     let prior=null;
     try{prior=JSON.parse(localStorage.getItem('starfall_save')||'null');}catch(_){}
-    if(prior?.outpost5?.items?.length||prior?.outpost5?.wires?.length)return;
-    if(sessionStorage.getItem('t09-fixture'))return;
+    // window.name is page-scoped and survives reload even if file://
+    // sessionStorage is lost; this fixture must only seed a NEW page once.
+    if(window.name==='starfall-t09-fixture-applied')return;
+    if(prior?.outpost5?.items?.length||prior?.outpost5?.wires?.length){
+      window.name='starfall-t09-fixture-applied';return;
+    }
+    if(sessionStorage.getItem('t09-fixture')){
+      window.name='starfall-t09-fixture-applied';return;
+    }
     localStorage.setItem('starfall_save',__T09_SAVED__);
     sessionStorage.setItem('t09-fixture','1');
+    window.name='starfall-t09-fixture-applied';
   })()""".replace('__T09_SAVED__',json.dumps(json.dumps(saved))))
   boot.close()
   page=ctx.new_page();errors=[]
