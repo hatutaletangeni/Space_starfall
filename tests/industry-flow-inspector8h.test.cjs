@@ -5,7 +5,7 @@ require('../src/physics/physical-inventory8a.js');
 require('../src/physics/material-ledger8a.js');
 const Flow=require('../src/physics/industry-flow8h.js');
 const bodyId='star-0-p0',a=t=>[Math.cos(t),Math.sin(t),0];
-const depot='facility8e:paid-depot',drive='facility8e:paid-belt',
+const depot='facility8e:paid-depot',depotTarget='facility8e:paid-depot-dest',drive='facility8e:paid-belt',
  pipe='facility8e:paid-gas-pipe',source='facility8e:paid-o2-src',
  target='facility8e:paid-o2-dst';
 function asset(id,kind,mass,volume,station,materialId,angle){
@@ -24,6 +24,7 @@ function asset(id,kind,mass,volume,station,materialId,angle){
 function base(){
  const machines=[asset(depot,'industrial_plant',480,1.8,'cargo_depot',null,0),
   asset(drive,'industrial_plant',180,.55,'conveyor_drive',null,.011),
+  asset(depotTarget,'industrial_plant',480,1.8,'cargo_depot',null,.022),
   asset(pipe,'industrial_plant',320,.95,'pressure_pipeline',null,.04),
   asset(source,'industrial_vessel',195,4,null,'oxygen',.03),
   asset(target,'industrial_vessel',195,4,null,'oxygen',.05)];
@@ -40,6 +41,7 @@ function base(){
   {id:'8d:ship-main:materials',ownerId:'ship-main',maxMassKg:9000,maxVolumeM3:16},
   {id:'8d:truck-expedition-001:hopper',ownerId:'truck-expedition-001',maxMassKg:800,maxVolumeM3:1.2},
   {id:'depot8h:'+depot,ownerId:depot,kind:'sealed dry-solid cargo dock',maxMassKg:1200,maxVolumeM3:1.6},
+  {id:'depot8h:'+depotTarget,ownerId:depotTarget,kind:'sealed dry-solid cargo dock',maxMassKg:1200,maxVolumeM3:1.6},
   {id:'conveyor8h:'+drive,ownerId:drive,kind:'guarded dry-solid conveyor tray',maxMassKg:40,maxVolumeM3:.05},
   {id:'pressurepipe8h:'+pipe,ownerId:pipe,kind:'sealed 8MPa gas pipe hold-up',maxMassKg:25,maxVolumeM3:.08},
   ...[source,target].map(id=>({id:'vessel8e:'+id,ownerId:id,kind:'rated gas vessel',maxMassKg:1000,maxVolumeM3:4}))];
@@ -54,7 +56,7 @@ function base(){
   {id:'8h-port:'+drive,kind:'conveyor_drive',bodyId,enabled:true},
   {id:'8h-pipe-port:'+pipe,kind:'pressure_pipeline_pump',bodyId,enabled:true}],
   wires:[]};
- const s={bodyId,materials8a,physical8a,outpost5,
+ const s={bodyId,bodyRadius:1000,materials8a,physical8a,outpost5,
   conveyorPackets:{schema:1,jobs:[]},pressurePackets:{schema:1,jobs:[]},
   miningHistory:[{id:'8d:drill:real',type:'DRILL',status:'COMMITTED'}],
   logisticsOrders:[{id:'8h:ore-1',status:'DELIVERED'}],
@@ -69,6 +71,7 @@ test('read-only physical stock mass, real survey+truck+depot evidence, explicit 
  assert.equal(result.totals.lotCount,2);
  assert.equal(result.totals.totalMassKg,22);
  assert.equal(result.totals.depotKg,20);
+ assert.equal(result.totals.realDepots,2);
  assert.equal(result.totals.realDrives,1);
  assert.equal(result.totals.installedPipes,1);
  assert.equal(result.totals.realGasVessels,2);
@@ -81,7 +84,7 @@ test('read-only physical stock mass, real survey+truck+depot evidence, explicit 
 test('actual archived conveyor packet shows ONLY authentic same-world paid physical endpoints and source-owned 8A lot',()=>{
  const {s,ore}=base();s.conveyorPackets.jobs=[{
   id:'8h:physically-reserved',bodyId,
-  sourceId:depot,driveIds:[drive],targetId:source,
+  sourceId:depot,driveIds:[drive],targetId:depotTarget,
   currentLotId:ore.id,materialId:ore.materialId,massKg:10,
   cursor:0,remainingS:15,status:'ACTIVE'}];
  const valid=Flow.inspect(s).connections[0];
@@ -95,6 +98,14 @@ test('actual archived conveyor packet shows ONLY authentic same-world paid physi
  const bad=Flow.inspect(forged);
  assert.equal(bad.connections[0].realCustody,false);
  assert.ok(bad.faults.some(x=>x.code==='BROKEN_CUSTODY_LINK'));
+ const fake=structuredClone(s);
+ fake.conveyorPackets.jobs[0].targetId=source; // real gas vessel, NOT a paid dry cargo dock
+ const f=Flow.inspect(fake);
+ assert.equal(f.connections[0].sourcePaid,false,'never mislabel rated gas vessel as dry conveyor endpoint');
+ const distant=structuredClone(s);
+ distant.physical8a.assets.find(x=>x.id===depotTarget).location.local=a(.2);
+ assert.equal(Flow.inspect(distant).connections[0].sourcePaid,false,
+  'a 180m gap is NOT a physically connected 12m conveyor');
 });
 test('gas actually trapped inside certified 80-litre pipe remains its 8A lot and cannot become a fictitious destination balance',()=>{
  const {s,oxygen}=base();
