@@ -1,0 +1,77 @@
+name: STARFALL 8H real paid 8MPa chemical station gas flanges
+on:
+  push:
+    branches:
+      - feature/update-8h-paid-chemical-gas-manifolds
+  pull_request:
+    paths:
+      - 'src/physics/industrial-gas-manifold8h.js'
+      - 'src/physics/industrial-plant8e.js'
+      - 'src/flight.js'
+      - 'src/physics/industrial-site-ui8e.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/industrial-gas-manifold8h*'
+      - '.github/workflows/update-8h-paid-chemical-flanges.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-exact-original-offline:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild real original playable offline game from identical source files
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): physical gas manifold same ORIGINAL PLAY-STARFALL source'
+            git push origin HEAD:feature/update-8h-paid-chemical-gas-manifolds
+          fi
+  physical-chemistry-and-native-t02-proof:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Reject remote/fake gas and reverify ORIGINAL paid pipe/wire source on chemistry ticks
+        run: |
+          set -euo pipefail
+          node --check src/physics/industrial-gas-manifold8h.js
+          node --check src/physics/industrial-plant8e.js
+          node --check src/physics/industrial-site-ui8e.js
+          node --check src/flight.js
+          node --test tests/industrial-gas-manifold8h.test.cjs
+          node --test tests/industrial-chemistry8e.test.cjs
+          node --test tests/industrial-site8e.test.cjs
+          node --test tests/pressure-pipe-live8h.test.cjs
+          node --test tests/pressure-gas-packets8h.test.cjs
+          node --test tests/active-native-substeps8h.test.cjs
+          node --test tests/industrial-kit-factory8f.test.cjs
+          node --test tests/lossy-tailings-recycling8h.test.cjs
+          python3 -m py_compile tests/industrial-gas-manifold8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Install actual browser engine to load original single-file WebGL2
+        run: |
+          python3 -m pip install --disable-pip-version-check playwright==1.56.0
+          python3 -m playwright install --with-deps chromium
+      - name: Original live 8E/8H physical/energy read-only and pipeline WebGL2 regression
+        run: |
+          python3 tests/industrial-gas-manifold8h-browser.py
+          python3 tests/pressure-pipe-live8h-browser.py
+          python3 tests/active-native-substeps8h-browser.py
+          python3 tests/lossy-tailings-recycling8h-browser.py

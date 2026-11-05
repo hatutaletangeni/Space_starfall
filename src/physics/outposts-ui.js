@@ -45,7 +45,11 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
   // sites retain the exact original <=12-sample coarse power path.
   const activePaid8H=!!(
     (root.StarfallConveyorNativeBridge8H&&RT.logisticsConveyorHasActive8H?.(bodyId))||
-    (root.StarfallPressureGasPackets8H&&RT.logisticsPressureHasActive8H?.(bodyId)));
+    (root.StarfallPressureGasPackets8H&&RT.logisticsPressureHasActive8H?.(bodyId))||
+    // The ORIGINAL T02 source also powers genuine commissioned 8E chemical
+    // gas manifolds; do NOT bill 120s when their live gas connection needs
+    // <=10s served-power evidence at 100× for each physical reaction tick.
+    (root.StarfallIndustrialGasManifold8H&&RT.industrialGasHasActive8H?.(bodyId)));
   const plan=root.StarfallNativePowerSubsteps8H.plan({
     elapsedS:Math.max(0,atTime-start),activePaid8H});
   const total=plan.totalS,steps=plan.steps;

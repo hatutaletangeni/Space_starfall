@@ -188,10 +188,18 @@ with sync_playwright() as pw:
         assert driven['frame']['state']['distanceM']>0,driven
         assert driven['frame']['state']['batteryEnergyJ']<initial_drive,driven
         assert len(driven['original'])==1 and driven['original'][0]['location']==fixture['truck']
-        # Force an actual complete stop; powered winch may not load moving frames.
+        # Hold the ORIGINAL physical handbrake until the actual manufactured
+        # vehicle reports <=0.05m/s, rather than assuming an arbitrary 900ms
+        # is always sufficient on overloaded software-WebGL2 CI runners.
+        # Do not spoof velocity or relax the powered winch safety threshold.
         page.keyboard.down('Space')
-        page.wait_for_timeout(900)
-        page.keyboard.up('Space')
+        try:
+            page.wait_for_function("""id => {
+              const speed=StarfallRuntime.physical8a.get(id)?.state?.speedMS;
+              return Number.isFinite(speed)&&Math.abs(speed)<.05;
+            }""",arg=frame_id,timeout=10000)
+        finally:
+            page.keyboard.up('Space')
         stopped=page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.speedMS""",frame_id)
         assert abs(stopped)<.05,'Braking did not reach safe loading speed: '+str(stopped)
         page.keyboard.press('x')
