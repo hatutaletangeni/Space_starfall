@@ -24,6 +24,12 @@ const KITS=Object.freeze({
  plant_kit_cargo_depot:{type:'industrial_plant',station:'cargo_depot',
   tools:['dry_cargo_locker','calibrated_scale','mechanical_coupler','stock_manifest'],
   massKg:480,volumeM3:1.8,workJ:950000,radiusScene:6},
+ // Real 8E INSTALL consumes one certified 180 kg kit from the landed ship.
+ // This is mechanical hardware only, not a magically powered conveyor or
+ // registered T02 load. Segments must be physically connected later.
+ plant_kit_conveyor_drive:{type:'industrial_plant',station:'conveyor_drive',
+  tools:['belt_drive','support_idler','drive_guard','power_disconnect'],
+  massKg:180,volumeM3:.55,workJ:410000,radiusScene:3},
  plant_kit_habitat_construction_pad:{type:'industrial_plant',station:'habitat_pad',
   tools:['pressure_section_jig','airlock_alignment','shell_welding_fixture','leak_test_port'],
   massKg:1120,volumeM3:3.7,workJ:2500000,radiusScene:11},
