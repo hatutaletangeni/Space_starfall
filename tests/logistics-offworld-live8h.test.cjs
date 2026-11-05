@@ -22,7 +22,10 @@ test('8H manifest saves and restores the original physical ship ledger without c
  assert.match(flight,/SF\.storageStatus\(\)\.durable!==true/);
  assert.match(flight,/JSON\.stringify\(read\[k\]\)!==JSON\.stringify\(v\)/);
  assert.match(flight,/vehicleStore\.update\('ship'/);
- assert.doesNotMatch(flight,/logisticsOffworldApply8H[\s\S]*?function shipHoldFor8H[\s\S]*?(?:pos\s*=\s*V\.add|warp\s*=true)/);
+ const beginning=flight.indexOf('function logisticsOffworldApply8H('),end=flight.indexOf('function shipHoldFor8H('); 
+ assert.ok(beginning>=0&&end>beginning,'offworld bridge must be bounded');
+ const bridge=flight.slice(beginning,end);
+ assert.doesNotMatch(bridge,/(?:pos\s*=\s*V\.add|warp\s*=\s*true|setPosition\()/);
 });
 test('8H Engineer panel exposes physical milestones but no remote transfer/ship travel button',()=>{
  for(const name of ['logisticsOffworldRegister8H','logisticsOffworldDepart8H',
