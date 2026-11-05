@@ -37,10 +37,12 @@ const order=document.createElement('select');order.id='logistics8h-loaded-order'
 order.setAttribute('aria-label','Loaded shipment to unload at dock');
 const deliver=document.createElement('button');deliver.type='button';deliver.className='science-action';
 deliver.id='logistics8h-deliver';deliver.textContent='UNLOAD AT DOCK · 1.2 kJ';
+const cancel=document.createElement('button');cancel.type='button';cancel.className='science-action';
+cancel.id='logistics8h-cancel';cancel.textContent='CANCEL RESERVED DELIVERY';
 for(const select of [ore,depot,order]){
  select.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
 }
-shipments.append(ore,depot,dispatch,order,deliver);
+shipments.append(ore,depot,dispatch,order,deliver,cancel);
 let last='',lastTick=0,lastStatusUntil=0;
 const report=message=>{status.textContent=message;lastStatusUntil=performance.now()+4500;};
 const choices=(select,items,empty)=>{
@@ -114,6 +116,7 @@ function refresh(){
    'No loaded shipment');
  dispatch.disabled=!tctx?.operatorNear||!lots.length||!depots.length;
  deliver.disabled=!tctx?.operatorNear||!active.length;
+ cancel.disabled=!tctx?.operatorNear||!active.length;
  if(performance.now()>=lastStatusUntil)
   status.textContent='8H · Reserve real mined stock, drive to the actual depot, park and EVA to unload. All 8A lots and battery Joules stay source-owned.';
 }
@@ -138,6 +141,12 @@ deliver.addEventListener('click',()=>{try{
  const receipt=rt.logisticsDeliver8H(order.value);
  refresh();report('8H · Delivered '+fmt(receipt.massKg)+' kg. Physical ore moved and truck battery debited exactly once.');
  }catch(e){report('8H unloading rejected · '+String(e?.message||e));}});
+cancel.addEventListener('click',()=>{try{
+ const rt=root.StarfallRuntime;
+ if(!rt?.logisticsCancel8H)throw Error('8H live cancellation unavailable');
+ const receipt=rt.logisticsCancel8H(order.value);
+ refresh();report('8H · Released original '+fmt(receipt.massKg)+' kg ore reservation with NO stock or energy debit.');
+ }catch(e){report('8H cancellation rejected · '+String(e?.message||e));}});
 panel.append(title,desc,status,row,shipments,readout);host.append(panel);
 function tick(time){
  if(time-lastTick>=650){lastTick=time;try{refresh();}catch(e){
