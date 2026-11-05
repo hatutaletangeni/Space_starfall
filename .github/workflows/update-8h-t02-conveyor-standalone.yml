@@ -1,0 +1,27 @@
+name: STARFALL 8H native conveyor T02 port standalone build
+on:
+  push:
+    branches:
+      - feature/update-8h-actual-t02-conveyor-port
+permissions:
+  contents: write
+jobs:
+  rebuild-standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild PLAY-STARFALL from original source
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): sync native T02 250 W conveyor drive without free power'
+            git push origin HEAD:feature/update-8h-actual-t02-conveyor-port
+          fi
