@@ -91,6 +91,20 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
        if(gas?.changed)dirty=true;
       }catch(e){console.warn('8H original paid rated gas pump held:',e);}
     }
+    // A completed 8E chemical batch is NOT gas inside its destination tank.
+    // It first owns a REAL 8A lot inside the 80L 8MPa pipe; only another
+    // timed and source-paid original T02 report can debit that physical pipe
+    // and credit the certified rated output vessel, with atomic save/readback.
+    if(report?.dtS>0&&root.StarfallChemicalGasOutput8H&&
+       RT.industrialGasHasActive8H?.(bodyId)&&
+       RT.industrialGasOutputNativeTick8H){
+      try{
+       const output=RT.industrialGasOutputNativeTick8H({
+        bodyId,outpost5:durableSnapshot(),powerReport:report,
+        timeS:report.simulatedAtS});
+       if(output?.changed)dirty=true;
+      }catch(e){console.warn('8H original 8E chemical product pipe held:',e);}
+    }
     if(root.StarfallHabitatT09){
       const to=start+(i+1)*total/steps;
       for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){

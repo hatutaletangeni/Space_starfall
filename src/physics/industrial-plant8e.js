@@ -64,10 +64,39 @@ function create(saved){
    let volumeM3;
    if(phase==='gas'){
     const vessel=assets.find(a=>a.id===station.vesselAssetIds?.[materialId]);
+    const manifold=station.gasManifolds?.['output:'+materialId];
+    const staged=station.gasOutputStaged8H===true&&!!manifold;
+    const pipe=staged?assets.find(a=>a.id===manifold.pipeId):null;
     if(!vessel||vessel.location?.kind!=='surface'||vessel.location.bodyId!==bodyId||vessel.condition<.5||
-      vessel.state?.materialId!==materialId||vessel.state?.containerId!==destinationId||
+      vessel.state?.materialId!==materialId||
+      (!staged&&vessel.state?.containerId!==destinationId)||
       !finite(vessel.state?.ratedPressurePa)||vessel.state.ratedPressurePa<storagePressurePa||
       !String(bin.kind).includes('gas'))throw Error('Missing rated '+materialId+' gas vessel');
+    if(staged){
+     // In a REAL manufactured 8H connection the gas leaves chemistry into
+     // the physical 80L pipe, NOT an imaginary direct vessel credit.
+     // The T02-owned 420W pump must subsequently make the reserved 8A hop.
+     const installed=assetState?.transfers?.some(t=>
+       t.action==='INSTALL'&&t.status==='COMMITTED'&&t.assetId===pipe?.id&&
+       ident(t.sourceLotId)&&finite(t.massKg)&&Math.abs(t.massKg-pipe.massKg)<EPS);
+     if(!pipe||pipe.type!=='industrial_plant'||pipe.state?.station!=='pressure_pipeline'||
+        pipe.state.kitMaterialId!=='plant_kit_pressure_pipeline'||
+        pipe.state.ratedPressurePa<8e6||pipe.massKg!==320||
+        pipe.state.t02LoadId!==manifold.powerPortId||
+        pipe.state.containerId!==destinationId||bin.ownerId!==pipe.id||
+        Math.abs(bin.maxMassKg-25)>EPS||Math.abs(bin.maxVolumeM3-.08)>EPS||
+        vessel.id!==manifold.vesselId||!installed||
+        snapshot.lots.some(l=>l.containerId===destinationId))
+      throw Error('Original paid 8H gas output needs a genuinely EMPTY 80 L / 25 kg manufactured 8 MPa pipe');
+     const p=(massKg/(c.molarMass(materialId)/1000))*R*temperatureK/.08;
+     const destinationPressure=(snapshot.lots.filter(l=>l.containerId===vessel.state.containerId)
+       .reduce((sum,l)=>sum+l.massKg/(c.molarMass(materialId)/1000),0)
+       +massKg/(c.molarMass(materialId)/1000))*R*temperatureK/
+       Math.max(.001,vessel.volumeM3);
+     if(p>pipe.state.ratedPressurePa+EPS||
+        destinationPressure>vessel.state.ratedPressurePa+EPS)
+      throw Error('8H actual staged chemical gas exceeds pipe or destination vessel pressure rating');
+    }
     const molar=c.molarMass(materialId)/1000; // kg/mol
     volumeM3=(massKg/molar)*R*temperatureK/storagePressurePa;
    }else{
@@ -97,8 +126,12 @@ function create(saved){
    outputs:copy(recipe.outputs),energyJ:recipe.energyJ,bodyId,status:'COMMITTED',
    ...(physicalGasPorts&&Object.keys(physicalGasPorts).length?{
     physicalGasPorts:copy(physicalGasPorts),
-    gasTransportAccounting:'PAID_ORIGINAL_T02_CERTIFIED_FLANGE_BUT_8A_BATCH_DIRECT_CONTAINER',
-    note:'Gas source and receiving vessel have physically certified rated lines. This receipt DOES NOT prove transient pipe-holdup gas flow during the chemical batch.'}:{})};
+    gasTransportAccounting:station.gasOutputStaged8H===true?
+     'OUTBOUND_IN_ORIGINAL_80L_PIPE_RESERVED_UNTIL_NATIVE_T02_DELIVERY;INBOUND_GAS_STILL_DIRECT_VESSEL':
+     'PAID_ORIGINAL_T02_CERTIFIED_FLANGE_BUT_8A_BATCH_DIRECT_CONTAINER',
+    note:station.gasOutputStaged8H===true?
+     'Original 8A chemistry creates its balanced output gas IN real manufactured 80L pipe holdup. Separate original native T02 powered, timed reservation/commit is REQUIRED before its actual rated vessel receives it. Inbound gas reactants still directly debit source vessels and are not claimed as fully metered.' :
+     'Gas source and receiving vessel have physically certified rated lines. This receipt DOES NOT prove transient pipe-holdup gas flow during the chemical batch.'}:{})};
   const operations=copy(state);operations.operations.push(receipt);
   return {duplicate:false,receipt,materials:snapshot,operations};
  }
