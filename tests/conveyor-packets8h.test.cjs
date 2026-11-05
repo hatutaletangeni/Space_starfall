@@ -97,13 +97,15 @@ test('unplugging power pauses original packet in its last real physical tray',()
  assert.equal(stalled.materials8a.lots[0].containerId,'conveyor8h:drive-a');
  assert.equal(mass(stalled.materials8a),12);
  assert.equal(stalled.sourceEnergyServedJ,0);
- assert.equal(stalled.packets.jobs[0].remainingS,6);
+ assert.ok(Math.abs(stalled.packets.jobs[0].remainingS-6)<1e-6,
+  'blackout cannot advance the remaining segment distance/time');
  const persisted=C.create(JSON.parse(JSON.stringify(stalled.packets)));
  const rewire={...env,materials8a:stalled.materials8a,outpost5:stalled.outpost5};
  rewire.outpost5.wires=[{a:'sun',b:'load-a'},{a:'load-a',b:'load-b'}];
  const resume=hop(persisted,rewire,12);
  assert.equal(resume.stage,1);
- assert.equal(resume.packets.jobs[0].remainingS,3);
+ assert.ok(Math.abs(resume.packets.jobs[0].remainingS-3)<1e-6,
+  'power restoration resumes only the physically elapsed segment time');
 });
 test('clock replay, oversized stock and unsafe gas cannot masquerade as physical packets',()=>{
  const {f,machine,materials8a}=reserve(),env={...f,materials8a};
