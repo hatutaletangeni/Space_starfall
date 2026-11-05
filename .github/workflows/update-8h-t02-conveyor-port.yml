@@ -1,0 +1,32 @@
+name: STARFALL 8H source-owned 250W conveyor T02 power port
+on:
+  push:
+    branches:
+      - feature/update-8h-actual-t02-conveyor-port
+  pull_request:
+    paths:
+      - 'src/physics/conveyor-power-port8h.js'
+      - 'src/physics/outposts.js'
+      - 'tests/conveyor-power-port8h.test.cjs'
+      - '.github/workflows/update-8h-t02-conveyor-port.yml'
+      - 'PLAY-STARFALL.html'
+jobs:
+  actual-conveyor-t02-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: True 8E installed conveyor, actual outpost Store and T02 source ledger
+        run: |
+          set -euo pipefail
+          node --check src/physics/outposts.js
+          node --check src/physics/conveyor-power-port8h.js
+          node --test tests/conveyor-power-port8h.test.cjs
+          node --test tests/power-ledger-t02.test.cjs
+          node --test tests/logistics-conveyor-fabrication8h.test.cjs
+          node --test tests/logistics-powered-network8h.test.cjs
+      - name: Offline playable source parity
+        run: python3 tests/standalone-parity.py
