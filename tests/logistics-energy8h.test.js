@@ -14,4 +14,7 @@ assert.throws(()=>debit({...args,carrierId:'different'}),/mismatched/);
 assert.throws(()=>debit({...args,sourceId:'starfall-fake'}),/invalid/);
 assert.throws(()=>debit({...args,usedJ:NaN}),/invalid/);
 assert.throws(()=>debit({...args,state:{...original,schema:2}}),/unsupported/);
+const tiny={...original,stores:{'starfall-truck':{...original.stores['starfall-truck'],energyJ:1e-8}}};
+assert.throws(()=>debit({...args,state:tiny,usedJ:2e-8}),/insufficient/,'sub-microjoule overdraft must never be rounded into a free debit');
+assert.equal(tiny.stores['starfall-truck'].energyJ,1e-8,'failed fractional debit leaves input unchanged');
 console.log('8H immutable energy debit contract: PASS');
