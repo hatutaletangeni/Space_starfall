@@ -82,3 +82,27 @@ test('no original drill proof, absent EVA, duplicate reservation, distant world 
  const low=structuredClone(s.materials);low.containers[1].maxMassKg=10;
  assert.throws(()=>D.reserve({...input,materials:low}),/capacity/);
 });
+
+test('truck-side cancellation releases exact lot+destination capacity without creating stock or Joules',()=>{
+ const state0=state(),q=D.reserve(request(state0));
+ const before=structuredClone(q);
+ const canceled=D.cancel({id:q.record.id,materials:q.materials,orders:q.orders,
+  physical:state0.physical,actor:state0.actor,operatorNear:true,timeS:55,bodyRadius:radius});
+ assert.deepEqual(q,before,'no source mutation');
+ assert.equal(canceled.orders.orders[0].status,'CANCELLED');
+ assert.equal(canceled.materials.operations[0].status,'CANCELLED');
+ assert.equal(canceled.materials.lots[0].containerId,H);
+ assert.equal(total(canceled.materials),20);
+ assert.throws(()=>D.cancel({id:q.record.id,materials:canceled.materials,
+  orders:canceled.orders,physical:state0.physical,actor:state0.actor,
+  operatorNear:true,timeS:60,bodyRadius:radius}),/only a real original mined-ore/);
+ assert.throws(()=>D.cancel({id:q.record.id,materials:q.materials,
+  orders:q.orders,physical:state0.physical,actor:state0.actor,
+  operatorNear:false,timeS:60,bodyRadius:radius}),/on-foot/);
+ const next=D.reserve({...request(state0),id:'8h-ore:trip-2',
+  orders:canceled.orders,materials:canceled.materials});
+ assert.equal(next.orders.orders.length,2);
+ assert.equal(next.orders.orders[0].status,'CANCELLED');
+ assert.equal(next.orders.orders[1].status,'LOADED');
+ assert.equal(total(next.materials),20);
+});
