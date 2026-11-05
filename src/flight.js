@@ -32,6 +32,7 @@ let cargo8b=originalTruckCargo8B.cargo;
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
 let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h);
+let logisticsRoutes8h=StarfallPhysicalRoutes8H.create(session.logisticsRoutes8h);
 let logisticsPickupReceipts8h=(()=>{
  const rows=session.logisticsPickupReceipts8h;
  if(rows==null)return [];
@@ -678,7 +679,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -1886,6 +1887,7 @@ function logisticsContext8H(){
    local:[...a.location.local],containerId:a.state.containerId,
    stock:materials8a.used(a.state.containerId)})),
   lots:lots.map(l=>({...l})),orders:logisticsOrders8h.list(),
+  routes:logisticsRoutes8h.list(),
   pickupLots:depots.flatMap(a=>materials8a.inventory(a.state.containerId)
    .filter(l=>logisticsOrders8h.list().some(o=>o.status==='DELIVERED'&&
      o.outputLotId===l.id&&o.destinationId===a.id&&
@@ -2004,6 +2006,76 @@ function logisticsPickup8H(lotId,depotId){
  showToast('8H · '+q.receipt.massKg+' kg recovered into real truck hopper · '+
    q.receipt.energyJ+' J paid');
  return q.receipt;
+}
+/* Player drives the original truck. These commands record a route and
+ * verified ARRIVAL only; they never set vehicle position, produce stock or
+ * debit electricity. Truck driving's existing power model stays authoritative.
+ */
+function logisticsRoutePlan8H(depotIds){
+ const ctx=logisticsContext8H();
+ if(!ctx.operatorNear||!ctx.truckPresent||truckOccupied||!eva||
+  !truckBody||truckBody!==nearest||!truckLocal||!nearest?.landable)
+  throw Error('8H routes require the original parked truck and nearby on-foot EVA operator');
+ if(!Array.isArray(depotIds)||depotIds.length<2||depotIds.some(id=>
+    !ctx.depots.some(d=>d.id===id)))
+  throw Error('8H select two or more actual same-world manufactured depots');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H route save unavailable; original cargo remains unchanged');
+ const saved=SF.load(),prior=logisticsRoutes8h.snapshot();
+ const next=StarfallPhysicalRoutes8H.create(prior);
+ let serial=next.list().length+1;
+ while(next.get('8h-route:'+serial))serial++;
+ const planned=next.plan({id:'8h-route:'+serial,depotIds,
+  bodyId:nearest.id,bodyRadius:nearest.radius,timeS:simTime,
+  physical8a:saved.physical8a,materials8a:saved.materials8a,
+  truckPose:saved.flightGalaxy?.truckPose});
+ if(SF.save({logisticsRoutes8h:planned.routes})!==true||SF.storageStatus().durable!==true||
+  JSON.stringify(SF.load().logisticsRoutes8h)!==JSON.stringify(planned.routes))
+  throw Error('8H route write/readback failed; no live route changed');
+ logisticsRoutes8h=next;
+ showToast('8H · '+planned.route.stops.length+' real depots plotted. DRIVE the original truck to each stop.');
+ return planned.route;
+}
+function logisticsRouteArrive8H(routeId){
+ const ctx=logisticsContext8H(),route=logisticsRoutes8h.get(routeId);
+ const stop=route?.stops?.[route.nextIndex];
+ if(!ctx.operatorNear||!ctx.truckPresent||!eva||truckOccupied||!stop||
+  !truckBody||truckBody!==nearest||!truckLocal||!evaLocal||
+  interiorState||shipWalking8e||mining8d.active)
+  throw Error('8H park the original truck, exit on foot and approach next installed depot');
+ const depot=physical8a.get(stop.depotId);
+ if(!depot||depot.location?.bodyId!==nearest.id||
+  StarfallOutposts.arc(evaLocal,depot.location.local,nearest.radius)>15)
+  throw Error('8H EVA operator must approach within 15 scene units of next physical dock');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)
+  throw Error('8H physical arrival cannot be confirmed without durable storage');
+ const saved=SF.load(),next=StarfallPhysicalRoutes8H.create(logisticsRoutes8h.snapshot());
+ const observed=next.observe({id:routeId,timeS:simTime,
+  bodyId:nearest.id,bodyRadius:nearest.radius,
+  physical8a:saved.physical8a,materials8a:saved.materials8a,
+  truckPose:saved.flightGalaxy?.truckPose});
+ if(SF.save({logisticsRoutes8h:observed.routes})!==true||
+  SF.storageStatus().durable!==true||
+  JSON.stringify(SF.load().logisticsRoutes8h)!==JSON.stringify(observed.routes))
+  throw Error('8H arrival not durably saved — original route remains pending');
+ logisticsRoutes8h=next;
+ showToast('8H · Physical arrival '+(observed.receipt.stopIndex+1)+' verified at '+stop.depotId);
+ return observed;
+}
+function logisticsRouteCancel8H(routeId){
+ const ctx=logisticsContext8H();
+ if(!ctx.operatorNear||!ctx.truckPresent||truckOccupied||!eva)
+  throw Error('8H only original on-foot truck operator can cancel route');
+ saveFlight();
+ if(SF.storageStatus().durable!==true)throw Error('8H route cancel requires durable save');
+ const next=StarfallPhysicalRoutes8H.create(logisticsRoutes8h.snapshot());
+ const q=next.cancel({id:routeId,timeS:simTime});
+ if(SF.save({logisticsRoutes8h:q.routes})!==true||SF.storageStatus().durable!==true||
+   JSON.stringify(SF.load().logisticsRoutes8h)!==JSON.stringify(q.routes))
+  throw Error('8H route cancellation not persisted');
+ logisticsRoutes8h=next;return q.route;
 }
 function miningContext8D(){
  const onWorld=landed&&!!nearest?.landable&&!!truckBody&&truckBody===nearest&&!!truckLocal&&cargo8b.mode==='ground';
@@ -2295,7 +2367,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
