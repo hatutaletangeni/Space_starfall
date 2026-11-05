@@ -18,5 +18,7 @@ jobs:
           node-version: '22'
       - name: Assert T00 static catalog equals actual original outpost electrical source
         run: |
+          git rev-parse HEAD
+          node -e "const c=require('./tests/technology-contracts.json');require('./src/physics/outposts.js');require('./src/physics/vehicles.js');require('./src/physics/science-field.js');require('./src/physics/launch-systems.js');require('./src/physics/satellites7c.js');require('./src/physics/assets7a.js');console.log('T00 branch catalog',c.inventory.filter(x=>x.category==='constructible').map(x=>x.originalAssetId).sort());console.log('T00 after all imports',Object.keys(globalThis.StarfallOutposts.SPECS).sort());"
           node -e "const c=require('./tests/technology-contracts.json');const o=require('./src/physics/outposts.js');const x=c.inventory.filter(a=>a.category==='constructible').map(a=>a.originalAssetId).sort();if(x.join(',')!==Object.keys(o.SPECS).sort().join(','))process.exit(1);if(c.categoryCounts.constructible!==x.length)process.exit(2)"
           node tests/technology-contracts.test.cjs
