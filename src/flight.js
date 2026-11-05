@@ -1913,6 +1913,10 @@ function logisticsDeliver8H(orderId){
  if(!c.operatorNear||!c.truckPresent||!order||order.status!=='LOADED'||
   !c.depots.some(d=>d.id===order.destinationId))
   throw Error('8H on-foot original truck operator and valid loaded same-world depot order required');
+ const depot=physical8a.get(order.destinationId);
+ if(!evaLocal||!depot||depot.location?.bodyId!==nearest.id||
+  StarfallOutposts.arc(evaLocal,depot.location.local,nearest.radius)>15)
+  throw Error('8H EVA operator must walk within 15 scene units of the actual dry depot coupler');
  saveFlight();
  if(SF.storageStatus().durable!==true)
   throw Error('8H no durable physical cargo save — no material or Joules debited');
