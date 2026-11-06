@@ -1794,6 +1794,42 @@ function makeShipWalkDeck(gl){
   box(-24,7.0,z-.25,24,7.3,z+.25,support);
   for(const x of [-23,-5,5,23])box(x-.3,6.7,z-.45,x+.3,7.7,z+.45,lights);
  }
+ // 8E-R S3: lightweight static pressure arches and practical cable/floor grammar.
+ // All meshes are compiled once into the existing interior mesh, not emitted each frame.
+ const insulation=[.76,.79,.76],beam=[.28,.33,.36],amber=[.92,.60,.24],teal=[.19,.65,.70];
+ for(const z of [-48,-35,-22,-9,4,17,29]){
+  // Open passage volume x ∈ (-4.8,+4.8) remains clear from deck to head-height.
+  for(const x of [-5.25,5.25]){
+   box(x-.23,-1.1,z-.42,x+.23,6.6,z+.42,beam);
+   box(x-.30,2.0,z-.47,x+.30,2.23,z+.47,insulation);
+   box(x-.30,5.3,z-.47,x+.30,5.54,z+.47,amber);
+  }
+  box(-5.2,6.5,z-.36,5.2,6.92,z+.36,insulation);
+  box(-3.9,6.43,z-.39,3.9,6.54,z+.39,teal);
+ }
+ // Subtle deck-edge wayfinding, avoiding an impassable central floor divider.
+ for(let z=-53;z<30;z+=6){
+  for(const x of [-4.90,4.82]){
+   box(x,-1.11,z,x+.08,-1.02,z+3.5,amber);
+   box(x,-1.1,z+3.8,x+.08,-1.02,z+4.2,teal);
+  }
+ }
+ // Port and starboard rack/cable trays, clear of the V01 vehicle footprint.
+ for(const x of [-22.5,22.4]){
+  for(const [z0,z1] of [[-32,-16],[-12,-2],[1,20],[21,29]]){
+   box(x-.27,5.9,z0,x+.27,6.18,z1,beam);
+   box(x-.17,6.19,z0,x+.17,6.27,z1,teal);
+  }
+ }
+ // Door/status plaques above the two room banks. 3D panels are paired with
+ // exact accessible room IDs in HUD; no unreadable texture-based text.
+ for(const [side,z,col] of [
+  [-1,-24,teal],[1,-24,insulation],[-1,0,amber],[1,-8,amber],
+  [-1,22,insulation],[1,10,teal]]){
+  const x=side<0?-5.0:4.72;
+  box(x,4.38,z-2.5,x+.28,5.32,z+2.5,beam);
+  box(x-.04,4.66,z-1.5,x+.32,5.02,z+1.5,col);
+ }
  // End bulkheads are solid; side bulkheads have physically open doorways.
  box(-8,-1.3,-59,8,7.1,-58.4,wall);
  box(-5.9,-1.3,31.5,5.9,7.1,32,wall);
@@ -12696,6 +12732,7 @@ function boardVehicleBayTruck8B(){
 function interactShip8E(){
  const room=StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z);
  if(room==='bridge'){
+  if(!StarfallShipHatch8ER.canPilot({landed,shipWalking:shipWalking8e,room,truckOccupied,rampTransition})){showToast('BRIDGE · Physical helm station is not available');return true;}
   shipWalking8e=false;camMode=1;camEye=null;
   showToast('BRIDGE · pilot controls engaged · I to walk interior · SPACE launch');
   saveFlight();return true;
@@ -12815,7 +12852,7 @@ function exitShip(){
  const ns=surfaceData(nearest,pos),axis=nearest.spinAxis||[0,1,0],radial=ns.dir;
  shipBody=nearest;shipLocal=V.rot(radial,axis,-(nearest.spinAngle||0));shipForwardVec=[...forward];shipUpVec=[...up];
  if(!roverBody||roverBody!==nearest||!roverLocal)placeRoverNearShip();
- const hatchLocal=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-10,0);
+ const hatchLocal=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-30,0);
  const groundLocalEVA=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-37,0);
  const evacDir=V.norm(V.rot(hatchLocal,axis,nearest.spinAngle||0));
  evaLocal=hatchLocal;
@@ -12835,7 +12872,7 @@ function boardShip(transitionKind){
  if(!check.ok){showToast(check.reason);return false;}
  eva=false;swimming=false;swimDepthScene=.01;swimVerticalSceneS=0;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
  hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;
- shipWalking8e=true;shipWalkAt8e={x:0,z:25,heading:0};
+ shipWalking8e=true;shipWalkAt8e={x:0,z:29.25,heading:0};
  camMode=0;showToast('8E · Inside expedition vessel · WASD walk through ship · X near bridge to pilot · S to exit aft');
  return true;
 }
@@ -13033,8 +13070,9 @@ addEventListener('keydown',ev=>{
   const ship=shipWorldState();
   const rel=V.sub(pos,ship.position),right=V.norm(V.cross(ship.forward,ship.up));
   const ahead=V.dot(rel,ship.forward),side=V.dot(rel,right);
-  if(!tryCrewHatchEntry8ER(ahead>-29&&ahead< -17&&Math.abs(side)<4.8))
-   showToast('CREW HATCH · Approach the central crew ramp and walk into its opening');
+  // The shared hatch guard already reports the precise denial (range, cooldown,
+  // water or conflicting transition). Do not replace it with a generic toast.
+  tryCrewHatchEntry8ER(ahead>-29&&ahead< -17&&Math.abs(side)<4.8);
 
   return;
  }
@@ -13136,7 +13174,7 @@ function tryCrewHatchEntry8ER(atEntrance){
   rampTransition,nearShip:shipBody===nearest&&V.len(V.sub(pos,ship.position))<=EVA_BOARD_DISTANCE,
   walkedSinceExit,hatchCooldown,atEntrance});
  if(!check.ok){showToast(check.reason);return false;}
- const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-10,0);
+ const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-30,0);
  rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
  showToast('CREW HATCH · Crossing the central crew boarding ramp');return true;
 }
@@ -13443,7 +13481,7 @@ const body=nearest||target,phase=solarWarning?'STELLAR CORONA':stage(altitude,bo
  const biomeLabel=$('biome-label'),biomeDesc=$('biome-description');if(biomeLabel){const nearby=body?.landable&&altitude<1100;if(nearby){const d=V.rot(V.norm(V.sub(pos,body.position)),body.spinAxis||[0,1,0],-(body.spinAngle||0)),h=groundHeight(d,body),f=Starfall3D.field(d,body.seed),a=BIOMES.classify(body,d,h,f);biomeLabel.textContent=a.name.toUpperCase();biomeDesc.textContent=a.lifePotential?'Potential biology · unconfirmed':'Geological environment · unconfirmed biology';}else{biomeLabel.textContent='—';biomeDesc.textContent='Approach a solid world to survey the surface';}}
  const nearSys=galaxy.nearestSystem(pos);const stellarStatus=window.StarfallSpaceWeatherLW06?.exposure(nearSys,pos,simTime,GALAXY_SEED);const types=[];if(nearSys?.belts.length)types.push(nearSys.belts.length+' ASTEROID BELT'+(nearSys.belts.length>1?'S':''));if(nearSys?.nebulae.length)types.push('NEBULA');if(nearSys?.comets.length)types.push('COMET');if(nearSys?.phenomenon)types.push(nearSys.phenomenon.toUpperCase());if(stellarStatus&&stellarStatus.hazard!=='NOMINAL')types.push('SPACE WEATHER '+stellarStatus.hazard+' · IONIZATION '+Math.round(stellarStatus.ionizationIndex*100)+'%');const eventVisible=nearSys&&(V.len(V.sub(pos,nearSys.position))<nearSys.maxOrbit*2.5||stellarStatus?.ionizationIndex>.06);$('space-event').hidden=!eventVisible;$('space-event').textContent=eventVisible?'SECTOR PHENOMENA / '+(types.join('  ·  ')||'QUIET SYSTEM'):'';
  $('solar-alert').hidden=!solarWarning;$('heat-fill').style.width=heat.toFixed(1)+'%';$('heat-number').textContent=Math.round(heat)+'%';$('corona-star').textContent=galaxy.nearestStar(pos).system?.name||'—';
- $('walk-context').textContent=truckOccupied?'X / CLICK TO EXIT THE TRUCK':eva?rampTransition?(rampTransition.kind==='out'?'WALKING DOWN REAR RAMP':'WALKING UP REAR RAMP'):roverExitMove?'STEPPING AWAY FROM TRUCK':(roverBody===nearest&&roverWorldState()&&V.len(V.sub(pos,roverWorldState().position))<24?'SCIENCE ROVER: PROGRAM ONLY · TRUCK: APPROACH AND PRESS X':'EVA · X NEAR TRUCK TO DRIVE · SCIENCE ROVER IS UNCREWED'):landed?'HOLD S TO WALK DOWN THE RAMP · SPACE TO LAUNCH':'';
+ $('walk-context').textContent=shipWalking8e?(()=>{const id=StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z),meta=StarfallShipWalk8E.roomSchema(id);return 'DECK 01 · '+(meta?.code||'U01')+' · '+(StarfallShipWalk8E.zones.find(z=>z.id===id)?.label||'Service corridor')+' · X TO INTERACT';})():truckOccupied?'X / CLICK TO EXIT THE TRUCK':eva?rampTransition?(rampTransition.kind==='out'?'WALKING DOWN REAR RAMP':'WALKING UP REAR RAMP'):roverExitMove?'STEPPING AWAY FROM TRUCK':(roverBody===nearest&&roverWorldState()&&V.len(V.sub(pos,roverWorldState().position))<24?'SCIENCE ROVER: PROGRAM ONLY · TRUCK: APPROACH AND PRESS X':'EVA · X NEAR TRUCK TO DRIVE · SCIENCE ROVER IS UNCREWED'):landed?'HOLD S TO WALK DOWN THE RAMP · SPACE TO LAUNCH':'';
  $('status-text').textContent=solarWarning?'CORONAL WARNING · THERMAL LOAD '+Math.round(heat)+'% · PHOTOSPHERE IS SOLID':truckOccupied?'TRUCK · W/S DRIVE · A/D STEER · X OR CLICK TO EXIT · BATTERY '+Math.round(truckBatteryJ/44e6*100)+'%':eva?'EVA · SKY LOOK · X NEAR TRUCK · SCIENCE ROVER IS UNCREWED':landed?'SHIP LANDED · SPACE TO TAKE OFF · HOLD S TO WALK DOWN RAMP':warp?'WARP CRUISE · RELEASE SHIFT TO EXIT · G ALIGNS':'LEFT DRAG STEER · RIGHT DRAG LOOK · SCROLL ZOOM · F CENTRE CAMERA';
  if(phase!==nearPhase){nearPhase=phase;if(phase==='ATMOSPHERIC ENTRY')showToast('Atmospheric entry · deceleration engaged');if(phase==='LOW ATMOSPHERE')showToast('Surface acquired · descend to land');if(phase==='STELLAR CORONA')showToast('CORONAL WARNING · stellar radiation increasing');}
  const goal=siteWaypoint?V.add(siteWaypoint.planet.position,V.mul(V.rot(siteWaypoint.dir,siteWaypoint.planet.spinAxis||[0,1,0],siteWaypoint.planet.spinAngle||0),siteWaypoint.planet.radius+8)):target.position,delta=V.sub(goal,pos),dist=V.len(delta),bearing=V.dot(V.norm(delta),forward);
