@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/prune-merged-starfall.yml'
+      - 'tools/prune_safe_merged_branches.py'
+      - 'tests/prune_safe_merged_branches.test.py'
   workflow_dispatch:
     inputs:
       apply:
