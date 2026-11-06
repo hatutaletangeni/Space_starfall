@@ -17,7 +17,10 @@ assert.equal(ship.nearVehicleBayTruck(p.x,p.z),true,'cargo bay reachable on foot
 const flight=fs.readFileSync('src/flight.js','utf8');
 assert.match(flight,/function boardVehicleBayTruck8B\(\)/);
 assert.match(flight,/if\(room==='cargo'\)\{if\(boardVehicleBayTruck8B\(\)\)/);
-assert.match(flight,/shipWalking8e=false;truckOccupied=true;eva=false;/);
+assert.match(flight,/shipWalking8e=false;truckOccupied=true;eva=true;/,
+ 'Indoor boarding transfers to active physical truck driving; not pilot controls');
+assert.match(flight,/if\(landed\)\{if\(eva\|\|truckOccupied\|\|manufacturedOccupied8G\)\{/,
+ 'Driver stays in vehicle physics branch after exiting ship interior');
 assert.match(flight,/if\(!fromInterior&&V\.len\(V\.sub\(pos,access\)\)>35\)return false;/);
 assert.match(flight,/if\(code==='KeyI'&&eva&&landed&&!truckOccupied&&!rampTransition\)/);
 const render=fs.readFileSync('src/engine.js','utf8');
