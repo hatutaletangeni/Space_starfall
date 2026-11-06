@@ -70,6 +70,9 @@
       const fresh={...initial(),freshExpedition:{schema:1,seed,startedAt:Date.now()}};
       if(!write('starfall_save',fresh))throw Error('Could not persist fresh expedition');
       if(JSON.stringify(read('starfall_save'))!==JSON.stringify(fresh))throw Error('Fresh expedition read-back failed');
+      // The old page has a pagehide autosaver. Lock it out until navigation,
+      // otherwise it overwrites the fresh manifest with the previous truck pose.
+      root.__STARFALL_NEW_EXPEDITION_PENDING=true;
       return {seed,backedUp:previous!==null};
     },
     load() {
@@ -81,7 +84,7 @@
       data.orbital = object(data.orbital) ? data.orbital : {};
       return data;
     },
-    save(data) { if(root.__STARFALL_IMPORT_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
+    save(data) { if(root.__STARFALL_IMPORT_PENDING||root.__STARFALL_NEW_EXPEDITION_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
     getCredits() { return this.load().credits; },
     addCredits(amount) {
       const data = this.load();
