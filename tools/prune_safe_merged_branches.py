@@ -99,11 +99,11 @@ def main():
             try:
                 # Defensive lease recheck: if bot/author advanced the branch,
                 # never delete their new work.
-                ref=api("/repos/"+REPO+"/git/ref/heads/"+urllib.parse.quote(name,safe=""))
+                ref=api("/repos/"+REPO+"/git/ref/heads/"+urllib.parse.quote(name,safe='/'))
                 if ref.get("object",{}).get("sha")!=item["sha"]:
                     report["failed"].append({"name":name,"why":"branch SHA changed since audit"})
                     continue
-                api("/repos/"+REPO+"/git/refs/heads/"+urllib.parse.quote(name,safe=""),"DELETE")
+                api("/repos/"+REPO+"/git/refs/heads/"+urllib.parse.quote(name,safe='/'),"DELETE")
                 report["deleted"].append(item)
                 print("Deleted fully integrated branch:",name,flush=True)
             except (urllib.error.HTTPError,urllib.error.URLError) as exc:
