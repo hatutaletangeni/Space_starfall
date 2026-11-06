@@ -67,6 +67,20 @@ function begin(f){
   physical8a:f.physical8a,gasManifolds:f.gasManifolds,outpost5:f.native,
   powerReport:f.report(0),bodyId,bodyRadius:R,timeS:0});
 }
+test('NO ARCHIVE and MISSING ONE GAS SPECIES must never authorize free reactor Joules or missing 8A inlet matter',()=>{
+ const f=fixture(),expected=['hydrogen','carbon_dioxide'];
+ assert.equal(In.create().readyFor('chem8e:1',f.materials8a,expected),false,
+  'empty archive cannot prove physical chemical gas input');
+ const start=begin(f);
+ assert.equal(In.create(start.transit).readyFor('chem8e:1',
+  start.materials8a,expected),false,'unpowered input reservations are not ready');
+ const missing=structuredClone(start.transit);
+ missing.jobs=missing.jobs.filter(x=>x.materialId==='hydrogen');
+ assert.equal(In.create(missing).readyFor('chem8e:1',
+  start.materials8a,expected),false,'must require BOTH chemically mandated gases');
+ const flight=fs.readFileSync(path.join(__dirname,'../src/flight.js'),'utf8');
+ assert.match(flight,/chemicalGasInput8h\.readyFor\(a\.id,materials8a\.snapshot\(\),exactGasSpecies\)/);
+});
 test('two real manufactured/signed inlet pipes reserve exact finite original 8A H2 and CO2, without creating stock or gas power',()=>{
  const f=fixture(),a=structuredClone(f.materials8a),q=begin(f);
  assert.equal(q.changed,true);assert.equal(q.jobs.length,2);
