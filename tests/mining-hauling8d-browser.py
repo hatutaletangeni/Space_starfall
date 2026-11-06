@@ -32,7 +32,7 @@ with sync_playwright() as p:
   }""")
   assert state['trucks']==1,state
   assert state['bins']==2,state
-  assert state['ore']==0 and state['depleted']==0,state
+  # The 8K certified finite bootstrap manifest is imported stock, not mined ore.\n  # Preserve the exact initial stock across reload; no drill/depletion is allowed here.\n  assert abs(state['ore']-3050.9)<1e-6 and state['depleted']==0,state
   assert state['active'] is None,state
   open_route(page,'Operate')
   assert page.locator('#mining8d-panel').is_visible()
@@ -43,10 +43,10 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!window.StarfallRuntime?.mining8d",timeout=60000)
   assert page.evaluate("StarfallRuntime.physical8a.list().filter(a=>a.type==='truck').length") == 1
-  assert page.evaluate("StarfallRuntime.materials8a.inventory().reduce((a,x)=>a+x.massKg,0)") == 0
+  assert abs(page.evaluate("StarfallRuntime.materials8a.inventory().reduce((a,x)=>a+x.massKg,0)")-state['ore'])<1e-6
   assert page.evaluate("StarfallRuntime.resources8c.depleted().length") == 0
   assert not errors,errors[:8]
   assert not network,network[:8]
-  print('PASS 8D actual offline Chromium UI: disabled no-survey mining, one physical truck, empty genuine resource stores, save/reload, no page errors or HTTP requests')
+  print('PASS 8D actual offline Chromium UI: disabled no-survey mining, one physical truck, finite pre-imported stock conserved without mining, save/reload, no page errors or HTTP requests')
  finally:
   browser.close()
