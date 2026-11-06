@@ -47,6 +47,19 @@ function recoverStrandedTruckForMobile(session){
   .used(root.StarfallMining8D.TRUCK):{massKg:0,volumeM3:0};
  if(!root.StarfallCargo8B.fit({...truck,massKg:truck.massKg+materials.massKg,
    volumeM3:truck.volumeM3+materials.volumeM3}).ok)return unchanged('CARGO_CAPACITY');
+ // The final saved truck pose can be newer than the 8A surface state.
+ // Preserve actual remaining energy and carried payload; do not recharge.
+ if(original.truckPose?.bodyId===truck.location.bodyId&&
+   Number.isFinite(original.truckPose.batteryJ)&&
+   original.truckPose.batteryJ>=0&&original.truckPose.batteryJ<=44e6){
+  const physicalState={batteryJ:original.truckPose.batteryJ};
+  if(Number.isFinite(original.truckPose.cargo)&&original.truckPose.cargo>=0)
+   physicalState.cargoKg=original.truckPose.cargo;
+  if(typeof original.truckPose.lights==='boolean')
+   physicalState.lights=original.truckPose.lights;
+  if(Array.isArray(original.truckPose.forward))physicalState.forward=original.truckPose.forward;
+  store.setSurface(truck.id,truck.location.bodyId,truck.location.local,physicalState);
+ }
  store.move(truck.id,{kind:'ship',slot:'starboard-hangar'},id,{
   expected:truck.location,maxMassKg:bay.maxCargoMassKg,maxVolumeM3:bay.maxCargoVolumeM3});
  const physical=store.serialize(),receipt=physical.transfers.find(t=>t.id===id);

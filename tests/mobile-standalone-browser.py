@@ -40,6 +40,7 @@ with sync_playwright() as p:
    throw Error('Original starter truck missing from initial ship cargo');
   assets.move('truck-expedition-001',
    {kind:'surface',bodyId:'stranded-water-world',local:[0,1,0]},'test:strand');
+  assets.setSurface('truck-expedition-001','stranded-water-world',[0,1,0],{batteryJ:1234567});
   return {...previous,physical8a:assets.serialize(),flightGalaxy:{
    ...(previous.flightGalaxy||{}),
    shipCargo8b:{schema:1,mode:'ground',pose:{x:16.5,z:39,y:-7.25},counter:2}
@@ -67,6 +68,7 @@ with sync_playwright() as p:
  })""")
  assert recovered['kind']=='ship' and recovered['cargo']=='secured',recovered
  assert recovered['trucks']==1 and recovered['receipts']==1,recovered
+ assert recovered['battery']==1234567,'No free original truck battery after assisted recovery'
  assert recovered['record']['notPhysical8HDelivery'] is True,recovered
  rescue_page.reload(wait_until='domcontentloaded',timeout=90000)
  rescue_page.wait_for_function("() => !!window.StarfallRuntime?.physical8a",timeout=60000)

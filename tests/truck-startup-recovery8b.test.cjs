@@ -7,11 +7,12 @@ const Mining=require('../src/physics/mining-hauling8d.js');
 const Custody=require('../src/physics/truck-custody8b.js');
 const id='truck-expedition-001',stock=Physical.create(),baseline=stock.get(id);
 stock.move(id,{kind:'surface',bodyId:'stranded-water-world',local:[0,1,0]},'test:drive');
+stock.setSurface(id,'stranded-water-world',[0,1,0],{batteryJ:19000,cargoKg:13,lights:false});
 const matter=Materials.create();Mining.prepareContainers(matter);
 matter.importLot({id:'mined-ore',materialId:'iron-ore',containerId:Mining.TRUCK,
  massKg:20,volumeM3:.0116,provenance:'original-drill'});
 const state={physical8a:stock.serialize(),materials8a:matter.snapshot(),
- flightGalaxy:{truckPose:{bodyId:'stranded-water-world',local:[0,1,0]},
+ flightGalaxy:{truckPose:{bodyId:'stranded-water-world',local:[0,1,0],batteryJ:9000,cargo:13,lights:false},
   shipCargo8b:{schema:1,mode:'ground',pose:{x:16.5,z:39,y:-7.25},counter:4}},
  mining8d:{schema:1,sequence:0,toolCondition:1,active:null,history:[]}};
 const prior=JSON.stringify(state),r=Custody.recoverStrandedTruckForMobile(state);
@@ -20,7 +21,9 @@ assert.equal(JSON.stringify(state),prior,'must never mutate original live snapsh
 const next=Physical.create(r.session.physical8a),truck=next.get(id);
 assert.equal(truck.location.kind,'ship');
 assert.equal(truck.massKg,baseline.massKg);
-assert.equal(truck.state.batteryJ,baseline.state.batteryJ);
+assert.equal(truck.state.batteryJ,9000,'preserve final saved battery debit');
+assert.equal(truck.state.cargoKg,13);
+assert.equal(truck.state.lights,false);
 assert.equal(next.list().filter(a=>a.id===id).length,1);
 assert.deepEqual(next.get('rover-science-001'),stock.get('rover-science-001'));
 assert.deepEqual(r.session.materials8a,state.materials8a);

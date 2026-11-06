@@ -39,6 +39,16 @@ const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
 const BAY8B=StarfallCargo8B;
 const originalTruckCargo8B=StarfallTruckCustody8B.restore(saved?.shipCargo8b,physical8a.get(START_TRUCK),saved?.attached||null);
 let cargo8b=originalTruckCargo8B.cargo;
+// The truck's original 8A battery/cargo state remains authoritative in the bay.
+const storedTruck8b=physical8a.get(START_TRUCK);
+if(storedTruck8b?.location.kind==='ship'){
+ const state=storedTruck8b.state||{};
+ if(Number.isFinite(state.batteryJ))truckBatteryJ=V.clamp(state.batteryJ,0,44e6);
+ if(Number.isFinite(state.cargoKg))truckCargo=V.clamp(state.cargoKg,0,800);
+ if(typeof state.lights==='boolean')truckLights=state.lights;
+ if(Array.isArray(state.forward)&&state.forward.length===3&&state.forward.every(Number.isFinite))
+  truckForwardVec=V.norm(state.forward);
+}
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
 let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h);
