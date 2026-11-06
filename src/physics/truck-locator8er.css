@@ -1,0 +1,16 @@
+/* Compact heading indicator, works in portrait desktop and mobile landscape. */
+#sf-truck-locator8er{position:fixed;z-index:12;top:56px;left:50%;transform:translateX(-50%);
+ display:flex;align-items:center;gap:9px;padding:7px 12px;min-width:160px;max-width:70vw;
+ background:rgba(4,19,30,.86);color:#e8f3f7;border:1px solid #80cbd1a1;border-radius:12px;
+ font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;box-shadow:0 3px 12px #0008}
+#sf-truck-locator8er[hidden]{display:none!important}
+#sf-truck-locator8er .sf-truck-arrow{font-size:23px;color:#f5c16f;transform-origin:50% 50%;min-width:25px;text-align:center}
+#sf-truck-locator8er .sf-truck-details{display:flex;flex-direction:column;gap:3px}
+#sf-truck-locator8er b{font-size:11px;letter-spacing:.7px}
+#sf-truck-locator8er small{font-size:10px;font-weight:450;color:#c5d5df}
+body.sfmobile-edition #sf-truck-locator8er{top:max(37px,calc(env(safe-area-inset-top) + 30px));
+ left:50%;max-width:37vw;min-width:0;padding:4px 7px;gap:4px;border-radius:7px}
+body.sfmobile-edition #sf-truck-locator8er b{font-size:8px}
+body.sfmobile-edition #sf-truck-locator8er small{font-size:8px}
+body.sfmobile-edition #sf-truck-locator8er .sf-truck-arrow{font-size:17px;min-width:17px}
+body[data-truck-driving=true] #sf-truck-locator8er{display:none!important}
