@@ -70,8 +70,15 @@ function transfer({id:jobId,sourceLotId,sourceDepotId,stationId,massKg,
  const completed=conveyorPackets8h.jobs.find(j=>
     j.status==='DELIVERED'&&j.targetId===sourceDepotId&&
     j.bodyId===bodyId&&j.currentLotId===sourceLotId);
- if(!completed)
-  throw Error('8H real receiving cargo depot MUST contain dry lot actually delivered by genuine 250W native T02 conveyor; no synthetic stock import');
+ // The T02 packet's alleged DELIVERED status alone is NOT a mass
+ // receipt. Require the exact matching original 8A COMMITTED last hop
+ // from a source-owned 8h-belt operation to THIS real destination bin.
+ const arrival=ledger.operations().find(op=>op.status==='COMMITTED'&&
+    op.id.startsWith('8h-belt:')&&op.outputLotId===sourceLotId&&
+    op.destinationId===sourceBin.id&&
+    completed?.currentLotId===op.outputLotId);
+ if(!completed||!arrival)
+  throw Error('8H real receiving cargo depot requires BOTH a 250W native T02 DELIVERED packet and actual original 8A committed conveyor arrival receipt; no synthetic stock import');
  const old=ledger.operations().find(op=>op.id===jobId);
  if(old){
   if(old.status!=='COMMITTED'||old.lotId!==sourceLotId||
