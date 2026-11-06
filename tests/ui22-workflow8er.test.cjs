@@ -10,7 +10,7 @@ assert.match(index,/src\/ui22-workflow\.js/);
 assert.ok(index.indexOf('src/ui22-workflow.js')>index.indexOf('src/ui21.js'),'Workflow must enhance existing page navigation');
 for(const [i,name] of ['Navigate','Explore','Build','Operate','Records'].entries())assert.match(workflow,new RegExp("name:'"+name+"'"));
 assert.ok(workflow.indexOf("name:'Navigate'")<workflow.indexOf("name:'Records'"));
-assert.match(workflow,/source\.click\(\)/); // check underlying action ownership
+assert.match(workflow,/target\.click\(\)/); // native action ownership retained
 assert.match(workflow,/target\.click\(\)/);
 assert.match(workflow,/StarfallWorkflow8ER/);
 assert.match(style,/#ui21-navigation\{display:none!important\}/);
