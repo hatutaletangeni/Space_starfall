@@ -358,6 +358,42 @@ function makeShipWalkDeck(gl){
   box(-24,7.0,z-.25,24,7.3,z+.25,support);
   for(const x of [-23,-5,5,23])box(x-.3,6.7,z-.45,x+.3,7.7,z+.45,lights);
  }
+ // 8E-R S3: lightweight static pressure arches and practical cable/floor grammar.
+ // All meshes are compiled once into the existing interior mesh, not emitted each frame.
+ const insulation=[.76,.79,.76],beam=[.28,.33,.36],amber=[.92,.60,.24],teal=[.19,.65,.70];
+ for(const z of [-48,-35,-22,-9,4,17,29]){
+  // Open passage volume x ∈ (-4.8,+4.8) remains clear from deck to head-height.
+  for(const x of [-5.25,5.25]){
+   box(x-.23,-1.1,z-.42,x+.23,6.6,z+.42,beam);
+   box(x-.30,2.0,z-.47,x+.30,2.23,z+.47,insulation);
+   box(x-.30,5.3,z-.47,x+.30,5.54,z+.47,amber);
+  }
+  box(-5.2,6.5,z-.36,5.2,6.92,z+.36,insulation);
+  box(-3.9,6.43,z-.39,3.9,6.54,z+.39,teal);
+ }
+ // Subtle deck-edge wayfinding, avoiding an impassable central floor divider.
+ for(let z=-53;z<30;z+=6){
+  for(const x of [-4.90,4.82]){
+   box(x,-1.11,z,x+.08,-1.02,z+3.5,amber);
+   box(x,-1.1,z+3.8,x+.08,-1.02,z+4.2,teal);
+  }
+ }
+ // Port and starboard rack/cable trays, clear of the V01 vehicle footprint.
+ for(const x of [-22.5,22.4]){
+  for(const [z0,z1] of [[-32,-16],[-12,-2],[1,20],[21,29]]){
+   box(x-.27,5.9,z0,x+.27,6.18,z1,beam);
+   box(x-.17,6.19,z0,x+.17,6.27,z1,teal);
+  }
+ }
+ // Door/status plaques above the two room banks. 3D panels are paired with
+ // exact accessible room IDs in HUD; no unreadable texture-based text.
+ for(const [side,z,col] of [
+  [-1,-24,teal],[1,-24,insulation],[-1,0,amber],[1,-8,amber],
+  [-1,22,insulation],[1,10,teal]]){
+  const x=side<0?-5.0:4.72;
+  box(x,4.38,z-2.5,x+.28,5.32,z+2.5,beam);
+  box(x-.04,4.66,z-1.5,x+.32,5.02,z+1.5,col);
+ }
  // End bulkheads are solid; side bulkheads have physically open doorways.
  box(-8,-1.3,-59,8,7.1,-58.4,wall);
  box(-5.9,-1.3,31.5,5.9,7.1,32,wall);

@@ -1,0 +1,44 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const Physical=require('../src/physics/physical-inventory8a.js');
+const Cargo=require('../src/physics/cargo-bay8b.js');
+function fixture(seedStore={},denied=false){
+ const map=new Map(Object.entries(seedStore).map(([k,v])=>[k,JSON.stringify(v)]));
+ const storage={getItem:k=>map.get(k)??null,setItem:(k,v)=>{if(denied)throw Error('Storage denied');map.set(k,String(v));},
+ removeItem:k=>map.delete(k),key:i=>[...map.keys()][i]??null};
+ const ctx={localStorage:storage,Date:{now:()=>1234567},document:{getElementById:()=>null},console};
+ ctx.globalThis=ctx;
+ vm.runInNewContext(fs.readFileSync('src/starfall-core.js','utf8'),ctx);
+ return {SF:ctx.SF,map};
+}
+const pristine=Physical.create();
+const starter=pristine.get('truck-expedition-001');
+assert.equal(pristine.list().filter(x=>x.id==='truck-expedition-001').length,1);
+assert.equal(starter.location.kind,'ship');
+assert.equal(starter.location.slot,'starboard-hangar');
+assert.equal(Cargo.snapshot().mode,'secured');
+const previous=Physical.create();
+previous.move('truck-expedition-001',{kind:'surface',bodyId:'old-planet',local:[0,1,0]},'old-trip');
+const oldSave={version:2,credits:73,physical8a:previous.serialize(),flightGalaxy:{seed:742,truckPose:{bodyId:'old-planet',local:[0,1,0],batteryJ:12e6},shipCargo8b:{schema:1,mode:'ground',pose:{x:16.5,y:-7.25,z:42},counter:2}}};
+const {SF,map}=fixture({starfall_save:oldSave});
+const outcome=SF.startNewExpedition(9981);
+assert.equal(outcome.seed,9981);assert.equal(outcome.backedUp,true);
+const fresh=SF.load();
+assert.equal(fresh.freshExpedition.seed,9981);
+assert.equal(fresh.physical8a,undefined,'Never carry old inventory into new game');
+assert.equal(fresh.flightGalaxy,undefined,'Never carry old planet/truck pose into new game');
+assert.equal(fresh.credits,200);
+assert.equal(SF.save(oldSave),false,'Previous pagehide autosaver must not restore old truck after startNewExpedition');
+assert.equal(SF.load().physical8a,undefined,'Fresh inventory must survive old-page autosave');
+assert.equal(Physical.create(fresh.physical8a).get('truck-expedition-001').location.slot,'starboard-hangar');
+const backup=JSON.parse(map.get('starfall_backup_before_new_expedition_1234567'));
+assert.deepEqual(backup,oldSave);
+assert.throws(()=>SF.startNewExpedition('not-a-seed'),/Invalid/);
+assert.throws(()=>SF.startNewExpedition(-1),/Invalid/);
+const blocked=fixture({starfall_save:oldSave},true);
+assert.throws(()=>blocked.SF.startNewExpedition(3),/durable save storage/);
+assert.equal(blocked.SF.load().physical8a.assets.find(x=>x.id==='truck-expedition-001').location.bodyId,'old-planet');
+const source=fs.readFileSync('src/flight.js','utf8');
+assert.match(source,/SF\.startNewExpedition\(seed\)/);
+assert.match(source,/window\.confirm\('START A NEW EXPEDITION/);
+console.log('PASS: new game hangar custody, save backup, legacy retention, denied-storage protection');

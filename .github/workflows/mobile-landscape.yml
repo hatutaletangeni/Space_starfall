@@ -8,8 +8,14 @@ on:
       - 'index.html'
       - 'tests/truck-cockpit.test.cjs'
       - 'src/flight.js'
+      - 'src/starfall-core.js'
+      - 'src/physics/physical-inventory8a.js'
+      - 'tests/new-expedition8er.test.cjs'
+      - 'tests/ship-room-graph8er.test.cjs'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
+      - 'src/physics/ship-hatch8er.js'
+      - 'tests/ship-hatch8er.test.cjs'
       - 'tools/build-mobile-standalone.py'
       - 'tests/mobile-standalone-*'
       - 'tests/mobile-vehicle-bay.test.cjs'
@@ -23,8 +29,14 @@ on:
       - 'index.html'
       - 'tests/truck-cockpit.test.cjs'
       - 'src/flight.js'
+      - 'src/starfall-core.js'
+      - 'src/physics/physical-inventory8a.js'
+      - 'tests/new-expedition8er.test.cjs'
+      - 'tests/ship-room-graph8er.test.cjs'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
+      - 'src/physics/ship-hatch8er.js'
+      - 'tests/ship-hatch8er.test.cjs'
       - 'tools/build-mobile-standalone.py'
       - 'tests/mobile-standalone-*'
       - 'tests/mobile-vehicle-bay.test.cjs'
@@ -46,6 +58,20 @@ jobs:
           python tests/mobile-standalone-parity.py
           node tests/mobile-vehicle-bay.test.cjs
           node tests/truck-cockpit.test.cjs
+          node tests/new-expedition8er.test.cjs
+          node tests/ship-room-graph8er.test.cjs
+          node tests/ship-hatch8er.test.cjs
+          node tests/update8a.test.cjs
+          node tests/cargo-bay8b.test.cjs
+      - name: Attach separate offline desktop and mobile builds for QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-8er-desktop-mobile
+          path: |
+            PLAY-STARFALL.html
+            PLAY-STARFALL-MOBILE.html
+          if-no-files-found: error
+          retention-days: 7
   mobile-chromium:
     runs-on: ubuntu-latest
     timeout-minutes: 18
@@ -94,3 +120,4 @@ jobs:
           git commit -m 'build(mobile): refresh compact landscape standalone [mobile-standalone]'
           git pull --rebase origin main
           git push origin HEAD:main
+

@@ -55,6 +55,26 @@
       chance(p) { return this.next() < p; }
     },
     hash(text) { let h = 2166136261; for (const char of String(text)) h = Math.imul(h ^ char.charCodeAt(0), 16777619); return h >>> 0; },
+    // Start fresh without silently mixing old-world vehicles into a new seed.
+    // Always preserve the prior expedition in its own durable recovery slot.
+    startNewExpedition(seed) {
+      if(!Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Invalid new galaxy seed');
+      if(root.__STARFALL_IMPORT_PENDING)throw Error('Finish pending save import first');
+      if(!this.storageStatus().durable)throw Error('New expedition requires durable save storage to protect the previous game. Export your save first.');
+      const previous=read('starfall_save');
+      if(previous!==null){
+        const key='starfall_backup_before_new_expedition_'+Date.now();
+        if(!write(key,previous))throw Error('Could not back up prior expedition');
+        if(JSON.stringify(read(key))!==JSON.stringify(previous))throw Error('Prior expedition backup verification failed');
+      }
+      const fresh={...initial(),freshExpedition:{schema:1,seed,startedAt:Date.now()}};
+      if(!write('starfall_save',fresh))throw Error('Could not persist fresh expedition');
+      if(JSON.stringify(read('starfall_save'))!==JSON.stringify(fresh))throw Error('Fresh expedition read-back failed');
+      // The old page has a pagehide autosaver. Lock it out until navigation,
+      // otherwise it overwrites the fresh manifest with the previous truck pose.
+      root.__STARFALL_NEW_EXPEDITION_PENDING=true;
+      return {seed,backedUp:previous!==null};
+    },
     load() {
       const saved = read('starfall_save');
       const data = { ...initial(), ...(object(saved) ? saved : {}) };
@@ -64,7 +84,7 @@
       data.orbital = object(data.orbital) ? data.orbital : {};
       return data;
     },
-    save(data) { if(root.__STARFALL_IMPORT_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
+    save(data) { if(root.__STARFALL_IMPORT_PENDING||root.__STARFALL_NEW_EXPEDITION_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
     getCredits() { return this.load().credits; },
     addCredits(amount) {
       const data = this.load();
