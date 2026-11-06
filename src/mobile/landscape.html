@@ -1,12 +1,10 @@
 <div id="sfmobile-rotate" role="note"><div>↻ Rotate your phone to landscape<small>STARFALL Mobile uses horizontal controls. Turn off portrait orientation lock if rotation is disabled.</small></div></div>
 <div id="sfmobile-hud" role="group" aria-label="STARFALL landscape touch controls">
- <div class="sfm-top">
-  <button type="button" data-mobile-action="menu" title="Mission console">MENU</button>
-  <button type="button" data-mobile-action="engineer" title="Engineer industry controls">ENGINEER</button>
-  <button type="button" data-mobile-action="map" title="Star chart">MAP</button>
-  <button type="button" data-mobile-action="save" title="Save and restore expedition">SAVE</button>
-  <button type="button" data-mobile-action="tools" title="More tools">TOOLS</button>
-  <button type="button" data-mobile-action="hide" aria-pressed="false" title="Hide or show touch controls">HIDE</button>
+ <div class="sfm-top" role="navigation" aria-label="Mobile main navigation">
+  <button type="button" data-mobile-action="mission" title="Ordered mission workflow">MISSION</button>
+  <button type="button" data-mobile-action="map" title="Navigation and surface map">MAP</button>
+  <button type="button" data-mobile-action="save" title="Save and restore">SAVE</button>
+  <button type="button" data-mobile-action="hide" aria-pressed="false" title="Collapse or expand movement buttons">HIDE</button>
  </div>
  <div class="sfm-left" aria-label="Movement and steering">
   <span class="sfm-spacer"></span><button type="button" class="sfm-hold" data-control="KeyW" aria-label="Hold forward or thrust">▲</button><span class="sfm-spacer"></span>
