@@ -40,7 +40,9 @@ jobs:
           python -m pip install playwright
           python -m playwright install --with-deps chromium
       - name: Real file offline landscape touchscreen test
-        run: python tests/mobile-standalone-browser.py
+        run: |
+          python tools/build-mobile-standalone.py
+          python tests/mobile-standalone-browser.py
 
   publish-mobile-standalone:
     needs: [exact-mobile-parity, mobile-chromium]
