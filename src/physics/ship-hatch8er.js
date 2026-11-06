@@ -18,7 +18,10 @@ function requestExit({landed,at,move,truckOccupied,rampTransition,shipWalking}={
 }
 function requestEntry({landed,eva,truckOccupied,swimming,rampTransition,nearShip,walkedSinceExit,hatchCooldown,atEntrance}={}){
  if(!landed||!eva||truckOccupied)return {ok:false,reason:'CREW HATCH · MUST BE WALKING BESIDE LANDED SHIP'};
- if(swimming)return {ok:false,reason:'CREW HATCH · CANNOT BOARD WHILE SWIMMING'};
+ // A crew ramp at the ocean surface is a valid boarding threshold: the
+ // astronaut must still be at the correct physical entrance. Swimming must
+ // never grant boarding at an arbitrary offshore position.
+ if(swimming&&!atEntrance)return {ok:false,reason:'CREW HATCH · SWIM TO THE CENTRAL RAMP OPENING'};
  if(rampTransition)return {ok:false,reason:'CREW HATCH · COMPLETE CURRENT RAMP TRANSITION'};
  if(!(nearShip&&atEntrance))return {ok:false,reason:'CREW HATCH · APPROACH CENTRAL CREW RAMP'};
  if(!(walkedSinceExit>3&&hatchCooldown<=0))return {ok:false,reason:'CREW HATCH · COMPLETE WALK AWAY / COOLDOWN FIRST'};
