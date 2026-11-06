@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """T19A actual offline file:// Chromium real original UI. Only landed-world
 starting snapshot is seeded; antennas, energy and wires use real game controls.
@@ -29,7 +30,7 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRFAnalyzerUI19&&window.StarfallOutpostUI&&window.StarfallCommsT03)",timeout=50000)
   assert page.evaluate("StarfallRuntime.landed && StarfallRuntime.eva")
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   page.locator('#outpost-open').click()
   ids={}
   for kind in ['battery','solar','antenna']:
