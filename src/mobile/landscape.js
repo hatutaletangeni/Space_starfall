@@ -27,7 +27,12 @@
  const codeKeys={KeyX:'x',KeyB:'b',KeyI:'i',KeyV:'v',KeyT:'t',KeyG:'g',KeyL:'l',KeyF:'f',KeyM:'m'};
  function pressAction(code){
   if(!Object.hasOwn(codeKeys,code))return;
-  const opts={bubbles:true,cancelable:true,code,key:codeKeys[code]};
+  const defaults=window.StarfallControls?.DEFAULTS||{};
+  const action=Object.keys(defaults).find(name=>defaults[name]===code);
+  const mapped=action&&window.StarfallInput?.settings?.bindings?.[action];
+  const actual=typeof mapped==='string'?mapped:code;
+  const actualKey=/^Key[A-Z]$/.test(actual)?actual.slice(3).toLowerCase():codeKeys[code];
+  const opts={bubbles:true,cancelable:true,code:actual,key:actualKey};
   window.dispatchEvent(new KeyboardEvent('keydown',opts));
   window.dispatchEvent(new KeyboardEvent('keyup',opts));
  }
