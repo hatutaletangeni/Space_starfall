@@ -5,6 +5,7 @@ This is a UI precondition test, not proof of an unbroken mined expedition.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 uri=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').as_uri()
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=[
@@ -16,7 +17,7 @@ with sync_playwright() as p:
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(uri,wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime?.refineryQuote8E && window.StarfallRefinery8E && document.querySelector('#refinery8e-panel'))",timeout=60000)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   panel=page.locator('#refinery8e-panel')
   assert panel.is_visible(),'Original Engineer refinery console must remain available offline'
   q=page.evaluate("""()=>{

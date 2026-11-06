@@ -77,7 +77,13 @@ with sync_playwright() as p:
   }""")
   assert preflight['near'] and preflight['truck'] and preflight['lot']==20,preflight
   assert preflight['gap']<=15,preflight
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # The visible UI22 Mission -> Build -> workspace flow is the actual player path.
+  # UI21's legacy tabs are intentionally hidden, so do not click hidden nodes.
+  if not page.locator('body.sf-workspace-open').count():
+   page.locator('#sf-mission-button').click()
+   page.locator('#sf-mission-flow .sf-flow-step',has_text='Build').click()
+   page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  assert page.locator('#logistics8h-panel').is_visible(),'Engineering workspace is not visible'
   ui=page.locator('#logistics8h-panel')
   ui.locator('#logistics8h-ore-lot').select_option(fixture['lotId'])
   ui.locator('#logistics8h-depot').select_option(fixture['depotId'])
@@ -146,7 +152,13 @@ with sync_playwright() as p:
   # stopped truck. No invented ore: source must be the committed depot lot.
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
   page.wait_for_function("StarfallRuntime.logisticsContext8H().pickupLots.length===1",timeout=20000)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # The visible UI22 Mission -> Build -> workspace flow is the actual player path.
+  # UI21's legacy tabs are intentionally hidden, so do not click hidden nodes.
+  if not page.locator('body.sf-workspace-open').count():
+   page.locator('#sf-mission-button').click()
+   page.locator('#sf-mission-flow .sf-flow-step',has_text='Build').click()
+   page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  assert page.locator('#logistics8h-panel').is_visible(),'Engineering workspace is not visible'
   pick=page.locator('#logistics8h-pickup-lot')
   assert pick.count()==1,'Original Engineer pickup selector absent'
   expected=page.evaluate("""()=>{
@@ -224,7 +236,13 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("StarfallRuntime.logisticsContext8H?.().depots?.length===2",timeout=60000)
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # The visible UI22 Mission -> Build -> workspace flow is the actual player path.
+  # UI21's legacy tabs are intentionally hidden, so do not click hidden nodes.
+  if not page.locator('body.sf-workspace-open').count():
+   page.locator('#sf-mission-button').click()
+   page.locator('#sf-mission-flow .sf-flow-step',has_text='Build').click()
+   page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  assert page.locator('#logistics8h-panel').is_visible(),'Engineering workspace is not visible'
   plan=page.locator('#logistics8h-route-plan')
   page.locator('#logistics8h-route-first').select_option(fixture['depotId'])
   page.locator('#logistics8h-route-second').select_option(nextStop)

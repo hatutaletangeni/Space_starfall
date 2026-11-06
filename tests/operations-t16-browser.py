@@ -4,6 +4,7 @@ Fixture uses saved landed spacecraft; not evidence of manual landing or GPU FPS.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 url=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').as_uri()
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=[
@@ -61,6 +62,9 @@ with sync_playwright() as p:
   }""")
   assert stage['phase']=='IN_PROGRESS',stage
   assert page.locator('#op16-log-rows').inner_text().find('ops16')<0 or page.locator('#op16-log-rows').count()==1
+  # The shared main operations card is mounted directly into panel-body and
+  # UI21 routes unmoved root panels into Overview (Mission: Navigate).
+  open_mission_route(page, "Overview")
   page.locator('#op16-filter-severity').select_option('info')
   assert page.locator('#op16-filter-severity').input_value()=='info'
   page.locator('#op16-asset').select_option('starfall-ship')
@@ -80,14 +84,14 @@ with sync_playwright() as p:
   assert page.evaluate("document.getElementById('workbench').contains(document.activeElement)"),focus
   page.locator('#wb-close').click()
   page.wait_for_function("document.getElementById('workbench').hidden",timeout=15000)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   page.locator('#launch-open').click()
   page.wait_for_function("!document.getElementById('launch-dialog').hidden",timeout=15000)
   assert page.locator('#launch-dialog .op16-card').count()==2, 'Rocket Lab and nested Satellite Operations each own a distinct source card'
   assert page.locator('#sat7c-section .op16-card').count()==1
   assert page.locator('#launch-emergency').count()==1,'Original emergency stop retained'
   page.locator('#launch-close').click()
-  page.locator('#ui21-navigation button[data-route="Operate"]').click()
+  open_mission_route(page, "Operate")
   page.locator('#imaging7f-open').click()
   page.wait_for_function("!document.getElementById('imaging7f').hidden",timeout=15000)
   assert page.locator('#imaging7f .op16-card').count()==1

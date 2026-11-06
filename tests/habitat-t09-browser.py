@@ -6,6 +6,7 @@ Controlled existing Outpost Store fixture; no fake UI world or engine stub.
 import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 target=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').resolve()
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=['--use-gl=angle','--use-angle=swiftshader',
@@ -78,7 +79,7 @@ with sync_playwright() as p:
       o2:status.oxygenTankMol,served:line.servedW};
   }""")
   assert initial['served']==680 and initial['pressure']>70,initial
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   page.locator('#outpost-open').click()
   page.locator('[data-outpost-tab="habitat"]').click()
   page.locator('#hab-t09-select').select_option(initial['id'])

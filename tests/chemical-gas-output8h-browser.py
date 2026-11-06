@@ -5,6 +5,7 @@ with separate original 8A + 420W source-owner Node transaction fixtures.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 uri=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').as_uri()
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=[
@@ -49,7 +50,7 @@ with sync_playwright() as p:
   assert q['gasJobs']['schema']==1 and isinstance(q['gasJobs']['jobs'],list),q
   assert q['empty']=={'schema':1,'jobs':[]},q
   assert q['denied'] and q['noMutation'],q
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   panel=page.locator('#industrial8e-physical')
   assert panel.is_visible(),'Original Engineer Chemical Plant panel must be visible'
   text=panel.inner_text()

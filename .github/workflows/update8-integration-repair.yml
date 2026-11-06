@@ -1,0 +1,68 @@
+name: Update 8 integration repair - rebuild and browser gate
+on:
+  push:
+    branches:
+      - update8/integration-repair-8h-8k-20261106
+  workflow_dispatch:
+concurrency:
+  group: update8-integrate-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: write
+jobs:
+  rebuild-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Migrate legacy browser navigation to real Mission workspace
+        run: |
+          python tools/migrate-ui22-browser-tests.py
+          python -m compileall -q tests
+      - name: Rebuild BOTH offline playable HTML files
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+      - name: Check source syntax, no-network parity and material ownership
+        run: |
+          node --check src/flight.js
+          python tests/standalone-parity.py
+          node tests/cargo-bay8b.test.cjs
+          node tests/update8a.test.cjs
+          node --test tests/update8ij-model.test.cjs
+          node --test tests/logistics-routes8h.test.cjs
+          node --test tests/logistics-pickup8h.test.cjs
+          node --test tests/logistics-dropoff8h.test.cjs
+      - name: Commit tested desktop and mobile standalone builds
+        run: |
+          git config user.name "starfall-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html tests/
+          if ! git diff --cached --quiet; then
+            git commit -m "build: update 8 integration standalones"
+            git push origin HEAD:update8/integration-repair-8h-8k-20261106
+          fi
+      - name: Install real Chromium for visible Mission UI smoke
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Truck, 8H original ore custody, and legacy engineering browser QA
+        run: |
+          python tests/truck-custody8b-browser.py
+          python tests/logistics-dropoff8h-browser.py
+          python tests/ship-service-t13-browser.py
+      - name: Save browser evidence for diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: update8-integration-repair-evidence
+          path: artifacts/
+          if-no-files-found: ignore

@@ -5,6 +5,7 @@ This is not a full 24-second physical-drill playthrough.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 root=Path(__file__).resolve().parents[1]
 uri=(root/'PLAY-STARFALL.html').resolve().as_uri()
 out=root/'artifacts'/'8d-mining-chromium'
@@ -33,7 +34,7 @@ with sync_playwright() as p:
   assert state['bins']==2,state
   assert state['ore']==0 and state['depleted']==0,state
   assert state['active'] is None,state
-  page.locator('#ui21-navigation button[data-route="Operate"]').click()
+  open_mission_route(page, "Operate")
   assert page.locator('#mining8d-panel').is_visible()
   assert page.get_by_role('button',name='START 20 KG BORE / 24 S').is_disabled()
   assert page.get_by_role('button',name='LOAD 50 KG INTO SHIP / 16 S').is_disabled()

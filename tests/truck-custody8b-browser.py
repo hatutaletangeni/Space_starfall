@@ -19,7 +19,10 @@ with sync_playwright() as p:
   })""")
   assert initial['owner']=='ship' and initial['mode']=='secured' and initial['count']==1,initial
   assert 'SECURED INSIDE SHIP' in initial['label'],initial
-  page.locator('#asset-open').click()
+  # Use the real visible Mission workflow; #asset-open is hidden by UI22.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step',has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-action',has_text='ASSET MANAGER').click()
   assert page.locator('#truck-custody8b-asset-manager').is_visible()
   page.locator('#asset-close').click()
   page.evaluate("""() => {

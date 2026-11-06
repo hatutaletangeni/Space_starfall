@@ -4,6 +4,7 @@ source HUD and intact physical walking/boarding. Screenshot actual WebGL view.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 root=Path(__file__).resolve().parents[1]
 uri=(root/'PLAY-STARFALL.html').as_uri()
 out=root/'reports'/'ui20-screenshots'
@@ -27,10 +28,10 @@ with sync_playwright() as p:
   assert page.locator('.panel').evaluate('(e)=>100<e.getBoundingClientRect().height<=window.innerHeight')
   for id in ['controls-open','chart-open','obs-open','archive-t17-open']:
    assert page.locator('#'+id).is_visible(),id
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   for id in ['launch-open','asset-open']:
    assert page.locator('#'+id).is_visible(),id
-  page.locator('#ui21-navigation button[data-route="Overview"]').click()
+  open_mission_route(page, "Overview")
   assert page.locator('#ui20-vehicle-frame').is_hidden()
   page.screenshot(path=str(out/'01-flight-chase.png'))
   page.keyboard.press('v')
@@ -45,9 +46,9 @@ with sync_playwright() as p:
   assert page.locator('#ui21-manual').is_hidden(), 'Escape should close the Field Manual'
   page.locator('#ui-console-open').click()
   assert page.locator('#panel').is_visible()
-  page.locator('#ui21-navigation button[data-route="Operate"]').click()
+  open_mission_route(page, "Operate")
   assert page.locator('#fc-extra').is_visible()
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   page.locator('#launch-open').click()
   assert page.locator('#launch-dialog').is_visible()
   page.locator('#launch-close').click()
