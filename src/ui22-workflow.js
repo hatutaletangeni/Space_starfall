@@ -54,7 +54,7 @@
  const head=document.querySelector('.sf-head-actions');
  const mission=document.createElement('button');mission.type='button';mission.id='sf-mission-button';mission.textContent='MISSION';
  mission.setAttribute('aria-controls','sf-mission-flow');mission.setAttribute('aria-expanded','false');
- mission.addEventListener('click',()=>toggle());
+
  head?.prepend(mission);
  const origOpen=open,origClose=close;
  root.StarfallWorkflow8ER={open:i=>{origOpen(i);mission.setAttribute('aria-expanded','true');},close:()=>{origClose();mission.setAttribute('aria-expanded','false');},toggle:i=>{if(opened){origClose();mission.setAttribute('aria-expanded','false');}else{origOpen(i);mission.setAttribute('aria-expanded','true');}},stages:stages.map(x=>x.name)};
