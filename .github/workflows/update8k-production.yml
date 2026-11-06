@@ -10,6 +10,8 @@ on:
       - 'tests/expedition-manifest8k.test.cjs'
       - 'tests/physical-machinery-visuals8k.test.cjs'
       - 'tests/ship-service-t13-browser.py'
+      - 'tests/industrial-first-product8k-browser.py'
+      - 'tests/ui22_browser_nav.py'
       - 'PLAY-STARFALL*.html'
       - '.github/workflows/update8k-production.yml'
   pull_request:
