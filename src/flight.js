@@ -363,7 +363,14 @@ function cargoRampReady8B(){
  cargo8b.pose={x:BAY8B.BAY.centerX,z:BAY8B.BAY.rampEndZ,y:BAY8B.height(BAY8B.BAY.rampEndZ)};
  const tip=shipCargoWorld8B().position;cargo8b.pose=prior;
  const local=cargoSurfaceLocal8B(tip);
- return Math.abs(V.len(V.sub(tip,nearest.position))-nearest.radius-groundHeight(local,nearest))<3.25;
+ const groundClearance=V.len(V.sub(tip,nearest.position))-nearest.radius-groundHeight(local,nearest);
+ if(Math.abs(groundClearance)<3.25)return true;
+ const Hydro=window.StarfallHydrosphereLW04;
+ const ocean=Hydro?.sample(nearest,local,groundHeight(local,nearest),simTime,GALAXY_SEED);
+ // A floating/wet ramp can meet the waterline, but may not cut through a cliff
+ // or deep submerged terrain. Keep the original single truck physically tracked.
+ return !!(ocean?.hasWater&&groundClearance>=-.5&&groundClearance<=5&&
+  Math.abs((V.len(V.sub(tip,nearest.position))-nearest.radius)-ocean.surfaceHeightScene)<2.75);
 }
 function cargoInteract8B(){
  const fromInterior=shipWalking8e&&StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z)==='cargo'&&
@@ -673,7 +680,10 @@ addEventListener('keydown',ev=>{
   const ahead=V.dot(rel,ship.forward),side=V.dot(rel,right);
   // The shared hatch guard already reports the precise denial (range, cooldown,
   // water or conflicting transition). Do not replace it with a generic toast.
-  tryCrewHatchEntry8ER(ahead>-29&&ahead< -17&&Math.abs(side)<4.8);
+  const nearWaterline=swimming&&V.len(rel)<24&&Math.abs(side)<15;
+  // Waterline boarding uses a real animated approach to the central crew hatch.
+  // It is allowed only beside the landed ship, never from open ocean.
+  tryCrewHatchEntry8ER((ahead>-29&&ahead< -17&&Math.abs(side)<4.8)||nearWaterline);
 
   return;
  }
