@@ -12,7 +12,8 @@ with sync_playwright() as p:
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(URL,wait_until='domcontentloaded',timeout=90000)
  page.locator('#sfmobile-hud').wait_for(state='visible',timeout=30000)
- assert page.locator('[data-control="KeyW"]').count()==1
+ assert page.locator('#sfmobile-hud [data-control="KeyW"]').count()==1
+ assert page.locator('.mobile-controls [data-control="KeyW"]').count()==1,'Keep original desktop touch controls unchanged'
  assert page.locator('[data-mobile-key="KeyX"]').count()==1
  assert page.locator('[data-mobile-key="KeyB"]').count()==1
  assert page.locator('[data-mobile-key="KeyI"]').count()==1
