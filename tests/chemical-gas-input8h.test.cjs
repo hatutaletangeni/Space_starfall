@@ -136,13 +136,17 @@ test('native 420W inlet cannot contaminate a real 8A 80L pipe with another physi
   materialId:'oxygen',containerId:'pipe:'+f.ph,
   massKg:.001,volumeM3:.001,grade:1,
   provenance:'original-paid-other-8E-process'});
+ alienLedger.importLot({id:'real-other-process-nitrogen',
+  materialId:'nitrogen',containerId:'pipe:'+f.pc,
+  massKg:.001,volumeM3:.001,grade:1,
+  provenance:'original-paid-other-gas-route'});
  const polluted=alienLedger.snapshot();
  const q=In.create(started.transit).observe({
   materials8a:polluted,physical8a:f.physical8a,
   outpost5:f.native,powerReport:f.report(10),
   bodyId,bodyRadius:R,timeS:10});
- assert.ok(q.transit.jobs.find(x=>x.materialId==='hydrogen').paidJ===0,
-  'wrong-species pipe must HOLD native pump, not try to mix gas');
+ assert.ok(q.transit.jobs.every(x=>x.paidJ===0),
+  'both contaminated original 80L pipes must HOLD native pumps, never mix species');
  assert.deepEqual(q.materials8a.lots,polluted.lots,
   'no alien oxygen may be fabricated, destroyed or cross-mixed');
  const busy=fixture(),receipt=Mat.create(busy.materials8a);
