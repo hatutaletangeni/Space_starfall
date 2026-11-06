@@ -3,6 +3,8 @@ const test=require('node:test'),assert=require('node:assert/strict'),
  fs=require('node:fs'),path=require('node:path');
 const Mat=require('../src/physics/material-ledger8a.js');
 const Chem=require('../src/physics/industrial-chemistry8e.js');
+const Plant=require('../src/physics/industrial-plant8e.js');
+const Out=require('../src/physics/chemical-gas-output8h.js');
 require('../src/physics/pressure-gas-packets8h.js');
 require('../src/physics/industrial-gas-manifold8h.js');
 const In=require('../src/physics/chemical-gas-input8h.js');
@@ -169,6 +171,94 @@ test('native 420W inlet cannot contaminate a real 8A 80L pipe with another physi
  busy.materials8a=receipt.snapshot();
  assert.throws(()=>begin(busy),/EMPTY and UNRESERVED/,
   'a separate original 8A pending order must prevent reactor from stealing this same pipe');
+});
+test('FULL original 8A Sabatier: physically paid H2+CO2 inlet pipes → atom-balanced REAL 8E reaction → physical methane OUTLET pipe and real water cargo (no mass or power mint)',()=>{
+ const f=fixture(),mk={id:'8e:paid-methane-pipe',vessel:'8e:paid-methane-vessel',
+  port:'t02:real-methane-420w'};
+ const methanePipe={id:mk.id,type:'industrial_plant',condition:1,massKg:320,
+  location:{kind:'surface',bodyId,local:local(.03)},
+  state:{station:'pressure_pipeline',kitMaterialId:'plant_kit_pressure_pipeline',
+   enabled:true,containerId:'pipe:'+mk.id,t02LoadId:mk.port,ratedPressurePa:8e6}};
+ const methaneVessel={id:mk.vessel,type:'industrial_vessel',condition:1,
+  massKg:195,volumeM3:4,location:{kind:'surface',bodyId,local:local(.04)},
+  state:{materialId:'methane',kitMaterialId:'vessel_kit_methane',
+   enabled:true,containerId:'tank:'+mk.vessel,ratedPressurePa:8e6}};
+ f.physical8a.assets.push(methanePipe,methaneVessel);
+ for(const [i,a] of [methanePipe,methaneVessel].entries())
+  f.physical8a.transfers.push({id:'real-methane-kit-install:'+i,
+   action:'INSTALL',status:'COMMITTED',assetId:a.id,
+   sourceLotId:'real-original8f-manufactured-methane-kit:'+i,massKg:a.massKg});
+ const expanded=Mat.create(f.materials8a);
+ expanded.registerContainer({id:'pipe:'+mk.id,ownerId:mk.id,
+  kind:'sealed 8MPa gas pipe hold-up',maxMassKg:25,maxVolumeM3:.08});
+ expanded.registerContainer({id:'tank:'+mk.vessel,ownerId:mk.vessel,
+  kind:'gas rated pressure vessel',maxMassKg:1000,maxVolumeM3:4});
+ expanded.registerContainer({id:'8d:ship-main:materials',ownerId:'ship-main',
+  kind:'ship cargo materials',maxMassKg:9000,maxVolumeM3:16});
+ f.materials8a=expanded.snapshot();
+ f.gasManifolds['output:methane']={vesselId:mk.vessel,
+  pipeId:mk.id,powerPortId:mk.port};
+ const start=begin(f);
+ let state=start.transit,material=start.materials8a,when=0;
+ for(let t=10;t<=900;t+=10){
+  f.native.lastPoweredAt[bodyId]=t;
+  const q=In.create(state).observe({materials8a:material,
+   physical8a:f.physical8a,outpost5:f.native,
+   powerReport:f.report(t),bodyId,bodyRadius:R,timeS:t});
+  state=q.transit;material=q.materials8a;when=t;
+  close(mass(material),mass(f.materials8a));
+  if(In.create(state).readyFor('chem8e:1',material,['hydrogen','carbon_dioxide']))break;
+ }
+ const inlet=In.create(state);
+ assert.ok(inlet.readyFor('chem8e:1',material,['hydrogen','carbon_dioxide']),
+  'original 420W must actually pay both inlet gas routes before any chemistry');
+ const fromPipe={...Object.fromEntries(inlet.forJob('chem8e:1')
+  .map(j=>[j.materialId,'pipe:'+j.pipeId]))};
+ const inletProofs=Object.fromEntries(inlet.forJob('chem8e:1')
+  .map(j=>[j.materialId,j]));
+ const chemical=Plant.create().process({
+  id:'chem8e:1',reactionId:'sabatier',scaleMol:1,
+  materials:material,sourceContainerId:'8d:ship-main:materials',
+  destinations:{methane:'pipe:'+mk.id,water:'8d:ship-main:materials'},
+  reactantSources:fromPipe,assetState:f.physical8a,
+  station:{id:f.station,kind:'catalytic_reactor',installed:true,
+   enabled:true,condition:1,bodyId,
+   sourceContainerId:'8d:ship-main:materials',
+   tools:Chem.reactions.sabatier.requiredTools,physicalAssetId:f.station,
+   reactantAssetIds:{hydrogen:f.h,carbon_dioxide:f.co},
+   vesselAssetIds:{methane:mk.vessel},
+   gasManifolds:f.gasManifolds,gasInputStaged8H:true,
+   gasInputProofs8H:inletProofs,gasOutputStaged8H:true},
+  energyReceipt:{operationId:'chem8e:1',
+   sourceId:'ship-main:engineering-battery',
+   usedJ:Chem.batch('sabatier',1).energyJ},bodyId});
+ assert.equal(chemical.receipt.status,'COMMITTED');
+ assert.match(chemical.receipt.gasTransportAccounting,/INBOUND_REAL_VESSEL_TO_PIPE/);
+ close(mass(chemical.materials),mass(material));
+ assert.ok(chemical.materials.lots.some(x=>x.materialId==='methane'&&
+  x.containerId==='pipe:'+mk.id),'real methane must appear in 80L output pipe, not rated vessel');
+ assert.ok(chemical.materials.lots.some(x=>x.materialId==='water'&&
+  x.containerId==='8d:ship-main:materials'),'atom-balanced H2O must reach real ship cargo');
+ assert.ok(!chemical.materials.lots.some(x=>x.materialId==='hydrogen'&&
+  x.containerId==='pipe:'+f.ph),'real 8A source hydrogen is consumed at reactor');
+ assert.ok(!chemical.materials.lots.some(x=>x.materialId==='carbon_dioxide'&&
+  x.containerId==='pipe:'+f.pc),'real 8A source carbon dioxide is consumed at reactor');
+ assert.equal(chemical.materials.lots.filter(x=>x.containerId==='tank:'+mk.vessel).length,0,
+  'product methane is NOT instantly delivered to external tank');
+ const consumed=inlet.consume({chemicalJobId:'chem8e:1',
+  materialsBefore:material,materialsAfter:chemical.materials,timeS:when});
+ assert.ok(consumed.changed);
+ assert.equal(consumed.transit.jobs.filter(x=>x.status==='CONSUMED').length,2);
+ const out=Out.create().prepare({materials8a:chemical.materials,
+  physical8a:f.physical8a,receipt:chemical.receipt,
+  gasManifolds:f.gasManifolds,bodyId,bodyRadius:R,timeS:when});
+ assert.equal(out.changed,true);
+ assert.equal(out.jobs.length,1);
+ assert.equal(out.jobs[0].materialId,'methane');
+ assert.equal(out.jobs[0].status,'ACTIVE');
+ assert.equal(out.additionalElectricalDebitJ,0);
+ close(mass(out.materials8a),mass(f.materials8a),
+  1e-6); // original 8E atom-balanced conversion, no hidden new mass
 });
 test('T02 unplugged wire, off-world power, or unobserved 100x skip never moves original gas or debits another battery',()=>{
  const f=fixture(),start=begin(f);f.native.wires=[];
