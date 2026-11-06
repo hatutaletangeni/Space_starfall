@@ -89,7 +89,7 @@ test('real source-owned staged inlet requires native originally PAID two physica
  for(let t=10;t<=900;t+=10){
   if(t===80){
    state=In.create(JSON.parse(JSON.stringify(state))).snapshot();
-   material=Mat.create(JSON.parse(JSON.stringify(material)).snapshot()).snapshot();
+   material=Mat.create(JSON.parse(JSON.stringify(material))).snapshot();
   }
   f.native.lastPoweredAt[bodyId]=t;
   const q=In.create(state).observe({materials8a:material,
