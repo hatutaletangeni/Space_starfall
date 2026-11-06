@@ -1,4 +1,4 @@
-name: Rebuild and verify Update 8 release candidate
+name: Rebuild and verify Update 8 environment integration
 on:
   push:
     branches: [main]
@@ -31,6 +31,7 @@ jobs:
           python tests/standalone-parity.py
           node tests/cargo-bay8b.test.cjs
           node tests/update8a.test.cjs
+          node tests/update8ij.test.cjs
       - name: Push validated builds to existing fix branch
         run: |
           git config user.name "starfall-ci"
