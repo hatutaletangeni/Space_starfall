@@ -19,4 +19,8 @@ assert.match(engine,/this\.infrastructure=new Map\(\)/,'Shared GPU meshes are ca
 assert.match(flight,/infrastructure:window\.StarfallOutpostUI\?\.scene\(\)\|\|\[\]/);
 assert.ok(index.includes('src/ui22-workflow.js'),'Keep UI22 mission hierarchy');
 assert.ok(index.includes('src/physics/resource-test-lab-ui8h.js'),'Do not regress existing real 8H mining/gas controls');
+assert.match(engine,/const held=Number\(state\.shipHoldMassKg\)\|\|0/,'Ship pallets must use current 8A cargo mass');
+assert.match(engine,/if\(held>0\)/,'Zero actual ship cargo must not render fictional crate');
+assert.match(engine,/cargo_pallet/);
+assert.match(flight,/shipHoldMassKg:materials8a\.used\(StarfallMining8D\.SHIP\)\.massKg/);
 console.log('PASS: physical 8E/8H machine-specific GPU mesh prototypes and source-backed depot cargo visuals');
