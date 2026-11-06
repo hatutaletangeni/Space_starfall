@@ -37,6 +37,13 @@ with sync_playwright() as pw:
           const rt=StarfallRuntime,c=rt.outpostContext(),m=rt.materials8a.snapshot(),
             p=rt.physical8a.serialize(),ship=StarfallMining8D.SHIP,
             def=StarfallAssembly8G.DEFINITIONS.science_rover;
+          // This isolated 8G certification fixture replaces (does not stack
+          // onto) the new 8K preflight cargo. Never manufacture test parts
+          // into an already-full 16m³ ship hold; live Industrial saves remain
+          // unchanged and the real preflight has separate regression coverage.
+          const originalPreflight=m.lots.filter(l=>String(l.provenance||'').startsWith('initial_manifest:'));
+          m.lots=m.lots.filter(l=>!String(l.provenance||'').startsWith('initial_manifest:'));
+          if(!originalPreflight.length)throw Error('8K preflight not available for bounded test setup');
           if(!c.bodyId||!Array.isArray(c.local))throw Error('Missing EVA surface anchor');
           // Ship power is OFF by default. Engage the actual existing switch;
           // no energy is created by this controlled browser fixture.
@@ -50,6 +57,10 @@ with sync_playwright() as pw:
           for(const [materialId,massKg] of Object.entries(def.parts))
             m.lots.push({id:'8g-test-lot:'+(++i),materialId,massKg,volumeM3:massKg*.001,
               containerId:ship,grade:1,provenance:'TEST_FIXTURE_ONLY'});
+          const hold=m.containers.find(x=>x.id===ship),shipLots=m.lots.filter(x=>x.containerId===ship);
+          if(!hold||shipLots.reduce((n,l)=>n+l.massKg,0)>hold.maxMassKg+1e-6||
+              shipLots.reduce((n,l)=>n+l.volumeM3,0)>hold.maxVolumeM3+1e-6)
+            throw Error('Test assembly parts exceed REAL 8A ship hold mass or volume capacity');
           SF.save({physical8a:p,materials8a:m});
           // Stop the old in-memory runtime from overwriting this controlled
           // import during pagehide. Same rule as the official save restore path.
