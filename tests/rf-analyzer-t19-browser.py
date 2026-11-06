@@ -5,6 +5,7 @@ No fake route, no custom RF packet, no synthetic ACK or hardware energy.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 uri=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').as_uri()
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=['--use-gl=angle','--use-angle=swiftshader',
@@ -29,7 +30,7 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRFAnalyzerUI19&&window.StarfallOutpostUI&&window.StarfallCommsT03)",timeout=50000)
   assert page.evaluate("StarfallRuntime.landed && StarfallRuntime.eva")
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   page.locator('#outpost-open').click()
   ids={}
   for kind in ['battery','solar','antenna']:

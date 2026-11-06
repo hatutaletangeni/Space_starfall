@@ -7,6 +7,7 @@ mutation, auto-ACK or remoteLink stubs. Manual E2E items remain NOT VERIFIED.
 from pathlib import Path
 import json, statistics, os, time
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 
 ROOT=Path(__file__).resolve().parents[1]
 URI=(ROOT/'PLAY-STARFALL.html').as_uri()
@@ -47,7 +48,7 @@ with sync_playwright() as p:
   check(not any(pristine[k] for k in ('stations','rovers','satellites','photos','packets')),
    'Fresh save fabricated deployed hardware or confirmed evidence',pristine)
   visit(page,'archive-t17-open','archive-t17','archive-t17-close')
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   visit(page,'launch-open','launch-dialog','launch-close')
   page.screenshot(path=str(OUT/'01-unmodified-spaceflight.png'))
   # Permitted T18 fixture: change STARTING POSITION to a real existing solid
@@ -72,7 +73,7 @@ with sync_playwright() as p:
   page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallOutpostUI&&window.StarfallScienceUI)",timeout=60000)
   check(page.evaluate("StarfallRuntime.landed && StarfallRuntime.eva && !!StarfallRuntime.outpostContext()?.body"),'Landed EVA source not ready')
   # Open original Outposts UI by DOM event; no direct outpost .add or .link.
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   page.locator('#outpost-open').click()
   page.wait_for_function("!document.getElementById('outpost').hidden")
   placements=[]
@@ -159,7 +160,7 @@ with sync_playwright() as p:
   page.locator('#outpost-close').click()
   # A player-visible field-sensor acquisition; wait its actual time budget,
   # without directly calling source.sample() or inserting journal evidence.
-  page.locator('#ui21-navigation button[data-route="Explore"]').click()
+  open_mission_route(page, "Explore")
   page.locator('#field-open').click()
   page.locator('#field-instrument').select_option('thermometer')
   before=page.evaluate("StarfallScienceUI.journal.length")
@@ -175,7 +176,7 @@ with sync_playwright() as p:
    'Real UI instrument record lacks world/energy/position',obs)
   page.locator('#field-close').click()
   # Original T15 Workbench UI changes a rover part once; no direct store.apply.
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   page.locator('#systems-toggle').click()
   page.locator('#workbench-open').click()
   page.wait_for_function("!document.getElementById('workbench').hidden",timeout=15000)
@@ -205,7 +206,7 @@ with sync_playwright() as p:
   page.locator('#wb-close').click()
   # Portable STATE_ONLY archive is allowed here because there are no camera
   # metadata records. Download actually created by real browser.
-  page.locator('#ui21-navigation button[data-route="Overview"]').click()
+  open_mission_route(page, "Overview")
   page.locator('#archive-t17-open').click()
   with page.expect_download(timeout=30000) as item:
    page.locator('#archive-t17-export-state').click()

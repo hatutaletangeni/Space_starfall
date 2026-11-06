@@ -6,6 +6,7 @@ physics and 8A ledger handoffs are covered by focused Node receipt tests.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 src=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').as_uri()
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=[
@@ -52,7 +53,7 @@ with sync_playwright() as p:
   assert report['denied'] and not report['onFoot'],report
   assert report['noMutation'],report
   assert report['surfaceHoppers']==0,'No FREE 8E factory provided on a fresh original save: '+str(report)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   panel=page.locator('#industrial8h-surface-feed')
   assert panel.is_visible(),'Original Engineering panel must show genuine dry dock/hopper controls'
   text=panel.inner_text()
