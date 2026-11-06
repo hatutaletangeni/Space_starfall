@@ -1,0 +1,65 @@
+name: Rebuild STARFALL truck-bay fix standalones
+on:
+  push:
+    branches:
+      - fix/vehicle-bay-truck-boarding-20261106
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  rebuild-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/vehicle-bay-truck-boarding-20261106
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Bundle original offline standalone
+        run: python tools/build-standalone.py
+      - name: Locate mobile packaging script and build if available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f tools/build-mobile-standalone.py ]; then
+            python tools/build-mobile-standalone.py
+          elif [ -f tools/build-mobile.py ]; then
+            python tools/build-mobile.py
+          else
+            echo "::notice::No known mobile bundler at expected paths. Mobile edition remains NOT VERIFIED."
+          fi
+      - name: Commit synchronized standalone on fix branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "starfall-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PLAY-STARFALL.html
+          for file in PLAY-STARFALL-MOBILE.html PLAY-STARFALL-MOBILE-LANDSCAPE.html; do
+            if [ -f "$file" ]; then git add "$file"; fi
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m "build: synchronize offline playable standalones with truck boarding fix"
+            git push origin HEAD:fix/vehicle-bay-truck-boarding-20261106
+          else
+            echo "Bundled standalones already synchronized"
+          fi
+      - name: Check syntax and original standalone parity
+        run: |
+          node --check src/flight.js
+          python tests/standalone-parity.py
+          node tests/cargo-bay8b.test.cjs
+          node tests/update8a.test.cjs
+      - name: Preserve rebuilt playable HTML even if later gameplay checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-truck-bay-fix-playables
+          path: |
+            PLAY-STARFALL.html
+            PLAY-STARFALL-MOBILE.html

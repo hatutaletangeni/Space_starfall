@@ -12987,10 +12987,33 @@ function boardVehicleBayTruck8B(){
  }
  if(!a){showToast('VEHICLE BAY · No original expedition truck in physical inventory');return true;}
  if(cargo8b.mode==='secured'){
-  if(!cargoInteract8B())showToast('VEHICLE BAY · Truck tie-down release unavailable');
+  // The visible vehicle is still tied down. Release must update physical 8A custody,
+  // not merely change the 3D prop or bypass the ramp clearance check.
+  if(!cargoInteract8B()){
+   showToast('VEHICLE BAY · Cannot release tie-downs: ship must be landed, stationary and cargo ramp accessible');return true;
+  }
  }
- if(cargo8b.mode!=='ramp'||!truckBody||truckBody!==shipBody||!truckLocal){
-  showToast('VEHICLE BAY · Truck not ready inside bay. Check cargo and ramp status.');return true;
+ if(cargo8b.mode!=='ramp'){
+  showToast('VEHICLE BAY · Truck is still '+cargo8b.mode.toUpperCase()+'. Check the cargo ramp terrain and tie-down status.');return true;
+ }
+ const actualTruck=physical8a.get(START_TRUCK);
+ if(!actualTruck||actualTruck.location?.kind!=='surface'||actualTruck.location.bodyId!==shipBody?.id){
+  showToast('VEHICLE BAY · Physical truck custody does not match this planet; boarding blocked to prevent duplication');return true;
+ }
+ // Older restored saves may have the correct 8A surface custody and 8B ramp pose
+ // without a hydrated runtime truck anchor. Rebuild it from the actual ramp pose.
+ if((!truckBody||truckBody!==shipBody||!truckLocal)&&shipBody&&
+    Number.isFinite(cargo8b.pose?.x)&&Number.isFinite(cargo8b.pose?.z)&&
+    cargo8b.pose.z<=BAY8B.BAY.rampEndZ+3){
+  const rampTruck=shipCargoWorld8B();
+  if(rampTruck?.position){
+   truckBody=shipBody;
+   truckLocal=cargoSurfaceLocal8B(rampTruck.position);
+   truckForwardVec=[...shipForwardVec];
+  }
+ }
+ if(!truckBody||truckBody!==shipBody||!truckLocal){
+  showToast('VEHICLE BAY · Truck ramp position unavailable; check physical cargo custody and land on level ground');return true;
  }
  if(winch7d){showToast('VEHICLE BAY · Release the powered winch first');return true;}
  // Keep original 8A physical truck and battery. Use the same driving state as EVA boarding.
