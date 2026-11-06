@@ -64,7 +64,14 @@ function observe({packets,materials8a,physical8a,outpost5,powerReport,
     throw Error('8H actual 8A source custody changed before physical hop');
    const reserveId='8h-belt:'+job.id+':'+job.cursor;
    try{
-    ledger.reserve(reserveId,src.id,to.state.containerId,job.massKg);
+    const destinationContainerId=to.state.station==='cargo_depot'||
+     to.state.station==='conveyor_drive'?to.state.containerId:
+     to.state.dryFeedContainerId;
+    if(!destinationContainerId||to.state.station!=='cargo_depot'&&
+       to.state.station!=='conveyor_drive'&&
+       destinationContainerId!=='plantfeed8h:'+to.id)
+      throw Error('8H physical plant inlet must use its certified original hopper');
+    ledger.reserve(reserveId,src.id,destinationContainerId,job.massKg);
     receipt=ledger.commit(reserveId);
     job.currentLotId=receipt.outputLotId;job.cursor++;
     if(job.cursor===chain.length-1){
