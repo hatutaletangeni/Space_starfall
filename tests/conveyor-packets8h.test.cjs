@@ -119,3 +119,67 @@ test('clock replay, oversized stock and unsafe gas cannot masquerade as physical
  const wrong=fixture();wrong.physical8a.assets[2].location.bodyId='star-0-p1';
  assert.throws(()=>C.create().start({...wrong,id:'wrong-1',sourceLotId:'original-ore',massKg:12}));
 });
+
+
+test('real native T02 powered packet terminates in certified empty 8E chemical hopper, not ship cargo',()=>{
+ const f=fixture(),plant=f.physical8a.assets.find(a=>a.id==='depot-b');
+ plant.state.station='glass_furnace';
+ plant.state.kitMaterialId='plant_kit_glass_furnace';
+ plant.state.dryFeedContainerId='plantfeed8h:'+plant.id;
+ plant.state.containerId=plant.state.dryFeedContainerId;
+ plant.massKg=520;
+ f.physical8a.transfers.find(t=>t.assetId===plant.id).massKg=520;
+ const inlet=f.materials8a.containers.find(c=>c.id==='stock-b');
+ inlet.id=plant.state.dryFeedContainerId;
+ inlet.kind='integrated 8E dry-reactant feed hopper';
+ inlet.maxMassKg=120;inlet.maxVolumeM3=.20;
+ assert.equal(f.materials8a.lots.some(l=>l.containerId===inlet.id),false,
+   'manufactured feed hopper initially contains no free matter');
+ const machine=C.create();
+ const started=machine.start({...f,id:'packet-plant',sourceLotId:'original-ore',massKg:12});
+ let env={...f,materials8a:started.materials8a};
+ for(let timeS=3;timeS<=18;timeS+=3){
+  const q=machine.advance({id:'packet-plant',timeS,dtS:3,
+   physical8a:env.physical8a,materials8a:env.materials8a,outpost5:env.outpost5,
+   body,starPos,luminosityW});
+  env={...env,materials8a:q.materials8a,outpost5:q.outpost5};
+  assert.equal(mass(env.materials8a),12,'original 8A material cannot appear or disappear');
+  assert.ok(q.sourceEnergyServedJ>=1500-1e-7,'250W T02 native motors actually served');
+ }
+ const job=machine.snapshot().jobs[0];
+ assert.equal(job.status,'DELIVERED');
+ assert.equal(env.materials8a.lots[0].containerId,inlet.id);
+ assert.equal(env.materials8a.lots[0].id,job.currentLotId);
+ assert.equal(env.materials8a.operations.filter(x=>x.status==='COMMITTED').length,3);
+ assert.equal(env.materials8a.lots.filter(x=>x.containerId==='stock-a').length,0);
+ const invalid=fixture(),fake=invalid.physical8a.assets.find(a=>a.id==='depot-b');
+ fake.state.station='glass_furnace';
+ fake.state.dryFeedContainerId='fake-container';
+ assert.throws(()=>C.create().start({...invalid,id:'invalid-plant',
+  sourceLotId:'original-ore',massKg:12}),/hopper|ports|powered/i);
+});
+test('chemical hopper capacity denial never creates cargo and packet remains physically held',()=>{
+ const f=fixture(),plant=f.physical8a.assets.find(a=>a.id==='depot-b');
+ plant.state.station='glass_furnace';
+ plant.state.dryFeedContainerId='plantfeed8h:'+plant.id;
+ plant.state.containerId=plant.state.dryFeedContainerId;
+ plant.massKg=520;f.physical8a.transfers.find(t=>t.assetId===plant.id).massKg=520;
+ const inlet=f.materials8a.containers.find(c=>c.id==='stock-b');
+ inlet.id=plant.state.dryFeedContainerId;inlet.kind='integrated 8E dry-reactant feed hopper';
+ inlet.maxMassKg=120;inlet.maxVolumeM3=.20;
+ const m=C.create(),s=m.start({...f,id:'packet-full',sourceLotId:'original-ore',massKg:12});
+ let env={...f,materials8a:s.materials8a};
+ for(let t=3;t<=15;t+=3){
+  const q=m.advance({id:'packet-full',timeS:t,dtS:3,physical8a:env.physical8a,
+   materials8a:env.materials8a,outpost5:env.outpost5,body,starPos,luminosityW});
+  env={...env,materials8a:q.materials8a,outpost5:q.outpost5};
+ }
+ // The material owner is full: original stock in previous tray cannot teleport to plant.
+ inlet.maxMassKg=1;
+ const q=m.advance({id:'packet-full',timeS:18,dtS:3,physical8a:env.physical8a,
+  materials8a:env.materials8a,outpost5:env.outpost5,body,starPos,luminosityW});
+ assert.match(q.status,/HELD_CAPACITY_OR_CUSTODY/);
+ assert.notEqual(q.packets.jobs[0].status,'DELIVERED');
+ assert.equal(q.materials8a.lots[0].containerId,'conveyor8h:drive-b');
+ assert.equal(mass(q.materials8a),12);
+});
