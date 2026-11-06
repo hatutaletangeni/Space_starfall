@@ -21,6 +21,8 @@ assert.match(flight,/if\(room==='cargo'\)\{if\(boardVehicleBayTruck8B\(\)\)/);
 // while truckOccupied selects exclusive vehicle controls. Changing it back would
 // suppress the real truck/terrain update path and break ramp egress.
 assert.match(flight,/shipWalking8e=false;truckOccupied=true;eva=true;/);
+assert.match(flight,/if\(landed\)\{if\(eva\|\|truckOccupied\|\|manufacturedOccupied8G\)\{/,
+ 'Original truck remains in the surface vehicle physics branch after indoor boarding');
 assert.doesNotMatch(flight,/shipWalking8e=false;truckOccupied=true;eva=false;/);
 assert.match(flight,/const truck=truckWorldState\(\);pos=\[\.\.\.truck\.position\]/);
 assert.match(flight,/if\(!fromInterior&&V\.len\(V\.sub\(pos,access\)\)>35\)return false;/);

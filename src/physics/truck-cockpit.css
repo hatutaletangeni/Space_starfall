@@ -58,3 +58,15 @@ body.ui20[data-truck-driving=true] :is(#sf-quick-tools,#ui21-quick,#sf-console-n
  #ui20-vehicle-frame .ship-structure){display:none!important}
 body.ui20[data-truck-driving=true] #ui20-vehicle-frame{display:none!important}
 body.ui20[data-truck-driving=true] #sf-truck-cockpit{display:block!important}
+
+/* UI22: three immediate driving actions, secondary systems by use. */
+#sf-truck-cockpit .sft-main-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:7px 0}
+#sf-truck-cockpit .sft-main-actions button{background:#20465a}
+#sf-truck-cockpit .sft-section{border-top:1px solid #668da255;margin-top:6px;padding-top:4px}
+#sf-truck-cockpit .sft-section summary{padding:6px 3px;font-size:10px;font-weight:700;color:#bddde8;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+#sf-truck-cockpit .sft-section small{display:block;margin:5px 0;font-size:9px;color:#a4c0cd}
+#sf-truck-cockpit .sft-section:not([open]) .sft-tools{display:none}
+body.sfmobile-edition #sf-truck-cockpit .sft-main-actions{gap:3px;margin:3px 0}
+body.sfmobile-edition #sf-truck-cockpit .sft-section{margin-top:2px;padding-top:2px}
+body.sfmobile-edition #sf-truck-cockpit .sft-section summary{padding:3px;font-size:9px}
+body.sfmobile-edition #sf-truck-cockpit .sft-section small{font-size:8px}

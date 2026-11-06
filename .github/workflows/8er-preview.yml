@@ -1,0 +1,84 @@
+name: STARFALL 8E-R testable desktop and mobile previews
+on:
+  push:
+    branches:
+      - fix/expose-8e-industry-ui-20261106
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'tests/**'
+      - 'tools/build-standalone.py'
+      - 'tools/build-mobile-standalone.py'
+      - '.github/workflows/8er-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: starfall-8er-preview-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  synchronized-standalones:
+    if: "!contains(github.event.head_commit.message, '[8er-preview]')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Work from latest source revision, never stale queued CI checkout
+        run: |
+          git fetch origin fix/expose-8e-industry-ui-20261106
+          git checkout -B fix/expose-8e-industry-ui-20261106 origin/fix/expose-8e-industry-ui-20261106
+          echo "Building source revision $(git rev-parse HEAD)"
+      - name: Build both offline editions before tests
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Targeted S0–S2 regression tests
+        run: |
+          node tests/update8a.test.cjs
+          node tests/cargo-bay8b.test.cjs
+          node tests/new-expedition8er.test.cjs
+          node tests/ship-room-graph8er.test.cjs
+          node tests/ship-hatch8er.test.cjs
+          node tests/mobile-vehicle-bay.test.cjs
+          node tests/truck-cockpit.test.cjs
+          node tests/truck-ocean-recovery8er.test.cjs
+          node tests/ui22-workflow8er.test.cjs
+          node tests/resource-field-test8er.test.cjs
+      - name: Attach both complete offline playable files
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-8er-standalone-desktop-and-mobile
+          path: |
+            PLAY-STARFALL.html
+            PLAY-STARFALL-MOBILE.html
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish testable files on feature branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if git diff --cached --quiet; then
+            echo 'Both standalones are already in sync'
+            exit 0
+          fi
+          git commit -m 'build(8E-R): synchronized desktop + mobile test editions [8er-preview]'
+          git pull --rebase origin fix/expose-8e-industry-ui-20261106
+          # A newer edit may have landed while the job was queued or testing.
+          # Regenerate AFTER rebasing to avoid publishing an older scene or HUD.
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit --amend --no-edit
+          fi
+          git push origin HEAD:fix/expose-8e-industry-ui-20261106
