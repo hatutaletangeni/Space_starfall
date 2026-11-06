@@ -632,7 +632,18 @@ truckLocateControl8B.onclick=plotTruckDestination8B;
 $('chart-search')?.parentElement?.appendChild(truckLocateControl8B);
 function openChart(){drawChart();$('chart').hidden=false;controls.clear();$('chart-search')?.focus();}
 function closeChart(){if($('chart').contains(document.activeElement))document.activeElement.blur();$('chart').hidden=true;}
-$('new-galaxy').onclick=()=>{const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;};
+$('new-galaxy').onclick=()=>{
+ const confirmed=window.confirm('START A NEW EXPEDITION? Your existing save will be backed up before the new galaxy begins. The one original truck starts secured in the ship vehicle bay. Cancel to keep playing your current expedition.');
+ if(!confirmed)return;
+ const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);
+ try{
+  SF.startNewExpedition(seed);
+  const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;
+ }catch(error){
+  showToast('NEW EXPEDITION NOT STARTED · '+String(error?.message||error));
+  console.warn('New expedition cancelled without intentional deletion:',error);
+ }
+};
 $('chart-open').onclick=openChart;$('chart-close').onclick=closeChart;$('chart-search').oninput=drawChart;$('chart').addEventListener('click',e=>{if(e.target===$('chart'))closeChart();});
 $('panel-toggle').onclick=()=>{const c=$('panel').classList.toggle('collapsed');$('panel-toggle').textContent=c?'+':'−';$('panel-toggle').setAttribute('aria-expanded',String(!c));};
 document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.dataset.scan)));
