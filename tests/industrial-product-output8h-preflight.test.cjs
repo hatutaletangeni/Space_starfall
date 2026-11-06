@@ -89,3 +89,15 @@ test('rejects station disabled or on a different body',()=>{
   assert.throws(()=>output.commit(x),/Paid same-world original station/);
  }
 });
+
+test('rejects caller-only paid receipt without original authoritative packet archive',()=>{
+ const x=installed();
+ assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
+ x.packetArchive8h={schema:1,jobs:[]};
+ assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
+ x.transportReceipt.packetId='forged-packet';
+ x.packetArchive8h.jobs=[{id:'forged-packet',status:'ACTIVE',sourceId:x.stationId,
+  targetId:x.depotId,bodyId:x.bodyId,massKg:x.massKg,currentLotId:x.lotId,
+  completionS:12,cursor:2,driveIds:['drive']}];
+ assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
+});
