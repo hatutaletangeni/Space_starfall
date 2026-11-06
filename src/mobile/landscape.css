@@ -68,7 +68,7 @@ html,body.sfmobile-edition{width:100%;height:100%;overflow:hidden;touch-action:p
 .sfmobile-edition .masthead .starlogo{font-size:14px!important}
 .sfmobile-edition .masthead .top-link,.sfmobile-edition .masthead nav{display:none!important}
 .sfmobile-edition .identity,.sfmobile-edition .controls-hint,.sfmobile-edition .status-strip{display:none!important}
-.sfmobile-edition .panel{top:clamp(38px,7dvh,48px)!important;right:max(5px,env(safe-area-inset-right))!important;left:auto!important;bottom:auto!important;width:min(31vw,255px)!important;min-width:175px;max-height:calc(100dvh - 45px - (3 * var(--sfm-key,32px)))!important;padding:9px!important;border-radius:10px!important;font-size:10px!important;background:rgba(5,16,28,.9)!important;overflow:auto}
+.sfmobile-edition .panel{top:clamp(38px,7dvh,48px)!important;right:max(5px,env(safe-area-inset-right))!important;left:auto!important;bottom:auto!important;width:min(31vw,255px)!important;min-width:175px;max-height:calc(100dvh - 160px)!important;padding:9px!important;border-radius:10px!important;font-size:10px!important;background:rgba(5,16,28,.9)!important;overflow:auto}
 .sfmobile-edition .panel.collapsed{width:128px!important;padding:7px 9px!important;max-height:42px!important}
 .sfmobile-edition .panel-title h2{font-size:9px!important;letter-spacing:1px!important}
 .sfmobile-edition .panel-title button{width:23px!important;height:23px!important}
