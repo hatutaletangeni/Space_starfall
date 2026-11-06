@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """STARFALL T15 true file:// Chromium Workbench + 7A Asset Manager.
 Controlled landed physical fixture; never claims manually landed flight or GPU FPS.
@@ -34,7 +35,7 @@ with sync_playwright() as p:
    return{mass:v.stats.massKg,capacity:v.stats.batteryCapacityJ,energy:v.state.energyJ,
     torque:v.stats.driveTorqueNm,solar:v.stats.maxSolarW,source:v.definition.id};
   }""")
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   page.locator('#systems-toggle').click()
   page.wait_for_function("!document.getElementById('systems-inner').hidden",timeout=15000)
   page.locator('#workbench-open').click()
