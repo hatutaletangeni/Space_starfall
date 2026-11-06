@@ -111,6 +111,11 @@ with sync_playwright() as p:
             guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
         }""")
         assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
+        # Flight pagehide is an independent owner and can issue a stale save
+        # while the browser closes this page. Read back the REAL source owner
+        # first (above), then prevent only that old-page overwrite on reload.
+        # After reload the fresh runtime must independently restore all IDs.
+        page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallLaunchUI)",timeout=30000)
         restored=page.evaluate("""()=>{
