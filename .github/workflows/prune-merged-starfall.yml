@@ -1,0 +1,45 @@
+name: STARFALL safe merged branch cleanup
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prune-merged-starfall.yml'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Delete fully ancestor-merged branches after explicit safety checks'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+jobs:
+  audit-and-prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Import all original remote ref heads to prove ancestry
+        run: git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+      - name: Test deletion safety rules before scanning remotely
+        run: python tests/prune_safe_merged_branches.test.py
+      - name: Snapshot candidate SHA and required protected/open-PR exclusions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python tools/prune_safe_merged_branches.py
+      - name: Only remove unprotected fully merged branches, never unique/unreviewed work
+        if: github.event_name == 'push' || inputs.apply == true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python tools/prune_safe_merged_branches.py --apply
+      - name: Publish auditable exact names and original SHA of every deletion
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-safe-branch-cleanup-audit
+          path: artifacts/update8-branch-prune.json
+          if-no-files-found: warn
+          retention-days: 90
