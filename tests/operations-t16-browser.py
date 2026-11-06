@@ -62,8 +62,9 @@ with sync_playwright() as p:
   }""")
   assert stage['phase']=='IN_PROGRESS',stage
   assert page.locator('#op16-log-rows').inner_text().find('ops16')<0 or page.locator('#op16-log-rows').count()==1
-  # Open the player-visible Operate workspace before interacting with its filter.
-  open_mission_route(page, "Operate")
+  # The shared main operations card is mounted directly into panel-body and
+  # UI21 routes unmoved root panels into Overview (Mission: Navigate).
+  open_mission_route(page, "Overview")
   page.locator('#op16-filter-severity').select_option('info')
   assert page.locator('#op16-filter-severity').input_value()=='info'
   page.locator('#op16-asset').select_option('starfall-ship')
