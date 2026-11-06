@@ -4,6 +4,9 @@ on:
     branches:
       - update8/integration-repair-8h-8k-20261106
   workflow_dispatch:
+concurrency:
+  group: update8-integrate-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -20,6 +23,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Migrate legacy browser navigation to real Mission workspace
+        run: |
+          python tools/migrate-ui22-browser-tests.py
+          python -m compileall -q tests
       - name: Rebuild BOTH offline playable HTML files
         run: |
           python tools/build-standalone.py
@@ -37,7 +44,7 @@ jobs:
         run: |
           git config user.name "starfall-ci"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html tests/
           if ! git diff --cached --quiet; then
             git commit -m "build: update 8 integration standalones"
             git push origin HEAD:update8/integration-repair-8h-8k-20261106
