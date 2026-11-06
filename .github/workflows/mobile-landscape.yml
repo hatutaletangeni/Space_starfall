@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'src/mobile/**'
+      - 'src/physics/truck-cockpit.js'
+      - 'src/physics/truck-cockpit.css'
+      - 'index.html'
+      - 'tests/truck-cockpit.test.cjs'
       - 'src/flight.js'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
@@ -14,6 +18,10 @@ on:
   push:
     paths:
       - 'src/mobile/**'
+      - 'src/physics/truck-cockpit.js'
+      - 'src/physics/truck-cockpit.css'
+      - 'index.html'
+      - 'tests/truck-cockpit.test.cjs'
       - 'src/flight.js'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
@@ -37,6 +45,7 @@ jobs:
           python tests/standalone-parity.py
           python tests/mobile-standalone-parity.py
           node tests/mobile-vehicle-bay.test.cjs
+          node tests/truck-cockpit.test.cjs
   mobile-chromium:
     runs-on: ubuntu-latest
     timeout-minutes: 18
