@@ -167,6 +167,9 @@ test('chemical hopper capacity denial never creates cargo and packet remains phy
  const inlet=f.materials8a.containers.find(c=>c.id==='stock-b');
  inlet.id=plant.state.dryFeedContainerId;inlet.kind='integrated 8E dry-reactant feed hopper';
  inlet.maxMassKg=120;inlet.maxVolumeM3=.20;
+ f.materials8a.lots.push({id:'existing-hopper-stock',containerId:inlet.id,
+  materialId:'iron_ore',massKg:115,volumeM3:.16,
+  provenance:'previous certified physical original 8A delivery',grade:.8});
  const m=C.create(),s=m.start({...f,id:'packet-full',sourceLotId:'original-ore',massKg:12});
  let env={...f,materials8a:s.materials8a};
  for(let t=3;t<=15;t+=3){
@@ -174,12 +177,13 @@ test('chemical hopper capacity denial never creates cargo and packet remains phy
    materials8a:env.materials8a,outpost5:env.outpost5,body,starPos,luminosityW});
   env={...env,materials8a:q.materials8a,outpost5:q.outpost5};
  }
- // The material owner is full: original stock in previous tray cannot teleport to plant.
- env.materials8a.containers.find(c=>c.id===inlet.id).maxMassKg=1;
+ // The real certified 120kg hopper already holds 115kg; the new 12kg
+ // packet must safely remain inside the powered physical tray.
  const q=m.advance({id:'packet-full',timeS:18,dtS:3,physical8a:env.physical8a,
   materials8a:env.materials8a,outpost5:env.outpost5,body,starPos,luminosityW});
  assert.match(q.status,/HELD_CAPACITY_OR_CUSTODY/);
  assert.notEqual(q.packets.jobs[0].status,'DELIVERED');
- assert.equal(q.materials8a.lots[0].containerId,'conveyor8h:drive-b');
- assert.equal(mass(q.materials8a),12);
+ assert.ok(q.materials8a.lots.some(l=>l.containerId==='conveyor8h:drive-b'&&l.massKg===12));
+ assert.ok(q.materials8a.lots.some(l=>l.containerId===inlet.id&&l.massKg===115));
+ assert.equal(mass(q.materials8a),127);
 });
