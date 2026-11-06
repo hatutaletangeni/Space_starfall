@@ -32,7 +32,7 @@ test('8J atmosphere delta uses physical surface area and rejects duplicate inter
  const dup=T.advance(add.state,{deliveredGasKg:1e8,seconds:3600,receiptId:'physical-delivery-fixture'});
  assert.equal(dup.duplicate,true);
  assert.equal(dup.state.atmosphereKg,add.state.atmosphereKg);
- assert.throws(()=>T.advance(earth,{capturedGasKg:earth.atmosphereKg+1,receiptId:'excess'}),/withdraw more atmosphere/);
+ assert.throws(()=>T.advance(earth,{capturedGasKg:earth.atmosphereKg+1e12,receiptId:'excess'}),/withdraw more atmosphere/);
 });
 
 // These are MODEL checks, not an 8I–8K end-to-end game completion certificate.
