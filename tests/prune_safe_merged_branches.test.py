@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# Direct `python tests/...` execution starts with tests/ on sys.path.
+# Resolve the actual repository root; no external packages or test bypass.
+from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from tools.prune_safe_merged_branches import select
 main="9"*40
 branches=[
