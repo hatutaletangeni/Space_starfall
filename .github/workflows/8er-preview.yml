@@ -48,6 +48,7 @@ jobs:
           node tests/ship-hatch8er.test.cjs
           node tests/mobile-vehicle-bay.test.cjs
           node tests/truck-cockpit.test.cjs
+          node tests/truck-ocean-recovery8er.test.cjs
       - name: Attach both complete offline playable files
         uses: actions/upload-artifact@v4
         with:
