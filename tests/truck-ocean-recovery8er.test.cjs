@@ -14,7 +14,7 @@ assert.match(source,/function truckLocator8ER\(\)/);
 assert.match(source,/truckHudInfo,truckHudAction,truckLocator8ER,/);
 assert.match(source,/const actualLocal=truckBody\?\.id===body\.id&&Array\.isArray\(truckLocal\)\?truckLocal:asset\.location\.local/);
 assert.match(source,/Math\.acos\(V\.clamp\(V\.dot\(playerDir,truckDir\),-1,1\)\)/);
-assert.match(source,/if\(!landed\|\|nearest\?\.id!==body\.id\)return \{status:'OTHER_WORLD'/);
+assert.ok(source.includes("if(action==='SHORE')"),'Shore action must be bound to truck HUD');
 assert.match(beacon,/FOLLOW ARROW/);
 assert.match(beacon,/WATER \/ SHORE/);
 assert.match(beacon,/requestAnimationFrame\(tick\)/);
