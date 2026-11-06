@@ -1750,6 +1750,7 @@ function industrialDryFeedTransfer8H(sourceDepotId,stationId,sourceLotId,massKg)
  const q=StarfallIndustrialDryFeed8H.transfer({
   id:'8h-dry-feed:'+n,sourceLotId,sourceDepotId,stationId,massKg,
   materials8a:original,physical8a:physical8a.serialize(),
+  conveyorPackets8h:conveyorPackets8h.snapshot(),
   bodyId:ctx.bodyId,bodyRadius:ctx.body.radius,
   operatorLocal:[...evaLocal],operatorEVA:true,landed:true});
  if(SF.save({materials8a:q.materials8a})!==true||
