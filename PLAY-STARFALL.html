@@ -11279,9 +11279,19 @@ function create(saved){
   return{changed:true,transit:result,materials8a:material,
    receipts,gasCreatedKg:0,additionalElectricalDebitJ:0};
  }
- function readyFor(chemicalJobId,materials8a){
+ function readyFor(chemicalJobId,materials8a,expectedGasSpecies=null){
   const jobs=state.jobs.filter(x=>x.reactionJobId===chemicalJobId);
-  if(!jobs.length)return true;
+  // CRITICAL: an empty/corrupted inbound archive is NEVER proof that
+  // a gas-dependent original chemical reaction has physically received
+  // all its reagents. Require the EXACT stoichiometric species list.
+  if(expectedGasSpecies!==null){
+   if(!Array.isArray(expectedGasSpecies)||
+      new Set(expectedGasSpecies).size!==expectedGasSpecies.length||
+      expectedGasSpecies.length!==jobs.length||
+      expectedGasSpecies.some(sp=>!jobs.some(j=>j.materialId===sp)))
+    return false;
+  }
+  if(!jobs.length)return expectedGasSpecies===null||expectedGasSpecies.length===0;
   if(jobs.some(x=>x.status!=='READY'||x.stage!==2))return false;
   const ledger=ledgerAPI().create(materials8a);
   return jobs.every(j=>ledger.inventory().some(l=>
