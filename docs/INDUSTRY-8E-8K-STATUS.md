@@ -1,3 +1,11 @@
+# STARFALL 8E–8K — current runtime status (2026-11-06)
+
+**Current state:** Update 8A–8H contains *multiple playable source-owned systems*, including finite drilling, cargo loading, ship refinery, material/kit fabrication, machinery installation, atmospheric nitrogen, original T02-powered conveyors/gas pipe packets, and restricted physical offworld manifests. Full 8I–8K is NOT accepted. See [current acceptance report](../reports/UPDATE8-CURRENT-ACCEPTANCE-20261106.md) for evidence and blockers.
+
+The original model-pack-only section below is retained as the historical 2026-11-03 baseline. It no longer accurately describes the merged 2026-11-06 code.
+
+---
+
 # STARFALL Update 8E–8K: Engineering model status
 
 **Status: EXPERIMENTAL MODEL PACK, NOT A PLAYABLE RELEASE.** This branch derives from `feature/update-8d-mining-hauling` (not merged to `main`). Nothing in these files is automatically installed as a scene machine, player command or ship component. The Field Manual includes searchable, explicitly labeled entries for 8E–8K.
