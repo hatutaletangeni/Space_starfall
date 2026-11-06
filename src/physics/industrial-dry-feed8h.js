@@ -23,7 +23,7 @@ const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,
 const unit=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite)&&
  Math.abs(Math.hypot(...v)-1)<1e-3;
 function transfer({id:jobId,sourceLotId,sourceDepotId,stationId,massKg,
- materials8a,physical8a,bodyId,bodyRadius,operatorLocal,
+ materials8a,physical8a,conveyorPackets8h,bodyId,bodyRadius,operatorLocal,
  operatorEVA,landed}={}){
  if(!id(jobId)||!jobId.startsWith('8h-dry-feed:')||
     !id(sourceLotId)||!id(sourceDepotId)||!id(stationId)||
@@ -33,7 +33,9 @@ function transfer({id:jobId,sourceLotId,sourceDepotId,stationId,massKg,
     !physical8a||physical8a.schema!==1||
     !Array.isArray(physical8a.assets)||
     !Array.isArray(physical8a.transfers)||
-    !materials8a||materials8a.schema!==1)
+    !materials8a||materials8a.schema!==1||
+    !conveyorPackets8h||conveyorPackets8h.schema!==1||
+    !Array.isArray(conveyorPackets8h.jobs))
   throw Error('8H surface dry handoff needs actual landed on-foot operator and finite <=20kg original stock');
  const assets=new Map(physical8a.assets.map(a=>[a.id,a])),
   depot=assets.get(sourceDepotId),plant=assets.get(stationId);
@@ -65,12 +67,11 @@ function transfer({id:jobId,sourceLotId,sourceDepotId,stationId,massKg,
   throw Error('8H carry must physically reach both original structures (operator <=20 and depot→plant <=32 scene units)');
  const ledger=root.StarfallMaterials8A?.create(materials8a);
  if(!ledger)throw Error('8H original physical 8A stock owner unavailable');
- const source=ledger.inventory(sourceBin.id).find(l=>l.id===sourceLotId);
- if(!source||DRY_DENIED.has(source.materialId)||
-    source.grade==null||!finite(source.grade)||
-    source.massKg+EPS<massKg)
-  throw Error('8H original dry source lot absent in receiving depot or is gas/liquid');
- const originalKg=ledger.inventory().reduce((s,l)=>s+l.massKg,0);
+ const completed=conveyorPackets8h.jobs.find(j=>
+    j.status==='DELIVERED'&&j.targetId===sourceDepotId&&
+    j.bodyId===bodyId&&j.currentLotId===sourceLotId);
+ if(!completed)
+  throw Error('8H real receiving cargo depot MUST contain dry lot actually delivered by genuine 250W native T02 conveyor; no synthetic stock import');
  const old=ledger.operations().find(op=>op.id===jobId);
  if(old){
   if(old.status!=='COMMITTED'||old.lotId!==sourceLotId||
@@ -80,6 +81,12 @@ function transfer({id:jobId,sourceLotId,sourceDepotId,stationId,massKg,
   return {duplicate:true,materials8a:cp(materials8a),
    receipt:cp(old),gasCreatedKg:0,energyGrantedJ:0};
  }
+ const source=ledger.inventory(sourceBin.id).find(l=>l.id===sourceLotId);
+ if(!source||DRY_DENIED.has(source.materialId)||
+    source.grade==null||!finite(source.grade)||
+    source.massKg+EPS<massKg)
+  throw Error('8H original dry source lot absent in receiving depot or is gas/liquid');
+ const originalKg=ledger.inventory().reduce((s,l)=>s+l.massKg,0);
  ledger.reserve(jobId,sourceLotId,targetBin.id,massKg);
  const receipt=ledger.commit(jobId);
  const result=ledger.snapshot(),
