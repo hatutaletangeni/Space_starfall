@@ -50,6 +50,7 @@ jobs:
           node tests/truck-cockpit.test.cjs
           node tests/truck-ocean-recovery8er.test.cjs
           node tests/ui22-workflow8er.test.cjs
+          node tests/resource-field-test8er.test.cjs
       - name: Attach both complete offline playable files
         uses: actions/upload-artifact@v4
         with:
