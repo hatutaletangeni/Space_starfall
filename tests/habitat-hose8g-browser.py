@@ -16,7 +16,7 @@ with sync_playwright() as pw:
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(uri,wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=60000)
+        page.wait_for_function("typeof StarfallRuntime !== 'undefined' && !!StarfallRuntime.physical8a",timeout=60000)
         seed=page.evaluate("""() => {
           const rt=StarfallRuntime,b=rt.galaxy.byId.get('star-0-p0'),p=b.position,
                 x=SF.load();
