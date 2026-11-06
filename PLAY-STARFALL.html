@@ -7439,19 +7439,29 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
   isPressureLine=k.station==='pressure_pipeline',
   containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
     isDryConveyor?'conveyor8h:'+assetId:
-    isPressureLine?'pressurepipe8h:'+assetId:null;
+    isPressureLine?'pressurepipe8h:'+assetId:
+    // Every FULL paid 8E chemical station installation includes an EMPTY
+    // built-in dry feed hopper; no free raw material or separate hardware.
+    (k.type==='industrial_plant'&&
+     ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
+      .includes(k.station))?'plantfeed8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
   kind:isCargoDock?'sealed dry-solid cargo dock':
     isDryConveyor?'guarded dry-solid conveyor tray':
-    isPressureLine?'sealed 8MPa gas pipe hold-up':'gas pressure vessel',
-  // Paid 8E drives and certified rated pipes have EMPTY physical interiors.
-  // 8H pipeline maximum hold-up 80 litres and 25 kg, never free gas.
-  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:1000,
-  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:k.volumeM3});
+    isPressureLine?'sealed 8MPa gas pipe hold-up':
+    isVessel?'gas pressure vessel':'integrated 8E dry-reactant feed hopper',
+  // Machine hopper is a small EMPTY fixture included in the already paid
+  // original complete 8F factory kit, never an inventory grant or a tank.
+  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:
+    isVessel?1000:120,
+  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:
+    isVessel?k.volumeM3:.20});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
   state:{kitMaterialId:q.materialId,station:k.station||null,tools:k.tools||[],
-   materialId:k.materialId||null,containerId,ratedPressurePa:k.pressurePa||null,enabled:true}};
+   materialId:k.materialId||null,containerId,
+   dryFeedContainerId:containerId?.startsWith('plantfeed8h:')?containerId:null,
+   ratedPressurePa:k.pressurePa||null,enabled:true}};
  const receipt={id:jobId,assetId,status:'COMMITTED',sourceLotId:kitLotId,massKg:k.massKg};
  const physicalState=root.StarfallPhysical8A.create(physical);
  physicalState.install(machine,receipt);
@@ -11350,6 +11360,121 @@ if(typeof module!=='undefined'&&module.exports)
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL Update 8H — actual original 8A physical surface plant
+ * dry feed hopper, emptied by original 8E atom-balanced chemical owner.
+ * Genuine completed original 8F→8E paid plant kit contains a bounded EMPTY
+ * 120 kg / .20 m³ dry hopper. Real landed EVA carries up to 20 kg at a
+ * time from a separately paid installed receiving cargo depot into the
+ * built-in same-world plant inlet. The upstream original 250W native T02
+ * conveyor MUST actually deliver ore to the receiving depot first.
+ *
+ * No automatic conveyor-to-plant delivery here: this last-metre HANDOFF
+ * is explicitly manual and does not pretend to be a powered belt hop.
+ * The original 8A reserve→commit is the SOLE custody/material owner.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6,MAX_MASS=20,
+ MAX_DEPOT_HOP=32,MAX_EVA_REACH=20;
+const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const DRY_DENIED=new Set(['water','ice','liquid_water','oxygen',
+ 'nitrogen','hydrogen','carbon_dioxide','carbon_monoxide','methane',
+ 'sulfur_dioxide','argon','helium','ammonia']);
+const arc=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,
+  a.reduce((s,x,i)=>s+x*b[i],0))))*r;
+const unit=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite)&&
+ Math.abs(Math.hypot(...v)-1)<1e-3;
+function transfer({id:jobId,sourceLotId,sourceDepotId,stationId,massKg,
+ materials8a,physical8a,conveyorPackets8h,bodyId,bodyRadius,operatorLocal,
+ operatorEVA,landed}={}){
+ if(!id(jobId)||!jobId.startsWith('8h-dry-feed:')||
+    !id(sourceLotId)||!id(sourceDepotId)||!id(stationId)||
+    !id(bodyId)||!finite(bodyRadius)||bodyRadius<=0||
+    !finite(massKg)||massKg<=0||massKg>MAX_MASS||
+    operatorEVA!==true||landed!==true||!unit(operatorLocal)||
+    !physical8a||physical8a.schema!==1||
+    !Array.isArray(physical8a.assets)||
+    !Array.isArray(physical8a.transfers)||
+    !materials8a||materials8a.schema!==1||
+    !conveyorPackets8h||conveyorPackets8h.schema!==1||
+    !Array.isArray(conveyorPackets8h.jobs))
+  throw Error('8H surface dry handoff needs actual landed on-foot operator and finite <=20kg original stock');
+ const assets=new Map(physical8a.assets.map(a=>[a.id,a])),
+  depot=assets.get(sourceDepotId),plant=assets.get(stationId);
+ const sourceBin=materials8a.containers?.find(c=>c.id===depot?.state?.containerId&&c.ownerId===depot.id),
+  targetBin=materials8a.containers?.find(c=>c.id===plant?.state?.dryFeedContainerId&&c.ownerId===plant.id);
+ const installed=a=>!!a&&physical8a.transfers.some(t=>
+  t.action==='INSTALL'&&t.status==='COMMITTED'&&t.assetId===a.id&&
+  id(t.sourceLotId)&&finite(t.massKg)&&Math.abs(t.massKg-a.massKg)<EPS);
+ const same=a=>a?.location?.kind==='surface'&&a.location.bodyId===bodyId&&
+  unit(a.location.local)&&a.condition>=.8&&a.state?.enabled===true;
+ if(!same(depot)||!same(plant)||!installed(depot)||!installed(plant)||
+   depot.type!=='industrial_plant'||depot.state.station!=='cargo_depot'||
+   plant.type!=='industrial_plant'||![
+    'reduction_furnace','glass_furnace','high_temp_cell',
+    'electrolyzer','catalytic_reactor'].includes(plant.state.station))
+  throw Error('8H actual paid same-world cargo depot and manufactured surface chemical station required');
+ if(!sourceBin||!/dry-solid cargo dock/i.test(sourceBin.kind)||
+   !targetBin||!/dry-reactant feed hopper/i.test(targetBin.kind)||
+   Math.abs(targetBin.maxMassKg-120)>EPS||
+   Math.abs(targetBin.maxVolumeM3-.20)>EPS||
+   plant.state.dryFeedContainerId!=='plantfeed8h:'+plant.id)
+  throw Error('8H real original 8A 120kg/.20m³ integrated dry plant hopper inlet missing; old plants must use ship-fed legacy chemistry');
+ const sourceReach=arc(operatorLocal,depot.location.local,bodyRadius),
+  stationReach=arc(operatorLocal,plant.location.local,bodyRadius),
+  distance=arc(depot.location.local,plant.location.local,bodyRadius);
+ if(sourceReach>MAX_EVA_REACH+EPS||
+   stationReach>MAX_EVA_REACH+EPS||
+   distance>MAX_DEPOT_HOP+EPS||distance<.01)
+  throw Error('8H carry must physically reach both original structures (operator <=20 and depot→plant <=32 scene units)');
+ const ledger=root.StarfallMaterials8A?.create(materials8a);
+ if(!ledger)throw Error('8H original physical 8A stock owner unavailable');
+ const completed=conveyorPackets8h.jobs.find(j=>
+    j.status==='DELIVERED'&&j.targetId===sourceDepotId&&
+    j.bodyId===bodyId&&j.currentLotId===sourceLotId);
+ // The T02 packet's alleged DELIVERED status alone is NOT a mass
+ // receipt. Require the exact matching original 8A COMMITTED last hop
+ // from a source-owned 8h-belt operation to THIS real destination bin.
+ const arrival=ledger.operations().find(op=>op.status==='COMMITTED'&&
+    op.id.startsWith('8h-belt:')&&op.outputLotId===sourceLotId&&
+    op.destinationId===sourceBin.id&&
+    completed?.currentLotId===op.outputLotId);
+ if(!completed||!arrival)
+  throw Error('8H real receiving cargo depot requires BOTH a 250W native T02 DELIVERED packet and actual original 8A committed conveyor arrival receipt; no synthetic stock import');
+ const old=ledger.operations().find(op=>op.id===jobId);
+ if(old){
+  if(old.status!=='COMMITTED'||old.lotId!==sourceLotId||
+    old.destinationId!==targetBin.id||
+    Math.abs(old.massKg-massKg)>EPS)
+   throw Error('8H original feed receipt replay conflicts with existing custody');
+  return {duplicate:true,materials8a:cp(materials8a),
+   receipt:cp(old),gasCreatedKg:0,energyGrantedJ:0};
+ }
+ const source=ledger.inventory(sourceBin.id).find(l=>l.id===sourceLotId);
+ if(!source||DRY_DENIED.has(source.materialId)||
+    source.grade==null||!finite(source.grade)||
+    source.massKg+EPS<massKg)
+  throw Error('8H original dry source lot absent in receiving depot or is gas/liquid');
+ const originalKg=ledger.inventory().reduce((s,l)=>s+l.massKg,0);
+ ledger.reserve(jobId,sourceLotId,targetBin.id,massKg);
+ const receipt=ledger.commit(jobId);
+ const result=ledger.snapshot(),
+  afterKg=ledger.inventory().reduce((s,l)=>s+l.massKg,0);
+ if(Math.abs(originalKg-afterKg)>EPS)
+  throw Error('8H original surface intake transit broke 8A mass conservation');
+ return{duplicate:false,materials8a:result,
+  receipt:{...receipt,mode:'EVA_MANUAL_LAST_METRE',bodyId,
+   plantId:plant.id,depotId:depot.id,actualCarryScene:distance},
+  gasCreatedKg:0,energyGrantedJ:0,
+  sourceContainerId:sourceBin.id,targetContainerId:targetBin.id};
+}
+root.StarfallIndustrialDryFeed8H=Object.freeze({transfer,MAX_MASS,
+ MAX_DEPOT_HOP,MAX_EVA_REACH,DRY_DENIED});
+if(typeof module!=='undefined'&&module.exports)
+ module.exports=root.StarfallIndustrialDryFeed8H;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL Update 8H — read-only authoritative industry material-flow audit.
  *
  * This is NOT a new logistics owner, wallet, cargo renderer or teleport graph.
@@ -13663,13 +13788,27 @@ function industrialManifold8H(station,vessel){
   materialId:vessel.state.materialId,bodyId:station.location.bodyId,
   bodyRadius:nearest?.radius||0,timeS:simTime});
 }
-function industrialEquipment8E(reactionId,assetId){
+function industrialEquipment8E(reactionId,assetId,sourceMode='ship'){
  const recipe=StarfallIndustrialChemistry8E.reactions[reactionId];
  if(!recipe)throw Error('Unknown chemical reaction');
  const selected=physical8a.get(assetId);
  if(selected?.type!=='industrial_plant'||selected.state?.station!==recipe.station||
     selected.condition<.5||selected.location.kind!=='surface')
   throw Error('Install a real '+recipe.station+' station before processing');
+ if(!['ship','surface'].includes(sourceMode))
+  throw Error('Choose original ship feed or real 8A surface hopper');
+ let drySourceId=StarfallMining8D.SHIP;
+ if(sourceMode==='surface'){
+  const id=selected.state?.dryFeedContainerId;
+  const c=materials8a.containers().find(v=>v.id===id&&v.ownerId===selected.id);
+  const paid=physical8a.serialize().transfers.some(t=>
+   t.action==='INSTALL'&&t.status==='COMMITTED'&&t.assetId===selected.id&&
+   t.sourceLotId&&Math.abs(t.massKg-selected.massKg)<1e-6);
+  if(!paid||!c||!/dry-reactant feed hopper/i.test(c.kind)||
+     c.maxMassKg!==120||Math.abs(c.maxVolumeM3-.2)>1e-6)
+   throw Error('Real 8H original 8A surface feed bin needs a manufactured paid 8E station; old stations remain ship-fed');
+  drySourceId=id;
+ }
  const vessels={},destinations={},reactantSources={},reactantAssetIds={},gasManifolds={};
  const compatible=(materialId)=>physical8a.list().filter(a=>
    a.type==='industrial_vessel'&&a.condition>=.8&&a.state?.materialId===materialId&&
@@ -13706,16 +13845,53 @@ function industrialEquipment8E(reactionId,assetId){
   throw Error('8H distinct gas chemical streams require separate real powered pipelines');
  return {asset:selected,station:{id:selected.id,kind:recipe.station,condition:selected.condition,
   installed:true,enabled:selected.state.enabled!==false,bodyId:selected.location.bodyId,
-  sourceContainerId:StarfallMining8D.SHIP,tools:selected.state.tools,physicalAssetId:selected.id,
+  sourceContainerId:drySourceId,tools:selected.state.tools,physicalAssetId:selected.id,
   vesselAssetIds:vessels,reactantAssetIds,gasManifolds,gasOutputStaged8H:true},
   destinations,reactantSources,gasManifolds};
+}
+function industrialDryFeedTransfer8H(sourceDepotId,stationId,sourceLotId,massKg){
+ const ctx=outpostContext();
+ if(!ctx.landed||!ctx.eva||truckOccupied||shipWalking8e||
+    manufacturedOccupied8G||interiorState||!evaLocal||!ctx.body?.radius)
+  throw Error('Walk outside your actual landed ship and reach BOTH dry depot and chemical plant');
+ const original=materials8a.snapshot();
+ let n=original.operations.filter(o=>o.id?.startsWith('8h-dry-feed:')).length+1;
+ while(original.operations.some(o=>o.id==='8h-dry-feed:'+n))n++;
+ const q=StarfallIndustrialDryFeed8H.transfer({
+  id:'8h-dry-feed:'+n,sourceLotId,sourceDepotId,stationId,massKg,
+  materials8a:original,physical8a:physical8a.serialize(),
+  conveyorPackets8h:conveyorPackets8h.snapshot(),
+  bodyId:ctx.bodyId,bodyRadius:ctx.body.radius,
+  operatorLocal:[...evaLocal],operatorEVA:true,landed:true});
+ if(SF.save({materials8a:q.materials8a})!==true||
+    SF.storageStatus().durable!==true)
+  throw Error('8H dry surface feed custody failed original save');
+ if(JSON.stringify(SF.load().materials8a)!==JSON.stringify(q.materials8a))
+  throw Error('8H original 8A dry station source container readback mismatch');
+ materials8a=StarfallMaterials8A.create(q.materials8a);
+ showToast('8H · '+massKg.toFixed(2)+'kg manually loaded from REAL receiving depot to installed surface station hopper');
+ return q.receipt;
+}
+function industrialDryFeedContext8H(){
+ const ctx=outpostContext(),bodyId=ctx.bodyId;
+ const stations=physical8a.list().filter(a=>a.type==='industrial_plant'&&
+  a.location?.bodyId===bodyId&&a.state?.dryFeedContainerId&&
+  materials8a.containers().some(c=>c.id===a.state.dryFeedContainerId&&c.ownerId===a.id))
+  .map(a=>({id:a.id,station:a.state.station,
+   lotCount:materials8a.inventory(a.state.dryFeedContainerId).length,
+   lots:materials8a.inventory(a.state.dryFeedContainerId)}));
+ const depots=logisticsConveyorContext8H().depots;
+ return {bodyId,stations,depots,
+  onFoot:!!ctx.landed&&!!ctx.eva&&!truckOccupied&&!shipWalking8e&&
+   !manufacturedOccupied8G&&!interiorState,
+  receipts:materials8a.operations().filter(o=>o.id.startsWith('8h-dry-feed:')).slice(-20)};
 }
 function industrialCandidates8E(){return physical8a.list().filter(a=>a.type==='industrial_plant'&&
  a.location?.kind==='surface'&&a.location.bodyId===nearest?.id).map(a=>({
  id:a.id,station:a.state?.station,bodyId:a.location.bodyId}));}
-function industrialQuote8E(reactionId,stationId,scaleMol=100){
+function industrialQuote8E(reactionId,stationId,scaleMol=100,sourceMode='ship'){
  const c=refineryContext8E(),r=StarfallIndustrialChemistry8E.batch(reactionId,scaleMol);
- const equipment=industrialEquipment8E(reactionId,stationId);
+ const equipment=industrialEquipment8E(reactionId,stationId,sourceMode);
  if(!c.shipLanded||c.bodyId!==equipment.asset.location.bodyId)
   throw Error('Ship must be landed on same world as chemical plant');
  if(!shipLocal||Math.acos(Math.max(-1,Math.min(1,
@@ -13723,7 +13899,7 @@ function industrialQuote8E(reactionId,stationId,scaleMol=100){
   throw Error('Station outside ship electrical umbilical');
  const id='preview8e:temporary';
  const projected=StarfallIndustrialPlant8E.create(industrialPlant8e.snapshot()).process({
-  id,reactionId,scaleMol,materials:materials8a.snapshot(),sourceContainerId:StarfallMining8D.SHIP,
+  id,reactionId,scaleMol,materials:materials8a.snapshot(),sourceContainerId:equipment.station.sourceContainerId,
   destinations:equipment.destinations,reactantSources:equipment.reactantSources,
   assetState:physical8a.serialize(),station:equipment.station,
   energyReceipt:{operationId:id,sourceId:'quote-only-not-debited',usedJ:r.energyJ},bodyId:c.bodyId});
@@ -13733,13 +13909,13 @@ function industrialQuote8E(reactionId,stationId,scaleMol=100){
   materials8a:projected.materials,physical8a:physical8a.serialize(),
   receipt:projected.receipt,gasManifolds:equipment.gasManifolds,
   bodyId:c.bodyId,bodyRadius:nearest.radius,timeS:simTime});
- return {...r,stationId,destinations:equipment.destinations,gasManifolds:equipment.gasManifolds};
+ return {...r,stationId,sourceMode,sourceContainerId:equipment.station.sourceContainerId,destinations:equipment.destinations,gasManifolds:equipment.gasManifolds};
 }
-function industrialStart8E(reactionId,stationId,scaleMol=100){
+function industrialStart8E(reactionId,stationId,scaleMol=100,sourceMode='ship'){
  if(industrialJob8e.active)throw Error('Complete or cancel the current chemical job');
  const c=refineryContext8E();
  if(!c.operatorNear||!c.powerEnabled)throw Error('Use powered landed ship/nearby EVA service');
- const q=industrialQuote8E(reactionId,stationId,scaleMol);
+ const q=industrialQuote8E(reactionId,stationId,scaleMol,sourceMode);
  if(!c.energyJ||c.energyJ<100)throw Error('No ship electrical energy');
  // Real reagent gas cannot simply teleport into a reaction vessel:
  // reserve original 8A vessel gas for its own manufactured 80L 8MPa pipe.
@@ -13753,7 +13929,7 @@ function industrialStart8E(reactionId,stationId,scaleMol=100){
    gasManifolds:q.gasManifolds,outpost5:owner?.durableSnapshot?.(),
    powerReport:owner?.powerReports?.get(c.bodyId),
    bodyId:c.bodyId,bodyRadius:world?.radius,timeS:simTime});
- const active={schema:1,id:opId,reactionId,stationId,scaleMol,
+ const active={schema:1,id:opId,reactionId,stationId,scaleMol,sourceMode,
   bodyId:c.bodyId,elapsedS:0,energyJ:0,gasInputRequired8H:true,
   seconds:q.seconds,powerW:q.powerW,gasManifolds:q.gasManifolds};
  const nextJob={...industrialJob8e,serial:industrialJob8e.serial+1,active};
@@ -13804,7 +13980,7 @@ function industrialAdvance8E(elapsed){
  const c=refineryContext8E();
  if(!c.shipLanded||!c.powerEnabled||c.bodyId!==a.bodyId)return;
  try{
-  const selected=industrialEquipment8E(a.reactionId,a.stationId);
+  const selected=industrialEquipment8E(a.reactionId,a.stationId,a.sourceMode||'ship');
   // No old save, wire cut, pump power loss or target swap may silently
   // allow an unpaid gas batch to finish. Original energy and 8A custody
   // remain untouched while physical manifold is unverified.
@@ -13843,7 +14019,7 @@ function industrialAdvance8E(elapsed){
    const originalPreReaction=materials8a.snapshot();
    const result=StarfallIndustrialPlant8E.create(industrialPlant8e.snapshot()).process({
     id:a.id,reactionId:a.reactionId,scaleMol:a.scaleMol,materials:originalPreReaction,
-    sourceContainerId:StarfallMining8D.SHIP,destinations:selected.destinations,
+    sourceContainerId:selected.station.sourceContainerId,destinations:selected.destinations,
     reactantSources,
     assetState:physical8a.serialize(),station:{
      ...selected.station,gasInputStaged8H:needGas,
@@ -14963,7 +15139,7 @@ function shipDockReceiveT13(observationId){
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
 window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
- get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+ get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -21343,13 +21519,16 @@ const input=(placeholder,n)=>{const x=document.createElement('input');x.type='nu
 const button=t=>{const x=document.createElement('button');x.type='button';x.className='science-action';x.textContent=t;return x};
 const kits=choose(),front=input('Forward',24),right=input('Right',0),build=button('ERECT PHYSICAL PLANT OR VESSEL');
 const buildStatus=p('Choose a finite industrial kit in your ship cargo, exit on EVA, and position beside the construction site. Placement is limited by ship umbilical and clearance.');
-const plants=choose(),reactions=choose(),batchSize=choose(),start=button('START CHEMICAL WORK'),cancel=button('CANCEL JOB (SPENT ENERGY LOST)');
+const plants=choose(),reactions=choose(),batchSize=choose(),sourceMode=choose(),start=button('START CHEMICAL WORK'),cancel=button('CANCEL JOB (SPENT ENERGY LOST)');
+for(const [v,label] of [['ship','ORIGINAL SHIP HOLD'],['surface','ACTUAL 8A SURFACE PLANT FEED HOPPER']]){
+ const opt=document.createElement('option');opt.value=v;opt.textContent=label;sourceMode.appendChild(opt);
+}
 for(const scale of [0.05,0.1,0.25,1,5,10,25,50,100]){const o=document.createElement('option');o.value=String(scale);o.textContent=scale+' mol feed basis';batchSize.appendChild(o);}
 const processStatus=p('Specialized reactions now require certified chemical inputs and ORIGINAL physically paid gas manifolds: each gas stream needs its own installed 320 kg / 8 MPa pipeline within 12 scene units of the real station and matching pressure-rated vessel, with an installed, WIRED, currently served original 420 W native T02 pump load. The original ship battery pays the chemical reaction, which now makes each product gas lot INSIDE its actual empty 80 L pipe. The original 420 W native T02 grid then separately pumps this RESERVED 8A gas lot into its rated output vessel over simulated time; disconnects/blackouts pause the gas in the pipe. Gas INPUT now physically reserves existing rated-vessel stock, loads the manufactured 80 L inlet pipe after source-paid native T02 power, then pays a second real pump interval to make the reactor feed ready. Both reactants and products remain original 8A tracked matter; cancelled pipe-loaded gas is NOT magically refunded. A legacy active reaction without staged inlet IDs must be cancelled/restarted rather than bypass its pipe.');
 const result=document.createElement('pre');result.style.cssText='white-space:pre-wrap;font:11px/1.5 Consolas,monospace;color:#c8d9d9;background:#101b23;border:1px solid #53677566;padding:12px;max-height:300px;overflow:auto';
 for(const [id,spec] of Object.entries(root.StarfallIndustrialChemistry8E.reactions)){const o=document.createElement('option');o.value=id;o.textContent=spec.label;reactions.appendChild(o);}
 const row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row.append(kits,front,right,build);
-const row2=document.createElement('div');row2.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row2.append(plants,reactions,batchSize,start,cancel);
+const row2=document.createElement('div');row2.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row2.append(plants,reactions,batchSize,sourceMode,start,cancel);
 box.append(label('8E · PHYSICAL REFINERY PLACEMENT'),p('Finite kit → installed terrain machine or rated gas vessel. Existing 8A physical assets are rendered directly on the surface. Erection consumes the full kit and ship battery energy.'),row,buildStatus,
  label('8E · CHEMICAL PLANT CONTROL'),p('Chemistry uses one physical station, certified reagents, dedicated pressure-rated gas storage and timed battery work. This is educational idealized chemistry; do not treat it as real industrial equipment engineering.'),row2,processStatus,result);
 host.append(box);
@@ -21374,7 +21553,7 @@ function refresh(){
  const reagentGas=r.chemicalGasInput8h?.jobs||[];
  const realInlet=reagentGas.filter(j=>j.bodyId===c.bodyId).slice(-8);
  let processQuote=null,processErr='';
- if(plants.value){try{processQuote=r.industrialQuote8E(reactions.value,plants.value,Number(batchSize.value));}
+ if(plants.value){try{processQuote=r.industrialQuote8E(reactions.value,plants.value,Number(batchSize.value),sourceMode.value);}
  catch(e){processErr=String(e.message||e);}}
  build.disabled=!siteQuote?.ready||!c.powerEnabled||!c.shipLanded||!c.energyJ||siteQuote.workJ>c.energyJ;
  start.disabled=!!active||!c.operatorNear||!c.powerEnabled||!processQuote;
@@ -21385,6 +21564,7 @@ function refresh(){
  '\nPHYSICAL BUILD SITE: '+(siteQuote?.ready?'READY · '+siteQuote.workJ+' J to erect':(siteErr||'NO ONBOARD FACILITY KIT'))+
  '\nBUILT INDUSTRIAL FACILITIES: '+assets.length+
  (assets.length?'\n'+assets.map(a=>'  '+a.id+' '+a.type+' · '+(a.state.station||a.state.materialId)).join('\n'):'')+
+ '\nSOLID/LIQUID REAGENT SOURCE: '+(sourceMode.value==='surface'?'REAL PAID 8A STATION DRY HOPPER (no free ship resupply)':'ORIGINAL SHIP CARGO')+
  '\nREACTION: '+(processQuote?processQuote.equation+' · '+processQuote.energyJ+' J / '+processQuote.seconds+' s':processErr||'SELECT A STATION')+
  '\nCURRENT JOB: '+(active?active.reactionId+' / '+(100*active.elapsedS/active.seconds).toFixed(1)+'% / '+Math.round(active.energyJ)+' J paid':'NONE')+
  '\nACTUAL 8A PRODUCT GAS TRANSIT (80 L physical line → rated receiver): '+(gasOwned.length?gasOwned.length+' real chemical source-owned shipments':'NO PENDING GAS')+
@@ -21406,11 +21586,79 @@ function refresh(){
 function call(action,out){try{const x=action();out.textContent='COMMITTED: '+(x?.id||x?.assetId||'operation');}
  catch(e){out.textContent='BLOCKED: '+String(e.message||e);}refresh();}
 build.addEventListener('click',()=>call(()=>rt().industrialInstall8E(kits.value,+front.value,+right.value),buildStatus));
-start.addEventListener('click',()=>call(()=>rt().industrialStart8E(reactions.value,plants.value,Number(batchSize.value)),processStatus));
+start.addEventListener('click',()=>call(()=>rt().industrialStart8E(reactions.value,plants.value,Number(batchSize.value),sourceMode.value),processStatus));
 cancel.addEventListener('click',()=>call(()=>rt().industrialCancel8E(),processStatus));
-for(const el of [kits,front,right,plants,reactions,batchSize]){el.addEventListener('change',refresh);}
+for(const el of [kits,front,right,plants,reactions,batchSize,sourceMode]){el.addEventListener('change',refresh);}
 function frame(){const n=performance.now();if(n-last>1000){last=n;refresh();}requestAnimationFrame(frame);}frame();
 root.StarfallIndustrialSiteUI8E={refresh};
+})(globalThis);
+
+</script><script>
+/* STARFALL 8H — actual original 8A paid dry receiving dock to
+ * installed 8E chemical station bounded dry-feed hopper. Not a second
+ * inventory, not an invisible automatic conveyor delivery.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Engineer"]');
+if(!host||!root.StarfallRuntime?.industrialDryFeedContext8H)return;
+const section=document.createElement('section');
+section.className='section';section.id='industrial8h-surface-feed';
+const heading=document.createElement('div');heading.className='section-title';
+heading.textContent='8H · REAL SURFACE CHEMICAL DRY FEED';
+section.appendChild(heading);
+const note=document.createElement('p');
+note.className='panel-note';
+note.textContent='Use a genuine 250 W T02 powered belt to deliver dry solids into a separately paid receiving cargo depot first. Next, physically walk on EVA close to BOTH that depot and the already manufactured 8E chemical station, then manually carry up to 20 kg into its EMPTY 120 kg / 0.20 m³ original 8A built-in feed hopper. This last-metre step is MANUAL, not an automatic conveyor-to-machine port. Select SURFACE HOPPER in the 8E chemical recipe above to use it, without silently taking materials from the ship.';
+section.appendChild(note);
+const select=()=>{const x=document.createElement('select');x.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px;max-width:100%';return x;};
+const source=select(),station=select(),lot=select();
+const mass=document.createElement('input');
+mass.type='number';mass.min='0.01';mass.max='20';mass.step='0.01';
+mass.value='1';mass.style.cssText='width:80px;background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:8px';
+const button=document.createElement('button');
+button.className='science-action';button.textContent='EVA CARRY REAL 8A DRY LOT INTO PLANT';
+const readout=document.createElement('pre');
+readout.style.cssText='white-space:pre-wrap;color:#d4dfe1;font:11px/1.5 Consolas,monospace';
+readout.id='industrial8h-dry-feed-readout';
+const line=document.createElement('div');line.style.cssText='display:flex;flex-wrap:wrap;gap:7px;align-items:center';
+line.append(source,station,lot,mass,button);section.append(line,readout);host.appendChild(section);
+function choose(el,rows,choice,label){
+ const old=el.value;
+ const signature=rows.map(x=>x.id).join('|');
+ if(el.dataset.sig===signature)return;
+ el.replaceChildren();
+ for(const x of rows){const o=document.createElement('option');o.value=x.id;o.textContent=label(x);el.append(o);}
+ el.dataset.sig=signature;
+ if(rows.some(x=>x.id===old))el.value=old;
+}
+function refresh(){
+ const r=root.StarfallRuntime,c=r.industrialDryFeedContext8H();
+ choose(source,c.depots,null,x=>'RECEIVED DEPOT · '+x.id);
+ choose(station,c.stations,null,x=>x.station+' · '+x.id);
+ const depot=c.depots.find(x=>x.id===source.value);
+ choose(lot,depot?.lots||[],null,x=>x.materialId+' · '+x.massKg.toFixed(2)+'kg · '+x.id);
+ const chosenLot=depot?.lots?.find(x=>x.id===lot.value);
+ button.disabled=!c.onFoot||!depot||!station.value||!chosenLot||
+  !(Number(mass.value)>0&&Number(mass.value)<=20)||
+  Number(mass.value)>chosenLot.massKg;
+ readout.textContent='BODY: '+(c.bodyId||'LAND SHIP')+
+ '\nOPERATOR: '+(c.onFoot?'ON FOOT, ORIGINAL EVA':'LAND AND EXIT SHIP')+
+ '\nRECEIVED 8A DEPOTS: '+c.depots.length+
+ '\nPAID ORIGINAL PLANT FEED HOPPERS: '+c.stations.length+
+ '\nSTATION SOURCE LOTS: '+(c.stations.find(x=>x.id===station.value)?.lots||[])
+  .map(x=>x.materialId+' '+x.massKg.toFixed(2)+'kg').join(', ')+
+ '\nREAL HANDOFF RECEIPTS: '+c.receipts.length+
+ '\nUPSTREAM: must actually deliver from another depot via native 250 W T02 before carrying. The current transfer makes NO claim of motorized final connection.';
+}
+button.addEventListener('click',()=>{
+ try{
+  const q=root.StarfallRuntime.industrialDryFeedTransfer8H(source.value,station.value,lot.value,Number(mass.value));
+  readout.textContent='COMMITTED ORIGINAL 8A: '+q.id+' · '+q.massKg+' kg into genuine installed plant bin · NO invented mass or Joules';
+ }catch(e){readout.textContent='HELD: '+String(e.message||e);}
+ refresh();
+});
+for(const e of [source,station,lot,mass])e.addEventListener('change',refresh);
+let last=0;function frame(t){if(t-last>1200){last=t;refresh();}requestAnimationFrame(frame);}frame(0);
 })(globalThis);
 
 </script><script>
