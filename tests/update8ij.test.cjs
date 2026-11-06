@@ -41,6 +41,9 @@ test('8J mass-conservative pressure and idempotent receipts',()=>{
  const repeat=climate.advance(a.state,{deliveredGasKg:1e6,capturedGasKg:4e5,lostGasKg:2e5,receiptId:'delivery-1',seconds:1000});
  assert.equal(repeat.duplicate,true);
  assert.deepEqual(repeat.state,a.state);
+ assert.throws(()=>climate.advance(a.state,{deliveredGasKg:1e6+1,
+   capturedGasKg:4e5,lostGasKg:2e5,receiptId:'delivery-1',seconds:1000}),
+   /Conflicting terraforming receipt/,'replaying same ID with changed mass must fail closed');
 });
 test('8J cannot withdraw unsupported atmosphere or accept negative gas',()=>{
  assert.throws(()=>climate.advance(world(),{capturedGasKg:6e18,receiptId:'impossible'}),/Cannot withdraw/);
