@@ -81,6 +81,20 @@ test('NO ARCHIVE and MISSING ONE GAS SPECIES must never authorize free reactor J
  const flight=fs.readFileSync(path.join(__dirname,'../src/flight.js'),'utf8');
  assert.match(flight,/chemicalGasInput8h\.readyFor\(a\.id,materials8a\.snapshot\(\),exactGasSpecies\)/);
 });
+test('no genuinely produced H2 inventory means no input gas reservation, reactor work or free matter',()=>{
+ const f=fixture(),without=structuredClone(f.materials8a);
+ without.lots=without.lots.filter(x=>x.materialId!=='hydrogen');
+ const original=structuredClone(without);
+ assert.throws(()=>In.create().prepare({
+  chemicalJobId:'chem8e:missing-real-hydrogen',reactionId:'sabatier',
+  scaleMol:1,stationId:f.station,materials8a:without,
+  physical8a:f.physical8a,gasManifolds:f.gasManifolds,
+  outpost5:f.native,powerReport:f.report(0),
+  bodyId,bodyRadius:R,timeS:0
+ }),/UNRESERVED real certified reactor feedstock gas: hydrogen/);
+ assert.deepEqual(without,original,
+  'missing authentic 8A hydrogen cannot create reactor fuel or source material');
+});
 test('two real manufactured/signed inlet pipes reserve exact finite original 8A H2 and CO2, without creating stock or gas power',()=>{
  const f=fixture(),a=structuredClone(f.materials8a),q=begin(f);
  assert.equal(q.changed,true);assert.equal(q.jobs.length,2);
