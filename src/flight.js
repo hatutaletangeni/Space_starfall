@@ -3203,16 +3203,17 @@ function truckLocator8ER(){
  if(!body||!Array.isArray(asset.location.local))return {status:'UNKNOWN',label:'TRUCK LOCATION UNAVAILABLE'};
  if(!landed||nearest?.id!==body.id)return {status:'OTHER_WORLD',label:'TRUCK ON '+(body.name||body.id)};
  const playerDir=V.norm(V.sub(pos,body.position));
- const truckDir=V.norm(V.rot(asset.location.local,body.spinAxis||[0,1,0],body.spinAngle||0));
+ const actualLocal=truckBody?.id===body.id&&Array.isArray(truckLocal)?truckLocal:asset.location.local;
+ const truckDir=V.norm(V.rot(actualLocal,body.spinAxis||[0,1,0],body.spinAngle||0));
  const angle=Math.acos(V.clamp(V.dot(playerDir,truckDir),-1,1));
- const distance=Math.round(angle*(body.radius+Math.max(0,groundHeight(asset.location.local,body))));
+ const distance=Math.round(angle*(body.radius+Math.max(0,groundHeight(actualLocal,body))));
  const forwardVector=truckOccupied?truckForwardVec:eva?evaForward:forward;
  const tangent=V.norm(V.sub(forwardVector,V.mul(playerDir,V.dot(forwardVector,playerDir))));
  const right=V.norm(V.cross(tangent,playerDir));
  const toward=V.norm(V.sub(truckDir,V.mul(playerDir,V.dot(truckDir,playerDir))));
  const bearing=Math.atan2(V.dot(toward,right),V.dot(toward,tangent));
  return {status:'SURFACE',distanceScene:distance,bearingRad:bearing,
-  label:'EXPEDITION TRUCK',bodyId:body.id,atWater:!!window.StarfallHydrosphereLW04?.sample(body,asset.location.local,groundHeight(asset.location.local,body),simTime,GALAXY_SEED)?.hasWater};
+  label:'EXPEDITION TRUCK',bodyId:body.id,atWater:!!window.StarfallHydrosphereLW04?.sample(body,actualLocal,groundHeight(actualLocal,body),simTime,GALAXY_SEED)?.hasWater};
 }
 window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
  get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
