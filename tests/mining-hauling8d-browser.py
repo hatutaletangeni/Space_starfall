@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """8D genuine offline Chromium integration: native UI, unmined stock,
 one-truck authority, source-backed containers, save/reload, zero network.
@@ -33,7 +34,7 @@ with sync_playwright() as p:
   assert state['bins']==2,state
   assert state['ore']==0 and state['depleted']==0,state
   assert state['active'] is None,state
-  page.locator('#ui21-navigation button[data-route="Operate"]').click()
+  open_route(page,'Operate')
   assert page.locator('#mining8d-panel').is_visible()
   assert page.get_by_role('button',name='START 20 KG BORE / 24 S').is_disabled()
   assert page.get_by_role('button',name='LOAD 50 KG INTO SHIP / 16 S').is_disabled()
