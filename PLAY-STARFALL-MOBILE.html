@@ -378,6 +378,18 @@ body.ui20[data-truck-driving=true] :is(#sf-quick-tools,#ui21-quick,#sf-console-n
 body.ui20[data-truck-driving=true] #ui20-vehicle-frame{display:none!important}
 body.ui20[data-truck-driving=true] #sf-truck-cockpit{display:block!important}
 
+/* UI22: three immediate driving actions, secondary systems by use. */
+#sf-truck-cockpit .sft-main-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:7px 0}
+#sf-truck-cockpit .sft-main-actions button{background:#20465a}
+#sf-truck-cockpit .sft-section{border-top:1px solid #668da255;margin-top:6px;padding-top:4px}
+#sf-truck-cockpit .sft-section summary{padding:6px 3px;font-size:10px;font-weight:700;color:#bddde8;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+#sf-truck-cockpit .sft-section small{display:block;margin:5px 0;font-size:9px;color:#a4c0cd}
+#sf-truck-cockpit .sft-section:not([open]) .sft-tools{display:none}
+body.sfmobile-edition #sf-truck-cockpit .sft-main-actions{gap:3px;margin:3px 0}
+body.sfmobile-edition #sf-truck-cockpit .sft-section{margin-top:2px;padding-top:2px}
+body.sfmobile-edition #sf-truck-cockpit .sft-section summary{padding:3px;font-size:9px}
+body.sfmobile-edition #sf-truck-cockpit .sft-section small{font-size:8px}
+
 </style><style>
 /* Compact heading indicator, works in portrait desktop and mobile landscape. */
 #sf-truck-locator8er{position:fixed;z-index:12;top:56px;left:50%;transform:translateX(-50%);
@@ -395,6 +407,69 @@ body.sfmobile-edition #sf-truck-locator8er b{font-size:8px}
 body.sfmobile-edition #sf-truck-locator8er small{font-size:8px}
 body.sfmobile-edition #sf-truck-locator8er .sf-truck-arrow{font-size:17px;min-width:17px}
 body[data-truck-driving=true] #sf-truck-locator8er{display:none!important}
+
+</style>
+<style>
+/* 8E-R single chronological control hierarchy; no simulations or button IDs changed. */
+body.ui20 .sf-head-actions #ui-console-open,
+body.ui20 .sf-head-actions #ui-tools-toggle,
+body.ui20 .sf-head-actions #sf-quick-tools{display:none!important}
+body.ui20 .sf-head-actions #sf-mission-button{display:inline-flex;align-items:center;justify-content:center;background:#315d78!important;border-color:#86c4db!important;min-width:94px}
+body.ui20 #ui21-navigation{display:none!important}
+body.ui20 #ui21-quick{display:none!important}
+body.ui20 #engineering-workflow-hint{display:none!important}
+body.ui20 #sf-mission-flow{position:fixed;z-index:18;top:62px;right:22px;width:min(445px,calc(100vw - 36px));max-height:calc(100dvh - 84px);
+ background:#091b2af5;border:1px solid #8eb7c870;border-radius:15px;box-shadow:0 18px 50px #000a;backdrop-filter:blur(14px);
+ color:#e5f5fa;display:none;overflow-y:auto;padding:14px;font:12px/1.4 system-ui}
+body.ui20 #sf-mission-flow.open{display:block}
+body.ui20 #sf-mission-flow .sf-flow-head{display:flex;align-items:center;justify-content:space-between;font-weight:750;letter-spacing:1.1px;font-size:12px}
+body.ui20 #sf-mission-flow .sf-flow-head button{background:#203e50;color:#e4f4fa;border-radius:7px;padding:7px 11px;border:1px solid #6e9eb0}
+body.ui20 .sf-flow-progress{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:15px 0}
+body.ui20 .sf-flow-step{background:#102c3e;color:#a7c1d1;border:1px solid #37586a;border-radius:7px;padding:9px 2px;font:650 9px/1.3 system-ui}
+body.ui20 .sf-flow-step[aria-current=true]{background:#d5a86b;color:#14232d;border-color:#f4c989}
+body.ui20 .sf-flow-summary{font-size:11px;color:#c4d6e2;margin:4px 0 12px}
+body.ui20 .sf-flow-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+body.ui20 .sf-flow-action{padding:12px 9px;text-align:left;background:#17384d;border:1px solid #537a8e;border-radius:9px;color:#e5f6fc;font:650 11px system-ui;min-height:45px}
+body.ui20 .sf-flow-action:hover,body.ui20 .sf-flow-action:focus-visible{background:#2b5266;border-color:#b5d9ea}
+body.ui20 .sf-flow-footer{border-top:1px solid #54708055;margin-top:13px;padding-top:10px;color:#92b3c1;font-size:10px}
+body.ui20:not(.sf-flow-open) .panel:not(:focus-within){opacity:.95}
+body.ui20 .panel.collapsed{max-height:42px!important;width:175px!important}
+body.ui20 .panel.collapsed #ui21-pages,body.ui20 .panel.collapsed #panel-body{display:none!important}
+body.ui20 #ui-help-open{bottom:17px}
+body.ui20 .telemetry{gap:12px;padding:7px 10px}
+body.ui20 .identity h1{font-size:clamp(17px,1.75vw,24px)}
+body[data-truck-driving=true] #sf-mission-flow,body[data-truck-driving=true] #sf-mission-button{display:none!important}
+body.sfmobile-edition .sf-head-actions #sf-mission-button{display:none!important}
+body.sfmobile-edition #sf-mission-flow{top:40px;right:max(5px,env(safe-area-inset-right));width:min(425px,78vw);max-height:calc(100dvh - 50px);padding:10px}
+body.sfmobile-edition .sf-flow-progress{margin:8px 0}
+body.sfmobile-edition .sf-flow-step{padding:7px 1px;font-size:8px}
+body.sfmobile-edition .sf-flow-action{min-height:33px;padding:7px;font-size:10px}
+body.sfmobile-edition .panel{display:none!important}
+@media(max-width:650px){body.ui20 #sf-mission-flow{top:46px;right:8px}.sf-flow-progress{gap:2px}}
+
+/* Context decides which touch controls are relevant, not a permanently full keypad. */
+body.sfmobile-edition[data-mission-context="on-foot"] #sfmobile-hud .sfm-right :is(
+ [data-control="ArrowUp"],[data-control="ArrowDown"],[data-mobile-key="KeyT"],
+ [data-mobile-key="KeyG"],[data-control="KeyC"]){display:none!important}
+body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-right :is(
+ [data-control],[data-mobile-key="KeyB"],[data-mobile-key="KeyT"],
+ [data-mobile-key="KeyG"],[data-mobile-key="KeyL"]){display:none!important}
+body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-left [data-control="Space"]{display:none!important}
+body.sfmobile-edition #sfmobile-hud .sfm-top{max-width:none!important;left:50%!important;transform:translateX(-50%)!important;right:auto!important}
+body.sfmobile-edition #sfmobile-hud .sfm-top button{min-width:47px!important}
+body.sfmobile-edition #sfmobile-hud .sfm-right{grid-template-columns:repeat(3,var(--sfm-key))!important}
+@media(max-height:390px){body.sfmobile-edition #sfmobile-hud .sfm-top{height:24px!important}}
+
+/* Advanced workspace is opt-in, not an always-on multi-console. */
+body.ui20 #sf-workspace-close{display:none;background:#244961;color:#e7f4f9;border:1px solid #719db3;border-radius:7px;padding:7px 9px;font:650 9px system-ui;white-space:nowrap}
+body.ui20.sf-workspace-open #sf-workspace-close{display:inline-block}
+body.ui20.sf-workspace-open .panel{display:block!important;opacity:1!important;max-height:min(80dvh,750px)!important;width:min(420px,calc(100vw - 30px))!important;z-index:16!important}
+body.ui20 .sf-flow-workspace{grid-column:1/-1;background:#2a4558!important;color:#cbe7f3!important;border-style:dashed!important}
+body.sfmobile-edition.sf-workspace-open .panel{top:35px!important;bottom:auto!important;right:max(5px,env(safe-area-inset-right))!important;max-height:calc(100dvh - 44px)!important;overflow:auto!important;width:min(470px,83vw)!important}
+body[data-truck-driving=true].sf-workspace-open .panel{display:none!important}
+
+/* Mission is the only default navigation entry. Hide the old mini recon drawer. */
+body.ui20:not(.sf-workspace-open) .panel.collapsed{display:none!important}
 
 </style>
 <style>
@@ -516,13 +591,11 @@ html,body.sfmobile-edition{width:100%;height:100%;overflow:hidden;touch-action:p
 <body class="ui20 sfmobile-edition">
 <div id="sfmobile-rotate" role="note"><div>↻ Rotate your phone to landscape<small>STARFALL Mobile uses horizontal controls. Turn off portrait orientation lock if rotation is disabled.</small></div></div>
 <div id="sfmobile-hud" role="group" aria-label="STARFALL landscape touch controls">
- <div class="sfm-top">
-  <button type="button" data-mobile-action="menu" title="Mission console">MENU</button>
-  <button type="button" data-mobile-action="engineer" title="Engineer industry controls">ENGINEER</button>
-  <button type="button" data-mobile-action="map" title="Star chart">MAP</button>
-  <button type="button" data-mobile-action="save" title="Save and restore expedition">SAVE</button>
-  <button type="button" data-mobile-action="tools" title="More tools">TOOLS</button>
-  <button type="button" data-mobile-action="hide" aria-pressed="false" title="Hide or show touch controls">HIDE</button>
+ <div class="sfm-top" role="navigation" aria-label="Mobile main navigation">
+  <button type="button" data-mobile-action="mission" title="Ordered mission workflow">MISSION</button>
+  <button type="button" data-mobile-action="map" title="Navigation and surface map">MAP</button>
+  <button type="button" data-mobile-action="save" title="Save and restore">SAVE</button>
+  <button type="button" data-mobile-action="hide" aria-pressed="false" title="Collapse or expand movement buttons">HIDE</button>
  </div>
  <div class="sfm-left" aria-label="Movement and steering">
   <span class="sfm-spacer"></span><button type="button" class="sfm-hold" data-control="KeyW" aria-label="Hold forward or thrust">▲</button><span class="sfm-spacer"></span>
@@ -20720,6 +20793,100 @@ root.StarfallUI21={openRoute,openManual,closeManual};
 })(window);
 
 </script><script>
+/* STARFALL 8E-R UI22 — one ordered mission workflow, no duplicated action ownership.
+ * Existing game listeners and original source-owned actions remain authoritative. */
+(function(root){'use strict';
+ const $=id=>document.getElementById(id), panel=$('panel');
+ if(!panel||!root.StarfallUI21)return;
+ const stages=[
+  {name:'Navigate',number:'01',hint:'Choose a destination and travel to it',page:'Overview',
+   actions:[['STAR CHART','chart-open'],['FIND MY TRUCK','truck-plot-course8b'],['SURFACE MAP','survey-open'],['FLIGHT SYSTEMS','systems-toggle']]},
+  {name:'Explore',number:'02',hint:'Land, survey and investigate',page:'Explore',
+   actions:[['WORLD SURVEY','survey-open'],['FIELD LAB','field-open'],['DISCOVERIES','discovery-open'],['ECOLOGY','ecology-open'],['RUINS','ruin-open']]},
+  {name:'Build',number:'03',hint:'Prepare and construct your equipment',page:'Engineer',
+   actions:[['ENGINEERING WORKBENCH','workbench-open'],['ASSET MANAGER','asset-open'],['ROCKET LAB','launch-open'],['OUTPOSTS','outpost-open']]},
+  {name:'Operate',number:'04',hint:'Use vehicles, machinery and missions',page:'Operate',
+   actions:[['SHIP SYSTEMS','systems-toggle'],['MISSION OPERATIONS','mission-open'],['IMAGING','imaging7f-open'],['VEHICLE INVENTORY','physical8a-dialog']]},
+  {name:'Records',number:'05',hint:'Save progress and review your expedition',page:'Records',
+   actions:[['SAVE / RECOVERY','archive-t17-open'],['MISSION PHOTOS','imaging7f-open'],['RESEARCH','research7e-open'],['CONTROL SETTINGS','controls-open'],['FIELD MANUAL','ui-help-open']]}
+ ];
+ const nav=document.createElement('nav');nav.id='sf-mission-flow';nav.setAttribute('aria-label','Mission workflow');
+ nav.innerHTML='<div class="sf-flow-head"><span>MISSION WORKFLOW</span><button type="button" id="sf-flow-close" aria-label="Close mission workflow">✕</button></div><div class="sf-flow-progress" aria-label="Choose the current mission stage"></div><div class="sf-flow-summary"></div><div class="sf-flow-actions"></div><div class="sf-flow-footer">Select a stage, then choose one related action. Esc closes this menu.</div>';
+ document.body.appendChild(nav);
+ const stagesHost=nav.querySelector('.sf-flow-progress'),actionsHost=nav.querySelector('.sf-flow-actions'),summary=nav.querySelector('.sf-flow-summary');
+ let selected=0,opened=false,restoreFocus=null;
+ function mode(){const r=root.StarfallRuntime;
+  return r?.truckOccupied?'TRUCK':r?.shipWalking8e?'SHIP INTERIOR':r?.eva?'ON FOOT':r?.landed?'LANDED SHIP':'IN FLIGHT';}
+ function paint(){
+  const s=stages[selected];stagesHost.replaceChildren();actionsHost.replaceChildren();
+  for(let i=0;i<stages.length;i++){const item=stages[i],b=document.createElement('button');
+   b.type='button';b.className='sf-flow-step';b.setAttribute('aria-current',String(i===selected));
+   b.textContent=item.number+' · '+item.name;b.addEventListener('click',()=>{selected=i;paint();});stagesHost.append(b);}
+  summary.textContent=s.hint+' · '+mode();
+  for(const [label,id] of s.actions){const target=$(id);
+   if(!target)continue;
+   const b=document.createElement('button');b.type='button';b.className='sf-flow-action';b.textContent=label;
+   b.addEventListener('click',()=>{if(id==='physical8a-dialog')root.StarfallInventoryUI8A?.open?.();else target.click();close();});
+   actionsHost.append(b);}
+  // Advanced consoles stay accessible under their original, source-owned
+  // UI21 page. They are not duplicated into the first-level action list.
+  const workspace=document.createElement('button');workspace.type='button';
+  workspace.className='sf-flow-action sf-flow-workspace';
+  workspace.textContent='OPEN ALL '+s.name.toUpperCase()+' TOOLS';
+  workspace.addEventListener('click',()=>{
+   root.StarfallUI21.openRoute(s.page);
+   panel.classList.remove('collapsed');panel.classList.add('ui20-expanded');
+   document.body.classList.add('sf-workspace-open');
+   close();
+  });
+  actionsHost.append(workspace);
+  // Entire workflow remains navigable even if an optional subsystem is absent.
+  if(!actionsHost.childElementCount){const empty=document.createElement('p');empty.textContent='No tools installed for this stage.';actionsHost.append(empty);}
+ }
+ function open(i){if(root.StarfallRuntime?.truckOccupied)return;
+  if(Number.isInteger(i)&&i>=0&&i<stages.length)selected=i;
+  restoreFocus=document.activeElement;opened=true;nav.classList.add('open');nav.setAttribute('aria-hidden','false');paint();
+  nav.querySelector('.sf-flow-step[aria-current="true"]')?.focus();
+  document.body.classList.add('sf-flow-open');}
+ function close(){opened=false;nav.classList.remove('open');nav.setAttribute('aria-hidden','true');document.body.classList.remove('sf-flow-open');restoreFocus?.focus?.();}
+ function toggle(i){opened?close():open(i);}
+ nav.querySelector('#sf-flow-close').addEventListener('click',close);
+ document.addEventListener('keydown',e=>{if(!opened)return;
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();}
+  if(e.key==='Tab'){const buttons=[...nav.querySelectorAll('button:not(:disabled)')],first=buttons[0],last=buttons[buttons.length-1];
+   if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
+ },true);
+ document.addEventListener('pointerdown',e=>{if(opened&&!nav.contains(e.target)&&!e.target.closest('#sf-mission-button'))close();});
+ const workspaceClose=document.createElement('button');
+ workspaceClose.type='button';workspaceClose.id='sf-workspace-close';
+ workspaceClose.textContent='✕ CLOSE TOOLS';
+ workspaceClose.addEventListener('click',()=>{
+  document.body.classList.remove('sf-workspace-open');
+  panel.classList.remove('ui20-expanded');
+  panel.classList.add('collapsed');
+ });
+ panel.querySelector('.panel-title')?.append(workspaceClose);
+ const head=document.querySelector('.sf-head-actions');
+ const mission=document.createElement('button');mission.type='button';mission.id='sf-mission-button';mission.textContent='MISSION';
+ mission.setAttribute('aria-controls','sf-mission-flow');mission.setAttribute('aria-expanded','false');
+
+ head?.prepend(mission);
+ const origOpen=open,origClose=close;
+ root.StarfallWorkflow8ER={open:i=>{origOpen(i);mission.setAttribute('aria-expanded','true');},close:()=>{origClose();mission.setAttribute('aria-expanded','false');},toggle:i=>{if(opened){origClose();mission.setAttribute('aria-expanded','false');}else{origOpen(i);mission.setAttribute('aria-expanded','true');}},stages:stages.map(x=>x.name)};
+ mission.onclick=()=>{root.StarfallWorkflow8ER.toggle();};
+ // A closed reconnaissance panel is now a secondary detail surface, not the main navigation.
+ panel.classList.add('collapsed');
+ panel.classList.remove('ui20-expanded');
+ $('panel-toggle')?.setAttribute('aria-expanded','false');
+ // Mode changes never expose flight/ship UI while in a truck.
+ let last='';function sync(){const next=mode();if(next!==last){last=next;document.body.dataset.missionContext=next.toLowerCase().replaceAll(' ','-');
+  if(opened){if(next==='TRUCK')root.StarfallWorkflow8ER.close();else paint();}
+ }root.requestAnimationFrame(sync);}
+ root.requestAnimationFrame(sync);
+})(window);
+
+</script><script>
 /* Update 8C — restrained Explore route prospecting with existing field instrument.
  * Shows modeled uncertainty, never exposes an unmeasured exact underground reserve.
  */
@@ -21439,17 +21606,28 @@ panel.innerHTML=`
   <div><small>DRILL</small><b id="sft-drill">—</b></div>
  </div>
  <div id="sft-state" role="status">Vehicle initializing</div>
- <div class="sft-tools" aria-label="Truck utility actions">
+ <div class="sft-main-actions">
   <button type="button" data-truck-action="EXIT">EXIT TRUCK</button>
   <button type="button" data-truck-action="MAP">MAP</button>
-  <button type="button" data-truck-action="VIEW">VIEW</button>
-  <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
-  <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
-  <button type="button" data-truck-action="LOAD">LOAD ORE</button>
-  <button type="button" data-truck-action="SHORE">SHORE CRAWL</button>
-  <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
+  <button type="button" data-truck-action="VIEW">CAMERA</button>
  </div>
- <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
+ <details class="sft-section">
+  <summary>01 · Driving & recovery</summary>
+  <div class="sft-tools">
+   <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
+   <button type="button" data-truck-action="SHORE">SHORE CRAWL</button>
+  </div>
+  <small>W/S accelerate or reverse · A/D steer. Shore crawl consumes extra energy.</small>
+ </details>
+ <details class="sft-section">
+  <summary>02 · Mining & materials</summary>
+  <div class="sft-tools">
+   <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
+   <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+   <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
+  </div>
+  <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
+ </details>
  <div id="sft-hint">W/S DRIVE · A/D STEER · X EXIT · V VIEW</div>
  <div class="sft-error" role="status" id="sft-error" hidden></div>`;
 document.body.append(panel);
@@ -22580,6 +22758,7 @@ root.StarfallMachineInstallUI8F={refresh};
   window.dispatchEvent(new KeyboardEvent('keyup',opts));
  }
  const actions={
+  mission:()=>window.StarfallWorkflow8ER?.toggle(),
   menu:()=>document.getElementById('ui-console-open')?.click(),
   engineer:()=>{const nav=document.querySelector('#sf-console-nav [data-route="Engineer"]');
    if(nav){nav.click();document.getElementById('panel')?.classList.remove('collapsed');}
