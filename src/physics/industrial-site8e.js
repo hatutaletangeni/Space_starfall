@@ -94,19 +94,29 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
   isPressureLine=k.station==='pressure_pipeline',
   containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
     isDryConveyor?'conveyor8h:'+assetId:
-    isPressureLine?'pressurepipe8h:'+assetId:null;
+    isPressureLine?'pressurepipe8h:'+assetId:
+    // Every FULL paid 8E chemical station installation includes an EMPTY
+    // built-in dry feed hopper; no free raw material or separate hardware.
+    (k.type==='industrial_plant'&&
+     ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
+      .includes(k.station))?'plantfeed8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
   kind:isCargoDock?'sealed dry-solid cargo dock':
     isDryConveyor?'guarded dry-solid conveyor tray':
-    isPressureLine?'sealed 8MPa gas pipe hold-up':'gas pressure vessel',
-  // Paid 8E drives and certified rated pipes have EMPTY physical interiors.
-  // 8H pipeline maximum hold-up 80 litres and 25 kg, never free gas.
-  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:1000,
-  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:k.volumeM3});
+    isPressureLine?'sealed 8MPa gas pipe hold-up':
+    isVessel?'gas pressure vessel':'integrated 8E dry-reactant feed hopper',
+  // Machine hopper is a small EMPTY fixture included in the already paid
+  // original complete 8F factory kit, never an inventory grant or a tank.
+  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:
+    isVessel?1000:120,
+  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:
+    isVessel?k.volumeM3:.20});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
   state:{kitMaterialId:q.materialId,station:k.station||null,tools:k.tools||[],
-   materialId:k.materialId||null,containerId,ratedPressurePa:k.pressurePa||null,enabled:true}};
+   materialId:k.materialId||null,containerId,
+   dryFeedContainerId:containerId?.startsWith('plantfeed8h:')?containerId:null,
+   ratedPressurePa:k.pressurePa||null,enabled:true}};
  const receipt={id:jobId,assetId,status:'COMMITTED',sourceLotId:kitLotId,massKg:k.massKg};
  const physicalState=root.StarfallPhysical8A.create(physical);
  physicalState.install(machine,receipt);
