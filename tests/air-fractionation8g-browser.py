@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """Real file:// Chromium extraction test: no production air or stock fixtures.
  Fixture installations are isolated to the test browser save/profile only.
@@ -70,7 +71,7 @@ with sync_playwright() as pw:
         assert quote['ready'] and quote['powered'],quote
         assert quote['availableAirKg']==2400,quote
         assert 0<quote['nitrogenKg']<quote['airBatchKg']
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        open_route(page,'Engineer')
         control=page.locator('#air-fractionation8g')
         control.locator('select[aria-label="Select physical air separator"]').select_option('air-test-plant')
         control.locator('select[aria-label="Select physical nitrogen vessel"]').select_option('air-test-nitrogen-vessel')
@@ -105,7 +106,7 @@ with sync_playwright() as pw:
         # Second physical collection must have a distinct lot and permanently
         # further deplete the same modeled surface cell, not reset at reload.
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("air-fractionation8g")',timeout=40000)
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        open_route(page,'Engineer')
         ui=page.locator('#air-fractionation8g')
         ui.locator('select[aria-label="Select physical air separator"]').select_option('air-test-plant')
         ui.locator('select[aria-label="Select physical nitrogen vessel"]').select_option('air-test-nitrogen-vessel')
