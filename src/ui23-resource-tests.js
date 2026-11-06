@@ -45,7 +45,7 @@ function checkList(){
    ' · ELIGIBLE GAS VESSELS: '+vessels.length+
    ' · STORED GAS: '+gas.toFixed(3)+' kg'+
    ' · RATED PIPELINES: '+(pipe?.pipes?.length||0)+
-   ' · POWER: '+(a?.powered?'SHIP POWER':'CHECK SHIP SYSTEMS');
+   ' · POWER: '+(a?.powerEnabled?'SHIP POWER ON':'SHIP POWER OFF');
  }catch(e){return 'GAS CHECK: '+String(e.message||e);}
 }
 function showWorkspace(id,page){
