@@ -1,0 +1,73 @@
+name: STARFALL 8H original 250W direct chemical hopper conveyor
+on:
+  push:
+    branches:
+      - feature/update-8h-auto-conveyor-plant-inlet
+  pull_request:
+    paths:
+      - 'src/physics/logistics-powered-network8h.js'
+      - 'src/physics/conveyor-packets8h.js'
+      - 'src/physics/conveyor-native-bridge8h.js'
+      - 'src/physics/logistics-conveyor-live-ui8h.js'
+      - 'src/flight.js'
+      - 'PLAY-STARFALL.html'
+      - 'tests/conveyor-packets8h.test.cjs'
+      - '.github/workflows/update-8h-auto-plant-inlet.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-original-standalone:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Build and commit full source/PLAY parity on exact original branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): synchronize original native plant-inlet conveyor source and standalone'
+            git push origin HEAD:feature/update-8h-auto-conveyor-plant-inlet
+          fi
+  source-owned-direct-hopper:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Original powered line, bounded plant hopper and no free mass
+        run: |
+          set -euo pipefail
+          node --check src/physics/logistics-powered-network8h.js
+          node --check src/physics/conveyor-packets8h.js
+          node --check src/physics/conveyor-native-bridge8h.js
+          node --check src/physics/logistics-conveyor-live-ui8h.js
+          node --check src/flight.js
+          node --test tests/logistics-powered-network8h.test.cjs
+          node --test tests/conveyor-packets8h.test.cjs
+          node --test tests/conveyor-native-bridge8h.test.cjs
+          node --test tests/industrial-dry-feed8h.test.cjs
+          node --test tests/industrial-site8e.test.cjs
+          node --test tests/industrial-chemistry8e.test.cjs
+          python3 tests/standalone-parity.py
+      - name: Install offline Chromium software WebGL2 test environment
+        run: |
+          python3 -m pip install --disable-pip-version-check playwright==1.56.0
+          python3 -m playwright install --with-deps chromium
+      - name: Original real file-origin WebGL2 Engineer/Industry and chemical UI regressions
+        run: |
+          python3 tests/conveyor-live8h-browser.py
+          python3 tests/industrial-dry-feed8h-browser.py
