@@ -33,12 +33,6 @@ jobs:
           else
             echo "::notice::No known mobile bundler at expected paths. Mobile edition remains NOT VERIFIED."
           fi
-      - name: Check syntax and original standalone parity
-        run: |
-          node --check src/flight.js
-          python tests/standalone-parity.py
-          node tests/cargo-bay8b.test.cjs
-          node tests/update8a.test.cjs
       - name: Commit synchronized standalone on fix branch only
         shell: bash
         run: |
@@ -55,3 +49,17 @@ jobs:
           else
             echo "Bundled standalones already synchronized"
           fi
+      - name: Check syntax and original standalone parity
+        run: |
+          node --check src/flight.js
+          python tests/standalone-parity.py
+          node tests/cargo-bay8b.test.cjs
+          node tests/update8a.test.cjs
+      - name: Preserve rebuilt playable HTML even if later gameplay checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-truck-bay-fix-playables
+          path: |
+            PLAY-STARFALL.html
+            PLAY-STARFALL-MOBILE.html
