@@ -7218,6 +7218,11 @@ function create(saved){
    if(phase==='gas'){
     const vessel=assets.find(a=>a.id===station.vesselAssetIds?.[materialId]);
     const manifold=station.gasManifolds?.['output:'+materialId];
+    // A staged physical chemical job cannot silently fall back to direct
+    // vessel credit when a gas route is missing. Solid-only reactions remain
+    // unchanged; every actual gas product must use its original 8A pipe.
+    if(station.gasOutputStaged8H===true&&!manifold)
+     throw Error('8H staged gas product missing paid physical output pressure pipeline: '+materialId);
     const staged=station.gasOutputStaged8H===true&&!!manifold;
     const pipe=staged?assets.find(a=>a.id===manifold.pipeId):null;
     if(!vessel||vessel.location?.kind!=='surface'||vessel.location.bodyId!==bodyId||vessel.condition<.5||
