@@ -14,6 +14,8 @@ on:
       - 'tests/ship-room-graph8er.test.cjs'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
+      - 'src/physics/ship-hatch8er.js'
+      - 'tests/ship-hatch8er.test.cjs'
       - 'tools/build-mobile-standalone.py'
       - 'tests/mobile-standalone-*'
       - 'tests/mobile-vehicle-bay.test.cjs'
@@ -33,6 +35,8 @@ on:
       - 'tests/ship-room-graph8er.test.cjs'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
+      - 'src/physics/ship-hatch8er.js'
+      - 'tests/ship-hatch8er.test.cjs'
       - 'tools/build-mobile-standalone.py'
       - 'tests/mobile-standalone-*'
       - 'tests/mobile-vehicle-bay.test.cjs'
@@ -56,6 +60,7 @@ jobs:
           node tests/truck-cockpit.test.cjs
           node tests/new-expedition8er.test.cjs
           node tests/ship-room-graph8er.test.cjs
+          node tests/ship-hatch8er.test.cjs
           node tests/update8a.test.cjs
           node tests/cargo-bay8b.test.cjs
       - name: Attach separate offline desktop and mobile builds for QA
@@ -137,6 +142,7 @@ jobs:
           python tests/mobile-standalone-parity.py
           node tests/new-expedition8er.test.cjs
           node tests/ship-room-graph8er.test.cjs
+          node tests/ship-hatch8er.test.cjs
           node tests/update8a.test.cjs
           node tests/cargo-bay8b.test.cjs
       - name: Publish branch preview only; never main
