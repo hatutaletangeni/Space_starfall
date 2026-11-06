@@ -23,7 +23,7 @@ function commit({operationId,lotId,massKg,stationId,depotId,bodyId,materials8a,p
  const sourceId=transportReceipt?.sourceContainerId,targetId=depot.state.containerId;
  const source=materials8a.containers?.find(c=>c.id===sourceId&&c.ownerId===stationId);
  const target=materials8a.containers?.find(c=>c.id===targetId&&c.ownerId===depotId&&/dry-solid cargo dock/i.test(c.kind));
- if(!source||!target||!valid(sourceId)||!valid(targetId))
+ if(!source||!target||!valid(sourceId)||!valid(targetId)||!/dry[ -]solid output/i.test(source.kind))
   throw Error('Physical source output and receiving 8A depot bins required');
  if(!transportReceipt||transportReceipt.operationId!==operationId||transportReceipt.lotId!==lotId||
     transportReceipt.sourceId!==stationId||transportReceipt.destinationId!==depotId||
@@ -41,10 +41,10 @@ function commit({operationId,lotId,massKg,stationId,depotId,bodyId,materials8a,p
  const jobs=packetArchive8h?.schema===1&&Array.isArray(packetArchive8h.jobs)
    ?packetArchive8h.jobs:[];
  const packet=jobs.find(j=>j.id===transportReceipt.packetId);
- if(!packet||packet.status!=='DELIVERED'||packet.sourceId!==stationId||
+ if(!valid(transportReceipt.packetId)||!packet||!Array.isArray(packet.driveIds)||packet.driveIds.length===0||!packet.driveIds.every(valid)||packet.status!=='DELIVERED'||packet.sourceId!==stationId||
     packet.targetId!==depotId||packet.bodyId!==bodyId||
     packet.massKg!==massKg||packet.currentLotId!==lotId||
-    !Number.isFinite(packet.completionS)||packet.cursor!==packet.driveIds?.length+1)
+    (!finite(packet.completionS))||packet.cursor!==packet.driveIds?.length+1)
   throw Error('Authoritative original 8H delivered conveyor packet required');
  const ledger=root.StarfallMaterials8A?.create(materials8a);
  if(!ledger)throw Error('Original 8A ledger unavailable');
