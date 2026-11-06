@@ -1,0 +1,49 @@
+name: Rebuild and verify truck bay repair PR
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/rebuild-truck-bay-fix.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync-playable-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out existing truck fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/vehicle-bay-truck-boarding-20261106
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rebuild desktop and landscape mobile standalone
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+      - name: Validate current source, cargo model and offline parity
+        run: |
+          node --check src/flight.js
+          python tests/standalone-parity.py
+          node tests/cargo-bay8b.test.cjs
+          node tests/update8a.test.cjs
+      - name: Push validated builds to existing fix branch
+        run: |
+          git config user.name "starfall-ci"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build: sync desktop and mobile truck boarding fix"
+            git push origin HEAD:fix/vehicle-bay-truck-boarding-20261106
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rebuilt-truck-bay-playables
+          path: |
+            PLAY-STARFALL.html
+            PLAY-STARFALL-MOBILE.html
