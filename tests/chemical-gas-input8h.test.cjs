@@ -6,7 +6,7 @@ const Chem=require('../src/physics/industrial-chemistry8e.js');
 const Plant=require('../src/physics/industrial-plant8e.js');
 const Out=require('../src/physics/chemical-gas-output8h.js');
 require('../src/physics/pressure-gas-packets8h.js');
-require('../src/physics/industrial-gas-manifold8h.js');
+const Manifold=require('../src/physics/industrial-gas-manifold8h.js');
 const In=require('../src/physics/chemical-gas-input8h.js');
 const bodyId='star-0-p0',R=1000,local=x=>[Math.cos(x),Math.sin(x),0],
 close=(a,b,tol=1e-6)=>assert.ok(Math.abs(a-b)<tol,a+' != '+b);
@@ -175,12 +175,13 @@ test('native 420W inlet cannot contaminate a real 8A 80L pipe with another physi
 test('FULL original 8A Sabatier: physically paid H2+CO2 inlet pipes → atom-balanced REAL 8E reaction → physical methane OUTLET pipe and real water cargo (no mass or power mint)',()=>{
  const f=fixture(),mk={id:'8e:paid-methane-pipe',vessel:'8e:paid-methane-vessel',
   port:'t02:real-methane-420w'};
+ const locOut=a=>[Math.cos(a),0,Math.sin(a)];
  const methanePipe={id:mk.id,type:'industrial_plant',condition:1,massKg:320,
-  location:{kind:'surface',bodyId,local:local(.03)},
+  location:{kind:'surface',bodyId,local:locOut(.009)},
   state:{station:'pressure_pipeline',kitMaterialId:'plant_kit_pressure_pipeline',
    enabled:true,containerId:'pipe:'+mk.id,t02LoadId:mk.port,ratedPressurePa:8e6}};
  const methaneVessel={id:mk.vessel,type:'industrial_vessel',condition:1,
-  massKg:195,volumeM3:4,location:{kind:'surface',bodyId,local:local(.04)},
+  massKg:195,volumeM3:4,location:{kind:'surface',bodyId,local:locOut(.018)},
   state:{materialId:'methane',kitMaterialId:'vessel_kit_methane',
    enabled:true,containerId:'tank:'+mk.vessel,ratedPressurePa:8e6}};
  f.physical8a.assets.push(methanePipe,methaneVessel);
@@ -198,6 +199,22 @@ test('FULL original 8A Sabatier: physically paid H2+CO2 inlet pipes → atom-bal
  f.materials8a=expanded.snapshot();
  f.gasManifolds['output:methane']={vesselId:mk.vessel,
   pipeId:mk.id,powerPortId:mk.port};
+ f.native.items.push({id:mk.port,bodyId,kind:'pressure_pipeline_pump',
+  condition:1,enabled:true,local:locOut(.009)});
+ f.native.wires.push({a:f.battery,b:mk.port});
+ const originalReport=f.report;
+ f.report=t=>{const v=originalReport(t);
+  v.byId[mk.port]={bodyId,power:true,servedW:420,
+   sourceIds:[f.battery],busId:f.battery};
+  return v;};
+ const sourceProof=Manifold.inspect({
+  physical8a:f.physical8a,materials8a:f.materials8a,
+  outpost5:f.native,powerReport:f.report(0),
+  stationId:f.station,vesselId:mk.vessel,
+  materialId:'methane',bodyId,bodyRadius:R,timeS:0});
+ assert.equal(sourceProof.pipeId,mk.id);
+ assert.equal(sourceProof.paidPowerW,420);
+ assert.ok(sourceProof.segmentMetersScene.every(x=>x<12));
  const start=begin(f);
  let state=start.transit,material=start.materials8a,when=0;
  for(let t=10;t<=900;t+=10){
