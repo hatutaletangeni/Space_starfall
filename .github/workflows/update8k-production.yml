@@ -71,3 +71,42 @@ jobs:
           python tests/resource-test-lab8h-browser.py
           python tests/ship-service-t13-browser.py
           python tests/mobile-standalone-browser.py
+
+  publish-tested-standalones:
+    needs: [actual-custody-and-machine-models, real-browser-production-controls]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/update8k-bootstrap-visual-fixes-20261106' && !contains(github.event.head_commit.message, '[8k-bundled]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: true}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Synchronize BOTH standalone editions to latest validated branch source
+        run: |
+          git fetch origin feature/update8k-bootstrap-visual-fixes-20261106
+          git checkout -B feature/update8k-bootstrap-visual-fixes-20261106 origin/feature/update8k-bootstrap-visual-fixes-20261106
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Publish exact source-hash pair, preserving simultaneous edits
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if git diff --cached --quiet; then
+            echo 'Desktop and mobile are already synchronized'
+            exit 0
+          fi
+          git commit -m 'build(8K): synchronized physical industry desktop+mobile [8k-bundled]'
+          git pull --rebase origin feature/update8k-bootstrap-visual-fixes-20261106
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then git commit --amend --no-edit; fi
+          git push origin HEAD:feature/update8k-bootstrap-visual-fixes-20261106
