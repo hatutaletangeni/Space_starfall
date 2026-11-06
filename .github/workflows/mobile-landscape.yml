@@ -3,8 +3,12 @@ on:
   pull_request:
     paths:
       - 'src/mobile/**'
+      - 'src/flight.js'
+      - 'src/engine.js'
+      - 'src/physics/ship-walk8e.js'
       - 'tools/build-mobile-standalone.py'
       - 'tests/mobile-standalone-*'
+      - 'tests/mobile-vehicle-bay.test.cjs'
       - 'PLAY-STARFALL-MOBILE.html'
       - '.github/workflows/mobile-landscape.yml'
   push:
@@ -24,10 +28,11 @@ jobs:
         with: {python-version: '3.11'}
       - name: Verify original standalone parity and mobile editable source parity
         run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
           python tests/standalone-parity.py
           python tests/mobile-standalone-parity.py
-          python tools/build-mobile-standalone.py
-          python tests/mobile-standalone-parity.py
+          node tests/mobile-vehicle-bay.test.cjs
   mobile-chromium:
     runs-on: ubuntu-latest
     timeout-minutes: 18
@@ -41,6 +46,7 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Real file offline landscape touchscreen test
         run: |
+          python tools/build-standalone.py
           python tools/build-mobile-standalone.py
           python tests/mobile-standalone-browser.py
 
@@ -60,13 +66,14 @@ jobs:
           python-version: '3.11'
       - name: Rebuild complete offline mobile file from current main sources
         run: |
+          python tools/build-standalone.py
           python tools/build-mobile-standalone.py
           python tests/mobile-standalone-parity.py
       - name: Commit standalone if changed (preserve other main commits)
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add PLAY-STARFALL-MOBILE.html
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
           if git diff --cached --quiet; then
             echo 'Standalone already synchronized'
             exit 0
