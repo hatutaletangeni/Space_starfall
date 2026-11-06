@@ -57,9 +57,10 @@ with sync_playwright() as p:
   page.wait_for_function("""()=>{
    const t=document.querySelector('#industrial8e-physical')?.innerText||'';
    return t.includes('ACTUAL 8A PRODUCT GAS TRANSIT')&&
-     t.includes('INBOUND REAGENTS')&&t.includes('NOT VERIFIED');
+     t.includes('INBOUND ORIGINAL 8A GAS')&&
+     t.includes('REACTOR MAY USE GAS ONLY WHEN ALL ORIGINAL PHYSICAL INLET JOBS ARE READY');
   }""",timeout=15000)
   assert not errors,errors
-  print('PASS real original STARFALL file:// WebGL2 seed742: physical 80L gas transit Engineer, unchanged ship/truck/source-owned 8A/T02/saves, no forged gas, honest input limitation')
+  print('PASS real original STARFALL file:// WebGL2 seed742: physical 80L outbound and inbound gas transit Engineer, unchanged ship/truck/source-owned 8A/T02/saves, no forged gas, reactor READY inlet gating')
  finally:
   browser.close()

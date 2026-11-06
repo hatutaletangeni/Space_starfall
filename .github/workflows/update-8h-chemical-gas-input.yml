@@ -1,0 +1,80 @@
+name: STARFALL 8H true 80L reactor inlet gas source-paid native T02
+on:
+  push:
+    branches:
+      - feature/update-8h-real-chemical-inbound-gas-staging
+  pull_request:
+    paths:
+      - 'src/physics/chemical-gas-input8h.js'
+      - 'src/physics/chemical-gas-output8h.js'
+      - 'src/physics/industrial-plant8e.js'
+      - 'src/physics/outposts-ui.js'
+      - 'src/physics/industrial-site-ui8e.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/chemical-gas-input8h*'
+      - 'tests/chemical-gas-output8h*'
+      - '.github/workflows/update-8h-chemical-gas-input.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-identical-original-play:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Build source-authentic offline STARFALL and commit exact same full game
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): exact original standalone includes real paid inbound reactor gas'
+            git push origin HEAD:feature/update-8h-real-chemical-inbound-gas-staging
+          fi
+  two-real-inlet-hops-original-8a-native-420w:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Real original 8A gas conservation and native T02 paid staging and old saves
+        run: |
+          set -euo pipefail
+          node --check src/physics/chemical-gas-input8h.js
+          node --check src/physics/industrial-plant8e.js
+          node --check src/physics/industrial-site-ui8e.js
+          node --check src/physics/outposts-ui.js
+          node --check src/flight.js
+          node --test tests/chemical-gas-input8h.test.cjs
+          node --test tests/chemical-gas-output8h.test.cjs
+          node --test tests/industrial-gas-manifold8h.test.cjs
+          node --test tests/industrial-chemistry8e.test.cjs
+          node --test tests/pressure-gas-packets8h.test.cjs
+          node --test tests/active-native-substeps8h.test.cjs
+          node --test tests/lossy-tailings-recycling8h.test.cjs
+          python3 -m py_compile tests/chemical-gas-input8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Install real original Chromium offline software WebGL2
+        run: |
+          python3 -m pip install --disable-pip-version-check playwright==1.56.0
+          python3 -m playwright install --with-deps chromium
+      - name: Actual original ship/truck file:// rendered gas inlet and outlet controls
+        run: |
+          python3 tests/chemical-gas-input8h-browser.py
+          python3 tests/chemical-gas-output8h-browser.py
+          python3 tests/industrial-gas-manifold8h-browser.py
+          python3 tests/pressure-pipe-live8h-browser.py

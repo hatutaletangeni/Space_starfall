@@ -14,7 +14,7 @@ const kits=choose(),front=input('Forward',24),right=input('Right',0),build=butto
 const buildStatus=p('Choose a finite industrial kit in your ship cargo, exit on EVA, and position beside the construction site. Placement is limited by ship umbilical and clearance.');
 const plants=choose(),reactions=choose(),batchSize=choose(),start=button('START CHEMICAL WORK'),cancel=button('CANCEL JOB (SPENT ENERGY LOST)');
 for(const scale of [0.05,0.1,0.25,1,5,10,25,50,100]){const o=document.createElement('option');o.value=String(scale);o.textContent=scale+' mol feed basis';batchSize.appendChild(o);}
-const processStatus=p('Specialized reactions now require certified chemical inputs and ORIGINAL physically paid gas manifolds: each gas stream needs its own installed 320 kg / 8 MPa pipeline within 12 scene units of the real station and matching pressure-rated vessel, with an installed, WIRED, currently served original 420 W native T02 pump load. The original ship battery pays the chemical reaction, which now makes each product gas lot INSIDE its actual empty 80 L pipe. The original 420 W native T02 grid then separately pumps this RESERVED 8A gas lot into its rated output vessel over simulated time; disconnects/blackouts pause the gas in the pipe. Input gases are still drawn directly from the source vessel and are NOT yet metered through the inlet pipe.');
+const processStatus=p('Specialized reactions now require certified chemical inputs and ORIGINAL physically paid gas manifolds: each gas stream needs its own installed 320 kg / 8 MPa pipeline within 12 scene units of the real station and matching pressure-rated vessel, with an installed, WIRED, currently served original 420 W native T02 pump load. The original ship battery pays the chemical reaction, which now makes each product gas lot INSIDE its actual empty 80 L pipe. The original 420 W native T02 grid then separately pumps this RESERVED 8A gas lot into its rated output vessel over simulated time; disconnects/blackouts pause the gas in the pipe. Gas INPUT now physically reserves existing rated-vessel stock, loads the manufactured 80 L inlet pipe after source-paid native T02 power, then pays a second real pump interval to make the reactor feed ready. Both reactants and products remain original 8A tracked matter; cancelled pipe-loaded gas is NOT magically refunded. A legacy active reaction without staged inlet IDs must be cancelled/restarted rather than bypass its pipe.');
 const result=document.createElement('pre');result.style.cssText='white-space:pre-wrap;font:11px/1.5 Consolas,monospace;color:#c8d9d9;background:#101b23;border:1px solid #53677566;padding:12px;max-height:300px;overflow:auto';
 for(const [id,spec] of Object.entries(root.StarfallIndustrialChemistry8E.reactions)){const o=document.createElement('option');o.value=id;o.textContent=spec.label;reactions.appendChild(o);}
 const row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:9px 0';row.append(kits,front,right,build);
@@ -40,6 +40,8 @@ function refresh(){
  const c=r.refineryContext8E(),active=r.industrialJob8e.active;
  const chemicalGas=r.chemicalGasOutput8h?.jobs||[];
  const gasOwned=chemicalGas.filter(j=>j.bodyId===c.bodyId).slice(-8);
+ const reagentGas=r.chemicalGasInput8h?.jobs||[];
+ const realInlet=reagentGas.filter(j=>j.bodyId===c.bodyId).slice(-8);
  let processQuote=null,processErr='';
  if(plants.value){try{processQuote=r.industrialQuote8E(reactions.value,plants.value,Number(batchSize.value));}
  catch(e){processErr=String(e.message||e);}}
@@ -59,7 +61,15 @@ function refresh(){
    '  '+j.materialId+' · '+j.massKg.toFixed(3)+' kg · '+j.status+
    ' · '+Math.ceil(j.remainingS)+'s pump left · original T02 '+Math.round(j.paidJ)+' J'+
    ' · '+j.pipeId+' → '+j.vesselId).join('\n'):'')+
- '\nINBOUND REAGENTS: rated vessel debit still DIRECT; inlet staging NOT VERIFIED'+
+ '\nINBOUND ORIGINAL 8A GAS (certified vessel → real 80 L pipe → paid reactor inlet): '+
+  (realInlet.length?realInlet.length+' source-owned jobs':'NONE')+
+ (realInlet.length?'\n'+realInlet.map(j=>
+   '  '+j.materialId+' · '+j.massKg.toFixed(3)+' kg · '+j.status+
+   ' · T02 stage '+j.stage+'/2 · '+Math.ceil(j.remainingS)+'s left · original '+Math.round(j.paidJ)+' J'+
+   ' · '+j.vesselId+' → '+j.pipeId+' → '+j.stationId).join('\n'):'')+
+ (active&&active.gasInputRequired8H!==true&&Object.keys(active.gasManifolds||{}).some(x=>x.startsWith('input:'))?
+  '\nLEGACY INLET: PAUSED, CANCEL AND RESTART WITH REAL SOURCE-OWNED PIPE':'')+
+ '\nREACTOR MAY USE GAS ONLY WHEN ALL ORIGINAL PHYSICAL INLET JOBS ARE READY'+
  '\nSTOCK: '+r.materials8a.inventory(root.StarfallMining8D.SHIP).length+' ship lots / '+r.physical8a.list().length+' owned assets';
 }
 function call(action,out){try{const x=action();out.textContent='COMMITTED: '+(x?.id||x?.assetId||'operation');}
