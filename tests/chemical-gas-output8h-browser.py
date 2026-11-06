@@ -49,7 +49,10 @@ with sync_playwright() as p:
   assert q['gasJobs']['schema']==1 and isinstance(q['gasJobs']['jobs'],list),q
   assert q['empty']=={'schema':1,'jobs':[]},q
   assert q['denied'] and q['noMutation'],q
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 visible mission workflow; all original scenario assertions remain.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   panel=page.locator('#industrial8e-physical')
   assert panel.is_visible(),'Original Engineer Chemical Plant panel must be visible'
   text=panel.inner_text()

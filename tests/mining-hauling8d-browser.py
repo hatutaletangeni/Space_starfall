@@ -33,7 +33,10 @@ with sync_playwright() as p:
   assert state['bins']==2,state
   assert state['ore']==0 and state['depleted']==0,state
   assert state['active'] is None,state
-  page.locator('#ui21-navigation button[data-route="Operate"]').click()
+  # UI22 visible mission workflow; all original scenario assertions remain.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   assert page.locator('#mining8d-panel').is_visible()
   assert page.get_by_role('button',name='START 20 KG BORE / 24 S').is_disabled()
   assert page.get_by_role('button',name='LOAD 50 KG INTO SHIP / 16 S').is_disabled()

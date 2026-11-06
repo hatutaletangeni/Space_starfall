@@ -72,7 +72,10 @@ with sync_playwright() as pw:
           count:StarfallRuntime.physical8a.list().length,
           lots:StarfallRuntime.materials8a.inventory().filter(x=>x.id.startsWith('8g-test-lot:')).length
         })""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         panel=page.locator('#assembly-inspector8g-panel')
         panel.locator('select[aria-label="Inspect future vehicle bill of materials"]').select_option('science_rover')
         panel.locator('select[aria-label="Physical assembly pad"]').select_option('8g-test-pad')
@@ -116,7 +119,10 @@ with sync_playwright() as pw:
         assert persisted=={'frames':1,'receipts':1,'trucks':1},persisted
         assert not errors,errors
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=30000)
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         cargo=page.locator('#frame-cargo8g')
         frame_id=made['frames'][0]['id']
         cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
@@ -134,7 +140,10 @@ with sync_playwright() as pw:
         assert after_load['cargoMass']>=made['frames'][0]['massKg']
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("frame-cargo8g")',timeout=40000)
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         cargo=page.locator('#frame-cargo8g')
         cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
         cargo.get_by_role('button',name='UNLOAD FRAME ONTO CLEAR GROUND').click()
@@ -147,7 +156,10 @@ with sync_playwright() as pw:
         assert len(after_unload['moves'])==2,after_unload
         assert len(after_unload['trucks'])==1 and after_unload['trucks'][0]['location']==fixture['truck']
         assert after_unload['frame']['state']['operational'] is False
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         activation=page.locator('#vehicle-activation8g')
         activation.locator('select[aria-label="Select physical manufactured vehicle"]').select_option(frame_id)
         button=activation.get_by_role('button',name='CALIBRATE & CHARGE')
@@ -204,7 +216,10 @@ with sync_playwright() as pw:
         assert abs(stopped)<.05,'Braking did not reach safe loading speed: '+str(stopped)
         page.keyboard.press('x')
         page.wait_for_function("""() => !StarfallRuntime.manufacturedOccupied8G""",timeout=10000)
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         cargo=page.locator('#frame-cargo8g')
         cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
         cargo.get_by_role('button',name='WINCH FRAME INTO SHIP').click()
@@ -217,7 +232,10 @@ with sync_playwright() as pw:
           return a.location.slot==='engineering-frame-cradle' && a.state.operational===true &&
             a.state.batteryEnergyJ<2000000;
         }""",frame_id),'Driven prototype lost custody, operational status or battery during ship load/reload'
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         cargo=page.locator('#frame-cargo8g')
         cargo.locator('select[aria-label="Select manufactured frame cargo"]').select_option(frame_id)
         cargo.get_by_role('button',name='UNLOAD FRAME ONTO CLEAR GROUND').click()

@@ -78,7 +78,10 @@ with sync_playwright() as p:
       o2:status.oxygenTankMol,served:line.servedW};
   }""")
   assert initial['served']==680 and initial['pressure']>70,initial
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 visible mission workflow; all original scenario assertions remain.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   page.locator('#outpost-open').click()
   page.locator('[data-outpost-tab="habitat"]').click()
   page.locator('#hab-t09-select').select_option(initial['id'])

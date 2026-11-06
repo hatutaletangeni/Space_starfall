@@ -61,7 +61,10 @@ with sync_playwright() as pw:
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         panel=page.locator('#structure-assembly8g')
         type_sel=panel.locator('select[aria-label="Select dry rocket stage or habitat envelope"]')
         pad_sel=panel.locator('select[aria-label="Select physical rocket or habitat assembly pad"]')
@@ -133,7 +136,10 @@ with sync_playwright() as pw:
         # The hose must still see the original rated vessel OWN its gas, not
         # hallucinate a generic oxygen stock lot in the ship hold.
         page.evaluate("""() => STARFALL_DEBUG.placeEvaNearGasVessel8G('hose-fixture:oxygen')""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         crane=page.locator('#gas-vessel-cargo8g')
         crane.locator('select[aria-label="Select physical nitrogen or oxygen vessel"]').select_option('hose-fixture:oxygen')
         crane.get_by_role('button',name='WINCH GAS VESSEL INTO SHIP').click()
@@ -151,7 +157,10 @@ with sync_playwright() as pw:
         assert ready['ready'] and ready['powered'],ready
         assert 95<ready['pressureKPa']<105 and 20<ready['oxygenPartialKPa']<22,ready
         charge_before=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22 visible mission workflow; all original scenario assertions remain.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         ui=page.locator('#habitat-hose8g')
         ui.locator('select[aria-label="Select unfinished habitat for rated gas charge"]').select_option(habitat_id)
         ui.locator('select[aria-label="Select actual rated oxygen source"]').select_option('hose-fixture:oxygen')
