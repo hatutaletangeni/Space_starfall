@@ -13799,10 +13799,12 @@ function industrialAdvance8E(elapsed){
   // the new paid inbound 8A vessel→pipe→reactor path. The owner can
   // cancel/restart; already spent ship Joules are not refunded.
   const reaction=StarfallIndustrialChemistry8E.reactions[a.reactionId];
-  const needGas=Object.keys(reaction.input).some(materialId=>
+  const exactGasSpecies=Object.keys(reaction.input).filter(materialId=>
    StarfallIndustrialChemistry8E.species[materialId]?.phase==='gas');
+  const needGas=exactGasSpecies.length>0;
   if(needGas&&(a.gasInputRequired8H!==true||
-     !chemicalGasInput8h.readyFor(a.id,materials8a.snapshot())))return;
+     !chemicalGasInput8h.readyFor(a.id,materials8a.snapshot(),exactGasSpecies)))
+    return; // a missing/replayed inlet archive CANNOT authorize ship work
   if(!shipLocal||Math.acos(Math.max(-1,Math.min(1,
     shipLocal.reduce((sum,v,i)=>sum+v*selected.asset.location.local[i],0))))*
       (nearest?.radius||1)>80)return; // Physical power umbilical disconnected; preserve paid work.
