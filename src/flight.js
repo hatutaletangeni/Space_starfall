@@ -23,7 +23,17 @@ const physicsClock=new P.SimulationClock(0);
 galaxy.physicsOrbits=StarfallOrbitBridge.attach(galaxy);
 const SHIP_CLEARANCE=7.5,EVA_HEIGHT=2.6,EVA_BOARD_DISTANCE=32,ROVER_CLEARANCE=2.1,TRUCK_CLEARANCE=4.2,TRUCK_BOARD_DISTANCE=19;
 const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
-const session=SF.load(),saved=session.flightGalaxy;
+const originalSession=SF.load();
+const recoveryRequested=document.body.classList.contains('sfmobile-edition')||
+ new URLSearchParams(location.search).get('recoverTruck')==='1';
+const recovery=recoveryRequested?StarfallTruckCustody8B.recoverStrandedTruckForMobile(originalSession):null;
+let recoveryPersisted=false;
+if(recovery?.recovered&&SF.storageStatus().durable){
+ recoveryPersisted=SF.save(recovery.session)===true;
+ if(!recoveryPersisted)SF.save(originalSession);
+}
+const session=recoveryPersisted?recovery.session:originalSession,saved=session.flightGalaxy;
+if(recoveryPersisted)setTimeout(()=>showToast('8B · Assisted rescue: ORIGINAL truck and untouched battery/cargo secured in ship. This is not physical 8H delivery.'),1600);
 let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
 const BAY8B=StarfallCargo8B;

@@ -23,6 +23,43 @@ function description(truck,cargo,landedBodyId){
    ' / ramp '+cargo.mode+'. Return to its actual planet; no duplicate will spawn.';
  return 'Truck custody location invalid; restore a backup.';
 }
-root.StarfallTruckCustody8B=Object.freeze({restore,description});
+/* One-time accessibility rescue of a stranded saved truck, not a physical 8H delivery.
+ * The exact original asset and cargo stay source-owned; no battery or matter is created.
+ */
+function recoverStrandedTruckForMobile(session){
+ const unchanged=reason=>({session,recovered:false,reason});
+ if(!session?.flightGalaxy||session.assistedTruckRecovery8b)return unchanged('NOT_ELIGIBLE');
+ const original=session.flightGalaxy,store=root.StarfallPhysical8A.create(session.physical8a,{
+  truckPose:original.truckPose,roverPose:original.roverPose});
+ const truck=store.get('truck-expedition-001'),id='8b-assisted-mobile-recovery-v1';
+ if(!truck||truck.location.kind!=='surface')return unchanged('ALREADY_STOWED_OR_MISSING');
+ if(store.get('ship-main')?.type!=='ship')return unchanged('MISSING_SHIP');
+ if(store.serialize().transfers.some(t=>t.id===id||
+   t.action==='ASSISTED_RECOVERY'&&t.assetId===truck.id))return unchanged('ASSISTED_BEFORE');
+ if(session.mining8d?.active)return unchanged('ACTIVE_MINING');
+ if((session.logisticsOrders8h?.orders||[]).some(o=>o.carrierId===truck.id&&
+    ['RESERVED','LOADED'].includes(o.status)))return unchanged('ACTIVE_ORDER');
+ if(store.list().some(a=>a.id!==truck.id&&a.location.kind==='ship'&&
+  a.location.slot==='starboard-hangar'))return unchanged('BAY_OCCUPIED');
+ const cargo=root.StarfallCargo8B.snapshot(original.shipCargo8b),bay=root.StarfallCargo8B.BAY;
+ if(cargo.mode==='ramp')return unchanged('ACTIVE_RAMP');
+ const materials=session.materials8a?root.StarfallMaterials8A.create(session.materials8a)
+  .used(root.StarfallMining8D.TRUCK):{massKg:0,volumeM3:0};
+ if(!root.StarfallCargo8B.fit({...truck,massKg:truck.massKg+materials.massKg,
+   volumeM3:truck.volumeM3+materials.volumeM3}).ok)return unchanged('CARGO_CAPACITY');
+ store.move(truck.id,{kind:'ship',slot:'starboard-hangar'},id,{
+  expected:truck.location,maxMassKg:bay.maxCargoMassKg,maxVolumeM3:bay.maxCargoVolumeM3});
+ const physical=store.serialize(),receipt=physical.transfers.find(t=>t.id===id);
+ receipt.action='ASSISTED_RECOVERY';receipt.excludedFromNoCheatAcceptance=true;
+ const next=JSON.parse(JSON.stringify(session));
+ next.physical8a=physical;
+ next.flightGalaxy={...next.flightGalaxy,truckPose:null,shipCargo8b:{
+  schema:1,mode:'secured',pose:{x:bay.centerX,z:5.7,y:bay.floorY},counter:cargo.counter}};
+ next.assistedTruckRecovery8b={schema:1,id,assetId:truck.id,status:'ASSISTED',
+  notPhysical8HDelivery:true,source:truck.location,destination:receipt.destination,
+  carriedMassKg:materials.massKg,carriedVolumeM3:materials.volumeM3};
+ return{session:next,recovered:true,receipt:next.assistedTruckRecovery8b};
+}
+root.StarfallTruckCustody8B=Object.freeze({restore,description,recoverStrandedTruckForMobile});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallTruckCustody8B;
 })(typeof globalThis!=='undefined'?globalThis:this);

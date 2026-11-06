@@ -30,5 +30,35 @@ with sync_playwright() as p:
  assert page.locator('#sfmobile-rotate').is_visible()
  assert page.locator('#sfmobile-hud').is_hidden()
  assert not errors,errors[:3]
+ # Mobile startup recovery must not duplicate the original truck or invent ore/charge.
+ page.set_viewport_size({'width':844,'height':390})
+ page.wait_for_function("() => !!window.StarfallRuntime?.physical8a",timeout=60000)
+ page.evaluate("""() => {
+  const assets=StarfallPhysical8A.create(StarfallRuntime.physical8a.serialize());
+  if(assets.get('truck-expedition-001').location.kind!=='ship')
+   throw Error('Original starter truck not physically in initial cargo');
+  assets.move('truck-expedition-001',{kind:'surface',bodyId:'stranded-water-world',local:[0,1,0]},'test:strand');
+  const old=SF.load().flightGalaxy||{};
+  if(!SF.save({physical8a:assets.serialize(),flightGalaxy:{...old,
+   shipCargo8b:{schema:1,mode:'ground',pose:{x:16.5,z:39,y:-7.25},counter:2}}}))
+   throw Error('Mobile offline storage not durable');
+ }""")
+ page.reload(wait_until='domcontentloaded',timeout=90000)
+ page.wait_for_function("() => !!window.StarfallRuntime?.physical8a",timeout=60000)
+ recovered=page.evaluate("""() => ({
+  kind:StarfallRuntime.physical8a.get('truck-expedition-001').location.kind,
+  battery:StarfallRuntime.physical8a.get('truck-expedition-001').state.batteryJ,
+  trucks:StarfallRuntime.physical8a.list().filter(a=>a.id==='truck-expedition-001').length,
+  cargo:StarfallRuntime.cargo8b.mode,
+  record:SF.load().assistedTruckRecovery8b,
+  receipts:StarfallRuntime.physical8a.serialize().transfers
+   .filter(t=>t.id==='8b-assisted-mobile-recovery-v1').length
+ })""")
+ assert recovered['kind']=='ship' and recovered['cargo']=='secured',recovered
+ assert recovered['trucks']==1 and recovered['receipts']==1,recovered
+ assert recovered['record']['notPhysical8HDelivery'] is True,recovered
+ page.reload(wait_until='domcontentloaded',timeout=90000)
+ page.wait_for_function("() => !!window.StarfallRuntime?.physical8a",timeout=60000)
+ assert page.evaluate("StarfallRuntime.physical8a.serialize().transfers.filter(t=>t.id==='8b-assisted-mobile-recovery-v1').length")==1
  ctx.close();browser.close()
 print('PASS: real offline mobile Chromium, landscape touch dispatch, text deselection, portrait guidance')

@@ -16,3 +16,7 @@ To rebuild after changing source files:
 The mobile game has its own exact source parity and touch-browser CI workflow; never replace the original desktop standalone with this variant.
 
 Limitations: mobile GPU/WebGL2 support varies, local-file browser storage can be restricted (use the SAVE / RESTORE export feature), and web applications cannot reliably force OS screen rotation if device orientation lock is enabled.
+
+## Original truck stranded on a planet
+
+The mobile standalone performs one assisted recovery of an old-save original stranded truck into its own ship cargo bay on startup, when durable storage is available. It moves the exact same original 8A truck asset with its actual materials and battery; it does not create a second truck or add energy. Active 8D drilling, reserved/loaded 8H orders, a ramp in use, occupied cargo bay and overweight cargo block assistance. A source/destination receipt records this as **assisted, non-physical recovery**, excluded from Update 8H no-cheat delivery acceptance. After you unload it normally, subsequent game starts do not teleport it again. New-game original trucks already start secured in the cargo bay. On the desktop standalone the same one-time assisted rescue is only requested when opening the URL with `?recoverTruck=1`. Save/export a backup before changing stored game state.
