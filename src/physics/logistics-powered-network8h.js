@@ -34,12 +34,20 @@ function inspect({physical8a,materials8a,outpost5,powerReport,bodyId,bodyRadius,
    Math.abs(t.massKg-a.massKg)<EPS);
   return installed?a:null;
  }
- const from=item(sourceId,'cargo_depot'),to=item(targetId,'cargo_depot');
- if(!from||!to)return fail('NO_CERTIFIED_DEPOT','Both dry depots must be real installed paid 8E facilities');
+ const from=item(sourceId,'cargo_depot');
+ const to=item(targetId,'cargo_depot')||
+  ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
+   .map(kind=>item(targetId,kind)).find(Boolean);
+ if(!from||!to)return fail('NO_CERTIFIED_ENDPOINT','Source must be an installed dry depot; destination a paid depot or genuine 8E chemical station');
+ const stationFeed=to.state.station!=='cargo_depot';
  for(const a of [from,to]){
-  const c=ledger.containers().find(c=>c.id===a.state.containerId&&c.ownerId===a.id&&
-   /dry-solid cargo dock/i.test(c.kind));
-  if(!c)return fail('NO_8A_PORT','Depot is missing its original source-owned dry-material container');
+  const isFeed=a===to&&stationFeed;
+  const port=isFeed?a.state.dryFeedContainerId:a.state.containerId;
+  const c=ledger.containers().find(c=>c.id===port&&c.ownerId===a.id&&
+   (isFeed?/dry-reactant feed hopper/i:/dry-solid cargo dock/i).test(c.kind));
+  if(!c||isFeed&&(port!=='plantfeed8h:'+a.id||
+    Math.abs(c.maxMassKg-120)>EPS||Math.abs(c.maxVolumeM3-.20)>EPS))
+   return fail('NO_8A_PORT',isFeed?'Manufactured station missing original bounded 8A dry feed hopper':'Depot missing original dry storage');
  }
  const drives=driveIds.map(x=>item(x,'conveyor_drive'));
  if(drives.some(x=>!x))return fail('NO_CERTIFIED_CONVEYOR','Missing physically manufactured and installed drive segments');
