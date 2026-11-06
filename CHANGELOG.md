@@ -1,3 +1,12 @@
+# STARFALL Update 8K preflight source-owned cargo + physical industrial machine visuals (2026-11-06)
+
+- Added bounded, one-time, inspectable **original pre-expedition** 8A ship material manifest for truly new expeditions. Contains pre-existing certified industrial kits, rated vessels, pipe, limited imported chips/components and finite feedstock; never recreated on another planet or silently granted to legacy saves. The physical original ship materials hold enforces 9,000 kg and 16 m³ capacity.
+- Added distinct precompiled 3D refinery furnace, gas fractionator, electrolyzer, reactor, conveyor, pressure pipe, depot and assembly equipment. Models refer to original installed 8A physical assets; depot cargo crates are shown only for actual source-owned stored lots.
+- Added bounded source-owned ship material-hold pallets in the 8E-R interior, absent when the cargo hold is empty.
+- Fixed real T13 ship-service WebGL browser test to access the actual **MISSION → Build → OPEN ALL BUILD TOOLS** UI22 flow instead of the intentionally hidden legacy tab. Existing simulation authority unchanged.
+- Added explicit acceptance register, starter kit/BOM tests, physical cargo and machine visual tests, synchronized desktop/mobile WebGL verification and safe fully merged branch pruning with a full SHAs audit.
+- **Not a full 8K release:** full no-cheat 2-world ore→product→habitat→terraforming, all 8I life support and 8J world-coupled climate remain unverified/unimplemented.
+
 # STARFALL T19A — Optional RF Link Budget, Telemetry Trace and Diagnostic Recovery (2026-11-02)
 
 - **Experimental P3 preview only**, based on fully verified T18 but NOT a full T19 technology suite and NOT a substitute for missing T18 complete two-planet mission. No merge to `main`.
