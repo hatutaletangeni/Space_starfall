@@ -34,10 +34,10 @@
    if(!special&&!inventory&&!target)continue;
    const b=document.createElement('button');b.type='button';b.className='sf-flow-action';b.textContent=label;
    b.addEventListener('click',()=>{
-    if(special)root.StarfallResourceTests8ER?.open?.(id==='@gas'?'gas':id==='@mining'?'mining':'mining');
+    close();
+    if(special)root.StarfallResourceTests8ER?.open?.(id==='@gas'?'gas':'mining');
     else if(inventory)root.StarfallInventoryUI8A?.open?.();
     else target.click();
-    close();
    });
    actionsHost.append(b);}
   // Advanced consoles stay accessible under their original, source-owned
