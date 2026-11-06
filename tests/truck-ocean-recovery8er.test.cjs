@@ -15,6 +15,7 @@ assert.match(source,/truckHudInfo,truckHudAction,truckLocator8ER,/);
 assert.match(source,/const actualLocal=truckBody\?\.id===body\.id&&Array\.isArray\(truckLocal\)\?truckLocal:asset\.location\.local/);
 assert.match(source,/Math\.acos\(V\.clamp\(V\.dot\(playerDir,truckDir\),-1,1\)\)/);
 assert.ok(source.includes("if(action==='SHORE')"),'Shore action must be bound to truck HUD');
+assert.ok(source.includes("if(!landed||nearest?.id!==body.id)return {status:'OTHER_WORLD'"),'Different-world truck must not show local pointer');
 assert.match(beacon,/FOLLOW ARROW/);
 assert.match(beacon,/WATER \/ SHORE/);
 assert.match(beacon,/requestAnimationFrame\(tick\)/);
@@ -28,7 +29,7 @@ assert.match(source,/const nearWaterline=swimming&&V\.len\(rel\)<24&&Math\.abs\(
 assert.match(source,/groundClearance>=-\.5&&groundClearance<=5/);
 assert.match(source,/const maxRelief=\(fromWater\|\|toWater\)/);
 assert.ok(source.includes('speed=((keys.has(\'ShiftLeft\')||keys.has(\'ShiftRight\'))?20:11.5)*traction*(shore?(truckShoreCrawl8ER?.16:.38):1);'),'Shore crawl must reduce speed on wet ground');
-assert.match(source,/if\\(action==='SHORE'\\)/);
+assert.ok(source.includes("if(action==='SHORE')"),'Shore action must be bound to truck HUD');
 assert.match(source,/shoreCrawl8er:truckShoreCrawl8ER/);
 const cockpit=fs.readFileSync('src/physics/truck-cockpit.js','utf8');
 assert.match(cockpit,/data-truck-action="SHORE"/);
