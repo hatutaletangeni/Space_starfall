@@ -16,6 +16,7 @@ let interiorState=null;
 let eva=false,evaLocal=null,evaForward=[...forward],shipLocal=null,shipForwardVec=[...forward],shipUpVec=[...up],shipBody=null;
 let swimming=false,swimDepthScene=.01,swimVerticalSceneS=0;
 let roverLocal=null,roverForwardVec=[...forward],roverBody=null,truckOccupied=false;
+let truckShoreCrawl8ER=false,lastShoreBlockedToast8ER=0;
 let truckLocal=null,truckForwardVec=[...forward],truckBody=null,truckBatteryJ=44e6,truckLights=true,truckCargo=0,winch7d=null,truckChargeReadyAtS=0,localRoverChargeReadyAtS=0,localRoverPortTemperatureK=290,localServiceT12=null;
 let hatchCooldown=0,walkedSinceExit=0,shipExitProgress=0,roverEntryCooldown=0,roverExitMove=null,shipIdleElapsed=0,rampTransition=null,rampLift=0;
 let engEnabled=false,engState=null,engBody=null,engAttitude='Manual',engLast={dragN:0,heatingW:0,temperatureK:290},engSteps=0;
@@ -33,6 +34,7 @@ if(recovery?.recovered&&SF.storageStatus().durable){
  if(!recoveryPersisted)SF.save(originalSession);
 }
 const session=recoveryPersisted?recovery.session:originalSession,saved=session.flightGalaxy;
+truckShoreCrawl8ER=!!saved?.truckPose?.shoreCrawl8er;
 if(recoveryPersisted)setTimeout(()=>showToast('8B · Assisted rescue: ORIGINAL truck and untouched battery/cargo secured in ship. This is not physical 8H delivery.'),1600);
 let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
@@ -772,7 +774,7 @@ function saveFlight(){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsConveyorPackets8h:conveyorPackets8h.snapshot(),logisticsPressureGasPackets8h:pressureGasPackets8h.snapshot(),chemicalGasOutput8h:chemicalGasOutput8h.snapshot(),chemicalGasInput8h:chemicalGasInput8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];SF.save({physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsConveyorPackets8h:conveyorPackets8h.snapshot(),logisticsPressureGasPackets8h:pressureGasPackets8h.snapshot(),chemicalGasOutput8h:chemicalGasOutput8h.snapshot(),chemicalGasInput8h:chemicalGasInput8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,shoreCrawl8er:truckShoreCrawl8ER,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null}});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -898,7 +900,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
     const right=V.norm(V.cross(truckForwardVec,radial)),weather=window.StarfallMeteorologyLW03?.cell(nearest,truckLocal,simTime,GALAXY_SEED),
       traction=weather?.precipitationKgM2S>0?Math.max(.53,1-weather.precipitationKgM2S*95):weather?.regime==='dust'?.82:1,
       shore=window.StarfallHydrosphereLW04?.sample(nearest,truckLocal,groundHeight(truckLocal,nearest),simTime,GALAXY_SEED)?.hasWater,
-      speed=((keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5)*traction*(shore?.38:1);
+      speed=((keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5)*traction*(shore?(truckShoreCrawl8ER?.16:.38):1);
     const step=drive*dt*speed,angle=step/Math.max(1,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE);
     const nextDir=V.norm(V.rot(radial,right,-angle));truckForwardVec=V.norm(V.rot(truckForwardVec,right,-angle));
     const nextLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
@@ -910,8 +912,12 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
     // A shore-bound expedition truck can crawl through shallow/shoreline relief
     // using the same finite battery, physical pose and real drive commands.
     // This is NOT a teleport and keeps the original 8A asset ID.
-    const maxRelief=(fromWater||toWater)?Math.max(1.5,Math.abs(step)*2.6):Math.max(.45,Math.abs(step)*.55);
-    if(dh<maxRelief){truckLocal=nextLocal;pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE));up=nextDir;truckBatteryJ=Math.max(0,truckBatteryJ-dt*(speed>12?4500:1800));}
+    const maxRelief=(fromWater||toWater)?(truckShoreCrawl8ER?Math.max(4.2,Math.abs(step)*4.5):Math.max(1.5,Math.abs(step)*2.6)):Math.max(.45,Math.abs(step)*.55);
+    if(dh<maxRelief){truckLocal=nextLocal;pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE));up=nextDir;truckBatteryJ=Math.max(0,truckBatteryJ-dt*(shore&&truckShoreCrawl8ER?5800:speed>12?4500:1800));}
+    else if((fromWater||toWater)&&performance.now()-lastShoreBlockedToast8ER>4000){
+     lastShoreBlockedToast8ER=performance.now();
+     showToast(truckShoreCrawl8ER?'SHORE CRAWL · BANK TOO STEEP · TURN AND FIND LOWER ENTRY':'TRUCK IN WATER · ENABLE SHORE CRAWL IN TRUCK HUD');
+    }
    }
    evaForward=[...truckForwardVec];vertical=0;vel=[0,0,0];return;
   }
@@ -2861,7 +2867,7 @@ function truckHudInfo(){
  return {occupied:truckOccupied,cargoMode:cargo8b.mode,onRamp:cargo8b.mode==='ramp',
   world:nearest?.name||'Unknown',batteryJ:truckBatteryJ,batteryPct:Math.round(truckBatteryJ/44e6*100),
   hopperKg:hopper.massKg,hopperLimitKg:StarfallMining8D.LIMITS.truckMassKg,
-  shipHoldKg:hold.massKg,lights:truckLights,camera:camMode===1?'CAB':'CHASE',
+  shipHoldKg:hold.massKg,lights:truckLights,camera:camMode===1?'CAB':'CHASE',shoreCrawl:truckShoreCrawl8ER,
   drillConditionPct:Math.round(mining8d.toolCondition*100),
   deposit:site?.label||null,surveyed,oreRemainingKg:site?resources8c.remaining(site):0,
   cycle:op?.type||null,cyclePct:op?Math.min(100,Math.round(op.elapsedS/op.durationS*100)):0,
@@ -2880,6 +2886,9 @@ function truckHudAction(action,lotId){
  if(action==='MAP'){openChart();return true;}
  if(action==='VIEW'){camMode=(camMode+1)%2;camEye=null;return true;}
  if(action==='LIGHTS'){truckLights=!truckLights;headlights=truckLights;return true;}
+ if(action==='SHORE'){truckShoreCrawl8ER=!truckShoreCrawl8ER;
+  showToast('SHORE CRAWL '+(truckShoreCrawl8ER?'ON · VERY LOW SPEED · HIGH ENERGY':'OFF · NORMAL DRIVE'));
+  saveFlight();return true;}
  if(action==='MINE'){if(!truckHudInfo().canDrill)throw Error('Park over a surveyed deposit with adequate battery and drill condition');return miningStart8D();}
  if(action==='LOAD'){
   if(!truckHudInfo().canLoad)throw Error('Park near landed ship with a real ore lot');
