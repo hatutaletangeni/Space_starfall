@@ -83,7 +83,7 @@ def main():
     prs=paginated("/repos/"+REPO+"/pulls?state=open")
     open_heads={
         p["head"]["ref"] for p in prs
-        if p.get("head",{}).get("repo",{}).get("full_name")==REPO
+        if (p.get("head",{}).get("repo") or {}).get("full_name")==REPO
     }
     candidates,preserved=select(branches,open_heads,ancestor)
     report={"repo":REPO,"base":"main","before":len(branches),
