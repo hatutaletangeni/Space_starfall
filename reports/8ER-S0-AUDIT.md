@@ -18,6 +18,14 @@
 | Rendering | `engine.js` static ship and interior meshes | Whole-interior merged mesh lacks portal culling, per-room visibility data |
 | Desktop/mobile UI | `index.html`, `src/mobile/landscape.*`, `truck-cockpit.*` | Mobile and desktop standalone need separate reproducible bundle parity |
 
+## Source branch review (GitHub PR status at audit)
+- PR #32 (`feature/update-8a-physical-inventory`): merged.
+- PR #33 (`feature/update-8b-physical-cargo`): open, not merged.
+- PR #34 (`feature/update-8c-finite-geology`): open, not merged.
+- PR #35 (`feature/update-8e-modular-ship`): open, not merged.
+- PR #36 (`feature/update-8d-mining-hauling`): open, not merged.
+- The baseline `main` source nevertheless contains 8A/8B/8C/8D/8E module files. Code presence is not proof that these draft PR acceptance gates passed; do not auto-merge the stacked branches.
+
 ## Verified from source, NOT runtime validated
 - `StarfallPhysical8A.create(null)` initializes the single original truck aboard the ship. The starter slot is not canonically named `starboard-hangar` yet.
 - `StarfallCargo8B.snapshot(null)` starts `secured`.
