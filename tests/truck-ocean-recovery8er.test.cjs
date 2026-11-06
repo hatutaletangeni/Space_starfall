@@ -27,5 +27,10 @@ assert.equal(Hatch.requestEntry({...entry,truckOccupied:true}).ok,false,'No car-
 assert.match(source,/const nearWaterline=swimming&&V\.len\(rel\)<24&&Math\.abs\(side\)<15/);
 assert.match(source,/groundClearance>=-\.5&&groundClearance<=5/);
 assert.match(source,/const maxRelief=\(fromWater\|\|toWater\)/);
-assert.match(source,/speed=.*\*traction\*\(shore\?\.38:1\)/);
+assert.match(source,/speed=.*\\*traction\\*\\(shore\\?\\(truckShoreCrawl8ER\\?\\.16:\\.38\\):1\\)/);
+assert.match(source,/if\\(action==='SHORE'\\)/);
+assert.match(source,/shoreCrawl8er:truckShoreCrawl8ER/);
+const cockpit=fs.readFileSync('src/physics/truck-cockpit.js','utf8');
+assert.match(cockpit,/data-truck-action="SHORE"/);
+assert.match(cockpit,/info.shoreCrawl/);
 console.log('PASS: original truck locator, world-scoped arrow, real position, waterline boarding and bounded powered shoreline crawl');
