@@ -28,7 +28,7 @@ function create(saved,legacy={}){
   insert({id:'ship-main',type:'ship',massKg:0,volumeM3:0,location:{kind:'ship',slot:'self'},condition:1,provenance:'pre_expédition',state:{manifest:true}});
   const pose=(x,type)=>x&&validId(x.bodyId)&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)?
    {kind:'surface',bodyId:x.bodyId,local:x.local}:{kind:'ship',slot:type+'-starter-stowage'};
-  insert({id:'truck-expedition-001',type:'truck',massKg:1600,volumeM3:13,location:pose(legacy.truckPose,'truck'),condition:1,
+  insert({id:'truck-expedition-001',type:'truck',massKg:1600,volumeM3:13,location:legacy.truckPose?pose(legacy.truckPose,'truck'):{kind:'ship',slot:'starboard-hangar'},condition:1,
    provenance:legacy.truckPose?'legacy_import':'initial_manifest',state:{batteryJ:number(legacy.truckPose?.batteryJ)?legacy.truckPose.batteryJ:44e6}});
   insert({id:'rover-science-001',type:'science-rover',massKg:380,volumeM3:3,location:pose(legacy.roverPose,'rover'),condition:1,
    provenance:legacy.roverPose?'legacy_import':'initial_manifest'});
