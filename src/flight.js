@@ -23,12 +23,32 @@ const physicsClock=new P.SimulationClock(0);
 galaxy.physicsOrbits=StarfallOrbitBridge.attach(galaxy);
 const SHIP_CLEARANCE=7.5,EVA_HEIGHT=2.6,EVA_BOARD_DISTANCE=32,ROVER_CLEARANCE=2.1,TRUCK_CLEARANCE=4.2,TRUCK_BOARD_DISTANCE=19;
 const scans=['Hydrology','Biosignatures','Geology'],keys=new Set();
-const session=SF.load(),saved=session.flightGalaxy;
+const originalSession=SF.load();
+const recoveryRequested=document.body.classList.contains('sfmobile-edition')||
+ new URLSearchParams(location.search).get('recoverTruck')==='1';
+const recovery=recoveryRequested?StarfallTruckCustody8B.recoverStrandedTruckForMobile(originalSession):null;
+let recoveryPersisted=false;
+if(recovery?.recovered&&SF.storageStatus().durable){
+ recoveryPersisted=SF.save(recovery.session)===true;
+ if(!recoveryPersisted)SF.save(originalSession);
+}
+const session=recoveryPersisted?recovery.session:originalSession,saved=session.flightGalaxy;
+if(recoveryPersisted)setTimeout(()=>showToast('8B · Assisted rescue: ORIGINAL truck and untouched battery/cargo secured in ship. This is not physical 8H delivery.'),1600);
 let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
 const START_TRUCK='truck-expedition-001',START_ROVER='rover-science-001';
 const BAY8B=StarfallCargo8B;
 const originalTruckCargo8B=StarfallTruckCustody8B.restore(saved?.shipCargo8b,physical8a.get(START_TRUCK),saved?.attached||null);
 let cargo8b=originalTruckCargo8B.cargo;
+// The truck's original 8A battery/cargo state remains authoritative in the bay.
+const storedTruck8b=physical8a.get(START_TRUCK);
+if(storedTruck8b?.location.kind==='ship'){
+ const state=storedTruck8b.state||{};
+ if(Number.isFinite(state.batteryJ))truckBatteryJ=V.clamp(state.batteryJ,0,44e6);
+ if(Number.isFinite(state.cargoKg))truckCargo=V.clamp(state.cargoKg,0,800);
+ if(typeof state.lights==='boolean')truckLights=state.lights;
+ if(Array.isArray(state.forward)&&state.forward.length===3&&state.forward.every(Number.isFinite))
+  truckForwardVec=V.norm(state.forward);
+}
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
 let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h);
@@ -342,6 +362,7 @@ function cargoInteract8B(){
   showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody.id));return true;
  }
  if(cargo8b.mode==='secured'&&a?.location.kind==='ship'){
+  if(Number.isFinite(a.state?.batteryJ))truckBatteryJ=V.clamp(a.state.batteryJ,0,44e6);
   cargo8b.mode='ramp';cargo8b.pose={x:BAY8B.BAY.centerX,z:11.2,y:BAY8B.height(11.2)};cargo8b.counter++;
   truckBody=shipBody;truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);truckForwardVec=[...shipForwardVec];
   physical8a.move(START_TRUCK,{kind:'surface',bodyId:shipBody.id,local:truckLocal},'8b-release:'+cargo8b.counter,{expected:a.location});
@@ -349,9 +370,16 @@ function cargoInteract8B(){
  }
  if(cargo8b.mode==='ramp'&&cargo8b.pose.z<=11.6&&a?.location.kind==='surface'){
   if(!BAY8B.fit(a).ok){showToast('8B · TRUCK EXCEEDS CARGO BAY CAPACITY');return true;}
+  if(!truckBody||!truckLocal||truckBody.id!==a.location.bodyId){
+   showToast('8B · Truck position missing; cannot secure or invent battery charge');return true;
+  }
+  // Source-owned energy must be written BEFORE moving the actual truck to ship.
+  physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,
+   lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
+  const updatedBeforeLock=physical8a.get(START_TRUCK);
   cargo8b.counter++;
   physical8a.move(START_TRUCK,{kind:'ship',slot:'starboard-hangar'},'8b-lock:'+cargo8b.counter,
-   {expected:a.location,maxMassKg:BAY8B.BAY.maxCargoMassKg,maxVolumeM3:BAY8B.BAY.maxCargoVolumeM3});
+   {expected:updatedBeforeLock.location,maxMassKg:BAY8B.BAY.maxCargoMassKg,maxVolumeM3:BAY8B.BAY.maxCargoVolumeM3});
   cargo8b.mode='secured';cargo8b.pose={x:BAY8B.BAY.centerX,z:5.7,y:BAY8B.BAY.floorY};
   truckBody=null;truckLocal=null;roverExitMove=null;
   showToast('8B · TRUCK SECURED · tie-downs locked · flight mass updated');saveFlight();return true;
