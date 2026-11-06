@@ -42,3 +42,21 @@ In truck mode, ship/EVA overlays should disappear; inspect the dedicated battery
 - Browser build and full test suite must complete through the CI jobs; check conclusion instead of assuming success.
 - The airlock pressure/door mechanism, full modules/receipt manufacturing, dedicated C01 materials store, physical V01 docking and identical-hardware FPS measurements are not complete.
 - If the build run is queued or has failed, these links may still serve old HTML. **Do not label it test-ready until the compiled pair is synchronized.**
+
+## Test 5 — Original truck HUD locator (desktop and mobile)
+1. Stay on the same planet as the original expedition truck and walk away from it. The teal HUD beacon points toward its live physical position and shows **surface-arc distance in scene units**, including an **WATER / SHORE** note when appropriate.
+2. Rotate the player: the directional arrow must turn with the bearing. Approach the vehicle; distance should fall.
+3. Enter the truck and confirm the beacon hides, leaving **only** the truck cockpit, not unrelated ship/EVA overlays.
+4. Secure the original truck in V01 and verify the beacon changes to **TRUCK SECURED IN SHIP**.
+5. Leave the truck on a different planet in an existing legitimate save: the beacon must identify that world instead of displaying a false local arrow.
+6. Open the star chart and use the existing **LOCATE MY ORIGINAL TRUCK** command for interplanetary routing. It must never change the truck's actual location.
+
+## Test 6 — Shoreline recovery and swimming ship entry
+1. On a wet/ocean world, approach the actual central crew ramp while swimming. Tap **BRIDGE / I** when physically within the ship's waterline access range (maximum 24 scene units in the supported boarding corridor). Entry must interpolate along the crew ramp and finish only when the hatch transition completes.
+2. Stay farther offshore than that range: boarding must be refused. Also test conflicting active ramp, occupied truck, and cooling-down hatch: no remote teleport or free rescue.
+3. Drive the truck toward a shoreline bank. Wet traction is slower than land traction. In the dedicated **truck HUD**, toggle **SHORE CRAWL** on. Forward/reverse continues using the original truck, real battery drain, and bounded ground displacement; no new truck or ore is created.
+4. If the bank is too steep, the game should show **BANK TOO STEEP · TURN AND FIND LOWER ENTRY**, not silently freeze.
+5. After reaching dry land, disable SHORE CRAWL to restore normal speed. Save, reload, and confirm truck position, charge, ore and crawl-mode setting persist.
+6. If the original truck is too deep to approach physically, use the known original-truck location and an actual saved/authorized recovery method; this update does **not** claim to implement autonomous marine towing or an amphibious floating truck.
+
+**Validation status:** Source-level syntax and test assertions are available; real browser/WebGL and shoreline playthrough performance must be verified separately on target hardware. The preview publisher must synchronize `PLAY-STARFALL.html` and `PLAY-STARFALL-MOBILE.html` at the same branch head before marking the build ready.
