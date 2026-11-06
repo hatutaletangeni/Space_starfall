@@ -46,22 +46,23 @@ function commit({operationId,lotId,massKg,stationId,depotId,bodyId,materials8a,p
     packet.massKg!==massKg||packet.currentLotId!==lotId||
     (!finite(packet.completionS))||packet.cursor!==packet.driveIds?.length+1)
   throw Error('Authoritative original 8H delivered conveyor packet required');
+ // The native conveyor already committed the final hop. NEVER reserve/commit
+ // a second transfer: this function only verifies the authoritative 8A receipt.
  const ledger=root.StarfallMaterials8A?.create(materials8a);
  if(!ledger)throw Error('Original 8A ledger unavailable');
+ const finalHopId='8h-belt:'+packet.id+':'+packet.driveIds.length;
+ const finalHop=ledger.operations().find(o=>o.id===finalHopId);
+ if(!finalHop||finalHop.status!=='COMMITTED'||
+    finalHop.destinationId!==targetId||finalHop.outputLotId!==lotId||
+    Math.abs(finalHop.massKg-massKg)>EPS)
+  throw Error('Original 8A committed final-hop receipt required');
+ const arrived=ledger.inventory(targetId).find(l=>l.id===lotId);
+ if(!arrived||gases.has(arrived.materialId)||
+    ['water','ice'].includes(arrived.materialId)||arrived.massKg+EPS<massKg)
+  throw Error('Original delivered dry product lot missing from depot');
  const prior=ledger.operations().find(o=>o.id===operationId);
- if(prior){
-  if(prior.status!=='COMMITTED'||prior.lotId!==lotId||prior.destinationId!==targetId||Math.abs(prior.massKg-massKg)>EPS)
-   throw Error('Conflicting product custody replay');
-  return {duplicate:true,materials8a:cp(materials8a),receipt:cp(prior)};
- }
- const lot=ledger.inventory(sourceId).find(l=>l.id===lotId);
- if(!lot||gases.has(lot.materialId)||lot.materialId==='water'||lot.materialId==='ice'||lot.massKg+EPS<massKg)
-  throw Error('Original solid product lot missing or not dry');
- const before=ledger.inventory().reduce((s,l)=>s+l.massKg,0);
- ledger.reserve(operationId,lotId,targetId,massKg);
- const receipt=ledger.commit(operationId),after=ledger.inventory().reduce((s,l)=>s+l.massKg,0);
- if(Math.abs(before-after)>EPS)throw Error('Original 8A product custody mass mismatch');
- return {duplicate:false,materials8a:ledger.snapshot(),receipt};
+ if(prior)throw Error('Separate product custody transfer forbidden; native conveyor owns delivery');
+ return {duplicate:true,materials8a:cp(materials8a),receipt:cp(finalHop)};
 }
 root.StarfallIndustrialProductOutput8H=Object.freeze({commit});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndustrialProductOutput8H;
