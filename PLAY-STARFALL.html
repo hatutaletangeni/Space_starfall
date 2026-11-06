@@ -316,6 +316,62 @@ body.ui20 .ui21-manual-window footer{border-top:1px solid #7899ad44;color:#adbec
 @media(prefers-reduced-motion:reduce){body.ui20 .ui21-page,body.ui20 #ui21-manual{transition:none}}
 
 </style>
+<style>
+/* Exclusive truck driving UI for desktop and mobile. Ordinary ship/EVA overlays
+   cannot obstruct the scene while the original truck is occupied. */
+#sf-truck-cockpit[hidden]{display:none!important}
+#sf-truck-cockpit{position:fixed;z-index:16;top:12px;right:12px;width:min(355px,34vw);max-height:calc(100dvh - 24px);overflow:auto;
+ box-sizing:border-box;background:rgba(5,15,25,.9);border:1px solid #668da2aa;border-radius:12px;box-shadow:0 10px 34px #0008;
+ backdrop-filter:blur(10px);padding:12px;color:#e5f4fa;font:12px/1.35 system-ui,-apple-system,sans-serif}
+#sf-truck-cockpit .sft-header{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:12px;letter-spacing:.65px}
+#sf-truck-cockpit .sft-header span{font-size:9px;color:#b6cbd4;letter-spacing:0;text-align:right}
+#sf-truck-cockpit .sft-dials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:9px 0}
+#sf-truck-cockpit .sft-dials>div{background:#173043b5;border:1px solid #6a96a63f;padding:7px 5px;border-radius:6px;min-width:0}
+#sf-truck-cockpit .sft-dials small{display:block;font-size:8px;color:#a9c4d0}
+#sf-truck-cockpit .sft-dials b{display:block;font-size:11px;font-weight:650;white-space:nowrap}
+#sf-truck-cockpit #sft-state{font-size:10px;color:#d5c7a9;margin-bottom:8px}
+#sf-truck-cockpit .sft-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+#sf-truck-cockpit button{min-height:34px;padding:6px 4px;border:1px solid #759db07c;border-radius:7px;
+ color:#e5f4fa;background:#10283be8;font-weight:650;font-size:10px;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
+#sf-truck-cockpit button[data-truck-action=EXIT]{border-color:#d5a974;color:#ffddb5}
+#sf-truck-cockpit button:disabled{opacity:.38}
+#sf-truck-cockpit .sft-lots{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:10px}
+#sf-truck-cockpit .sft-lots[hidden]{display:none}
+#sf-truck-cockpit select{max-width:78%;min-width:0;background:#10283b;color:#e4f4ff;border:1px solid #6c8ca2;padding:5px}
+#sf-truck-cockpit #sft-hint{font-size:9px;color:#aac8d4;margin-top:8px}
+#sf-truck-cockpit #sft-error{color:#ffb7a1;font-size:10px;margin-top:8px}
+#sf-truck-cockpit #sft-error[hidden]{display:none}
+/* World/spacecraft menus are hidden only while in the driver's seat.
+   Modal map stays accessible after clicking MAP. */
+body[data-truck-driving=true] :is(.masthead,.identity,.controls-hint,.status-strip,.telemetry,.panel,.waypoint-label,
+ #ui21-navigation,#space-event,#walk-context,#status-text,#phase-top,#flight-state,#ui-console-open,#ui-tools-toggle,
+ .ui20-toolbar,.ui20-controls,.ui20-topbar,.ui20-bottom,#sfm-vehicle-bay-hint){display:none!important}
+body[data-truck-driving=true] .mobile-controls{display:none!important}
+body[data-truck-driving=true] #sf-truck-cockpit{display:block}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-top,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-right,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-caption{display:none!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left{display:grid!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left [data-mobile-key=KeyX]{visibility:hidden!important;pointer-events:none!important}
+body.sfmobile-edition #sf-truck-cockpit{top:max(5px,env(safe-area-inset-top));right:max(5px,env(safe-area-inset-right));
+ bottom:auto;width:min(47vw,328px);max-height:calc(100dvh - 12px);padding:7px;border-radius:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header{font-size:10px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header span{font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials{gap:3px;margin:5px 0}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:3px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials small{font-size:7px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials b{font-size:9px}
+body.sfmobile-edition #sf-truck-cockpit #sft-state{margin-bottom:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-tools{gap:3px}
+body.sfmobile-edition #sf-truck-cockpit button{min-height:25px;padding:3px 2px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit #sft-hint{margin-top:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-lots{margin:3px 0;font-size:8px}
+@media(max-height:380px){
+ body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:2px}
+ body.sfmobile-edition #sf-truck-cockpit button{min-height:23px}
+}
+
+</style>
 </head>
 <body class="ui20">
   <canvas id="universe" aria-label="Real-time three-dimensional starfield, spacecraft and procedural planets"></canvas>
@@ -20966,6 +21022,95 @@ cancel.addEventListener('click',()=>action(()=>rt().miningCancel8D()));
 panel.append(title,status,controls,readout);host.append(panel);
 let last=0;const check=()=>{const t=performance.now();if(t-last>500){last=t;refresh();}requestAnimationFrame(check);};check();
 root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Operate');panel.scrollIntoView({block:'nearest'});refresh();}};
+})(globalThis);
+
+</script><script>
+/* STARFALL shared truck cockpit: replaces ship/EVA HUD while driving.
+ * This is UI only. Truck physics, drill, ore ownership and save remain in flight.js. */
+(function(root){'use strict';
+const ID='sf-truck-cockpit';
+const on=()=>!!root.StarfallRuntime?.truckOccupied;
+const panel=document.createElement('section');
+panel.id=ID;panel.setAttribute('aria-label','Expedition truck cockpit');panel.hidden=true;
+panel.innerHTML=`
+ <div class="sft-header"><strong>EXPEDITION TRUCK</strong><span id="sft-world">SURFACE VEHICLE</span></div>
+ <div class="sft-dials">
+  <div><small>BATTERY</small><b id="sft-battery">—</b></div>
+  <div><small>HOPPER</small><b id="sft-hopper">—</b></div>
+  <div><small>CAMERA</small><b id="sft-camera">CHASE</b></div>
+  <div><small>DRILL</small><b id="sft-drill">—</b></div>
+ </div>
+ <div id="sft-state" role="status">Vehicle initializing</div>
+ <div class="sft-tools" aria-label="Truck utility actions">
+  <button type="button" data-truck-action="EXIT">EXIT TRUCK</button>
+  <button type="button" data-truck-action="MAP">MAP</button>
+  <button type="button" data-truck-action="VIEW">VIEW</button>
+  <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
+  <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
+  <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+  <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
+ </div>
+ <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
+ <div id="sft-hint">W/S DRIVE · A/D STEER · X EXIT · V VIEW</div>
+ <div class="sft-error" role="status" id="sft-error" hidden></div>`;
+document.body.append(panel);
+const el=id=>panel.querySelector('#'+id);
+const buttons=Object.fromEntries([...panel.querySelectorAll('[data-truck-action]')].map(b=>[b.dataset.truckAction,b]));
+const lot=el('sft-lot');
+let lastLots='',lastAt=0;
+function execute(action){
+ const r=root.StarfallRuntime;
+ if(!r?.truckOccupied)return;
+ try{
+  const result=r.truckHudAction(action,lot.value);
+  el('sft-error').hidden=true;
+  if(result===false)el('sft-hint').textContent='Action blocked by vehicle safety conditions';
+ }catch(error){
+  el('sft-error').textContent=String(error?.message||error).slice(0,180);
+  el('sft-error').hidden=false;
+ }
+ refresh(true);
+}
+for(const b of Object.values(buttons)){
+ b.addEventListener('pointerdown',e=>{e.stopPropagation();},{passive:true});
+ b.addEventListener('click',e=>{e.stopPropagation();execute(b.dataset.truckAction);});
+}
+lot.addEventListener('keydown',e=>e.stopPropagation());
+function refresh(force=false){
+ const active=on();
+ document.body.dataset.truckDriving=active?'true':'false';
+ panel.hidden=!active;
+ if(!active)return;
+ const now=performance.now();if(!force&&now-lastAt<200)return;lastAt=now;
+ const info=root.StarfallRuntime.truckHudInfo();
+ el('sft-world').textContent=info.world+' · '+(info.onRamp?'RAMP':'GROUND');
+ el('sft-battery').textContent=info.batteryPct+'%';
+ el('sft-hopper').textContent=info.hopperKg.toFixed(0)+' / '+info.hopperLimitKg+' kg';
+ el('sft-camera').textContent=info.camera;
+ el('sft-drill').textContent=info.drillConditionPct+'%';
+ el('sft-state').textContent=info.cycle?
+  info.cycle+' · '+info.cyclePct+'%':info.surveyed?
+  (info.deposit+' · '+Math.round(info.oreRemainingKg)+' kg remaining'):'NO SURVEY AT CURRENT DEPOSIT';
+ el('sft-hint').textContent=info.hint+' · W/S DRIVE · A/D STEER';
+ buttons.EXIT.disabled=!info.canExit;
+ buttons.MINE.disabled=!info.canDrill;
+ buttons.LOAD.disabled=!info.canLoad;
+ buttons.CANCEL.disabled=!info.cycle;
+ buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
+ const list=JSON.stringify(info.lots.map(l=>[l.id,l.massKg]));
+ if(list!==lastLots){
+  const previous=lot.value;lot.replaceChildren();
+  for(const item of info.lots){const option=document.createElement('option');option.value=item.id;
+   option.textContent=item.materialId.replaceAll('_',' ')+' · '+item.massKg.toFixed(1)+' kg';lot.add(option);}
+  if(info.lots.some(l=>l.id===previous))lot.value=previous;
+  lastLots=list;
+ }
+ lot.hidden=!info.lots.length;
+ lot.parentElement.hidden=!info.lots.length;
+}
+function tick(){try{refresh();}catch(error){console.warn('Truck HUD refresh',error);}requestAnimationFrame(tick);}
+requestAnimationFrame(tick);
+root.StarfallTruckCockpit={refresh,execute};
 })(globalThis);
 
 </script><script>
