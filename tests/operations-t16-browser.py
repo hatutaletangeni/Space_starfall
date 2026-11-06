@@ -61,6 +61,10 @@ with sync_playwright() as p:
    return{phase:s.packet.stage,ack:s.packet.label,bytes:s.packet.sentBytes};
   }""")
   assert stage['phase']=='IN_PROGRESS',stage
+  # UI22 deliberately hides the legacy reconnaissance panel by default.
+  # Use the player's visible Mission > Operate > workspace to inspect source-owned telemetry.
+  open_route(page,'Operate')
+  assert page.locator('#op16-filter-severity').is_visible(), 'T16 diagnostics must be reachable via the visible Operate workspace'
   assert page.locator('#op16-log-rows').inner_text().find('ops16')<0 or page.locator('#op16-log-rows').count()==1
   page.locator('#op16-filter-severity').select_option('info')
   assert page.locator('#op16-filter-severity').input_value()=='info'
