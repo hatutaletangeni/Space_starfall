@@ -80,7 +80,7 @@ function refresh(){
  ],'No certified physical destination');
  const active=ctx.packets.some(p=>p.status==='ACTIVE');
  const selectedLot=materialLots.find(x=>x.id===lot.value);
- start.disabled=!ctx.onFoot||!selectedLot||depots.length<2||!drive.value||
+ start.disabled=!ctx.onFoot||!selectedLot||!depots.length||(!plants.length&&depots.length<2)||!drive.value||
   !target.value||active||!ctx.gridReport||Number(kg.value)>selectedLot.massKg||
   !(Number(kg.value)>0&&Number(kg.value)<=40);
  const lines=[
