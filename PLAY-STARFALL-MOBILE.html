@@ -317,6 +317,69 @@ body.ui20 .ui21-manual-window footer{border-top:1px solid #7899ad44;color:#adbec
 
 </style>
 <style>
+/* Exclusive truck driving UI for desktop and mobile. Ordinary ship/EVA overlays
+   cannot obstruct the scene while the original truck is occupied. */
+#sf-truck-cockpit[hidden]{display:none!important}
+#sf-truck-cockpit{position:fixed;z-index:16;top:12px;right:12px;width:min(355px,34vw);max-height:calc(100dvh - 24px);overflow:auto;
+ box-sizing:border-box;background:rgba(5,15,25,.9);border:1px solid #668da2aa;border-radius:12px;box-shadow:0 10px 34px #0008;
+ backdrop-filter:blur(10px);padding:12px;color:#e5f4fa;font:12px/1.35 system-ui,-apple-system,sans-serif}
+#sf-truck-cockpit .sft-header{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:12px;letter-spacing:.65px}
+#sf-truck-cockpit .sft-header span{font-size:9px;color:#b6cbd4;letter-spacing:0;text-align:right}
+#sf-truck-cockpit .sft-dials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:9px 0}
+#sf-truck-cockpit .sft-dials>div{background:#173043b5;border:1px solid #6a96a63f;padding:7px 5px;border-radius:6px;min-width:0}
+#sf-truck-cockpit .sft-dials small{display:block;font-size:8px;color:#a9c4d0}
+#sf-truck-cockpit .sft-dials b{display:block;font-size:11px;font-weight:650;white-space:nowrap}
+#sf-truck-cockpit #sft-state{font-size:10px;color:#d5c7a9;margin-bottom:8px}
+#sf-truck-cockpit .sft-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+#sf-truck-cockpit button{min-height:34px;padding:6px 4px;border:1px solid #759db07c;border-radius:7px;
+ color:#e5f4fa;background:#10283be8;font-weight:650;font-size:10px;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
+#sf-truck-cockpit button[data-truck-action=EXIT]{border-color:#d5a974;color:#ffddb5}
+#sf-truck-cockpit button:disabled{opacity:.38}
+#sf-truck-cockpit .sft-lots{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:10px}
+#sf-truck-cockpit .sft-lots[hidden]{display:none}
+#sf-truck-cockpit select{max-width:78%;min-width:0;background:#10283b;color:#e4f4ff;border:1px solid #6c8ca2;padding:5px}
+#sf-truck-cockpit #sft-hint{font-size:9px;color:#aac8d4;margin-top:8px}
+#sf-truck-cockpit #sft-error{color:#ffb7a1;font-size:10px;margin-top:8px}
+#sf-truck-cockpit #sft-error[hidden]{display:none}
+/* World/spacecraft menus are hidden only while in the driver's seat.
+   Modal map stays accessible after clicking MAP. */
+body[data-truck-driving=true] :is(.masthead,.identity,.controls-hint,.status-strip,.telemetry,.panel,.waypoint-label,
+ #ui21-navigation,#space-event,#walk-context,#status-text,#phase-top,#flight-state,#ui-console-open,#ui-tools-toggle,
+ .ui20-toolbar,.ui20-controls,.ui20-topbar,.ui20-bottom,#sfm-vehicle-bay-hint){display:none!important}
+body[data-truck-driving=true] .mobile-controls{display:none!important}
+body[data-truck-driving=true] #sf-truck-cockpit{display:block}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-top,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-right,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-caption{display:none!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left{display:grid!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left [data-mobile-key=KeyX]{visibility:hidden!important;pointer-events:none!important}
+body.sfmobile-edition #sf-truck-cockpit{top:max(5px,env(safe-area-inset-top));right:max(5px,env(safe-area-inset-right));
+ bottom:auto;width:min(47vw,328px);max-height:calc(100dvh - 12px);padding:7px;border-radius:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header{font-size:10px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header span{font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials{gap:3px;margin:5px 0}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:3px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials small{font-size:7px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials b{font-size:9px}
+body.sfmobile-edition #sf-truck-cockpit #sft-state{margin-bottom:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-tools{gap:3px}
+body.sfmobile-edition #sf-truck-cockpit button{min-height:25px;padding:3px 2px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit #sft-hint{margin-top:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-lots{margin:3px 0;font-size:8px}
+@media(max-height:380px){
+ body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:2px}
+ body.sfmobile-edition #sf-truck-cockpit button{min-height:23px}
+}
+
+/* The legacy contextual menus and external expedition overlays are not truck instruments. */
+body.ui20[data-truck-driving=true] :is(#sf-quick-tools,#ui21-quick,#sf-console-nav,#landing-banner,
+ #solar-alert,#space-event,#phase-top,#walk-context,#status-text,.reticle,.ui21-intro,
+ #ui20-vehicle-frame .ship-structure){display:none!important}
+body.ui20[data-truck-driving=true] #ui20-vehicle-frame{display:none!important}
+body.ui20[data-truck-driving=true] #sf-truck-cockpit{display:block!important}
+
+</style>
+<style>
 /* STARFALL standalone mobile edition: landscape touch UI, no font selection on taps. */
 html,body.sfmobile-edition{overscroll-behavior:none}
 .sfmobile-edition :is(button,a,[role="button"]),.sfmobile-edition :is(button,a,[role="button"]) *{
@@ -951,6 +1014,26 @@ STOP</textarea></label></div>
       chance(p) { return this.next() < p; }
     },
     hash(text) { let h = 2166136261; for (const char of String(text)) h = Math.imul(h ^ char.charCodeAt(0), 16777619); return h >>> 0; },
+    // Start fresh without silently mixing old-world vehicles into a new seed.
+    // Always preserve the prior expedition in its own durable recovery slot.
+    startNewExpedition(seed) {
+      if(!Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Invalid new galaxy seed');
+      if(root.__STARFALL_IMPORT_PENDING)throw Error('Finish pending save import first');
+      if(!this.storageStatus().durable)throw Error('New expedition requires durable save storage to protect the previous game. Export your save first.');
+      const previous=read('starfall_save');
+      if(previous!==null){
+        const key='starfall_backup_before_new_expedition_'+Date.now();
+        if(!write(key,previous))throw Error('Could not back up prior expedition');
+        if(JSON.stringify(read(key))!==JSON.stringify(previous))throw Error('Prior expedition backup verification failed');
+      }
+      const fresh={...initial(),freshExpedition:{schema:1,seed,startedAt:Date.now()}};
+      if(!write('starfall_save',fresh))throw Error('Could not persist fresh expedition');
+      if(JSON.stringify(read('starfall_save'))!==JSON.stringify(fresh))throw Error('Fresh expedition read-back failed');
+      // The old page has a pagehide autosaver. Lock it out until navigation,
+      // otherwise it overwrites the fresh manifest with the previous truck pose.
+      root.__STARFALL_NEW_EXPEDITION_PENDING=true;
+      return {seed,backedUp:previous!==null};
+    },
     load() {
       const saved = read('starfall_save');
       const data = { ...initial(), ...(object(saved) ? saved : {}) };
@@ -960,7 +1043,7 @@ STOP</textarea></label></div>
       data.orbital = object(data.orbital) ? data.orbital : {};
       return data;
     },
-    save(data) { if(root.__STARFALL_IMPORT_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
+    save(data) { if(root.__STARFALL_IMPORT_PENDING||root.__STARFALL_NEW_EXPEDITION_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
     getCredits() { return this.load().credits; },
     addCredits(amount) {
       const data = this.load();
@@ -8300,7 +8383,7 @@ function create(saved,legacy={}){
   insert({id:'ship-main',type:'ship',massKg:0,volumeM3:0,location:{kind:'ship',slot:'self'},condition:1,provenance:'pre_expédition',state:{manifest:true}});
   const pose=(x,type)=>x&&validId(x.bodyId)&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)?
    {kind:'surface',bodyId:x.bodyId,local:x.local}:{kind:'ship',slot:type+'-starter-stowage'};
-  insert({id:'truck-expedition-001',type:'truck',massKg:1600,volumeM3:13,location:pose(legacy.truckPose,'truck'),condition:1,
+  insert({id:'truck-expedition-001',type:'truck',massKg:1600,volumeM3:13,location:legacy.truckPose?pose(legacy.truckPose,'truck'):{kind:'ship',slot:'starboard-hangar'},condition:1,
    provenance:legacy.truckPose?'legacy_import':'initial_manifest',state:{batteryJ:number(legacy.truckPose?.batteryJ)?legacy.truckPose.batteryJ:44e6}});
   insert({id:'rover-science-001',type:'science-rover',massKg:380,volumeM3:3,location:pose(legacy.roverPose,'rover'),condition:1,
    provenance:legacy.roverPose?'legacy_import':'initial_manifest'});
@@ -12673,7 +12756,7 @@ function boardVehicleBayTruck8B(){
  }
  if(winch7d){showToast('VEHICLE BAY · Release the powered winch first');return true;}
  // Keep original 8A physical truck and battery. Use the same driving state as EVA boarding.
- shipWalking8e=false;truckOccupied=true;eva=false;
+ shipWalking8e=false;truckOccupied=true;eva=true;
  const truck=truckWorldState();pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];
  camMode=0;camEye=null;camDistance=Math.max(camDistance,26);roverEntryCooldown=1.2;
  showToast('VEHICLE BAY · TRUCK BOARDED · Hold S / ▼ to reverse down the wide starboard ramp · X to exit');
@@ -12827,12 +12910,14 @@ function enterTruck(){
  const truck=truckWorldState();
  if(!truck||V.len(V.sub(pos,truck.position))>TRUCK_BOARD_DISTANCE)return false;
  if(winch7d){showToast('Cancel the powered winch before driving the truck');return false;}
-  truckOccupied=true;pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];camEye=null;camDistance=Math.max(camDistance,26);
+  truckOccupied=true;eva=true;pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];camEye=null;camDistance=Math.max(camDistance,26);
  roverEntryCooldown=1.2;showToast('EXPEDITION TRUCK · WASD drive · X or ground click to exit · L lights');return true;
 }
 function exitTruck(){
  if(!truckOccupied||!truckBody||!truckLocal)return false;
- truckOccupied=false;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
+ if(cargo8b.mode==='ramp'){showToast('TRUCK · Reverse all the way off the ramp before exiting');return false;}
+ if(keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')){showToast('TRUCK · Release throttle before exiting');return false;}
+ truckOccupied=false;eva=true;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
  evaLocal=dis;const axis=truckBody.spinAxis||[0,1,0],dir=V.norm(V.rot(dis,axis,truckBody.spinAngle||0));
  evaForward=[...truckForwardVec];pos=V.add(truckBody.position,V.mul(dir,truckBody.radius+groundHeight(dis,truckBody)+EVA_HEIGHT));up=dir;camEye=null;
  roverEntryCooldown=2.4;roverExitMove={from:prev,to:dis,progress:0};evaLocal=prev;
@@ -12979,7 +13064,18 @@ truckLocateControl8B.onclick=plotTruckDestination8B;
 $('chart-search')?.parentElement?.appendChild(truckLocateControl8B);
 function openChart(){drawChart();$('chart').hidden=false;controls.clear();$('chart-search')?.focus();}
 function closeChart(){if($('chart').contains(document.activeElement))document.activeElement.blur();$('chart').hidden=true;}
-$('new-galaxy').onclick=()=>{const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;};
+$('new-galaxy').onclick=()=>{
+ const confirmed=window.confirm('START A NEW EXPEDITION? Your existing save will be backed up before the new galaxy begins. The one original truck starts secured in the ship vehicle bay. Cancel to keep playing your current expedition.');
+ if(!confirmed)return;
+ const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);
+ try{
+  SF.startNewExpedition(seed);
+  const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;
+ }catch(error){
+  showToast('NEW EXPEDITION NOT STARTED · '+String(error?.message||error));
+  console.warn('New expedition cancelled without intentional deletion:',error);
+ }
+};
 $('chart-open').onclick=openChart;$('chart-close').onclick=closeChart;$('chart-search').oninput=drawChart;$('chart').addEventListener('click',e=>{if(e.target===$('chart'))closeChart();});
 $('panel-toggle').onclick=()=>{const c=$('panel').classList.toggle('collapsed');$('panel-toggle').textContent=c?'+':'−';$('panel-toggle').setAttribute('aria-expanded',String(!c));};
 document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.dataset.scan)));
@@ -13080,7 +13176,7 @@ canvas.addEventListener('pointermove',ev=>{if(!dragging||busy()||!$('launch-dial
  if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*(eva?.0042:.003),eva?-1.3:-1.15,eva?1.72:1.15);return;}
  if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.0042,-1.3,1.72);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,controls.flightPitch(-dy*.0021),0);
 });
-canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&truckOccupied&&dragButton===0&&dragTravel<12&&roverEntryCooldown<=0)exitTruck();else if(!selected&&!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&!truckOccupied&&!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
 document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
@@ -13145,7 +13241,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  let yaw=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0);
  if(truckOccupied)yaw=controls.roverYaw(yaw);
  const pitch=controls.flightPitch((keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0)),roll=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
- if(landed){if(eva){
+ if(landed){if(eva||truckOccupied||manufacturedOccupied8G){
   warp=false;up=radial;
   if(rampTransition){
    rampTransition.elapsed+=dt;const t=Math.min(1,rampTransition.elapsed/rampTransition.duration),smooth=t*t*(3-2*t);
@@ -13388,6 +13484,7 @@ function cameraState(dt){
 function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;
  // Paint-only vehicle identity for UI20 cockpit frames (6 Hz bounded).
  document.body.dataset.sfView=shipWalking8e?'ship-interior':truckOccupied?(camMode===1?'truck-cab':'truck-chase'):eva?'eva':camMode===1?'ship-cockpit':'ship-chase';
+ document.body.dataset.truckDriving=truckOccupied?'true':'false';
  const hint=$('control-live-hint');if(hint){const codes=controls.settings.bindings;const short=k=>String(k||'—').replace(/^Key/,'').replace(/^Digit/,'').replace(/^Arrow/,'ARROW ').replace('ShiftLeft','SHIFT').replace('Space','SPACE');
   const mode=shipWalking8e?'SHIP INTERIOR':interiorState?(interiorState.kind==='cave'?'CAVE':'RUIN INTERIOR'):truckOccupied?'TRUCK':eva?'EVA':landed?'LANDED SHIP':'SHIP';const word=mode==='SHIP'?'thrust / brake':mode==='LANDED SHIP'?'drive / reverse':'forward / reverse';
   const text=mode+' · '+short(codes.thrust)+' / '+short(codes.brake)+' '+word+' · '+short(codes.turnLeft)+' / '+short(codes.turnRight)+' turn'+(truckOccupied&&controls.settings.roverSteerInvert?' (INVERTED)':'')+' · MOUSE Y '+(controls.settings.lookInvertY?'INVERTED':'NORMAL')+(controls.settings.flightPitchInvert&&mode==='SHIP'?' · FLIGHT PITCH INVERTED':'')+' · CONTROLS ⚙ TO CUSTOMIZE';if(hint.textContent!==text)hint.textContent=text;
@@ -15147,6 +15244,44 @@ function logisticsOffworldApply8H(action,manifestId,lotId,depotId){
  showToast('8H · '+manifestId+' '+state+' — original ship cargo and Joules source-owned');
  return q.manifest;
 }
+// Shared original-truck operations: physical custody and mining ledgers remain authoritative.
+function truckHudInfo(){
+ const hopper=materials8a.used(StarfallMining8D.TRUCK),hold=materials8a.used(StarfallMining8D.SHIP);
+ const ctx=miningContext8D(),site=miningDeposit8D(),op=mining8d.active;
+ const surveyed=!!site&&resources8c.observations().some(x=>x.siteId===site.id);
+ const lots=materials8a.inventory(StarfallMining8D.TRUCK),moving=keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown');
+ return {occupied:truckOccupied,cargoMode:cargo8b.mode,onRamp:cargo8b.mode==='ramp',
+  world:nearest?.name||'Unknown',batteryJ:truckBatteryJ,batteryPct:Math.round(truckBatteryJ/44e6*100),
+  hopperKg:hopper.massKg,hopperLimitKg:StarfallMining8D.LIMITS.truckMassKg,
+  shipHoldKg:hold.massKg,lights:truckLights,camera:camMode===1?'CAB':'CHASE',
+  drillConditionPct:Math.round(mining8d.toolCondition*100),
+  deposit:site?.label||null,surveyed,oreRemainingKg:site?resources8c.remaining(site):0,
+  cycle:op?.type||null,cyclePct:op?Math.min(100,Math.round(op.elapsedS/op.durationS*100)):0,
+  canExit:truckOccupied&&cargo8b.mode!=='ramp'&&!moving,
+  canDrill:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&surveyed&&site&&
+    resources8c.remaining(site)>=StarfallMining8D.DRILL.kgPerBatch&&truckBatteryJ>=StarfallMining8D.DRILL.minimumEnergyJ&&mining8d.toolCondition>=.1),
+  canLoad:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&ctx.truckNearShip&&lots.length),
+  lots:lots.map(l=>({id:l.id,materialId:l.materialId,massKg:l.massKg})),
+  hint:cargo8b.mode==='ramp'?'REVERSE DOWN RAMP · EXIT LOCKED':
+   op?op.type+' '+Math.round(op.elapsedS/op.durationS*100)+'% · KEEP PARKED':
+   !surveyed?'SURVEY DEPOSIT ON FOOT BEFORE DRILLING':'PARK OVER SURVEYED DEPOSIT TO MINE'};
+}
+function truckHudAction(action,lotId){
+ if(!truckOccupied)throw Error('Enter expedition truck first');
+ if(action==='EXIT')return exitTruck();
+ if(action==='MAP'){openChart();return true;}
+ if(action==='VIEW'){camMode=(camMode+1)%2;camEye=null;return true;}
+ if(action==='LIGHTS'){truckLights=!truckLights;headlights=truckLights;return true;}
+ if(action==='MINE'){if(!truckHudInfo().canDrill)throw Error('Park over a surveyed deposit with adequate battery and drill condition');return miningStart8D();}
+ if(action==='LOAD'){
+  if(!truckHudInfo().canLoad)throw Error('Park near landed ship with a real ore lot');
+  const lot=materials8a.inventory(StarfallMining8D.TRUCK).find(l=>l.id===lotId);
+  if(!lot)throw Error('Select an existing truck ore lot');
+  return miningLoad8D(lot.id,Math.min(50,lot.massKg));
+ }
+ if(action==='CANCEL')return miningCancel8D();
+ throw Error('Unknown truck action');
+}
 function shipHoldFor8H(lotId){
  const lot=materials8a.inventory(StarfallOffworldManifest8H.HOLD).find(x=>x.id===lotId);
  if(!lot||!Number.isFinite(lot.massKg)||lot.massKg<=0)
@@ -15451,7 +15586,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
  get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
@@ -21076,6 +21211,95 @@ cancel.addEventListener('click',()=>action(()=>rt().miningCancel8D()));
 panel.append(title,status,controls,readout);host.append(panel);
 let last=0;const check=()=>{const t=performance.now();if(t-last>500){last=t;refresh();}requestAnimationFrame(check);};check();
 root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Operate');panel.scrollIntoView({block:'nearest'});refresh();}};
+})(globalThis);
+
+</script><script>
+/* STARFALL shared truck cockpit: replaces ship/EVA HUD while driving.
+ * This is UI only. Truck physics, drill, ore ownership and save remain in flight.js. */
+(function(root){'use strict';
+const ID='sf-truck-cockpit';
+const on=()=>!!root.StarfallRuntime?.truckOccupied;
+const panel=document.createElement('section');
+panel.id=ID;panel.setAttribute('aria-label','Expedition truck cockpit');panel.hidden=true;
+panel.innerHTML=`
+ <div class="sft-header"><strong>EXPEDITION TRUCK</strong><span id="sft-world">SURFACE VEHICLE</span></div>
+ <div class="sft-dials">
+  <div><small>BATTERY</small><b id="sft-battery">—</b></div>
+  <div><small>HOPPER</small><b id="sft-hopper">—</b></div>
+  <div><small>CAMERA</small><b id="sft-camera">CHASE</b></div>
+  <div><small>DRILL</small><b id="sft-drill">—</b></div>
+ </div>
+ <div id="sft-state" role="status">Vehicle initializing</div>
+ <div class="sft-tools" aria-label="Truck utility actions">
+  <button type="button" data-truck-action="EXIT">EXIT TRUCK</button>
+  <button type="button" data-truck-action="MAP">MAP</button>
+  <button type="button" data-truck-action="VIEW">VIEW</button>
+  <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
+  <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
+  <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+  <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
+ </div>
+ <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
+ <div id="sft-hint">W/S DRIVE · A/D STEER · X EXIT · V VIEW</div>
+ <div class="sft-error" role="status" id="sft-error" hidden></div>`;
+document.body.append(panel);
+const el=id=>panel.querySelector('#'+id);
+const buttons=Object.fromEntries([...panel.querySelectorAll('[data-truck-action]')].map(b=>[b.dataset.truckAction,b]));
+const lot=el('sft-lot');
+let lastLots='',lastAt=0;
+function execute(action){
+ const r=root.StarfallRuntime;
+ if(!r?.truckOccupied)return;
+ try{
+  const result=r.truckHudAction(action,lot.value);
+  el('sft-error').hidden=true;
+  if(result===false)el('sft-hint').textContent='Action blocked by vehicle safety conditions';
+ }catch(error){
+  el('sft-error').textContent=String(error?.message||error).slice(0,180);
+  el('sft-error').hidden=false;
+ }
+ refresh(true);
+}
+for(const b of Object.values(buttons)){
+ b.addEventListener('pointerdown',e=>{e.stopPropagation();},{passive:true});
+ b.addEventListener('click',e=>{e.stopPropagation();execute(b.dataset.truckAction);});
+}
+lot.addEventListener('keydown',e=>e.stopPropagation());
+function refresh(force=false){
+ const active=on();
+ document.body.dataset.truckDriving=active?'true':'false';
+ panel.hidden=!active;
+ if(!active)return;
+ const now=performance.now();if(!force&&now-lastAt<200)return;lastAt=now;
+ const info=root.StarfallRuntime.truckHudInfo();
+ el('sft-world').textContent=info.world+' · '+(info.onRamp?'RAMP':'GROUND');
+ el('sft-battery').textContent=info.batteryPct+'%';
+ el('sft-hopper').textContent=info.hopperKg.toFixed(0)+' / '+info.hopperLimitKg+' kg';
+ el('sft-camera').textContent=info.camera;
+ el('sft-drill').textContent=info.drillConditionPct+'%';
+ el('sft-state').textContent=info.cycle?
+  info.cycle+' · '+info.cyclePct+'%':info.surveyed?
+  (info.deposit+' · '+Math.round(info.oreRemainingKg)+' kg remaining'):'NO SURVEY AT CURRENT DEPOSIT';
+ el('sft-hint').textContent=info.hint+' · W/S DRIVE · A/D STEER';
+ buttons.EXIT.disabled=!info.canExit;
+ buttons.MINE.disabled=!info.canDrill;
+ buttons.LOAD.disabled=!info.canLoad;
+ buttons.CANCEL.disabled=!info.cycle;
+ buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
+ const list=JSON.stringify(info.lots.map(l=>[l.id,l.massKg]));
+ if(list!==lastLots){
+  const previous=lot.value;lot.replaceChildren();
+  for(const item of info.lots){const option=document.createElement('option');option.value=item.id;
+   option.textContent=item.materialId.replaceAll('_',' ')+' · '+item.massKg.toFixed(1)+' kg';lot.add(option);}
+  if(info.lots.some(l=>l.id===previous))lot.value=previous;
+  lastLots=list;
+ }
+ lot.hidden=!info.lots.length;
+ lot.parentElement.hidden=!info.lots.length;
+}
+function tick(){try{refresh();}catch(error){console.warn('Truck HUD refresh',error);}requestAnimationFrame(tick);}
+requestAnimationFrame(tick);
+root.StarfallTruckCockpit={refresh,execute};
 })(globalThis);
 
 </script><script>

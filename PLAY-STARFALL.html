@@ -863,6 +863,26 @@ STOP</textarea></label></div>
       chance(p) { return this.next() < p; }
     },
     hash(text) { let h = 2166136261; for (const char of String(text)) h = Math.imul(h ^ char.charCodeAt(0), 16777619); return h >>> 0; },
+    // Start fresh without silently mixing old-world vehicles into a new seed.
+    // Always preserve the prior expedition in its own durable recovery slot.
+    startNewExpedition(seed) {
+      if(!Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Invalid new galaxy seed');
+      if(root.__STARFALL_IMPORT_PENDING)throw Error('Finish pending save import first');
+      if(!this.storageStatus().durable)throw Error('New expedition requires durable save storage to protect the previous game. Export your save first.');
+      const previous=read('starfall_save');
+      if(previous!==null){
+        const key='starfall_backup_before_new_expedition_'+Date.now();
+        if(!write(key,previous))throw Error('Could not back up prior expedition');
+        if(JSON.stringify(read(key))!==JSON.stringify(previous))throw Error('Prior expedition backup verification failed');
+      }
+      const fresh={...initial(),freshExpedition:{schema:1,seed,startedAt:Date.now()}};
+      if(!write('starfall_save',fresh))throw Error('Could not persist fresh expedition');
+      if(JSON.stringify(read('starfall_save'))!==JSON.stringify(fresh))throw Error('Fresh expedition read-back failed');
+      // The old page has a pagehide autosaver. Lock it out until navigation,
+      // otherwise it overwrites the fresh manifest with the previous truck pose.
+      root.__STARFALL_NEW_EXPEDITION_PENDING=true;
+      return {seed,backedUp:previous!==null};
+    },
     load() {
       const saved = read('starfall_save');
       const data = { ...initial(), ...(object(saved) ? saved : {}) };
@@ -872,7 +892,7 @@ STOP</textarea></label></div>
       data.orbital = object(data.orbital) ? data.orbital : {};
       return data;
     },
-    save(data) { if(root.__STARFALL_IMPORT_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
+    save(data) { if(root.__STARFALL_IMPORT_PENDING||root.__STARFALL_NEW_EXPEDITION_PENDING)return false;return write('starfall_save', { ...this.load(), ...(object(data) ? data : {}), version: 2 }); },
     getCredits() { return this.load().credits; },
     addCredits(amount) {
       const data = this.load();
@@ -8212,7 +8232,7 @@ function create(saved,legacy={}){
   insert({id:'ship-main',type:'ship',massKg:0,volumeM3:0,location:{kind:'ship',slot:'self'},condition:1,provenance:'pre_expédition',state:{manifest:true}});
   const pose=(x,type)=>x&&validId(x.bodyId)&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)?
    {kind:'surface',bodyId:x.bodyId,local:x.local}:{kind:'ship',slot:type+'-starter-stowage'};
-  insert({id:'truck-expedition-001',type:'truck',massKg:1600,volumeM3:13,location:pose(legacy.truckPose,'truck'),condition:1,
+  insert({id:'truck-expedition-001',type:'truck',massKg:1600,volumeM3:13,location:legacy.truckPose?pose(legacy.truckPose,'truck'):{kind:'ship',slot:'starboard-hangar'},condition:1,
    provenance:legacy.truckPose?'legacy_import':'initial_manifest',state:{batteryJ:number(legacy.truckPose?.batteryJ)?legacy.truckPose.batteryJ:44e6}});
   insert({id:'rover-science-001',type:'science-rover',massKg:380,volumeM3:3,location:pose(legacy.roverPose,'rover'),condition:1,
    provenance:legacy.roverPose?'legacy_import':'initial_manifest'});
@@ -12893,7 +12913,18 @@ truckLocateControl8B.onclick=plotTruckDestination8B;
 $('chart-search')?.parentElement?.appendChild(truckLocateControl8B);
 function openChart(){drawChart();$('chart').hidden=false;controls.clear();$('chart-search')?.focus();}
 function closeChart(){if($('chart').contains(document.activeElement))document.activeElement.blur();$('chart').hidden=true;}
-$('new-galaxy').onclick=()=>{const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;};
+$('new-galaxy').onclick=()=>{
+ const confirmed=window.confirm('START A NEW EXPEDITION? Your existing save will be backed up before the new galaxy begins. The one original truck starts secured in the ship vehicle bay. Cancel to keep playing your current expedition.');
+ if(!confirmed)return;
+ const seed=((Date.now()^Math.floor(Math.random()*2**32))>>>0);
+ try{
+  SF.startNewExpedition(seed);
+  const url=new URL(location.href);url.searchParams.set('seed',String(seed));location.href=url.href;
+ }catch(error){
+  showToast('NEW EXPEDITION NOT STARTED · '+String(error?.message||error));
+  console.warn('New expedition cancelled without intentional deletion:',error);
+ }
+};
 $('chart-open').onclick=openChart;$('chart-close').onclick=closeChart;$('chart-search').oninput=drawChart;$('chart').addEventListener('click',e=>{if(e.target===$('chart'))closeChart();});
 $('panel-toggle').onclick=()=>{const c=$('panel').classList.toggle('collapsed');$('panel-toggle').textContent=c?'+':'−';$('panel-toggle').setAttribute('aria-expanded',String(!c));};
 document.querySelectorAll('.scan').forEach(b=>b.onclick=()=>startScan(Number(b.dataset.scan)));
