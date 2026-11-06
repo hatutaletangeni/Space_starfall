@@ -14,8 +14,12 @@ on:
   push:
     paths:
       - 'src/mobile/**'
+      - 'src/flight.js'
+      - 'src/engine.js'
+      - 'src/physics/ship-walk8e.js'
       - 'tools/build-mobile-standalone.py'
       - 'tests/mobile-standalone-*'
+      - 'tests/mobile-vehicle-bay.test.cjs'
       - 'PLAY-STARFALL-MOBILE.html'
       - '.github/workflows/mobile-landscape.yml'
 jobs:
