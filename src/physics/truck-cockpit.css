@@ -1,0 +1,53 @@
+/* Exclusive truck driving UI for desktop and mobile. Ordinary ship/EVA overlays
+   cannot obstruct the scene while the original truck is occupied. */
+#sf-truck-cockpit[hidden]{display:none!important}
+#sf-truck-cockpit{position:fixed;z-index:16;top:12px;right:12px;width:min(355px,34vw);max-height:calc(100dvh - 24px);overflow:auto;
+ box-sizing:border-box;background:rgba(5,15,25,.9);border:1px solid #668da2aa;border-radius:12px;box-shadow:0 10px 34px #0008;
+ backdrop-filter:blur(10px);padding:12px;color:#e5f4fa;font:12px/1.35 system-ui,-apple-system,sans-serif}
+#sf-truck-cockpit .sft-header{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:12px;letter-spacing:.65px}
+#sf-truck-cockpit .sft-header span{font-size:9px;color:#b6cbd4;letter-spacing:0;text-align:right}
+#sf-truck-cockpit .sft-dials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:9px 0}
+#sf-truck-cockpit .sft-dials>div{background:#173043b5;border:1px solid #6a96a63f;padding:7px 5px;border-radius:6px;min-width:0}
+#sf-truck-cockpit .sft-dials small{display:block;font-size:8px;color:#a9c4d0}
+#sf-truck-cockpit .sft-dials b{display:block;font-size:11px;font-weight:650;white-space:nowrap}
+#sf-truck-cockpit #sft-state{font-size:10px;color:#d5c7a9;margin-bottom:8px}
+#sf-truck-cockpit .sft-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+#sf-truck-cockpit button{min-height:34px;padding:6px 4px;border:1px solid #759db07c;border-radius:7px;
+ color:#e5f4fa;background:#10283be8;font-weight:650;font-size:10px;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
+#sf-truck-cockpit button[data-truck-action=EXIT]{border-color:#d5a974;color:#ffddb5}
+#sf-truck-cockpit button:disabled{opacity:.38}
+#sf-truck-cockpit .sft-lots{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:10px}
+#sf-truck-cockpit .sft-lots[hidden]{display:none}
+#sf-truck-cockpit select{max-width:78%;min-width:0;background:#10283b;color:#e4f4ff;border:1px solid #6c8ca2;padding:5px}
+#sf-truck-cockpit #sft-hint{font-size:9px;color:#aac8d4;margin-top:8px}
+#sf-truck-cockpit #sft-error{color:#ffb7a1;font-size:10px;margin-top:8px}
+#sf-truck-cockpit #sft-error[hidden]{display:none}
+/* World/spacecraft menus are hidden only while in the driver's seat.
+   Modal map stays accessible after clicking MAP. */
+body[data-truck-driving=true] :is(.masthead,.identity,.controls-hint,.status-strip,.telemetry,.panel,.waypoint-label,
+ #ui21-navigation,#space-event,#walk-context,#status-text,#phase-top,#flight-state,#ui-console-open,#ui-tools-toggle,
+ .ui20-toolbar,.ui20-controls,.ui20-topbar,.ui20-bottom,#sfm-vehicle-bay-hint){display:none!important}
+body[data-truck-driving=true] .mobile-controls{display:none!important}
+body[data-truck-driving=true] #sf-truck-cockpit{display:block}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-top,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-right,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-caption{display:none!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left{display:grid!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left [data-mobile-key=KeyX]{visibility:hidden!important;pointer-events:none!important}
+body.sfmobile-edition #sf-truck-cockpit{top:max(5px,env(safe-area-inset-top));right:max(5px,env(safe-area-inset-right));
+ bottom:auto;width:min(47vw,328px);max-height:calc(100dvh - 12px);padding:7px;border-radius:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header{font-size:10px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header span{font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials{gap:3px;margin:5px 0}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:3px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials small{font-size:7px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials b{font-size:9px}
+body.sfmobile-edition #sf-truck-cockpit #sft-state{margin-bottom:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-tools{gap:3px}
+body.sfmobile-edition #sf-truck-cockpit button{min-height:25px;padding:3px 2px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit #sft-hint{margin-top:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-lots{margin:3px 0;font-size:8px}
+@media(max-height:380px){
+ body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:2px}
+ body.sfmobile-edition #sf-truck-cockpit button{min-height:23px}
+}
