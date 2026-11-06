@@ -57,7 +57,8 @@ function refresh(){
  '\nPHYSICAL BUILD SITE: '+(siteQuote?.ready?'READY · '+siteQuote.workJ+' J to erect':(siteErr||'NO ONBOARD FACILITY KIT'))+
  '\nBUILT INDUSTRIAL FACILITIES: '+assets.length+
  (assets.length?'\n'+assets.map(a=>'  '+a.id+' '+a.type+' · '+(a.state.station||a.state.materialId)).join('\n'):'')+
- '\nSOLID/LIQUID REAGENT SOURCE: '+(sourceMode.value==='surface'?'REAL PAID 8A STATION DRY HOPPER (no free ship resupply)':'ORIGINAL SHIP CARGO')+\n '\nREACTION: '+(processQuote?processQuote.equation+' · '+processQuote.energyJ+' J / '+processQuote.seconds+' s':processErr||'SELECT A STATION')+
+ '\nSOLID/LIQUID REAGENT SOURCE: '+(sourceMode.value==='surface'?'REAL PAID 8A STATION DRY HOPPER (no free ship resupply)':'ORIGINAL SHIP CARGO')+
+ '\nREACTION: '+(processQuote?processQuote.equation+' · '+processQuote.energyJ+' J / '+processQuote.seconds+' s':processErr||'SELECT A STATION')+
  '\nCURRENT JOB: '+(active?active.reactionId+' / '+(100*active.elapsedS/active.seconds).toFixed(1)+'% / '+Math.round(active.energyJ)+' J paid':'NONE')+
  '\nACTUAL 8A PRODUCT GAS TRANSIT (80 L physical line → rated receiver): '+(gasOwned.length?gasOwned.length+' real chemical source-owned shipments':'NO PENDING GAS')+
  (gasOwned.length?'\n'+gasOwned.map(j=>
