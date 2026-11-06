@@ -3,7 +3,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const hatch=require('../src/physics/ship-hatch8er.js');
 const yesEntry={landed:true,eva:true,truckOccupied:false,swimming:false,rampTransition:null,nearShip:true,walkedSinceExit:4,hatchCooldown:0,atEntrance:true};
 assert.equal(hatch.requestEntry(yesEntry).ok,true);
-for(const invalid of [{truckOccupied:true},{nearShip:false},{atEntrance:false},{hatchCooldown:1},{walkedSinceExit:2},{rampTransition:{kind:'out'}},{swimming:true},{landed:false},{eva:false}])
+assert.equal(hatch.requestEntry({...yesEntry,swimming:true}).ok,true,'swimmer at physical hatch is eligible');
+assert.equal(hatch.requestEntry({...yesEntry,swimming:true,atEntrance:false}).ok,false,'swimmer cannot board offshore');
+for(const invalid of [{truckOccupied:true},{nearShip:false},{atEntrance:false},{hatchCooldown:1},{walkedSinceExit:2},{rampTransition:{kind:'out'}},{landed:false},{eva:false}])
  assert.equal(hatch.requestEntry({...yesEntry,...invalid}).ok,false,JSON.stringify(invalid));
 const yesBoard={landed:true,eva:true,truckOccupied:false,shipBodyPresent:true,nearShip:true,transitionKind:'in'};
 assert.equal(hatch.boardComplete(yesBoard).ok,true);
