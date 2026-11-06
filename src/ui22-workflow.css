@@ -36,13 +36,13 @@ body.sfmobile-edition .panel{display:none!important}
 @media(max-width:650px){body.ui20 #sf-mission-flow{top:46px;right:8px}.sf-flow-progress{gap:2px}}
 
 /* Context decides which touch controls are relevant, not a permanently full keypad. */
-body.sfmobile-edition[data-sf-view="eva"] #sfmobile-hud .sfm-right :is(
+body.sfmobile-edition[data-mission-context="on-foot"] #sfmobile-hud .sfm-right :is(
  [data-control="ArrowUp"],[data-control="ArrowDown"],[data-mobile-key="KeyT"],
  [data-mobile-key="KeyG"],[data-control="KeyC"]){display:none!important}
-body.sfmobile-edition[data-sf-view="ship-interior"] #sfmobile-hud .sfm-right :is(
+body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-right :is(
  [data-control],[data-mobile-key="KeyB"],[data-mobile-key="KeyT"],
  [data-mobile-key="KeyG"],[data-mobile-key="KeyL"]){display:none!important}
-body.sfmobile-edition[data-sf-view="ship-interior"] #sfmobile-hud .sfm-left [data-control="Space"]{display:none!important}
+body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-left [data-control="Space"]{display:none!important}
 body.sfmobile-edition #sfmobile-hud .sfm-top{max-width:none!important;left:50%!important;transform:translateX(-50%)!important;right:auto!important}
 body.sfmobile-edition #sfmobile-hud .sfm-top button{min-width:47px!important}
 body.sfmobile-edition #sfmobile-hud .sfm-right{grid-template-columns:repeat(3,var(--sfm-key))!important}
