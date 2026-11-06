@@ -65,8 +65,9 @@ function create(saved){
    const src=ledger.containers().find(c=>c.id===vessel.state.containerId&&c.ownerId===vessel.id),
     dst=ledger.containers().find(c=>c.id===pipe.state.containerId&&c.ownerId===pipe.id);
    if(!src||!dst||Math.abs(dst.maxMassKg-25)>EPS||
-     Math.abs(dst.maxVolumeM3-.08)>EPS||ledger.inventory(dst.id).length)
-    throw Error('8H rated reactor feed pipe must be an EMPTY original 80L/25kg container');
+     Math.abs(dst.maxVolumeM3-.08)>EPS||ledger.inventory(dst.id).length||
+     ledger.operations().some(op=>op.status==='RESERVED'&&op.destinationId===dst.id))
+    throw Error('8H rated reactor feed pipe must be EMPTY and UNRESERVED in original 80L/25kg owner');
    const lot=ledger.inventory(src.id).find(x=>x.materialId===species&&
      x.grade>=.99&&x.massKg+EPS>=massKg&&
      !ledger.operations().some(op=>op.status==='RESERVED'&&op.lotId===x.id));
@@ -130,6 +131,19 @@ function create(saved){
    const pipe=physical8a.assets.find(a=>a.id===j.pipeId),
     vessel=physical8a.assets.find(a=>a.id===j.vesselId);
    if(!pipe||!vessel||pipe.condition<.8||vessel.condition<.8)continue;
+   const pipeLots=ledger.inventory(pipe.state.containerId);
+   const contested=ledger.operations().some(op=>
+    op.status==='RESERVED'&&op.destinationId===pipe.state.containerId&&
+    op.id!==j.operationId);
+   if((j.stage===0&&(pipeLots.length||contested))||
+      (j.stage===1&&(pipeLots.length!==1||
+       pipeLots[0].id!==j.currentLotId)))continue;
+   // A real 8MPa line may not mix species or exceed its safe pressure.
+   // Even legitimate original 8A stock can change after a reservation,
+   // so these are rechecked on EVERY real already-paid native T02 pulse.
+   const projected=api().pressure(pipeLots,.08,
+    j.stage===0?{materialId:j.materialId,massKg:j.massKg}:{});
+   if(projected>pipe.state.ratedPressurePa+EPS)continue;
    const lot=ledger.inventory(j.stage===0?vessel.state.containerId:pipe.state.containerId)
     .find(x=>x.id===j.currentLotId);
    if(!lot||lot.materialId!==j.materialId||lot.massKg+EPS<j.massKg)continue;
