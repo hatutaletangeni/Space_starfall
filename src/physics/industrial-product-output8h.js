@@ -9,7 +9,7 @@ const valid=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const unit=v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite)&&Math.abs(Math.hypot(...v)-1)<1e-3;
 const gases=new Set(['hydrogen','oxygen','nitrogen','carbon_dioxide','carbon_monoxide','methane','sulfur_dioxide','argon','helium','ammonia']);
-function commit({operationId,lotId,massKg,stationId,depotId,bodyId,materials8a,physical8a,transportReceipt}={}){
+function commit({operationId,lotId,massKg,stationId,depotId,bodyId,materials8a,physical8a,transportReceipt,packetArchive8h}={}){
  if(!valid(operationId)||!operationId.startsWith('8h-product:')||!valid(lotId)||!valid(stationId)||!valid(depotId)||!valid(bodyId)||!finite(massKg)||massKg<=0)
   throw Error('Invalid original 8H product transfer request');
  if(!materials8a||materials8a.schema!==1||!physical8a||physical8a.schema!==1||
@@ -32,6 +32,20 @@ function commit({operationId,lotId,massKg,stationId,depotId,bodyId,materials8a,p
     !finite(transportReceipt.usedJ)||transportReceipt.usedJ<=0||
     !valid(transportReceipt.powerReceiptId))
   throw Error('Actual completed original T02 transport receipt required; no free output teleport');
+ // A caller-supplied receipt is never sufficient proof of transport.
+ // The original conveyor archive must independently own a completed packet.
+ // The current original conveyor only supports depot -> plant input, not
+ // plant output -> depot. Therefore no such packet can currently qualify.
+ // This deliberately blocks product teleportation until reverse transport
+ // is implemented by the authoritative powered conveyor runtime.
+ const jobs=packetArchive8h?.schema===1&&Array.isArray(packetArchive8h.jobs)
+   ?packetArchive8h.jobs:[];
+ const packet=jobs.find(j=>j.id===transportReceipt.packetId);
+ if(!packet||packet.status!=='DELIVERED'||packet.sourceId!==stationId||
+    packet.targetId!==depotId||packet.bodyId!==bodyId||
+    packet.massKg!==massKg||packet.currentLotId!==lotId||
+    !Number.isFinite(packet.completionS)||packet.cursor!==packet.driveIds?.length+1)
+  throw Error('Authoritative original 8H delivered conveyor packet required');
  const ledger=root.StarfallMaterials8A?.create(materials8a);
  if(!ledger)throw Error('Original 8A ledger unavailable');
  const prior=ledger.operations().find(o=>o.id===operationId);
