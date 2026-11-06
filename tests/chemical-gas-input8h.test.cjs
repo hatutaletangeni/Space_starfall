@@ -129,6 +129,29 @@ test('real source-owned staged inlet requires native originally PAID two physica
  assert.equal(replay.changed,false);
  assert.deepEqual(replay.materials8a,material);
 });
+test('native 420W inlet cannot contaminate a real 8A 80L pipe with another physically owned gas or compete with other pending reservations',()=>{
+ const f=fixture(),started=begin(f);
+ const alienLedger=Mat.create(started.materials8a);
+ alienLedger.importLot({id:'real-other-process-oxygen',
+  materialId:'oxygen',containerId:'pipe:'+f.ph,
+  massKg:.001,volumeM3:.001,grade:1,
+  provenance:'original-paid-other-8E-process'});
+ const polluted=alienLedger.snapshot();
+ const q=In.create(started.transit).observe({
+  materials8a:polluted,physical8a:f.physical8a,
+  outpost5:f.native,powerReport:f.report(10),
+  bodyId,bodyRadius:R,timeS:10});
+ assert.ok(q.transit.jobs.find(x=>x.materialId==='hydrogen').paidJ===0,
+  'wrong-species pipe must HOLD native pump, not try to mix gas');
+ assert.deepEqual(q.materials8a.lots,polluted.lots,
+  'no alien oxygen may be fabricated, destroyed or cross-mixed');
+ const busy=fixture(),receipt=Mat.create(busy.materials8a);
+ receipt.reserve('other-real-signed-gas-order','real-8a-produced-hydrogen',
+  'pipe:'+busy.ph,.002);
+ busy.materials8a=receipt.snapshot();
+ assert.throws(()=>begin(busy),/EMPTY and UNRESERVED/,
+  'a separate original 8A pending order must prevent reactor from stealing this same pipe');
+});
 test('T02 unplugged wire, off-world power, or unobserved 100x skip never moves original gas or debits another battery',()=>{
  const f=fixture(),start=begin(f);f.native.wires=[];
  let q=In.create(start.transit).observe({materials8a:start.materials8a,
