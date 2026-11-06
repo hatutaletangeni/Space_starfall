@@ -101,6 +101,7 @@ function reject(title,patch,expr){test('reject '+title,()=>{
  assert.equal(f.materials8a.lots.filter(x=>x.containerId===f.station.state.dryFeedContainerId).length,0);
 });}
 reject('no original verified 250W T02 conveyor delivery archive',(a,f)=>{a.conveyorPackets8h.jobs=[]},/DELIVERED|conveyor/i);
+reject('forged packet without ORIGINAL 8A committed conveyor arrival receipt',(a,f)=>{a.materials8a.operations=a.materials8a.operations.filter(o=>!o.id.startsWith('8h-belt:'))},/both|arrival|receipt/i);
 reject('UNPAID kit installation missing',(a,f)=>{a.physical8a.transfers=f.physical8a.transfers.filter(x=>x.assetId!==f.station.id)},/paid/i);
 reject('wrong body teleport',(a)=>{a.bodyId='star-0-p2'},/same-world/i);
 reject('operator NOT on physical EVA',(a)=>{a.operatorEVA=false},/EVA|operator/i);
