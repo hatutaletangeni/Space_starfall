@@ -69,6 +69,7 @@ jobs:
       - name: Actual desktop resource test, UI22 ship docking and mobile Chromium
         run: |
           python tests/resource-test-lab8h-browser.py
+          python tests/industrial-first-product8k-browser.py
           python tests/ship-service-t13-browser.py
           python tests/mobile-standalone-browser.py
 
