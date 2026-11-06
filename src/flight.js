@@ -309,6 +309,27 @@ function shipWalkHeading8E(){
  const ship=shipWorldState(),r=V.norm(V.cross(ship.forward,ship.up)),theta=shipWalkAt8e.heading;
  return V.norm(V.add(V.mul(ship.forward,Math.cos(theta)),V.mul(r,-Math.sin(theta))));
 }
+function boardVehicleBayTruck8B(){
+ if(!landed||!shipWalking8e||StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z)!=='cargo')return false;
+ const a=physical8a.get(START_TRUCK);
+ if(!StarfallShipWalk8E.nearVehicleBayTruck(shipWalkAt8e.x,shipWalkAt8e.z,cargo8b.pose.x,cargo8b.pose.z)){
+  showToast('VEHICLE BAY · Walk closer to the parked expedition truck before pressing X');return true;
+ }
+ if(!a){showToast('VEHICLE BAY · No original expedition truck in physical inventory');return true;}
+ if(cargo8b.mode==='secured'){
+  if(!cargoInteract8B())showToast('VEHICLE BAY · Truck tie-down release unavailable');
+ }
+ if(cargo8b.mode!=='ramp'||!truckBody||truckBody!==shipBody||!truckLocal){
+  showToast('VEHICLE BAY · Truck not ready inside bay. Check cargo and ramp status.');return true;
+ }
+ if(winch7d){showToast('VEHICLE BAY · Release the powered winch first');return true;}
+ // Keep original 8A physical truck and battery. Use the same driving state as EVA boarding.
+ shipWalking8e=false;truckOccupied=true;eva=false;
+ const truck=truckWorldState();pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];
+ camMode=0;camEye=null;camDistance=Math.max(camDistance,26);roverEntryCooldown=1.2;
+ showToast('VEHICLE BAY · TRUCK BOARDED · Hold S / ▼ to reverse down the wide starboard ramp · X to exit');
+ saveFlight();return true;
+}
 function interactShip8E(){
  const room=StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z);
  if(room==='bridge'){
@@ -319,7 +340,7 @@ function interactShip8E(){
  const target=room==='science'?'field-open':room==='fabrication'?'workbench-open':
   room==='cargo'?'physical8a-dialog':room==='power'?'systems-toggle':
   room==='life'?'systems-toggle':room==='habitat'?'discovery-open':null;
- if(room==='cargo'){window.StarfallInventoryUI8A?.open?.();return true;}
+ if(room==='cargo'){if(boardVehicleBayTruck8B())return true;window.StarfallInventoryUI8A?.open?.();return true;}
  if(target){document.getElementById(target)?.click();showToast('8E · '+room.toUpperCase()+' TERMINAL · existing system');return true;}
  showToast('8E · Walk through connected rooms, return to bridge and X to pilot');return true;
 }
@@ -344,9 +365,11 @@ function cargoRampReady8B(){
  return Math.abs(V.len(V.sub(tip,nearest.position))-nearest.radius-groundHeight(local,nearest))<3.25;
 }
 function cargoInteract8B(){
- if(!landed||!eva||truckOccupied||!shipBody||shipBody!==nearest||rampTransition)return false;
+ const fromInterior=shipWalking8e&&StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z)==='cargo'&&
+  StarfallShipWalk8E.nearVehicleBayTruck(shipWalkAt8e.x,shipWalkAt8e.z,cargo8b.pose.x,cargo8b.pose.z);
+ if(!landed||(!eva&&!fromInterior)||truckOccupied||!shipBody||shipBody!==nearest||rampTransition)return false;
  const ship=shipWorldState(),access=V.add(ship.position,V.add(V.mul(V.norm(V.cross(ship.forward,ship.up)),BAY8B.BAY.centerX),V.mul(ship.forward,-27)));
- if(V.len(V.sub(pos,access))>35)return false;
+ if(!fromInterior&&V.len(V.sub(pos,access))>35)return false;
  if(!cargoRampReady8B()){showToast('8B · CARGO RAMP TERRAIN BLOCKED — reland on flatter ground');return true;}
  const a=physical8a.get(START_TRUCK);
  const reconciled=StarfallTruckCustody8B.restore(cargo8b,a,shipBody?.id||null);
@@ -366,7 +389,7 @@ function cargoInteract8B(){
   cargo8b.mode='ramp';cargo8b.pose={x:BAY8B.BAY.centerX,z:11.2,y:BAY8B.height(11.2)};cargo8b.counter++;
   truckBody=shipBody;truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);truckForwardVec=[...shipForwardVec];
   physical8a.move(START_TRUCK,{kind:'surface',bodyId:shipBody.id,local:truckLocal},'8b-release:'+cargo8b.counter,{expected:a.location});
-  showToast('8B · TRUCK IS INSIDE STARBOARD BAY AT RAMP MOUTH. It may be hidden by hull: stand at WIDE RIGHT-HAND ramp access, press X to enter, then hold S to reverse it into view.');saveFlight();return true;
+  showToast(fromInterior?'8B · TIE-DOWNS RELEASED · Boarding truck from interior bay':'8B · TRUCK RELEASED · Walk to starboard ramp, press X at truck and reverse down.');saveFlight();return true;
  }
  if(cargo8b.mode==='ramp'&&cargo8b.pose.z<=11.6&&a?.location.kind==='surface'){
   if(!BAY8B.fit(a).ok){showToast('8B · TRUCK EXCEEDS CARGO BAY CAPACITY');return true;}
