@@ -1,0 +1,27 @@
+# Update 8 release-candidate verification ledger
+
+This file deliberately does **not** claim Update 8 is complete.
+
+## Current staged changes
+
+- **8B:** Original expedition truck boarding uses authoritative 8A custody and can reconstruct a valid missing runtime ramp anchor. Does not permit duplicate trucks.
+- **UI22 / 8H tests:** Browser tests open actual Mission → Build → advanced Engineer workspace, rather than clicking intentionally hidden UI21 navigation. All physical stock, ownership and trip assertions remain enabled.
+- **8I / 8J models:** Existing source-owned habitat gas and atmospheric pressure models are now loaded in both editable and compiled game entries. Model tests check power constraints, gas conservation, pressure equation, invalid mass requests and duplicate receipts.
+- **Offline parity:** Builds are generated using `python tools/build-standalone.py` and `python tools/build-mobile-standalone.py`.
+
+## Required before merger into main
+
+- Pass `node tests/update8ij.test.cjs` and existing node test suites.
+- Pass `python tests/standalone-parity.py`, verify mobile standalone source parity.
+- Pass real file:// Chromium browser interaction for original-truck secured → ramp → surface → return → reload with same physical ID and mass/battery.
+- Pass 8H source-to-carrier-to-destination logistics, actual T02 energy debit, every target plant pipeline and 1×/10×/100× determinism.
+- Integrate 8I with original T09 installed habitat and T02 power + 8A materials, including source-paid water, oxygen, scrubbers, greenhouse, leakage, airlock and physical controls.
+- Integrate 8J with canonical world atmosphere/physics renderer, actual imported gas/energy ledger, climate/loss/feasibility/protection and persisted effects.
+- Execute unassisted 8K full original-asset industrial expedition and old-save/revisit tests; report honest GPU and FPS measurements.
+- Re-run baseline galaxy, warp/landing/crew ramp, science rover, outposts, UI21/UI22, saves and offline release tests.
+
+## Release policy
+
+No model-only function or passing unit test may be called end-to-end gameplay.
+Do not merge on red/blocked checks; tests marked action_required are NOT PASS.
+No free physical inventory or simulated electricity may enter Industrial Mode.
