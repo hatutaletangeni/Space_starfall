@@ -14,16 +14,28 @@ panel.innerHTML=`
   <div><small>DRILL</small><b id="sft-drill">—</b></div>
  </div>
  <div id="sft-state" role="status">Vehicle initializing</div>
- <div class="sft-tools" aria-label="Truck utility actions">
+ <div class="sft-main-actions">
   <button type="button" data-truck-action="EXIT">EXIT TRUCK</button>
   <button type="button" data-truck-action="MAP">MAP</button>
-  <button type="button" data-truck-action="VIEW">VIEW</button>
-  <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
-  <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
-  <button type="button" data-truck-action="LOAD">LOAD ORE</button>
-  <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
+  <button type="button" data-truck-action="VIEW">CAMERA</button>
  </div>
- <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
+ <details class="sft-section">
+  <summary>01 · Driving & recovery</summary>
+  <div class="sft-tools">
+   <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
+   <button type="button" data-truck-action="SHORE">SHORE CRAWL</button>
+  </div>
+  <small>W/S accelerate or reverse · A/D steer. Shore crawl consumes extra energy.</small>
+ </details>
+ <details class="sft-section">
+  <summary>02 · Mining & materials</summary>
+  <div class="sft-tools">
+   <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
+   <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+   <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
+  </div>
+  <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
+ </details>
  <div id="sft-hint">W/S DRIVE · A/D STEER · X EXIT · V VIEW</div>
  <div class="sft-error" role="status" id="sft-error" hidden></div>`;
 document.body.append(panel);
@@ -70,6 +82,7 @@ function refresh(force=false){
  buttons.LOAD.disabled=!info.canLoad;
  buttons.CANCEL.disabled=!info.cycle;
  buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
+ buttons.SHORE.textContent=info.shoreCrawl?'SHORE CRAWL ON':'SHORE CRAWL';
  const list=JSON.stringify(info.lots.map(l=>[l.id,l.massKg]));
  if(list!==lastLots){
   const previous=lot.value;lot.replaceChildren();
