@@ -6574,6 +6574,9 @@ const epsilon=0.65;
 function reachable(x,z){
  return Number.isFinite(x)&&Number.isFinite(z)&&zones.some(q=>x>=q.x0+epsilon&&x<=q.x1-epsilon&&z>=q.z0+epsilon&&z<=q.z1-epsilon);
 }
+function nearVehicleBayTruck(x,z,truckX=16.5,truckZ=5.7){
+ return room(x,z)==='cargo'&&Math.hypot(x-truckX,z-truckZ)<=11.5;
+}
 function room(x,z){
  for(const q of zones.slice(1)){if(x>=q.x0&&x<=q.x1&&z>=q.z0&&z<=q.z1)return q.id;}
  return 'spine';
@@ -6591,7 +6594,7 @@ function restore(saved){
    throw Error('Corrupt ship interior position');
  return{x:saved.x,z:saved.z,heading:((saved.heading%(2*Math.PI))+2*Math.PI)%(2*Math.PI)};
 }
-root.StarfallShipWalk8E=Object.freeze({zones,reachable,room,move,restore});
+root.StarfallShipWalk8E=Object.freeze({zones,reachable,room,nearVehicleBayTruck,move,restore});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallShipWalk8E;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
