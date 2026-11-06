@@ -47,12 +47,16 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("()=>!!(window.StarfallRuntime?.factoryQuote8F && window.StarfallWorkflow8ER)",timeout=50000)
   initial=page.evaluate("""()=>{
-    const r=StarfallRuntime,c=r.factoryContext8F();
-    return {landed:r.landed,eva:r.eva,shipJ:c.energyJ,
+    const r=StarfallRuntime;
+    // The original ship powers OFF by default. Explicitly switch on the
+    // pre-existing battery bus; never inject or recharge any joules.
+    r.vehicleStore.setPower('ship',true);r.persistVehicles();
+    const c=r.factoryContext8F();
+    return {landed:r.landed,eva:r.eva,operatorNear:c.operatorNear,powerEnabled:c.powerEnabled,shipJ:c.energyJ,
       quote:r.factoryQuote8F('copper_wire'),copper:r.materials8a.inventory('8d:ship-main:materials')
        .filter(x=>x.materialId==='copper').reduce((a,x)=>a+x.massKg,0)};
   }""")
-  assert initial['landed'] and initial['eva'],initial
+  assert initial['landed'] and initial['eva'] and initial['operatorNear'] and initial['powerEnabled'],initial
   assert initial['copper']==fresh['kg'],(fresh,initial)
   assert initial['quote']['energyJ']==104000,initial
   page.locator('#sf-mission-button').click()
@@ -61,6 +65,7 @@ with sync_playwright() as p:
   factory=page.locator('#factory8f-section')
   factory.locator('select').select_option('copper_wire')
   assert 'READY           YES' in factory.locator('pre').inner_text(),factory.locator('pre').inner_text()
+  assert factory.locator('button').first.is_enabled(),factory.locator('pre').inner_text()+str(initial)
   factory.locator('button').first.click()
   page.wait_for_function("StarfallRuntime.factory8f.active?.recipeId==='copper_wire'",timeout=12000)
   # The normal existing T key cycles from 1x->10x->100x, no debug bypass.
