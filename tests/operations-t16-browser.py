@@ -33,6 +33,9 @@ with sync_playwright() as p:
   }""",saved)
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!(window.StarfallOperationsUI16&&window.StarfallCommsT03&&window.StarfallAssetUI7A1)',timeout=50000)
+  # T16 attaches its read-only original operational status to #panel-body.
+  # UI22 intentionally hides that workspace until the player explicitly opens it.
+  open_route(page,'Overview')
   original=page.evaluate("""()=>{
    const ui=StarfallOperationsUI16,rt=StarfallRuntime;
    if(!rt.landed)throw Error('Expected original saved landed ship');
