@@ -129,3 +129,28 @@ test('rejects delivered archive packets with mismatched custody fields',()=>{
   assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
  }
 });
+
+test('rejects mislabeled source bins even when ownership is correct',()=>{
+ const x=installed();x.materials8a.containers[0].kind='generic cargo';
+ assert.throws(()=>output.commit(x),/Physical source output and receiving 8A depot bins/);
+});
+test('rejects delivered packet claims without a real nonempty route',()=>{
+ for(const driveIds of [[],null,[''],['drive',null]]){
+  const x=installed();x.transportReceipt.packetId='packet-route';
+  x.packetArchive8h={schema:1,jobs:[{
+   id:'packet-route',status:'DELIVERED',sourceId:x.stationId,targetId:x.depotId,
+   bodyId:x.bodyId,massKg:x.massKg,currentLotId:x.lotId,
+   completionS:12,cursor:Array.isArray(driveIds)?driveIds.length+1:1,driveIds
+  }]};
+  assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
+ }
+});
+test('rejects negative completion time in claimed delivered archive packet',()=>{
+ const x=installed();x.transportReceipt.packetId='packet-time';
+ x.packetArchive8h={schema:1,jobs:[{
+  id:'packet-time',status:'DELIVERED',sourceId:x.stationId,targetId:x.depotId,
+  bodyId:x.bodyId,massKg:x.massKg,currentLotId:x.lotId,
+  completionS:-1,cursor:2,driveIds:['drive']
+ }]};
+ assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
+});
