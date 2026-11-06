@@ -51,3 +51,10 @@ body.sfmobile-edition #sf-truck-cockpit .sft-lots{margin:3px 0;font-size:8px}
  body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:2px}
  body.sfmobile-edition #sf-truck-cockpit button{min-height:23px}
 }
+
+/* The legacy contextual menus and external expedition overlays are not truck instruments. */
+body.ui20[data-truck-driving=true] :is(#sf-quick-tools,#ui21-quick,#sf-console-nav,#landing-banner,
+ #solar-alert,#space-event,#phase-top,#walk-context,#status-text,.reticle,.ui21-intro,
+ #ui20-vehicle-frame .ship-structure){display:none!important}
+body.ui20[data-truck-driving=true] #ui20-vehicle-frame{display:none!important}
+body.ui20[data-truck-driving=true] #sf-truck-cockpit{display:block!important}
