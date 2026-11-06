@@ -6661,6 +6661,48 @@ const zones=Object.freeze([
  {id:'life',x0:-23,x1:-3,z0:13,z1:31,label:'Life support'},
  {id:'cargo',x0:3,x1:23,z0:-1,z1:22,label:'Integrated vehicle cargo bay'}
 ]);
+// S1 ship-space registry. Units below are the existing ship-local scene units,
+// not an independently scaled level. No new room or inventory is spawned here.
+// C01 material hold / A01 airlock remain unbuilt until the geometry slice.
+const ROOM_SCHEMA=Object.freeze([
+ {id:'spine',code:'U01',module:null,deck:'service',adjacent:['bridge','science','habitat','power','fabrication','life','cargo']},
+ {id:'bridge',code:'B01',module:'bridge',deck:'service',adjacent:['spine']},
+ {id:'science',code:'S01',module:'science',deck:'service',adjacent:['spine']},
+ {id:'habitat',code:'H01',module:'habitat',deck:'service',adjacent:['spine']},
+ {id:'power',code:'E01',module:'power',deck:'service',adjacent:['spine']},
+ {id:'fabrication',code:'F01',module:'fabrication',deck:'service',adjacent:['spine']},
+ {id:'life',code:'L01',module:'life',deck:'service',adjacent:['spine']},
+ {id:'cargo',code:'V01',module:'cargo',deck:'service',adjacent:['spine'],role:'single-truck vehicle bay'}
+].map(item=>Object.freeze(item)));
+function validateRoomGraph(){
+ const ids=new Set(zones.map(z=>z.id)),codes=new Set();
+ for(const r of ROOM_SCHEMA){
+  if(!ids.has(r.id)||codes.has(r.code))throw Error('Invalid ship room identifier');
+  codes.add(r.code);
+  const bounds=zones.find(z=>z.id===r.id);
+  if(!(bounds.x1>bounds.x0&&bounds.z1>bounds.z0))throw Error('Invalid ship interior bounds');
+  for(const next of r.adjacent){
+   const peer=ROOM_SCHEMA.find(x=>x.id===next);
+   if(!peer||!peer.adjacent.includes(r.id))throw Error('Disconnected ship room portal: '+r.id+' -> '+next);
+   const overlapX=Math.min(bounds.x1,zones.find(z=>z.id===next).x1)-Math.max(bounds.x0,zones.find(z=>z.id===next).x0);
+   const overlapZ=Math.min(bounds.z1,zones.find(z=>z.id===next).z1)-Math.max(bounds.z0,zones.find(z=>z.id===next).z0);
+   if(overlapX<=0||overlapZ<=0)throw Error('Room graph claims nonadjacent physical rectangles');
+  }
+ }
+ return true;
+}
+validateRoomGraph();
+function roomSchema(id){const r=ROOM_SCHEMA.find(x=>x.id===id);return r?{...r,adjacent:[...r.adjacent]}:null;}
+function routeRooms(from,to){
+ if(!ROOM_SCHEMA.some(x=>x.id===from)||!ROOM_SCHEMA.some(x=>x.id===to))return null;
+ const seen=new Set([from]),queue=[[from]];
+ while(queue.length){
+  const route=queue.shift(),at=route[route.length-1];
+  if(at===to)return route;
+  for(const next of ROOM_SCHEMA.find(x=>x.id===at).adjacent)if(!seen.has(next)){seen.add(next);queue.push([...route,next]);}
+ }
+ return null;
+}
 const epsilon=0.65;
 function reachable(x,z){
  return Number.isFinite(x)&&Number.isFinite(z)&&zones.some(q=>x>=q.x0+epsilon&&x<=q.x1-epsilon&&z>=q.z0+epsilon&&z<=q.z1-epsilon);
@@ -6685,7 +6727,7 @@ function restore(saved){
    throw Error('Corrupt ship interior position');
  return{x:saved.x,z:saved.z,heading:((saved.heading%(2*Math.PI))+2*Math.PI)%(2*Math.PI)};
 }
-root.StarfallShipWalk8E=Object.freeze({zones,reachable,room,nearVehicleBayTruck,move,restore});
+root.StarfallShipWalk8E=Object.freeze({zones,ROOM_SCHEMA,roomSchema,routeRooms,validateRoomGraph,reachable,room,nearVehicleBayTruck,move,restore});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallShipWalk8E;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
