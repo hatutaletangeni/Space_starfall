@@ -112,3 +112,35 @@ jobs:
           git commit -m 'build(mobile): refresh compact landscape standalone [mobile-standalone]'
           git pull --rebase origin main
           git push origin HEAD:main
+
+  publish-8er-preview:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/ship-interior-performance-refactor' && !contains(github.event.head_commit.message, '[8er-preview]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build both authoritative offline files
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          node tests/new-expedition8er.test.cjs
+          node tests/update8a.test.cjs
+          node tests/cargo-bay8b.test.cjs
+      - name: Publish branch preview only; never main
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'build(8E-R): sync both standalone previews [8er-preview]'
+          git pull --rebase origin feature/ship-interior-performance-refactor
+          git push origin HEAD:feature/ship-interior-performance-refactor
