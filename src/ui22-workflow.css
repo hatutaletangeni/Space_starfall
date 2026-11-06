@@ -47,3 +47,11 @@ body.sfmobile-edition #sfmobile-hud .sfm-top{max-width:none!important;left:50%!i
 body.sfmobile-edition #sfmobile-hud .sfm-top button{min-width:47px!important}
 body.sfmobile-edition #sfmobile-hud .sfm-right{grid-template-columns:repeat(3,var(--sfm-key))!important}
 @media(max-height:390px){body.sfmobile-edition #sfmobile-hud .sfm-top{height:24px!important}}
+
+/* Advanced workspace is opt-in, not an always-on multi-console. */
+body.ui20 #sf-workspace-close{display:none;background:#244961;color:#e7f4f9;border:1px solid #719db3;border-radius:7px;padding:7px 9px;font:650 9px system-ui;white-space:nowrap}
+body.ui20.sf-workspace-open #sf-workspace-close{display:inline-block}
+body.ui20.sf-workspace-open .panel{display:block!important;opacity:1!important;max-height:min(80dvh,750px)!important;width:min(420px,calc(100vw - 30px))!important;z-index:16!important}
+body.ui20 .sf-flow-workspace{grid-column:1/-1;background:#2a4558!important;color:#cbe7f3!important;border-style:dashed!important}
+body.sfmobile-edition.sf-workspace-open .panel{top:35px!important;bottom:auto!important;right:max(5px,env(safe-area-inset-right))!important;max-height:calc(100dvh - 44px)!important;overflow:auto!important;width:min(470px,83vw)!important}
+body[data-truck-driving=true].sf-workspace-open .panel{display:none!important}
