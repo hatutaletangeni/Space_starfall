@@ -373,7 +373,7 @@ function makeShipWalkDeck(gl){
  }
  // Each room contains purpose-built industrial furniture / workstations.
  for(const [x,z] of [[-18,-29],[-18,-21],[-18,0],[-18,6],[-18,19],
-   [17,-28],[17,-20],[17,-8],[17,1],[17,15]]){
+   [17,-28],[17,-20],[17,-8]]){
   box(x-2,-1.1,z-1.3,x+2,1.2,z+1.3,lab);
   box(x-1.7,1.2,z-1.15,x+1.7,2.1,z+.4,lights);
  }
@@ -387,6 +387,15 @@ function makeShipWalkDeck(gl){
  for(let z=-1;z<18;z+=4){
   box(9.2,-1.1,z,9.8,-.98,z+1,support);
   box(22.5,-1.1,z,23.1,-.98,z+1,support);
+ }
+ // The actual 8B wide starboard ramp continues from the indoor vehicle bay to
+ // the ground. No decorative crates or consoles block the truck's driven path.
+ quad([9.25,-1.2,19],[23.75,-1.2,19],[23.75,-7.25,39],[9.25,-7.25,39],support);
+ for(const x of [9.3,23.7])quad([x-.18,-1.14,19],[x+.18,-1.14,19],
+   [x+.18,-7.18,39],[x-.18,-7.18,39],lights);
+ for(let z=-1;z<=15;z+=4){
+  box(10,-1.08,z,10.55,-.94,z+.95,lights);
+  box(22.25,-1.08,z,22.8,-.94,z+.95,lights);
  }
  // Pressurized roof ceiling: from inside the player sees a coherent hull.
  box(-8.1,7.4,-59,8.1,7.8,32,wall);
