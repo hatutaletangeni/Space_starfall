@@ -592,6 +592,13 @@ function makeInfrastructureMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
  // spawned as independent resources or as a substitute for live station state.
  const rack=[.34,.39,.42],warning=[.80,.47,.19],cold=[.16,.55,.68],
        hot=[.70,.27,.14],steel=[.55,.60,.62];
+ if(kind==='cargo_pallet'){
+  // Cargo packaging is drawn ONLY when its real original ship materials
+  // ledger has nonzero lots. Not a new material store or click-to-spawn item.
+  box(-.85,.5,-.65,.85,1.65,.65,metal);
+  box(-.94,1.55,-.72,.94,1.82,.72,warning);
+  for(const x of [-.65,.60])box(x-.10,.40,-.73,x+.10,1.78,-.66,rack);
+ }
  if(kind==='industrial_reduction_furnace'||kind==='industrial_glass_furnace'){
   box(-2.5,1.05,-1.8,2.5,4.5,1.8,hot);
   box(-2.7,3.5,-2,2.7,4.4,2,warning);
@@ -696,7 +703,7 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope","industrial_reduction_furnace","industrial_glass_furnace","industrial_air_fractionation","industrial_electrolyzer","industrial_high_temp_cell","industrial_catalytic_reactor","industrial_pressure_pipeline","industrial_conveyor_drive","industrial_cargo_depot","industrial_cargo_depot_loaded","industrial_vehicle_assembly","industrial_rocket_integration","industrial_habitat_pad"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope","industrial_reduction_furnace","industrial_glass_furnace","industrial_air_fractionation","industrial_electrolyzer","industrial_high_temp_cell","industrial_catalytic_reactor","industrial_pressure_pipeline","industrial_conveyor_drive","industrial_cargo_depot","industrial_cargo_depot_loaded","industrial_vehicle_assembly","industrial_rocket_integration","industrial_habitat_pad","cargo_pallet"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -1110,6 +1117,20 @@ class Renderer{
   if(state.shipWalkInterior){
     const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));
     this.renderMesh(p,this.shipWalkDeck,model);
+    // Source-owned original 8A ship cargo has finite mass and volume.
+    // Reuse one tiny GPU pallet mesh; no per-frame allocation or imaginary
+    // loaded pallet when the authoritative ship hold is empty.
+    const held=Number(state.shipHoldMassKg)||0;
+    if(held>0){
+     const pallet=this.infrastructure.get('cargo_pallet');
+     const count=Math.min(4,Math.ceil(held/750));
+     for(let i=0;i<count;i++){
+      const local=V.add(V.mul(right,8.5+(i%2)*2.65),
+        V.add(V.mul(state.shipUp,-1.75),V.mul(state.shipForward,13+Math.floor(i/2)*3.25)));
+      this.renderMesh(p,pallet,M.basis(right,state.shipUp,state.shipForward,
+        V.sub(V.add(shipPos,local),origin)));
+     }
+    }
    }else if(!state.hidePlayerShip){const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));this.renderMesh(p,this.ship,model);}
   if(state.roverPosition&&state.roverForward&&state.roverUp){const rr=V.norm(V.cross(state.roverForward,state.roverUp)),rModel=M.basis(rr,state.roverUp,state.roverForward,V.sub(state.roverPosition,origin));this.renderMesh(p,this.rover,rModel);}
   if(!state.hidePlayerTruck&&state.truckPosition&&state.truckForward&&state.truckUp){
