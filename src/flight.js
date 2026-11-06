@@ -775,6 +775,7 @@ function tryCrewHatchEntry8ER(atEntrance){
   rampTransition,nearShip:shipBody===nearest&&V.len(V.sub(pos,ship.position))<=EVA_BOARD_DISTANCE,
   walkedSinceExit,hatchCooldown,atEntrance});
  if(!check.ok){showToast(check.reason);return false;}
+ if(swimming){swimming=false;swimDepthScene=.3;swimVerticalSceneS=0;}
  const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-30,0);
  rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
  showToast('CREW HATCH · Crossing the central crew boarding ramp');return true;
@@ -886,12 +887,21 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    if(drive&&truckBatteryJ>0){
     const right=V.norm(V.cross(truckForwardVec,radial)),weather=window.StarfallMeteorologyLW03?.cell(nearest,truckLocal,simTime,GALAXY_SEED),
       traction=weather?.precipitationKgM2S>0?Math.max(.53,1-weather.precipitationKgM2S*95):weather?.regime==='dust'?.82:1,
-      speed=((keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5)*traction;
+      shore=window.StarfallHydrosphereLW04?.sample(nearest,truckLocal,groundHeight(truckLocal,nearest),simTime,GALAXY_SEED)?.hasWater,
+      speed=((keys.has('ShiftLeft')||keys.has('ShiftRight'))?20:11.5)*traction*(shore?.38:1);
     const step=drive*dt*speed,angle=step/Math.max(1,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE);
     const nextDir=V.norm(V.rot(radial,right,-angle));truckForwardVec=V.norm(V.rot(truckForwardVec,right,-angle));
     const nextLocal=V.rot(nextDir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
-    const dh=Math.abs(groundHeight(nextLocal,nearest)-groundHeight(truckLocal,nearest));
-    if(dh<Math.max(.45,Math.abs(step)*.55)){truckLocal=nextLocal;pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE));up=nextDir;truckBatteryJ=Math.max(0,truckBatteryJ-dt*(speed>12?4500:1800));}
+    const beforeHeight=groundHeight(truckLocal,nearest),afterHeight=groundHeight(nextLocal,nearest);
+    const dh=Math.abs(afterHeight-beforeHeight);
+    const Hydro=window.StarfallHydrosphereLW04;
+    const fromWater=!!Hydro?.sample(nearest,truckLocal,beforeHeight,simTime,GALAXY_SEED)?.hasWater;
+    const toWater=!!Hydro?.sample(nearest,nextLocal,afterHeight,simTime,GALAXY_SEED)?.hasWater;
+    // A shore-bound expedition truck can crawl through shallow/shoreline relief
+    // using the same finite battery, physical pose and real drive commands.
+    // This is NOT a teleport and keeps the original 8A asset ID.
+    const maxRelief=(fromWater||toWater)?Math.max(1.5,Math.abs(step)*2.6):Math.max(.45,Math.abs(step)*.55);
+    if(dh<maxRelief){truckLocal=nextLocal;pos=V.add(nearest.position,V.mul(nextDir,nearest.radius+groundHeight(truckLocal,nearest)+TRUCK_CLEARANCE));up=nextDir;truckBatteryJ=Math.max(0,truckBatteryJ-dt*(speed>12?4500:1800));}
    }
    evaForward=[...truckForwardVec];vertical=0;vel=[0,0,0];return;
   }
@@ -924,7 +934,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    else{swimming=false;swimDepthScene=.3;}
   }
   // Spatial transitions only. The astronaut physically walks into the rear ramp or rover seat.
-  if(!swimming&&hatchCooldown<=0 && walkedSinceExit>3 && walk>0 && shipBody===nearest){
+  if(hatchCooldown<=0 && walkedSinceExit>3 && walk>0 && shipBody===nearest){
    const ship=shipWorldState(),delta=V.sub(pos,ship.position),ahead=V.dot(delta,ship.forward);
    const right=V.norm(V.cross(ship.forward,ship.up)),side=V.dot(delta,right);
    if(ahead> -29 && ahead < -17 && Math.abs(side)<4.8){
