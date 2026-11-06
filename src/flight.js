@@ -324,7 +324,7 @@ function boardVehicleBayTruck8B(){
  }
  if(winch7d){showToast('VEHICLE BAY · Release the powered winch first');return true;}
  // Keep original 8A physical truck and battery. Use the same driving state as EVA boarding.
- shipWalking8e=false;truckOccupied=true;eva=false;
+ shipWalking8e=false;truckOccupied=true;eva=true;
  const truck=truckWorldState();pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];
  camMode=0;camEye=null;camDistance=Math.max(camDistance,26);roverEntryCooldown=1.2;
  showToast('VEHICLE BAY · TRUCK BOARDED · Hold S / ▼ to reverse down the wide starboard ramp · X to exit');
@@ -478,12 +478,14 @@ function enterTruck(){
  const truck=truckWorldState();
  if(!truck||V.len(V.sub(pos,truck.position))>TRUCK_BOARD_DISTANCE)return false;
  if(winch7d){showToast('Cancel the powered winch before driving the truck');return false;}
-  truckOccupied=true;pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];camEye=null;camDistance=Math.max(camDistance,26);
+  truckOccupied=true;eva=true;pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];camEye=null;camDistance=Math.max(camDistance,26);
  roverEntryCooldown=1.2;showToast('EXPEDITION TRUCK · WASD drive · X or ground click to exit · L lights');return true;
 }
 function exitTruck(){
  if(!truckOccupied||!truckBody||!truckLocal)return false;
- truckOccupied=false;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
+ if(cargo8b.mode==='ramp'){showToast('TRUCK · Reverse all the way off the ramp before exiting');return false;}
+ if(keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')){showToast('TRUCK · Release throttle before exiting');return false;}
+ truckOccupied=false;eva=true;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
  evaLocal=dis;const axis=truckBody.spinAxis||[0,1,0],dir=V.norm(V.rot(dis,axis,truckBody.spinAngle||0));
  evaForward=[...truckForwardVec];pos=V.add(truckBody.position,V.mul(dir,truckBody.radius+groundHeight(dis,truckBody)+EVA_HEIGHT));up=dir;camEye=null;
  roverEntryCooldown=2.4;roverExitMove={from:prev,to:dis,progress:0};evaLocal=prev;
@@ -796,7 +798,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  let yaw=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0);
  if(truckOccupied)yaw=controls.roverYaw(yaw);
  const pitch=controls.flightPitch((keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0)),roll=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
- if(landed){if(eva){
+ if(landed){if(eva||truckOccupied||manufacturedOccupied8G){
   warp=false;up=radial;
   if(rampTransition){
    rampTransition.elapsed+=dt;const t=Math.min(1,rampTransition.elapsed/rampTransition.duration),smooth=t*t*(3-2*t);
@@ -1039,6 +1041,7 @@ function cameraState(dt){
 function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;
  // Paint-only vehicle identity for UI20 cockpit frames (6 Hz bounded).
  document.body.dataset.sfView=shipWalking8e?'ship-interior':truckOccupied?(camMode===1?'truck-cab':'truck-chase'):eva?'eva':camMode===1?'ship-cockpit':'ship-chase';
+ document.body.dataset.truckDriving=truckOccupied?'true':'false';
  const hint=$('control-live-hint');if(hint){const codes=controls.settings.bindings;const short=k=>String(k||'—').replace(/^Key/,'').replace(/^Digit/,'').replace(/^Arrow/,'ARROW ').replace('ShiftLeft','SHIFT').replace('Space','SPACE');
   const mode=shipWalking8e?'SHIP INTERIOR':interiorState?(interiorState.kind==='cave'?'CAVE':'RUIN INTERIOR'):truckOccupied?'TRUCK':eva?'EVA':landed?'LANDED SHIP':'SHIP';const word=mode==='SHIP'?'thrust / brake':mode==='LANDED SHIP'?'drive / reverse':'forward / reverse';
   const text=mode+' · '+short(codes.thrust)+' / '+short(codes.brake)+' '+word+' · '+short(codes.turnLeft)+' / '+short(codes.turnRight)+' turn'+(truckOccupied&&controls.settings.roverSteerInvert?' (INVERTED)':'')+' · MOUSE Y '+(controls.settings.lookInvertY?'INVERTED':'NORMAL')+(controls.settings.flightPitchInvert&&mode==='SHIP'?' · FLIGHT PITCH INVERTED':'')+' · CONTROLS ⚙ TO CUSTOMIZE';if(hint.textContent!==text)hint.textContent=text;
@@ -2798,6 +2801,44 @@ function logisticsOffworldApply8H(action,manifestId,lotId,depotId){
  showToast('8H · '+manifestId+' '+state+' — original ship cargo and Joules source-owned');
  return q.manifest;
 }
+// Shared original-truck operations: physical custody and mining ledgers remain authoritative.
+function truckHudInfo(){
+ const hopper=materials8a.used(StarfallMining8D.TRUCK),hold=materials8a.used(StarfallMining8D.SHIP);
+ const ctx=miningContext8D(),site=miningDeposit8D(),op=mining8d.active;
+ const surveyed=!!site&&resources8c.observations().some(x=>x.siteId===site.id);
+ const lots=materials8a.inventory(StarfallMining8D.TRUCK),moving=keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown');
+ return {occupied:truckOccupied,cargoMode:cargo8b.mode,onRamp:cargo8b.mode==='ramp',
+  world:nearest?.name||'Unknown',batteryJ:truckBatteryJ,batteryPct:Math.round(truckBatteryJ/44e6*100),
+  hopperKg:hopper.massKg,hopperLimitKg:StarfallMining8D.LIMITS.truckMassKg,
+  shipHoldKg:hold.massKg,lights:truckLights,camera:camMode===1?'CAB':'CHASE',
+  drillConditionPct:Math.round(mining8d.toolCondition*100),
+  deposit:site?.label||null,surveyed,oreRemainingKg:site?resources8c.remaining(site):0,
+  cycle:op?.type||null,cyclePct:op?Math.min(100,Math.round(op.elapsedS/op.durationS*100)):0,
+  canExit:truckOccupied&&cargo8b.mode!=='ramp'&&!moving,
+  canDrill:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&surveyed&&site&&
+    resources8c.remaining(site)>=StarfallMining8D.DRILL.kgPerBatch&&truckBatteryJ>=StarfallMining8D.DRILL.minimumEnergyJ&&mining8d.toolCondition>=.1),
+  canLoad:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&ctx.truckNearShip&&lots.length),
+  lots:lots.map(l=>({id:l.id,materialId:l.materialId,massKg:l.massKg})),
+  hint:cargo8b.mode==='ramp'?'REVERSE DOWN RAMP · EXIT LOCKED':
+   op?op.type+' '+Math.round(op.elapsedS/op.durationS*100)+'% · KEEP PARKED':
+   !surveyed?'SURVEY DEPOSIT ON FOOT BEFORE DRILLING':'PARK OVER SURVEYED DEPOSIT TO MINE'};
+}
+function truckHudAction(action,lotId){
+ if(!truckOccupied)throw Error('Enter expedition truck first');
+ if(action==='EXIT')return exitTruck();
+ if(action==='MAP'){openChart();return true;}
+ if(action==='VIEW'){camMode=(camMode+1)%2;camEye=null;return true;}
+ if(action==='LIGHTS'){truckLights=!truckLights;headlights=truckLights;return true;}
+ if(action==='MINE'){if(!truckHudInfo().canDrill)throw Error('Park over a surveyed deposit with adequate battery and drill condition');return miningStart8D();}
+ if(action==='LOAD'){
+  if(!truckHudInfo().canLoad)throw Error('Park near landed ship with a real ore lot');
+  const lot=materials8a.inventory(StarfallMining8D.TRUCK).find(l=>l.id===lotId);
+  if(!lot)throw Error('Select an existing truck ore lot');
+  return miningLoad8D(lot.id,Math.min(50,lot.massKg));
+ }
+ if(action==='CANCEL')return miningCancel8D();
+ throw Error('Unknown truck action');
+}
 function shipHoldFor8H(lotId){
  const lot=materials8a.inventory(StarfallOffworldManifest8H.HOLD).find(x=>x.id===lotId);
  if(!lot||!Number.isFinite(lot.massKg)||lot.massKg<=0)
@@ -3102,7 +3143,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
  get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
