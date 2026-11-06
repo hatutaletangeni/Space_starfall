@@ -48,4 +48,11 @@ assert.equal(Custody.recoverStrandedTruckForMobile({...state,flightGalaxy:ramp})
 const overweight=Physical.create(state.physical8a).serialize();
 overweight.assets.find(a=>a.id===id).massKg=Cargo.BAY.maxCargoMassKg+1;
 assert.equal(Custody.recoverStrandedTruckForMobile({...state,physical8a:overweight}).reason,'CARGO_CAPACITY');
+const inflated={...state,flightGalaxy:{...state.flightGalaxy,
+ truckPose:{...state.flightGalaxy.truckPose,batteryJ:44e6,cargo:800}}};
+const guarded=Custody.recoverStrandedTruckForMobile(inflated);
+assert.equal(Physical.create(guarded.session.physical8a).get(id).state.batteryJ,19000,
+ 'stale legacy pose must not replenish source-owned 8A battery');
+assert.equal(Physical.create(guarded.session.physical8a).get(id).state.cargoKg,13,
+ 'stale legacy pose must not inflate payload');
 console.log('PASS one-time assisted original truck recovery: source-owned vehicle/energy/matter, no replay, active-job and bay safeguards');

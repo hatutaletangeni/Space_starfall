@@ -362,6 +362,7 @@ function cargoInteract8B(){
   showToast('8B · '+StarfallTruckCustody8B.description(a,cargo8b,shipBody.id));return true;
  }
  if(cargo8b.mode==='secured'&&a?.location.kind==='ship'){
+  if(Number.isFinite(a.state?.batteryJ))truckBatteryJ=V.clamp(a.state.batteryJ,0,44e6);
   cargo8b.mode='ramp';cargo8b.pose={x:BAY8B.BAY.centerX,z:11.2,y:BAY8B.height(11.2)};cargo8b.counter++;
   truckBody=shipBody;truckLocal=cargoSurfaceLocal8B(shipCargoWorld8B().position);truckForwardVec=[...shipForwardVec];
   physical8a.move(START_TRUCK,{kind:'surface',bodyId:shipBody.id,local:truckLocal},'8b-release:'+cargo8b.counter,{expected:a.location});
@@ -369,9 +370,16 @@ function cargoInteract8B(){
  }
  if(cargo8b.mode==='ramp'&&cargo8b.pose.z<=11.6&&a?.location.kind==='surface'){
   if(!BAY8B.fit(a).ok){showToast('8B · TRUCK EXCEEDS CARGO BAY CAPACITY');return true;}
+  if(!truckBody||!truckLocal||truckBody.id!==a.location.bodyId){
+   showToast('8B · Truck position missing; cannot secure or invent battery charge');return true;
+  }
+  // Source-owned energy must be written BEFORE moving the actual truck to ship.
+  physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,
+   lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
+  const updatedBeforeLock=physical8a.get(START_TRUCK);
   cargo8b.counter++;
   physical8a.move(START_TRUCK,{kind:'ship',slot:'starboard-hangar'},'8b-lock:'+cargo8b.counter,
-   {expected:a.location,maxMassKg:BAY8B.BAY.maxCargoMassKg,maxVolumeM3:BAY8B.BAY.maxCargoVolumeM3});
+   {expected:updatedBeforeLock.location,maxMassKg:BAY8B.BAY.maxCargoMassKg,maxVolumeM3:BAY8B.BAY.maxCargoVolumeM3});
   cargo8b.mode='secured';cargo8b.pose={x:BAY8B.BAY.centerX,z:5.7,y:BAY8B.BAY.floorY};
   truckBody=null;truckLocal=null;roverExitMove=null;
   showToast('8B · TRUCK SECURED · tie-downs locked · flight mass updated');saveFlight();return true;

@@ -52,9 +52,14 @@ function recoverStrandedTruckForMobile(session){
  if(original.truckPose?.bodyId===truck.location.bodyId&&
    Number.isFinite(original.truckPose.batteryJ)&&
    original.truckPose.batteryJ>=0&&original.truckPose.batteryJ<=44e6){
-  const physicalState={batteryJ:original.truckPose.batteryJ};
+  const ownerState=store.get(truck.id)?.state||{};
+  // When two older save mirrors disagree, take the lower actual charge/cargo,
+  // never grant free stored Joules or stock from an inflated legacy pose.
+  const physicalState={batteryJ:Number.isFinite(ownerState.batteryJ)?
+   Math.min(ownerState.batteryJ,original.truckPose.batteryJ):original.truckPose.batteryJ};
   if(Number.isFinite(original.truckPose.cargo)&&original.truckPose.cargo>=0)
-   physicalState.cargoKg=original.truckPose.cargo;
+   physicalState.cargoKg=Number.isFinite(ownerState.cargoKg)?
+    Math.min(ownerState.cargoKg,original.truckPose.cargo):original.truckPose.cargo;
   if(typeof original.truckPose.lights==='boolean')
    physicalState.lights=original.truckPose.lights;
   if(Array.isArray(original.truckPose.forward))physicalState.forward=original.truckPose.forward;

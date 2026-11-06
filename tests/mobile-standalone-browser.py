@@ -60,6 +60,7 @@ with sync_playwright() as p:
  recovered=rescue_page.evaluate("""() => ({
   kind:StarfallRuntime.physical8a.get('truck-expedition-001').location.kind,
   battery:StarfallRuntime.physical8a.get('truck-expedition-001').state.batteryJ,
+  runtimeBattery:StarfallRuntime.truck.batteryJ,
   trucks:StarfallRuntime.physical8a.list().filter(a=>a.id==='truck-expedition-001').length,
   cargo:StarfallRuntime.cargo8b.mode,
   record:SF.load().assistedTruckRecovery8b,
@@ -68,11 +69,12 @@ with sync_playwright() as p:
  })""")
  assert recovered['kind']=='ship' and recovered['cargo']=='secured',recovered
  assert recovered['trucks']==1 and recovered['receipts']==1,recovered
- assert recovered['battery']==1234567,'No free original truck battery after assisted recovery'
+ assert recovered['battery']==1234567 and recovered['runtimeBattery']==1234567,'Original source-owned battery must be restored in live truck with no free Joules: '+str(recovered)
  assert recovered['record']['notPhysical8HDelivery'] is True,recovered
  rescue_page.reload(wait_until='domcontentloaded',timeout=90000)
  rescue_page.wait_for_function("() => !!window.StarfallRuntime?.physical8a",timeout=60000)
  assert rescue_page.evaluate("StarfallRuntime.physical8a.serialize().transfers.filter(t=>t.id==='8b-assisted-mobile-recovery-v1').length")==1
+ assert rescue_page.evaluate('StarfallRuntime.truck.batteryJ')==1234567,'Reload must not silently refill truck'
  rescue_context.close()
  ctx.close();browser.close()
 print('PASS: real offline mobile Chromium, landscape touch dispatch, text deselection, portrait guidance')
