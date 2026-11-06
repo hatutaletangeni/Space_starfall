@@ -91,6 +91,19 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
        if(gas?.changed)dirty=true;
       }catch(e){console.warn('8H original paid rated gas pump held:',e);}
     }
+    // The SAME native original T02 paid power pulse transfers real
+    // 8A reactor reagent gas from certified vessel into the finite 80L
+    // pipe and then pays a separate real reactor inlet flange step.
+    // No invented Joules, bypass stock, or second grid solve.
+    if(report?.dtS>0&&root.StarfallChemicalGasInput8H&&
+       RT.industrialGasHasActive8H?.(bodyId)&&RT.industrialGasInputNativeTick8H){
+      try{
+       const input=RT.industrialGasInputNativeTick8H({
+        bodyId,outpost5:durableSnapshot(),powerReport:report,
+        timeS:report.simulatedAtS});
+       if(input?.changed)dirty=true;
+      }catch(e){console.warn('8H original 8E chemical reagent pipe held:',e);}
+    }
     // A completed 8E chemical batch is NOT gas inside its destination tank.
     // It first owns a REAL 8A lot inside the 80L 8MPa pipe; only another
     // timed and source-paid original T02 report can debit that physical pipe

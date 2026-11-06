@@ -41,15 +41,52 @@ function create(saved){
    const bin=snapshot.containers.find(x=>x.id===reagentContainer);
    if(!vessel||vessel.type!=='industrial_vessel'||vessel.condition<.5||
     vessel.location?.kind!=='surface'||vessel.location.bodyId!==bodyId||
-    vessel.state?.materialId!==materialId||vessel.state?.containerId!==reagentContainer||
-    !bin||!String(bin.kind).includes('gas')||!finite(vessel.state.ratedPressurePa)||
-    vessel.state.ratedPressurePa<storagePressurePa)
-    throw Error('Required pressure-rated reactant vessel missing: '+materialId);
+    vessel.state?.materialId!==materialId||
+    !finite(vessel.state.ratedPressurePa)||vessel.state.ratedPressurePa<storagePressurePa)
+    throw Error('Required original certified gas reactant vessel missing: '+materialId);
+   if(station.gasInputStaged8H===true){
+    // Real chemical inlet has already consumed original native 420W T02
+    // motor work to move source gas INTO an installed 80L pipe, and then
+    // paid a second finite pipe→reactor inlet-handoff step. It is STILL
+    // actual original 8A mass inside the pipeline until the chemical
+    // reactor consumes it here. No free reactor chamber is manufactured.
+    const j=station.gasInputProofs8H?.[materialId],
+     route=station.gasManifolds?.['input:'+materialId],
+     pipe=assets.find(a=>a.id===j?.pipeId);
+    const kit=assetState?.transfers?.some(t=>t.action==='INSTALL'&&
+     t.status==='COMMITTED'&&t.assetId===pipe?.id&&ident(t.sourceLotId)&&
+     finite(t.massKg)&&Math.abs(t.massKg-pipe.massKg)<EPS);
+    const reservedReceipt=snapshot.operations.find(o=>
+     o.id===j?.operationId&&o.status==='COMMITTED'&&
+     o.outputLotId===j?.currentLotId);
+    const sourceLot=snapshot.lots.find(l=>l.id===j?.currentLotId&&
+     l.containerId===reagentContainer&&l.materialId===materialId);
+    if(!j||j.status!=='READY'||j.stage!==2||
+       j.stationId!==station.physicalAssetId||j.vesselId!==vessel.id||
+       j.massKg+EPS<quantity||!finite(j.paidJ)||j.paidJ<=0||
+       !pipe||!kit||pipe.condition<.8||
+       pipe.state?.station!=='pressure_pipeline'||
+       pipe.state?.kitMaterialId!=='plant_kit_pressure_pipeline'||
+       pipe.state?.ratedPressurePa<8e6||pipe.massKg!==320||
+       pipe.location?.kind!=='surface'||pipe.location.bodyId!==bodyId||
+       !route||route.pipeId!==pipe.id||route.vesselId!==vessel.id||
+       route.powerPortId!==pipe.state.t02LoadId||
+       pipe.state.containerId!==reagentContainer||
+       !bin||bin.ownerId!==pipe.id||!String(bin.kind).includes('gas')||
+       Math.abs(bin.maxMassKg-25)>EPS||Math.abs(bin.maxVolumeM3-.08)>EPS||
+       !reservedReceipt||!sourceLot||sourceLot.massKg+EPS<quantity)
+      throw Error('8H actual incoming reagent gas not delivered through real paid 80L pipe and original T02 reactor flange: '+materialId);
+   }else if(vessel.state?.containerId!==reagentContainer||
+     !bin||!String(bin.kind).includes('gas'))
+     throw Error('Original pressure-rated reactant vessel missing: '+materialId);
   }
   for(const lot of snapshot.lots){
     if(lot.containerId!==reagentContainer||lot.materialId!==materialId)continue;
     // An exact chemical identifier is not sufficient: raw, low-grade ore cannot be used as pure reagent.
     if(!finite(lot.grade)||lot.grade<.99)continue;
+    if(isGas&&station.gasInputStaged8H===true&&
+       lot.id!==station.gasInputProofs8H?.[materialId]?.currentLotId)
+     continue; // NEVER consume another gas lot bypassing source-pinned line
     const reserved=sum(snapshot.operations.filter(op=>op.status==='RESERVED'&&op.lotId===lot.id).map(op=>op.massKg));
     const free=Math.max(0,lot.massKg-reserved),used=Math.min(free,remaining);
     if(used>EPS){taken.push({lot,used});remaining-=used;}if(remaining<EPS)break;
@@ -132,10 +169,16 @@ function create(saved){
    ...(physicalGasPorts&&Object.keys(physicalGasPorts).length?{
     physicalGasPorts:copy(physicalGasPorts),
     gasTransportAccounting:station.gasOutputStaged8H===true?
-     'OUTBOUND_IN_ORIGINAL_80L_PIPE_RESERVED_UNTIL_NATIVE_T02_DELIVERY;INBOUND_GAS_STILL_DIRECT_VESSEL':
-     'PAID_ORIGINAL_T02_CERTIFIED_FLANGE_BUT_8A_BATCH_DIRECT_CONTAINER',
+     (station.gasInputStaged8H===true?
+       'OUTBOUND_REAL_80L_PIPE_NATIVE_T02_DELIVERY;INBOUND_REAL_VESSEL_TO_PIPE_AND_PAID_REACTOR_INLET':
+       'OUTBOUND_IN_ORIGINAL_80L_PIPE_RESERVED_UNTIL_NATIVE_T02_DELIVERY;INBOUND_GAS_STILL_DIRECT_VESSEL'):
+     (station.gasInputStaged8H===true?
+       'INBOUND_REAL_VESSEL_TO_PIPE_AND_PAID_REACTOR_INLET;NO_OUTBOUND_GAS':
+       'PAID_ORIGINAL_T02_CERTIFIED_FLANGE_BUT_8A_BATCH_DIRECT_CONTAINER'),
     note:station.gasOutputStaged8H===true?
-     'Original 8A chemistry creates its balanced output gas IN real manufactured 80L pipe holdup. Separate original native T02 powered, timed reservation/commit is REQUIRED before its actual rated vessel receives it. Inbound gas reactants still directly debit source vessels and are not claimed as fully metered.' :
+     (station.gasInputStaged8H===true?
+      'Original 8A incoming gases are physically transferred from real rated vessels into manufactured 80L pipes by original 420W T02 grid, receive a second paid reactor inlet step, then are consumed by real 8E chemistry; output gases occupy other 80L pipes until separate paid delivery to rated vessels.' :
+      'Original 8A chemistry creates its balanced output gas IN real manufactured 80L pipe holdup. Separate original native T02 powered, timed reservation/commit is REQUIRED before its actual rated vessel receives it. Inbound gas reactants still directly debit source vessels and are not claimed as fully metered.') :
      'Gas source and receiving vessel have physically certified rated lines. This receipt DOES NOT prove transient pipe-holdup gas flow during the chemical batch.'}:{})};
   const operations=copy(state);operations.operations.push(receipt);
   return {duplicate:false,receipt,materials:snapshot,operations};
