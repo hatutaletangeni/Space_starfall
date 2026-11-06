@@ -28,6 +28,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Work from latest source revision, never stale queued CI checkout
+        run: |
+          git fetch origin feature/ship-interior-performance-refactor
+          git checkout -B feature/ship-interior-performance-refactor origin/feature/ship-interior-performance-refactor
+          echo "Building source revision $(git rev-parse HEAD)"
       - name: Build both offline editions before tests
         run: |
           python tools/build-standalone.py
@@ -63,4 +68,14 @@ jobs:
           fi
           git commit -m 'build(8E-R): synchronized desktop + mobile test editions [8er-preview]'
           git pull --rebase origin feature/ship-interior-performance-refactor
+          # A newer edit may have landed while the job was queued or testing.
+          # Regenerate AFTER rebasing to avoid publishing an older scene or HUD.
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit --amend --no-edit
+          fi
           git push origin HEAD:feature/ship-interior-performance-refactor
