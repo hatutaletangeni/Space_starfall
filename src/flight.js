@@ -464,14 +464,17 @@ function exitShip(){
  hatchCooldown=2;walkedSinceExit=0;roverEntryCooldown=2;shipIdleElapsed=0;
  showToast('EVA · science rover is AUTONOMOUS ONLY · approach truck and press X to drive');
 }
-function boardShip(){
- if(!eva||!shipBody||!shipLocal)return;
+function boardShip(transitionKind){
+ if(!eva||!shipBody||!shipLocal)return false;
  const ship=shipWorldState();
- if(V.len(V.sub(pos,ship.position))>EVA_BOARD_DISTANCE){showToast('Move closer to the ship to board.');return;}
+ const check=StarfallShipHatch8ER.boardComplete({landed,eva,truckOccupied,shipBodyPresent:!!shipBody,
+  nearShip:V.len(V.sub(pos,ship.position))<=EVA_BOARD_DISTANCE,transitionKind});
+ if(!check.ok){showToast(check.reason);return false;}
  eva=false;swimming=false;swimDepthScene=.01;swimVerticalSceneS=0;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
  hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;
  shipWalking8e=true;shipWalkAt8e={x:0,z:25,heading:0};
  camMode=0;showToast('8E · Inside expedition vessel · WASD walk through ship · X near bridge to pilot · S to exit aft');
+ return true;
 }
 function enterTruck(){
  if(!eva||truckOccupied||!truckBody||truckBody!==nearest||!truckLocal||interiorState||rampTransition)return false;
@@ -665,8 +668,11 @@ addEventListener('keydown',ev=>{
  if(code==='KeyB'&&eva){if(cargoInteract8B())return;}
  if(code==='KeyI'&&eva&&landed&&!truckOccupied&&!rampTransition){
   const ship=shipWorldState();
-  if(shipBody===nearest&&V.len(V.sub(pos,ship.position))<=EVA_BOARD_DISTANCE){boardShip();saveFlight();}
-  else showToast('BRIDGE · Walk within 32 scene units of your landed ship first');
+  const rel=V.sub(pos,ship.position),right=V.norm(V.cross(ship.forward,ship.up));
+  const ahead=V.dot(rel,ship.forward),side=V.dot(rel,right);
+  if(!tryCrewHatchEntry8ER(ahead>-29&&ahead< -17&&Math.abs(side)<4.8))
+   showToast('CREW HATCH · Approach the central crew ramp and walk into its opening');
+
   return;
  }
  if(code==='KeyI'&&!eva&&!truckOccupied&&landed){
@@ -759,6 +765,18 @@ function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segm
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
 }
+// S2 crew hatch: world-space ramp eligibility is shared by keyboard and touch.
+// No interior or truck ownership change until the real transition completes.
+function tryCrewHatchEntry8ER(atEntrance){
+ const ship=shipWorldState();
+ const check=StarfallShipHatch8ER.requestEntry({landed,eva,truckOccupied,swimming,
+  rampTransition,nearShip:shipBody===nearest&&V.len(V.sub(pos,ship.position))<=EVA_BOARD_DISTANCE,
+  walkedSinceExit,hatchCooldown,atEntrance});
+ if(!check.ok){showToast(check.reason);return false;}
+ const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-10,0);
+ rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
+ showToast('CREW HATCH · Crossing the central crew boarding ramp');return true;
+}
 function updatePhysics(dt){if(busy()||document.hidden)return;
  hatchCooldown=Math.max(0,hatchCooldown-dt);roverEntryCooldown=Math.max(0,roverEntryCooldown-dt);
  simTime=physicsClock.advance(dt,timeScale);
@@ -800,8 +818,9 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    step=move*speed*dt,heading=shipWalkAt8e.heading;
    const next=StarfallShipWalk8E.move(shipWalkAt8e,-Math.sin(heading)*step,-Math.cos(heading)*step);
    shipWalkAt8e.x=next.x;shipWalkAt8e.z=next.z;
-   if(shipWalkAt8e.z>29.5&&move<0&&Math.abs(shipWalkAt8e.x)<3.2){
-    exitShip();showToast('8E · Physically exiting through crew cargo ramp');return;
+   if(StarfallShipHatch8ER.requestExit({landed,at:shipWalkAt8e,move,
+    truckOccupied,rampTransition,shipWalking:shipWalking8e}).ok){
+    exitShip();showToast('8E · Crossing the central crew hatch to exterior');return;
    }
   }
   warp=false;vertical=0;vel=[0,0,0];return;
@@ -818,7 +837,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    const dir=V.norm(V.rot(evaLocal,nearest.spinAxis||[0,1,0],nearest.spinAngle||0));
    pos=V.add(nearest.position,V.mul(dir,nearest.radius+groundHeight(evaLocal,nearest)+EVA_HEIGHT+rampLift));up=dir;
    if(t>=1){const direction=rampTransition.kind;rampTransition=null;rampLift=0;
-    if(direction==='in'){boardShip();vertical=0;vel=[0,0,0];return;}
+    if(direction==='in'){boardShip('in');vertical=0;vel=[0,0,0];return;}
    }vertical=0;vel=[0,0,0];return;
   }
   if(roverExitMove){
@@ -907,15 +926,14 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    const ship=shipWorldState(),delta=V.sub(pos,ship.position),ahead=V.dot(delta,ship.forward);
    const right=V.norm(V.cross(ship.forward,ship.up)),side=V.dot(delta,right);
    if(ahead> -29 && ahead < -17 && Math.abs(side)<4.8){
-    const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-10,0);
-    rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
-    showToast('Walking up the cargo ramp · boarding ship');vertical=0;vel=[0,0,0];return;
+    if(tryCrewHatchEntry8ER(true)){vertical=0;vel=[0,0,0];return;}
    }
   }
   // Science rover is never rideable; truck only boards through a deliberate X press.
   vertical=0;vel=[0,0,0];return;}
   shipIdleElapsed=keys.has('KeyS')?shipIdleElapsed+dt:0;
-  if(shipIdleElapsed>.52&&hatchCooldown<=0){exitShip();vertical=0;vel=[0,0,0];return;}
+  if(shipIdleElapsed>.52&&hatchCooldown<=0){shipIdleElapsed=0;hatchCooldown=1.6;
+   showToast('CREW HATCH · Press I / BRIDGE to walk inside, then use the aft crew hatch');}
   if(keys.has('Space')){if(cargo8b.mode==='ramp'){showToast('8B · CARGO RAMP OCCUPIED · secure truck or unload before launch');vertical=0;vel=[0,0,0];return;}if(shipDockT13.state!=='UNDOCKED'){showToast('T13 · UNDOCK SERVICE CABLE BEFORE TAKEOFF');vertical=0;vel=[0,0,0];return;}landingCapture=null;landed=false;groundLocal=null;eva=false;evaLocal=null;shipBody=null;truckOccupied=false;vel=V.add(V.mul(radial,38),V.mul(forward,14));pos=V.add(pos,V.mul(radial,5));showToast('Liftoff · atmospheric ascent');}else{
   if(yaw)forward=V.norm(V.rot(forward,radial,yaw*dt*1.65));forward=V.norm(V.sub(forward,V.mul(radial,V.dot(radial,forward))));up=radial;const desired=(keys.has('KeyW')?34:0)-(keys.has('KeyS')?15:0),speed=V.dot(vel,forward);
   vel=V.mul(forward,speed+(desired-speed)*Math.min(1,dt*2));const nextPos=V.add(pos,V.mul(vel,dt)),ns=surfaceData(nearest,nextPos);groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
