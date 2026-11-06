@@ -33,6 +33,18 @@
    const b=document.createElement('button');b.type='button';b.className='sf-flow-action';b.textContent=label;
    b.addEventListener('click',()=>{if(id==='physical8a-dialog')root.StarfallInventoryUI8A?.open?.();else target.click();close();});
    actionsHost.append(b);}
+  // Advanced consoles stay accessible under their original, source-owned
+  // UI21 page. They are not duplicated into the first-level action list.
+  const workspace=document.createElement('button');workspace.type='button';
+  workspace.className='sf-flow-action sf-flow-workspace';
+  workspace.textContent='OPEN ALL '+s.name.toUpperCase()+' TOOLS';
+  workspace.addEventListener('click',()=>{
+   root.StarfallUI21.openRoute(s.page);
+   panel.classList.remove('collapsed');panel.classList.add('ui20-expanded');
+   document.body.classList.add('sf-workspace-open');
+   close();
+  });
+  actionsHost.append(workspace);
   // Entire workflow remains navigable even if an optional subsystem is absent.
   if(!actionsHost.childElementCount){const empty=document.createElement('p');empty.textContent='No tools installed for this stage.';actionsHost.append(empty);}
  }
@@ -51,6 +63,15 @@
    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
  },true);
  document.addEventListener('pointerdown',e=>{if(opened&&!nav.contains(e.target)&&!e.target.closest('#sf-mission-button'))close();});
+ const workspaceClose=document.createElement('button');
+ workspaceClose.type='button';workspaceClose.id='sf-workspace-close';
+ workspaceClose.textContent='✕ CLOSE TOOLS';
+ workspaceClose.addEventListener('click',()=>{
+  document.body.classList.remove('sf-workspace-open');
+  panel.classList.remove('ui20-expanded');
+  panel.classList.add('collapsed');
+ });
+ panel.querySelector('.panel-title')?.append(workspaceClose);
  const head=document.querySelector('.sf-head-actions');
  const mission=document.createElement('button');mission.type='button';mission.id='sf-mission-button';mission.textContent='MISSION';
  mission.setAttribute('aria-controls','sf-mission-flow');mission.setAttribute('aria-expanded','false');
