@@ -9,9 +9,9 @@
   {name:'Explore',number:'02',hint:'Land, survey and investigate',page:'Explore',
    actions:[['WORLD SURVEY','survey-open'],['FIELD LAB','field-open'],['DISCOVERIES','discovery-open'],['ECOLOGY','ecology-open'],['RUINS','ruin-open']]},
   {name:'Build',number:'03',hint:'Prepare and construct your equipment',page:'Engineer',
-   actions:[['ENGINEERING WORKBENCH','workbench-open'],['ASSET MANAGER','asset-open'],['ROCKET LAB','launch-open'],['OUTPOSTS','outpost-open']]},
+   actions:[['ENGINEERING WORKBENCH','workbench-open'],['RESOURCE TEST LAB','@resources'],['ASSET MANAGER','asset-open'],['OUTPOSTS','outpost-open']]},
   {name:'Operate',number:'04',hint:'Use vehicles, machinery and missions',page:'Operate',
-   actions:[['SHIP SYSTEMS','systems-toggle'],['MISSION OPERATIONS','mission-open'],['IMAGING','imaging7f-open'],['VEHICLE INVENTORY','physical8a-dialog']]},
+   actions:[['MINE & HAUL ORE','@mining'],['COLLECT & STORE GAS','@gas'],['SHIP SYSTEMS','systems-toggle'],['VEHICLE INVENTORY','physical8a-dialog']]},
   {name:'Records',number:'05',hint:'Save progress and review your expedition',page:'Records',
    actions:[['SAVE / RECOVERY','archive-t17-open'],['MISSION PHOTOS','imaging7f-open'],['RESEARCH','research7e-open'],['CONTROL SETTINGS','controls-open'],['FIELD MANUAL','ui-help-open']]}
  ];
@@ -28,10 +28,17 @@
    b.type='button';b.className='sf-flow-step';b.setAttribute('aria-current',String(i===selected));
    b.textContent=item.number+' · '+item.name;b.addEventListener('click',()=>{selected=i;paint();});stagesHost.append(b);}
   summary.textContent=s.hint+' · '+mode();
-  for(const [label,id] of s.actions){const target=$(id);
-   if(!target)continue;
+  for(const [label,id] of s.actions){
+   const special=id.startsWith('@'),inventory=id==='physical8a-dialog';
+   const target=!special&&!inventory?$(id):null;
+   if(!special&&!inventory&&!target)continue;
    const b=document.createElement('button');b.type='button';b.className='sf-flow-action';b.textContent=label;
-   b.addEventListener('click',()=>{if(id==='physical8a-dialog')root.StarfallInventoryUI8A?.open?.();else target.click();close();});
+   b.addEventListener('click',()=>{
+    if(special)root.StarfallResourceTests8ER?.open?.(id==='@gas'?'gas':id==='@mining'?'mining':'mining');
+    else if(inventory)root.StarfallInventoryUI8A?.open?.();
+    else target.click();
+    close();
+   });
    actionsHost.append(b);}
   // Advanced consoles stay accessible under their original, source-owned
   // UI21 page. They are not duplicated into the first-level action list.
