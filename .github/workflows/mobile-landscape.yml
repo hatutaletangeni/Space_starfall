@@ -8,6 +8,9 @@ on:
       - 'index.html'
       - 'tests/truck-cockpit.test.cjs'
       - 'src/flight.js'
+      - 'src/starfall-core.js'
+      - 'src/physics/physical-inventory8a.js'
+      - 'tests/new-expedition8er.test.cjs'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
       - 'tools/build-mobile-standalone.py'
@@ -23,6 +26,9 @@ on:
       - 'index.html'
       - 'tests/truck-cockpit.test.cjs'
       - 'src/flight.js'
+      - 'src/starfall-core.js'
+      - 'src/physics/physical-inventory8a.js'
+      - 'tests/new-expedition8er.test.cjs'
       - 'src/engine.js'
       - 'src/physics/ship-walk8e.js'
       - 'tools/build-mobile-standalone.py'
@@ -46,6 +52,9 @@ jobs:
           python tests/mobile-standalone-parity.py
           node tests/mobile-vehicle-bay.test.cjs
           node tests/truck-cockpit.test.cjs
+          node tests/new-expedition8er.test.cjs
+          node tests/update8a.test.cjs
+          node tests/cargo-bay8b.test.cjs
   mobile-chromium:
     runs-on: ubuntu-latest
     timeout-minutes: 18
