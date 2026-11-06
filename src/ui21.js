@@ -35,6 +35,11 @@ for(const name of ['Explore','Engineer','Operate','Records']){
  pageMap[name]=page;pages.appendChild(page);
  for(const id of sections[name])moveSectionTo(page,id);
 }
+// Source-owned T16 real operations cards are created before UI21 and must live in
+// the visible Operate workspace, not the default-hidden Overview page.
+// Move the actual node with its original listeners (never clone or replace it).
+const operationsStatus=content.querySelector(':scope > .op16-card[data-owner="main"]');
+if(operationsStatus){pageMap.Operate.appendChild(operationsStatus);moved.add(operationsStatus);}
 const overview=document.createElement('div');overview.className='ui21-page';overview.dataset.page='Overview';overview.hidden=true;
 const overviewIntro=document.createElement('p');overviewIntro.className='ui21-intro';overviewIntro.textContent='Your current surroundings, basic surveys and flight status.';overview.appendChild(overviewIntro);
 for(const el of [...content.children]){if(el!==pages && el!==overview && !el.closest?.('#ui21-pages'))overview.appendChild(el);}
