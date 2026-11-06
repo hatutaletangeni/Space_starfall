@@ -31,7 +31,10 @@ with sync_playwright() as p:
   # original blank rover fixture over a genuinely durable mission on reload.
   # Use a persistent, test-only localStorage marker, written/read back BEFORE
   # source boot. Keep every original final rover, camera and ACK assertion.
-  context.add_init_script("(()=>{const m='starfall-t06-fixture-seeded';if(localStorage.getItem(m)==='1')return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");localStorage.setItem(m,'1');if(localStorage.getItem(m)!=='1')throw Error('T06 fixture marker not durable');})()")
+  # A file:// reload may execute init scripts before storage markers settle.
+  # The actual saved mission receipt is more authoritative than a marker: never
+  # overwrite a valid deployed rover with the original empty landed fixture.
+  context.add_init_script("(()=>{const m='starfall-t06-fixture-seeded';const raw=localStorage.getItem('starfall_save');if(raw){try{const s=JSON.parse(raw);if((s.launch7?.launches||[]).some(x=>x.id==='launch-t06-browser')){localStorage.setItem(m,'1');return;}}catch(e){}}if(localStorage.getItem(m)==='1')return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");localStorage.setItem(m,'1');if(localStorage.getItem(m)!=='1')throw Error('T06 fixture marker not durable');})()")
   boot.close()
   page=context.new_page()
   page.on('pageerror',lambda e:errors.append(str(e)))
