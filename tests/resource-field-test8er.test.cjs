@@ -1,0 +1,33 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const read=p=>fs.readFileSync(p,'utf8');
+const hub=read('src/ui23-resource-tests.js'),flow=read('src/ui22-workflow.js'),index=read('index.html');
+const mining=read('src/physics/mining-hauling-ui8d.js'),gas=read('src/physics/air-fractionation-ui8g.js');
+const cargo=read('src/physics/gas-vessel-cargo-ui8g.js'),pipe=read('src/physics/pressure-pipe-live-ui8h.js');
+for(const [file,source] of [['resource tests',hub],['mission workflow',flow]])new vm.Script(source,{filename:file});
+assert.ok(index.includes('src/ui23-resource-tests.js'));
+assert.ok(index.includes('src/ui23-resource-tests.css'));
+assert.ok(index.indexOf('src/ui23-resource-tests.js')>index.indexOf('src/physics/air-fractionation-ui8g.js'));
+assert.ok(index.indexOf('src/ui23-resource-tests.js')>index.indexOf('src/physics/mining-hauling-ui8d.js'));
+assert.ok(flow.includes("['MINE & HAUL ORE','@mining']"));
+assert.ok(flow.includes("['COLLECT & STORE GAS','@gas']"));
+assert.ok(flow.includes("['RESOURCE TEST LAB','@resources']"));
+for(const id of ['mining8d-panel','air-fractionation8g','gas-vessel-cargo8g','pressure8h-live-panel','factory8f-section','industrial8e-physical']){
+ const filename=id==='mining8d-panel'?mining:id==='air-fractionation8g'?gas:id==='gas-vessel-cargo8g'?cargo:id==='pressure8h-live-panel'?pipe:id==='factory8f-section'?read('src/physics/factory-ui8f.js'):read('src/physics/industrial-site-ui8e.js');
+ assert.ok(filename.includes(id),'Existing original control '+id+' must be present');
+ assert.ok(hub.includes("'"+id+"'"),'Test guide must route to real control '+id);
+}
+assert.ok(hub.includes('r.miningContext8D()'));
+assert.ok(hub.includes('r.airFractionationContext8G?.()'));
+assert.ok(hub.includes('r.gasVesselCargoContext8G?.()'));
+assert.ok(hub.includes('r.logisticsPressureContext8H?.()'));
+assert.ok(hub.includes("r.materials8a.inventory(root.StarfallMining8D.TRUCK)"));
+assert.ok(hub.includes('r.resources8c.observations()'));
+assert.ok(!hub.includes('importLot('),'Test UI must never mint stock');
+assert.ok(!hub.includes('startDrill('),'Test UI must delegate drilling to original physics controls');
+assert.ok(!hub.includes('Collect8G('),'Test UI must delegate gas capture to original API');
+assert.match(hub,/20 kg air batch/);
+assert.match(hub,/810 kJ/);
+assert.match(hub,/90 kJ/);
+assert.match(hub,/420 W/);
+console.log('PASS: real mining/gas test route, all original controls found, no synthetic stock or power');
