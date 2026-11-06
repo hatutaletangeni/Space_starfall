@@ -37,6 +37,7 @@
   window.dispatchEvent(new KeyboardEvent('keyup',opts));
  }
  const actions={
+  mission:()=>window.StarfallWorkflow8ER?.toggle(),
   menu:()=>document.getElementById('ui-console-open')?.click(),
   engineer:()=>{const nav=document.querySelector('#sf-console-nav [data-route="Engineer"]');
    if(nav){nav.click();document.getElementById('panel')?.classList.remove('collapsed');}
