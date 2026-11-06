@@ -37,6 +37,7 @@ jobs:
           python tests/standalone-parity.py
           node tests/cargo-bay8b.test.cjs
           node tests/update8a.test.cjs
+          node --test tests/update8ij-model.test.cjs
           node --test tests/logistics-routes8h.test.cjs
           node --test tests/logistics-pickup8h.test.cjs
           node --test tests/logistics-dropoff8h.test.cjs
