@@ -1,0 +1,79 @@
+name: STARFALL 8H real paid surface depot dry hopper source-owned chemistry
+on:
+  push:
+    branches:
+      - feature/update-8h-real-surface-plant-dry-feed-bin
+  pull_request:
+    paths:
+      - 'src/physics/industrial-dry-feed8h.js'
+      - 'src/physics/industrial-dry-feed-ui8h.js'
+      - 'src/physics/industrial-site8e.js'
+      - 'src/physics/industrial-site-ui8e.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'tests/industrial-dry-feed8h*'
+      - '.github/workflows/update-8h-surface-dry-feed.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild-exact-original-standalone:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Rebuild ORIGINAL same-play offline game source
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 tools/build-standalone.py
+          python3 tests/standalone-parity.py
+          if ! git diff --quiet -- PLAY-STARFALL.html; then
+            git add PLAY-STARFALL.html
+            git commit -m 'build(8H): actual certified dry depot original machine feed source/PLAY parity'
+            git push origin HEAD:feature/update-8h-real-surface-plant-dry-feed-bin
+          fi
+  real-original-depot-feed-to-8e:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify actual ORIGINAL 8A paid empty hopper, physically paid 250W conveyor-delivered dry feed and real glass transaction
+        run: |
+          set -euo pipefail
+          node --check src/physics/industrial-dry-feed8h.js
+          node --check src/physics/industrial-dry-feed-ui8h.js
+          node --check src/physics/industrial-site8e.js
+          node --check src/physics/industrial-site-ui8e.js
+          node --check src/flight.js
+          node --test tests/industrial-dry-feed8h.test.cjs
+          node --test tests/industrial-site8e.test.cjs
+          node --test tests/industrial-chemistry8e.test.cjs
+          node --test tests/industrial-gas-manifold8h.test.cjs
+          node --test tests/chemical-gas-input8h.test.cjs
+          node --test tests/chemical-gas-output8h.test.cjs
+          node --test tests/pressure-gas-packets8h.test.cjs
+          node --test tests/conveyor-packets8h.test.cjs
+          python3 -m py_compile tests/industrial-dry-feed8h-browser.py
+          python3 tests/standalone-parity.py
+      - name: Install original offline Chromium software WebGL2 browser harness
+        run: |
+          python3 -m pip install --disable-pip-version-check playwright==1.56.0
+          python3 -m playwright install --with-deps chromium
+      - name: Real original game on Chromium, one original truck and accurate 8A Engineering source
+        run: |
+          python3 tests/industrial-dry-feed8h-browser.py
+          python3 tests/industrial-gas-manifold8h-browser.py
+          python3 tests/chemical-gas-input8h-browser.py
+          python3 tests/chemical-gas-output8h-browser.py
