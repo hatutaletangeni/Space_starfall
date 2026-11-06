@@ -15,3 +15,7 @@ Changed integrations: `src/physics/logistics-powered-network8h.js`, `conveyor-pa
 Run `node --test tests/conveyor-packets8h.test.cjs tests/logistics-powered-network8h.test.cjs tests/industrial-dry-feed8h.test.cjs` plus the entire existing Engineering and Update 8 release matrix. Then regenerate `PLAY-STARFALL.html` via `python3 tools/build-standalone.py`, run `python3 tests/standalone-parity.py`, and execute native `file://` WebGL2 Engineer conveyor UI, chemical reaction, 1×/10×/100×, power interruption, full hopper, save/reload and old-save cases.
 
 **NOT YET VERIFIED**: release CI on this exact head, full player-driven end-to-end ore→offworld chain, output-depot integration, unattended remote industry, consumer GPU FPS. Do not merge or close #86 until these gates pass; 8I remains blocked.
+
+## Exact source/standalone parity checkpoint
+
+The branch's original standalone was regenerated at commit `a1f49c2f1cb5d9b4da24719883c92ba5a80ba6ec`. This documentation-only user-authored follow-up does not alter source, shaders, simulation or standalone bytes. It requests a fresh exact-head mandatory CI evaluation after the builder's bot commit. Previous runs on stale source/PLAY heads must not be counted as full passing release evidence.
