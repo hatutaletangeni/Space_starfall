@@ -671,8 +671,9 @@ addEventListener('keydown',ev=>{
   const ship=shipWorldState();
   const rel=V.sub(pos,ship.position),right=V.norm(V.cross(ship.forward,ship.up));
   const ahead=V.dot(rel,ship.forward),side=V.dot(rel,right);
-  if(!tryCrewHatchEntry8ER(ahead>-29&&ahead< -17&&Math.abs(side)<4.8))
-   showToast('CREW HATCH · Approach the central crew ramp and walk into its opening');
+  // The shared hatch guard already reports the precise denial (range, cooldown,
+  // water or conflicting transition). Do not replace it with a generic toast.
+  tryCrewHatchEntry8ER(ahead>-29&&ahead< -17&&Math.abs(side)<4.8);
 
   return;
  }
