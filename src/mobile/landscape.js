@@ -2,6 +2,28 @@
    Held movement keys remain bound by src/flight.js via existing data-control="..." buttons. */
 (function(){'use strict';
  const hud=document.getElementById('sfmobile-hud');if(!hud)return;
+ const bayHint=document.createElement('div');
+ bayHint.id='sfm-vehicle-bay-hint';
+ bayHint.setAttribute('role','status');
+ bayHint.hidden=true;
+ hud.append(bayHint);
+ function updateBayHint(){
+  const runtime=window.StarfallRuntime;
+  if(!runtime){bayHint.hidden=true;return;}
+  let message='';
+  if(runtime.shipWalking8e){
+   const at=runtime.shipWalkAt8e;
+   if(at&&window.StarfallShipWalk8E?.room(at.x,at.z)==='cargo'){
+    const cargo=runtime.cargo8b;
+    const near=window.StarfallShipWalk8E?.nearVehicleBayTruck(at.x,at.z,cargo.pose.x,cargo.pose.z);
+    message=near?(cargo.mode==='ground'?'TRUCK OUTSIDE · Exit via crew ramp':'VEHICLE BAY · TAP X TO BOARD TRUCK'):
+     'VEHICLE BAY · MOVE CLOSER TO PARKED TRUCK';
+   }else message='SHIP INTERIOR · WALK AFT THROUGH CENTRE CORRIDOR, THEN TURN RIGHT INTO VEHICLE BAY';
+  }else if(runtime.truckOccupied&&runtime.cargo8b?.mode==='ramp')
+   message='TRUCK BOARDED · HOLD ▼ TO REVERSE DOWN WIDE RAMP';
+  bayHint.hidden=!message;bayHint.textContent=message;
+ }
+ setInterval(updateBayHint,350);
  const codeKeys={KeyX:'x',KeyB:'b',KeyI:'i',KeyV:'v',KeyT:'t',KeyG:'g',KeyL:'l',KeyF:'f',KeyM:'m'};
  function pressAction(code){
   if(!Object.hasOwn(codeKeys,code))return;
