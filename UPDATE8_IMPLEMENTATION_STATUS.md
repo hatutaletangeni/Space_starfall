@@ -5,8 +5,8 @@ This file deliberately does **not** claim Update 8 is complete.
 ## Current staged changes
 
 - **8B:** Original expedition truck boarding uses authoritative 8A custody and can reconstruct a valid missing runtime ramp anchor. Does not permit duplicate trucks.
-- **UI22 / 8H tests:** Browser tests open actual Mission → Build → advanced Engineer workspace, rather than clicking intentionally hidden UI21 navigation. All physical stock, ownership and trip assertions remain enabled.
-- **8I / 8J models:** Existing source-owned habitat gas and atmospheric pressure models are now loaded in both editable and compiled game entries. Model tests check power constraints, gas conservation, pressure equation, invalid mass requests and duplicate receipts.
+- **UI22 / 8G–8H tests:** All exact stale UI21 browser test route clicks are migrated by `tools/migrate-ui22-browser-tests.py` to the actual visible Mission workflow. The suite retains every physical stock, ownership, conservation and trip assertion.
+- **8I / 8J models:** Existing source-owned habitat gas and atmospheric pressure models are now loaded in both editable and compiled game entries. Model tests check power constraints, gas conservation, pressure equation, invalid mass requests and duplicate receipts. 8J rejects replay of a receipt ID with different mass/time parameters.
 - **Offline parity:** Builds are generated using `python tools/build-standalone.py` and `python tools/build-mobile-standalone.py`.
 
 ## Required before merger into main
