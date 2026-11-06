@@ -1,5 +1,5 @@
-from ui22_browser_nav import open_route
 #!/usr/bin/env python3
+from ui22_browser_nav import open_route
 """STARFALL 8G real offline Chromium structural-assembly regression.
 Controlled material fixtures are test-only; production never grants resources.
 """
@@ -190,7 +190,7 @@ with sync_playwright() as pw:
         }""",habitat_id)
         assert not errors,errors
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=45000)
+        page.wait_for_function("typeof StarfallRuntime !== 'undefined' && !!StarfallRuntime.physical8a",timeout=45000)
         persisted=page.evaluate("""id => {
           const rt=StarfallRuntime,h=rt.physical8a.get(id);
           return{kg:h.massKg,pressurePa:h.state.pressurePa,receipts:h.state.meteredCharge8g?.consumedLots?.length,
