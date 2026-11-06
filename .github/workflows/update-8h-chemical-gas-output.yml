@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/update-8h-real-chemical-product-gas-transit
+      - feature/update-8h-no-unrouted-chemical-gas
   pull_request:
     paths:
       - 'src/physics/chemical-gas-output8h.js'
@@ -35,7 +36,7 @@ jobs:
           if ! git diff --quiet -- PLAY-STARFALL.html; then
             git add PLAY-STARFALL.html
             git commit -m 'build(8H): original source-owned chemical output pipe transit standalone parity'
-            git push origin HEAD:feature/update-8h-real-chemical-product-gas-transit
+            git push origin HEAD:"${GITHUB_REF_NAME}"
           fi
   actual-original-8a-80l-t02-gas:
     if: github.event_name == 'pull_request'

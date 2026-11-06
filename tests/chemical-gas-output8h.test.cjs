@@ -85,6 +85,36 @@ function produce(f){
    usedJ:r.energyJ},bodyId});
  return proc;
 }
+test('staged 8E chemistry cannot bypass a missing oxygen pipeline by crediting its destination vessel directly',()=>{
+ const f=fixture(),before=structuredClone(f.materials8a),
+  routes=structuredClone(f.stationProof);
+ delete routes.gasManifolds['output:oxygen'];
+ assert.throws(()=>Plant.create().process({
+  id:'chem8e:missing-oxygen-route',reactionId:'water_splitting',scaleMol:50,
+  materials:before,sourceContainerId:'8d:ship-main:materials',
+  destinations:{hydrogen:'pipe:'+f.ids.pipeH,oxygen:'tank:'+f.ids.vesselO},
+  assetState:f.physical8a,station:routes,
+  energyReceipt:{operationId:'chem8e:missing-oxygen-route',
+   sourceId:'ship-main:engineering-battery',
+   usedJ:Chem.batch('water_splitting',50).energyJ},bodyId
+ }),/missing paid physical output pressure pipeline: oxygen/);
+ // A missing HYDROGEN line must also reject a valid balanced
+ // electrolysis job; the guard is species-generic, never oxygen-specific.
+ const noHydrogen=structuredClone(f.stationProof);
+ delete noHydrogen.gasManifolds['output:hydrogen'];
+ assert.throws(()=>Plant.create().process({
+  id:'chem8e:missing-hydrogen-route',reactionId:'water_splitting',
+  scaleMol:50,materials:before,sourceContainerId:'8d:ship-main:materials',
+  destinations:{hydrogen:'tank:'+f.ids.vesselH,
+   oxygen:'pipe:'+f.ids.pipeO},
+  assetState:f.physical8a,station:noHydrogen,
+  energyReceipt:{operationId:'chem8e:missing-hydrogen-route',
+   sourceId:'ship-main:engineering-battery',
+   usedJ:Chem.batch('water_splitting',50).energyJ},bodyId
+ }),/missing paid physical output pressure pipeline: hydrogen/);
+ assert.deepEqual(before,f.materials8a,
+  'neither gas bypass can consume original 8A reagent or credit a distant vessel');
+});
 test('real original 80L manufactured output pipe REFUSES an oversized 100-mol hydrogen batch, never fabricates larger tank capacity',()=>{
  const f=fixture(),before=structuredClone(f.materials8a),scaleMol=100;
  assert.throws(()=>Plant.create().process({
