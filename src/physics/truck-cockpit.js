@@ -21,6 +21,7 @@ panel.innerHTML=`
   <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
   <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
   <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+  <button type="button" data-truck-action="SHORE">SHORE CRAWL</button>
   <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
  </div>
  <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
@@ -70,6 +71,7 @@ function refresh(force=false){
  buttons.LOAD.disabled=!info.canLoad;
  buttons.CANCEL.disabled=!info.cycle;
  buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
+ buttons.SHORE.textContent=info.shoreCrawl?'SHORE CRAWL ON':'SHORE CRAWL';
  const list=JSON.stringify(info.lots.map(l=>[l.id,l.massKg]));
  if(list!==lastLots){
   const previous=lot.value;lot.replaceChildren();
