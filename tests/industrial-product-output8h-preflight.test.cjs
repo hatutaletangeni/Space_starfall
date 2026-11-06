@@ -101,3 +101,31 @@ test('rejects caller-only paid receipt without original authoritative packet arc
   completionS:12,cursor:2,driveIds:['drive']}];
  assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
 });
+
+test('rejects delivered archive packets with mismatched custody fields',()=>{
+ const make=()=>{
+  const x=installed();
+  x.transportReceipt.packetId='packet-1';
+  x.packetArchive8h={schema:1,jobs:[{
+   id:'packet-1',status:'DELIVERED',sourceId:x.stationId,targetId:x.depotId,
+   bodyId:x.bodyId,massKg:x.massKg,currentLotId:x.lotId,
+   completionS:12,cursor:2,driveIds:['drive']
+  }]};
+  return x;
+ };
+ const changes=[
+  p=>{p.status='ACTIVE';},
+  p=>{p.sourceId='different-station';},
+  p=>{p.targetId='different-depot';},
+  p=>{p.bodyId='different-world';},
+  p=>{p.massKg=2;},
+  p=>{p.currentLotId='different-lot';},
+  p=>{p.completionS=NaN;},
+  p=>{p.cursor=1;},
+  p=>{p.driveIds=['drive','missing-drive'];}
+ ];
+ for(const change of changes){
+  const x=make();change(x.packetArchive8h.jobs[0]);
+  assert.throws(()=>output.commit(x),/Authoritative original 8H delivered conveyor packet required/);
+ }
+});
