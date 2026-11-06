@@ -2285,12 +2285,27 @@ function logisticsConveyorContext8H(){
   a.location.bodyId===here&&a.massKg===180);
  const drives=paidDrives.filter(a=>a.state?.t02LoadId);
  const unwiredDrives=paidDrives.filter(a=>!a.state?.t02LoadId);
+ const chemicalKinds=new Set(['reduction_furnace','glass_furnace','high_temp_cell',
+  'electrolyzer','catalytic_reactor']);
+ const plantTargets=physical8a.list().filter(a=>
+  a.type==='industrial_plant'&&chemicalKinds.has(a.state?.station)&&
+  a.location?.kind==='surface'&&a.location.bodyId===here&&
+  a.condition>=.5&&a.state?.enabled===true&&
+  a.state.dryFeedContainerId==='plantfeed8h:'+a.id&&
+  receipts.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&
+   t.assetId===a.id&&t.sourceLotId&&Math.abs(t.massKg-a.massKg)<1e-6)&&
+  materials8a.containers().some(c=>c.id===a.state.dryFeedContainerId&&
+   c.ownerId===a.id&&/dry-reactant feed hopper/i.test(c.kind)&&
+   Math.abs(c.maxMassKg-120)<1e-6&&Math.abs(c.maxVolumeM3-.20)<1e-6));
  return{bodyId:here,bodyRadius:ctx.body?.radius||null,
   onFoot:ctx.landed&&ctx.eva&&!truckOccupied&&!shipWalking8e&&
    !interiorState&&!manufacturedOccupied8G,
   operatorLocal:ctx.eva&&ctx.local?[...ctx.local]:null,
   depots:depots.map(a=>({id:a.id,local:[...a.location.local],
     containerId:a.state.containerId,lots:materials8a.inventory(a.state.containerId)})),
+  plantTargets:plantTargets.map(a=>({id:a.id,station:a.state.station,
+    local:[...a.location.local],containerId:a.state.dryFeedContainerId,
+    lots:materials8a.inventory(a.state.dryFeedContainerId)})),
   unwiredDrives:unwiredDrives.map(a=>({id:a.id,local:[...a.location.local],
     kitMaterialId:a.state.kitMaterialId,massKg:a.massKg})),
   drives:drives.map(a=>({id:a.id,local:[...a.location.local],
@@ -2338,8 +2353,10 @@ function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
  if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
   throw Error('8H conveyor initiation requires a real landed on-foot EVA operator');
  if(sourceId===targetId||!ctx.depots.some(x=>x.id===sourceId)||
-  !ctx.depots.some(x=>x.id===targetId)||!ctx.drives.some(x=>x.id===driveId))
-  throw Error('8H choose existing separate installed dry depots and one certified drive');
+  !(ctx.depots.some(x=>x.id===targetId)||
+    ctx.plantTargets.some(x=>x.id===targetId))||
+  !ctx.drives.some(x=>x.id===driveId))
+  throw Error('8H choose certified source depot, separate paid depot or chemical plant hopper, and one certified drive');
  const source=phys.get(sourceId),lot=materials8a.inventory(source.state.containerId)
   .find(x=>x.id===lotId);
  if(!lot||!Number.isFinite(massKg)||massKg<=0||massKg>40||

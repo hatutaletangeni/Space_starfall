@@ -11725,12 +11725,20 @@ function inspect({physical8a,materials8a,outpost5,powerReport,bodyId,bodyRadius,
    Math.abs(t.massKg-a.massKg)<EPS);
   return installed?a:null;
  }
- const from=item(sourceId,'cargo_depot'),to=item(targetId,'cargo_depot');
- if(!from||!to)return fail('NO_CERTIFIED_DEPOT','Both dry depots must be real installed paid 8E facilities');
+ const from=item(sourceId,'cargo_depot');
+ const to=item(targetId,'cargo_depot')||
+  ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
+   .map(kind=>item(targetId,kind)).find(Boolean);
+ if(!from||!to)return fail('NO_CERTIFIED_ENDPOINT','Source must be an installed dry depot; destination a paid depot or genuine 8E chemical station');
+ const stationFeed=to.state.station!=='cargo_depot';
  for(const a of [from,to]){
-  const c=ledger.containers().find(c=>c.id===a.state.containerId&&c.ownerId===a.id&&
-   /dry-solid cargo dock/i.test(c.kind));
-  if(!c)return fail('NO_8A_PORT','Depot is missing its original source-owned dry-material container');
+  const isFeed=a===to&&stationFeed;
+  const port=isFeed?a.state.dryFeedContainerId:a.state.containerId;
+  const c=ledger.containers().find(c=>c.id===port&&c.ownerId===a.id&&
+   (isFeed?/dry-reactant feed hopper/i:/dry-solid cargo dock/i).test(c.kind));
+  if(!c||isFeed&&(port!=='plantfeed8h:'+a.id||
+    Math.abs(c.maxMassKg-120)>EPS||Math.abs(c.maxVolumeM3-.20)>EPS))
+   return fail('NO_8A_PORT',isFeed?'Manufactured station missing original bounded 8A dry feed hopper':'Depot missing original dry storage');
  }
  const drives=driveIds.map(x=>item(x,'conveyor_drive'));
  if(drives.some(x=>!x))return fail('NO_CERTIFIED_CONVEYOR','Missing physically manufactured and installed drive segments');
@@ -11843,13 +11851,20 @@ function create(saved){
     a.condition<.5||a.state?.enabled!==true))
    throw Error('8H conveyor stations must be installed, healthy and same-world');
   if(assets[0].state?.station!=='cargo_depot'||
-    assets.at(-1).state?.station!=='cargo_depot'||
+    !(assets.at(-1).state?.station==='cargo_depot'||
+     ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
+      .includes(assets.at(-1).state?.station))||
     assets.slice(1,-1).some(a=>a.state?.station!=='conveyor_drive'||
      a.state?.kitMaterialId!=='plant_kit_conveyor_drive'||a.massKg!==180))
    throw Error('8H original certified dry depot and manufactured conveyor drive required');
   const containers=assets.map((a,i)=>{
-   const c=materials.containers().find(v=>v.id===a.state.containerId&&v.ownerId===a.id);
-   if(!c||!new RegExp(i===0||i===assets.length-1?'dry-solid cargo dock':'dry-solid conveyor tray','i').test(c.kind))
+   const isPlant=i===assets.length-1&&a.state.station!=='cargo_depot';
+   const containerId=isPlant?a.state.dryFeedContainerId:a.state.containerId;
+   const c=materials.containers().find(v=>v.id===containerId&&v.ownerId===a.id);
+   if(!c||!new RegExp(isPlant?'dry-reactant feed hopper':
+     i===0||i===assets.length-1?'dry-solid cargo dock':'dry-solid conveyor tray','i').test(c.kind)||
+     isPlant&&(containerId!=='plantfeed8h:'+a.id||
+      Math.abs(c.maxMassKg-120)>EPS||Math.abs(c.maxVolumeM3-.20)>EPS))
     throw Error('8H original dry cargo ports and bounded conveyor trays missing');
    return c;
   });
@@ -12026,7 +12041,14 @@ function observe({packets,materials8a,physical8a,outpost5,powerReport,
     throw Error('8H actual 8A source custody changed before physical hop');
    const reserveId='8h-belt:'+job.id+':'+job.cursor;
    try{
-    ledger.reserve(reserveId,src.id,to.state.containerId,job.massKg);
+    const destinationContainerId=to.state.station==='cargo_depot'||
+     to.state.station==='conveyor_drive'?to.state.containerId:
+     to.state.dryFeedContainerId;
+    if(!destinationContainerId||to.state.station!=='cargo_depot'&&
+       to.state.station!=='conveyor_drive'&&
+       destinationContainerId!=='plantfeed8h:'+to.id)
+      throw Error('8H physical plant inlet must use its certified original hopper');
+    ledger.reserve(reserveId,src.id,destinationContainerId,job.massKg);
     receipt=ledger.commit(reserveId);
     job.currentLotId=receipt.outputLotId;job.cursor++;
     if(job.cursor===chain.length-1){
@@ -14395,12 +14417,27 @@ function logisticsConveyorContext8H(){
   a.location.bodyId===here&&a.massKg===180);
  const drives=paidDrives.filter(a=>a.state?.t02LoadId);
  const unwiredDrives=paidDrives.filter(a=>!a.state?.t02LoadId);
+ const chemicalKinds=new Set(['reduction_furnace','glass_furnace','high_temp_cell',
+  'electrolyzer','catalytic_reactor']);
+ const plantTargets=physical8a.list().filter(a=>
+  a.type==='industrial_plant'&&chemicalKinds.has(a.state?.station)&&
+  a.location?.kind==='surface'&&a.location.bodyId===here&&
+  a.condition>=.5&&a.state?.enabled===true&&
+  a.state.dryFeedContainerId==='plantfeed8h:'+a.id&&
+  receipts.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&
+   t.assetId===a.id&&t.sourceLotId&&Math.abs(t.massKg-a.massKg)<1e-6)&&
+  materials8a.containers().some(c=>c.id===a.state.dryFeedContainerId&&
+   c.ownerId===a.id&&/dry-reactant feed hopper/i.test(c.kind)&&
+   Math.abs(c.maxMassKg-120)<1e-6&&Math.abs(c.maxVolumeM3-.20)<1e-6));
  return{bodyId:here,bodyRadius:ctx.body?.radius||null,
   onFoot:ctx.landed&&ctx.eva&&!truckOccupied&&!shipWalking8e&&
    !interiorState&&!manufacturedOccupied8G,
   operatorLocal:ctx.eva&&ctx.local?[...ctx.local]:null,
   depots:depots.map(a=>({id:a.id,local:[...a.location.local],
     containerId:a.state.containerId,lots:materials8a.inventory(a.state.containerId)})),
+  plantTargets:plantTargets.map(a=>({id:a.id,station:a.state.station,
+    local:[...a.location.local],containerId:a.state.dryFeedContainerId,
+    lots:materials8a.inventory(a.state.dryFeedContainerId)})),
   unwiredDrives:unwiredDrives.map(a=>({id:a.id,local:[...a.location.local],
     kitMaterialId:a.state.kitMaterialId,massKg:a.massKg})),
   drives:drives.map(a=>({id:a.id,local:[...a.location.local],
@@ -14448,8 +14485,10 @@ function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
  if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
   throw Error('8H conveyor initiation requires a real landed on-foot EVA operator');
  if(sourceId===targetId||!ctx.depots.some(x=>x.id===sourceId)||
-  !ctx.depots.some(x=>x.id===targetId)||!ctx.drives.some(x=>x.id===driveId))
-  throw Error('8H choose existing separate installed dry depots and one certified drive');
+  !(ctx.depots.some(x=>x.id===targetId)||
+    ctx.plantTargets.some(x=>x.id===targetId))||
+  !ctx.drives.some(x=>x.id===driveId))
+  throw Error('8H choose certified source depot, separate paid depot or chemical plant hopper, and one certified drive');
  const source=phys.get(sourceId),lot=materials8a.inventory(source.state.containerId)
   .find(x=>x.id===lotId);
  if(!lot||!Number.isFinite(massKg)||massKg<=0||massKg>40||
@@ -21117,7 +21156,7 @@ panel.id='conveyor8h-live-panel';panel.setAttribute('aria-label','8H physical co
 const heading=document.createElement('div');heading.className='section-title';
 heading.textContent='8H · LIVE POWERED CONVEYOR ROUTE';
 const intro=document.createElement('p');intro.className='panel-note';
-intro.textContent='Existing manufactured dry depot → real 180 kg conveyor drive with one owned 40 kg tray → separate manufactured dry depot. Physically install and wire its 250 W T02 motor. Start a genuine dry lot on EVA; one original T02 grid step pays power before each timed material hop. An unplug or blackout pauses actual stock in place.';
+intro.textContent='Manufactured dry source depot → original 180 kg conveyor drive and 40 kg tray → separate certified depot OR genuine installed 8E chemical feed hopper. Install and wire the drive’s 250 W native T02 motor. Each real powered time step advances the original 8A packet; power loss pauses custody in place. Machine hoppers are bounded to 120 kg / 0.20 m³.';
 const source=document.createElement('select');source.id='conveyor8h-source';
 const target=document.createElement('select');target.id='conveyor8h-target';
 const drive=document.createElement('select');drive.id='conveyor8h-drive';
@@ -21169,7 +21208,8 @@ function report(message){status.textContent=message;reportUntil=performance.now(
 function refresh(){
  const rt=root.StarfallRuntime,ctx=rt?.logisticsConveyorContext8H?.();
  if(!ctx){status.textContent='Original T02/8A conveyor runtime unavailable';return;}
- const depots=ctx.depots,drives=ctx.drives,unwired=ctx.unwiredDrives||[];
+ const depots=ctx.depots,drives=ctx.drives,unwired=ctx.unwiredDrives||[],
+   plants=ctx.plantTargets||[];
  choices(portTarget,unwired.map(x=>[x.id,x.id+' · ORIGINAL 180kg PAID DRIVE · 0 W until wired']), 'No unconfigured original 8E drive');
  portInstall.disabled=!ctx.onFoot||!ctx.bodyRadius||!portTarget.value;
  openWiring.disabled=!document.querySelector('#outpost-open');
@@ -21177,16 +21217,22 @@ function refresh(){
  const current=depots.find(x=>x.id===source.value),materialLots=current?.lots||[];
  choices(lot,materialLots.map(l=>[l.id,l.materialId+' · '+l.massKg.toFixed(2)+' kg · '+l.provenance]),'No real dry stock in source');
  choices(drive,drives.map(x=>[x.id,x.id+' · native T02 motor '+x.portId]),'No installed 250W drive');
- choices(target,depots.filter(x=>x.id!==source.value).map(x=>[x.id,x.id+' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' kg stored']), 'No second manufactured dry depot');
+ choices(target,[
+  ...depots.filter(x=>x.id!==source.value).map(x=>[x.id,
+   'DEPOT · '+x.id+' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' kg stored']),
+  ...plants.map(x=>[x.id,'8E PLANT HOPPER · '+x.station+' · '+x.id+
+   ' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' / 120 kg'])
+ ],'No certified physical destination');
  const active=ctx.packets.some(p=>p.status==='ACTIVE');
  const selectedLot=materialLots.find(x=>x.id===lot.value);
- start.disabled=!ctx.onFoot||!selectedLot||depots.length<2||!drive.value||
+ start.disabled=!ctx.onFoot||!selectedLot||!depots.length||(!plants.length&&depots.length<2)||!drive.value||
   !target.value||active||!ctx.gridReport||Number(kg.value)>selectedLot.massKg||
   !(Number(kg.value)>0&&Number(kg.value)<=40);
  const lines=[
   'REAL BODY            '+(ctx.bodyId||'NO LANDABLE WORLD'),
   'EVA AT SOURCE        '+(ctx.onFoot?'ON FOOT; APPROACH ORIGINAL DOCK':'REQUIRES REAL EVA'),
-  'CERTIFIED DRY DEPOTS '+depots.length+' · REAL PORT-INSTALLED DRIVES '+drives.length+
+  'CERTIFIED DRY DEPOTS '+depots.length+' · 8E MACHINE HOPPERS '+plants.length+
+   ' · REAL PORT-INSTALLED DRIVES '+drives.length+
    ' · MANUFACTURED PORTS STILL UNINSTALLED '+unwired.length,
   'NATIVE OUTPOST WIRING  Open Outposts / Engineering; connect physical 8h-port:<drive> to actual solar/battery source',
   'LIVE GRID            '+(ctx.gridReport?.servedW??0).toFixed(1)+' W actual served; '+(ctx.gridReport?.shed?.length||0)+' shed',
