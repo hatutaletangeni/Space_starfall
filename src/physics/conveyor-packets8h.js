@@ -43,13 +43,20 @@ function create(saved){
     a.condition<.5||a.state?.enabled!==true))
    throw Error('8H conveyor stations must be installed, healthy and same-world');
   if(assets[0].state?.station!=='cargo_depot'||
-    assets.at(-1).state?.station!=='cargo_depot'||
+    !(assets.at(-1).state?.station==='cargo_depot'||
+     ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
+      .includes(assets.at(-1).state?.station))||
     assets.slice(1,-1).some(a=>a.state?.station!=='conveyor_drive'||
      a.state?.kitMaterialId!=='plant_kit_conveyor_drive'||a.massKg!==180))
    throw Error('8H original certified dry depot and manufactured conveyor drive required');
   const containers=assets.map((a,i)=>{
-   const c=materials.containers().find(v=>v.id===a.state.containerId&&v.ownerId===a.id);
-   if(!c||!new RegExp(i===0||i===assets.length-1?'dry-solid cargo dock':'dry-solid conveyor tray','i').test(c.kind))
+   const isPlant=i===assets.length-1&&a.state.station!=='cargo_depot';
+   const containerId=isPlant?a.state.dryFeedContainerId:a.state.containerId;
+   const c=materials.containers().find(v=>v.id===containerId&&v.ownerId===a.id);
+   if(!c||!new RegExp(isPlant?'dry-reactant feed hopper':
+     i===0||i===assets.length-1?'dry-solid cargo dock':'dry-solid conveyor tray','i').test(c.kind)||
+     isPlant&&(containerId!=='plantfeed8h:'+a.id||
+      Math.abs(c.maxMassKg-120)>EPS||Math.abs(c.maxVolumeM3-.20)>EPS))
     throw Error('8H original dry cargo ports and bounded conveyor trays missing');
    return c;
   });
