@@ -55,3 +55,6 @@ body.ui20.sf-workspace-open .panel{display:block!important;opacity:1!important;m
 body.ui20 .sf-flow-workspace{grid-column:1/-1;background:#2a4558!important;color:#cbe7f3!important;border-style:dashed!important}
 body.sfmobile-edition.sf-workspace-open .panel{top:35px!important;bottom:auto!important;right:max(5px,env(safe-area-inset-right))!important;max-height:calc(100dvh - 44px)!important;overflow:auto!important;width:min(470px,83vw)!important}
 body[data-truck-driving=true].sf-workspace-open .panel{display:none!important}
+
+/* Mission is the only default navigation entry. Hide the old mini recon drawer. */
+body.ui20:not(.sf-workspace-open) .panel.collapsed{display:none!important}
