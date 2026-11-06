@@ -17,7 +17,12 @@ assert.equal(ship.nearVehicleBayTruck(p.x,p.z),true,'cargo bay reachable on foot
 const flight=fs.readFileSync('src/flight.js','utf8');
 assert.match(flight,/function boardVehicleBayTruck8B\(\)/);
 assert.match(flight,/if\(room==='cargo'\)\{if\(boardVehicleBayTruck8B\(\)\)/);
-assert.match(flight,/shipWalking8e=false;truckOccupied=true;eva=false;/);
+// Truck driving now deliberately retains the surface simulation flag (eva=true)
+// while truckOccupied selects exclusive vehicle controls. Changing it back would
+// suppress the real truck/terrain update path and break ramp egress.
+assert.match(flight,/shipWalking8e=false;truckOccupied=true;eva=true;/);
+assert.doesNotMatch(flight,/shipWalking8e=false;truckOccupied=true;eva=false;/);
+assert.match(flight,/const truck=truckWorldState\(\);pos=\[\.\.\.truck\.position\]/);
 assert.match(flight,/if\(!fromInterior&&V\.len\(V\.sub\(pos,access\)\)>35\)return false;/);
 assert.match(flight,/if\(code==='KeyI'&&eva&&landed&&!truckOccupied&&!rampTransition\)/);
 const render=fs.readFileSync('src/engine.js','utf8');

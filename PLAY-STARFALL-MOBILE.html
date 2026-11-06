@@ -317,6 +317,69 @@ body.ui20 .ui21-manual-window footer{border-top:1px solid #7899ad44;color:#adbec
 
 </style>
 <style>
+/* Exclusive truck driving UI for desktop and mobile. Ordinary ship/EVA overlays
+   cannot obstruct the scene while the original truck is occupied. */
+#sf-truck-cockpit[hidden]{display:none!important}
+#sf-truck-cockpit{position:fixed;z-index:16;top:12px;right:12px;width:min(355px,34vw);max-height:calc(100dvh - 24px);overflow:auto;
+ box-sizing:border-box;background:rgba(5,15,25,.9);border:1px solid #668da2aa;border-radius:12px;box-shadow:0 10px 34px #0008;
+ backdrop-filter:blur(10px);padding:12px;color:#e5f4fa;font:12px/1.35 system-ui,-apple-system,sans-serif}
+#sf-truck-cockpit .sft-header{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:12px;letter-spacing:.65px}
+#sf-truck-cockpit .sft-header span{font-size:9px;color:#b6cbd4;letter-spacing:0;text-align:right}
+#sf-truck-cockpit .sft-dials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:9px 0}
+#sf-truck-cockpit .sft-dials>div{background:#173043b5;border:1px solid #6a96a63f;padding:7px 5px;border-radius:6px;min-width:0}
+#sf-truck-cockpit .sft-dials small{display:block;font-size:8px;color:#a9c4d0}
+#sf-truck-cockpit .sft-dials b{display:block;font-size:11px;font-weight:650;white-space:nowrap}
+#sf-truck-cockpit #sft-state{font-size:10px;color:#d5c7a9;margin-bottom:8px}
+#sf-truck-cockpit .sft-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+#sf-truck-cockpit button{min-height:34px;padding:6px 4px;border:1px solid #759db07c;border-radius:7px;
+ color:#e5f4fa;background:#10283be8;font-weight:650;font-size:10px;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
+#sf-truck-cockpit button[data-truck-action=EXIT]{border-color:#d5a974;color:#ffddb5}
+#sf-truck-cockpit button:disabled{opacity:.38}
+#sf-truck-cockpit .sft-lots{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:10px}
+#sf-truck-cockpit .sft-lots[hidden]{display:none}
+#sf-truck-cockpit select{max-width:78%;min-width:0;background:#10283b;color:#e4f4ff;border:1px solid #6c8ca2;padding:5px}
+#sf-truck-cockpit #sft-hint{font-size:9px;color:#aac8d4;margin-top:8px}
+#sf-truck-cockpit #sft-error{color:#ffb7a1;font-size:10px;margin-top:8px}
+#sf-truck-cockpit #sft-error[hidden]{display:none}
+/* World/spacecraft menus are hidden only while in the driver's seat.
+   Modal map stays accessible after clicking MAP. */
+body[data-truck-driving=true] :is(.masthead,.identity,.controls-hint,.status-strip,.telemetry,.panel,.waypoint-label,
+ #ui21-navigation,#space-event,#walk-context,#status-text,#phase-top,#flight-state,#ui-console-open,#ui-tools-toggle,
+ .ui20-toolbar,.ui20-controls,.ui20-topbar,.ui20-bottom,#sfm-vehicle-bay-hint){display:none!important}
+body[data-truck-driving=true] .mobile-controls{display:none!important}
+body[data-truck-driving=true] #sf-truck-cockpit{display:block}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-top,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-right,
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-caption{display:none!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left{display:grid!important}
+body.sfmobile-edition[data-truck-driving=true] #sfmobile-hud .sfm-left [data-mobile-key=KeyX]{visibility:hidden!important;pointer-events:none!important}
+body.sfmobile-edition #sf-truck-cockpit{top:max(5px,env(safe-area-inset-top));right:max(5px,env(safe-area-inset-right));
+ bottom:auto;width:min(47vw,328px);max-height:calc(100dvh - 12px);padding:7px;border-radius:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header{font-size:10px}
+body.sfmobile-edition #sf-truck-cockpit .sft-header span{font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials{gap:3px;margin:5px 0}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:3px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials small{font-size:7px}
+body.sfmobile-edition #sf-truck-cockpit .sft-dials b{font-size:9px}
+body.sfmobile-edition #sf-truck-cockpit #sft-state{margin-bottom:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-tools{gap:3px}
+body.sfmobile-edition #sf-truck-cockpit button{min-height:25px;padding:3px 2px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit #sft-hint{margin-top:4px;font-size:8px}
+body.sfmobile-edition #sf-truck-cockpit .sft-lots{margin:3px 0;font-size:8px}
+@media(max-height:380px){
+ body.sfmobile-edition #sf-truck-cockpit .sft-dials>div{padding:2px}
+ body.sfmobile-edition #sf-truck-cockpit button{min-height:23px}
+}
+
+/* The legacy contextual menus and external expedition overlays are not truck instruments. */
+body.ui20[data-truck-driving=true] :is(#sf-quick-tools,#ui21-quick,#sf-console-nav,#landing-banner,
+ #solar-alert,#space-event,#phase-top,#walk-context,#status-text,.reticle,.ui21-intro,
+ #ui20-vehicle-frame .ship-structure){display:none!important}
+body.ui20[data-truck-driving=true] #ui20-vehicle-frame{display:none!important}
+body.ui20[data-truck-driving=true] #sf-truck-cockpit{display:block!important}
+
+</style>
+<style>
 /* STARFALL standalone mobile edition: landscape touch UI, no font selection on taps. */
 html,body.sfmobile-edition{overscroll-behavior:none}
 .sfmobile-edition :is(button,a,[role="button"]),.sfmobile-edition :is(button,a,[role="button"]) *{
@@ -12673,7 +12736,7 @@ function boardVehicleBayTruck8B(){
  }
  if(winch7d){showToast('VEHICLE BAY · Release the powered winch first');return true;}
  // Keep original 8A physical truck and battery. Use the same driving state as EVA boarding.
- shipWalking8e=false;truckOccupied=true;eva=false;
+ shipWalking8e=false;truckOccupied=true;eva=true;
  const truck=truckWorldState();pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];
  camMode=0;camEye=null;camDistance=Math.max(camDistance,26);roverEntryCooldown=1.2;
  showToast('VEHICLE BAY · TRUCK BOARDED · Hold S / ▼ to reverse down the wide starboard ramp · X to exit');
@@ -12827,12 +12890,14 @@ function enterTruck(){
  const truck=truckWorldState();
  if(!truck||V.len(V.sub(pos,truck.position))>TRUCK_BOARD_DISTANCE)return false;
  if(winch7d){showToast('Cancel the powered winch before driving the truck');return false;}
-  truckOccupied=true;pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];camEye=null;camDistance=Math.max(camDistance,26);
+  truckOccupied=true;eva=true;pos=[...truck.position];evaForward=[...truck.forward];up=[...truck.up];camEye=null;camDistance=Math.max(camDistance,26);
  roverEntryCooldown=1.2;showToast('EXPEDITION TRUCK · WASD drive · X or ground click to exit · L lights');return true;
 }
 function exitTruck(){
  if(!truckOccupied||!truckBody||!truckLocal)return false;
- truckOccupied=false;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
+ if(cargo8b.mode==='ramp'){showToast('TRUCK · Reverse all the way off the ramp before exiting');return false;}
+ if(keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')){showToast('TRUCK · Release throttle before exiting');return false;}
+ truckOccupied=false;eva=true;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
  evaLocal=dis;const axis=truckBody.spinAxis||[0,1,0],dir=V.norm(V.rot(dis,axis,truckBody.spinAngle||0));
  evaForward=[...truckForwardVec];pos=V.add(truckBody.position,V.mul(dir,truckBody.radius+groundHeight(dis,truckBody)+EVA_HEIGHT));up=dir;camEye=null;
  roverEntryCooldown=2.4;roverExitMove={from:prev,to:dis,progress:0};evaLocal=prev;
@@ -13080,7 +13145,7 @@ canvas.addEventListener('pointermove',ev=>{if(!dragging||busy()||!$('launch-dial
  if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*(eva?.0042:.003),eva?-1.3:-1.15,eva?1.72:1.15);return;}
  if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.0042,-1.3,1.72);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,controls.flightPitch(-dy*.0021),0);
 });
-canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&truckOccupied&&dragButton===0&&dragTravel<12&&roverEntryCooldown<=0)exitTruck();else if(!selected&&!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&!truckOccupied&&!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
 document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
@@ -13145,7 +13210,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  let yaw=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0);
  if(truckOccupied)yaw=controls.roverYaw(yaw);
  const pitch=controls.flightPitch((keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0)),roll=(keys.has('KeyQ')?1:0)-(keys.has('KeyE')?1:0);
- if(landed){if(eva){
+ if(landed){if(eva||truckOccupied||manufacturedOccupied8G){
   warp=false;up=radial;
   if(rampTransition){
    rampTransition.elapsed+=dt;const t=Math.min(1,rampTransition.elapsed/rampTransition.duration),smooth=t*t*(3-2*t);
@@ -13388,6 +13453,7 @@ function cameraState(dt){
 function refreshHUD(dt){hudClock+=dt;if(hudClock<.16)return;hudClock=0;
  // Paint-only vehicle identity for UI20 cockpit frames (6 Hz bounded).
  document.body.dataset.sfView=shipWalking8e?'ship-interior':truckOccupied?(camMode===1?'truck-cab':'truck-chase'):eva?'eva':camMode===1?'ship-cockpit':'ship-chase';
+ document.body.dataset.truckDriving=truckOccupied?'true':'false';
  const hint=$('control-live-hint');if(hint){const codes=controls.settings.bindings;const short=k=>String(k||'—').replace(/^Key/,'').replace(/^Digit/,'').replace(/^Arrow/,'ARROW ').replace('ShiftLeft','SHIFT').replace('Space','SPACE');
   const mode=shipWalking8e?'SHIP INTERIOR':interiorState?(interiorState.kind==='cave'?'CAVE':'RUIN INTERIOR'):truckOccupied?'TRUCK':eva?'EVA':landed?'LANDED SHIP':'SHIP';const word=mode==='SHIP'?'thrust / brake':mode==='LANDED SHIP'?'drive / reverse':'forward / reverse';
   const text=mode+' · '+short(codes.thrust)+' / '+short(codes.brake)+' '+word+' · '+short(codes.turnLeft)+' / '+short(codes.turnRight)+' turn'+(truckOccupied&&controls.settings.roverSteerInvert?' (INVERTED)':'')+' · MOUSE Y '+(controls.settings.lookInvertY?'INVERTED':'NORMAL')+(controls.settings.flightPitchInvert&&mode==='SHIP'?' · FLIGHT PITCH INVERTED':'')+' · CONTROLS ⚙ TO CUSTOMIZE';if(hint.textContent!==text)hint.textContent=text;
@@ -15147,6 +15213,44 @@ function logisticsOffworldApply8H(action,manifestId,lotId,depotId){
  showToast('8H · '+manifestId+' '+state+' — original ship cargo and Joules source-owned');
  return q.manifest;
 }
+// Shared original-truck operations: physical custody and mining ledgers remain authoritative.
+function truckHudInfo(){
+ const hopper=materials8a.used(StarfallMining8D.TRUCK),hold=materials8a.used(StarfallMining8D.SHIP);
+ const ctx=miningContext8D(),site=miningDeposit8D(),op=mining8d.active;
+ const surveyed=!!site&&resources8c.observations().some(x=>x.siteId===site.id);
+ const lots=materials8a.inventory(StarfallMining8D.TRUCK),moving=keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown');
+ return {occupied:truckOccupied,cargoMode:cargo8b.mode,onRamp:cargo8b.mode==='ramp',
+  world:nearest?.name||'Unknown',batteryJ:truckBatteryJ,batteryPct:Math.round(truckBatteryJ/44e6*100),
+  hopperKg:hopper.massKg,hopperLimitKg:StarfallMining8D.LIMITS.truckMassKg,
+  shipHoldKg:hold.massKg,lights:truckLights,camera:camMode===1?'CAB':'CHASE',
+  drillConditionPct:Math.round(mining8d.toolCondition*100),
+  deposit:site?.label||null,surveyed,oreRemainingKg:site?resources8c.remaining(site):0,
+  cycle:op?.type||null,cyclePct:op?Math.min(100,Math.round(op.elapsedS/op.durationS*100)):0,
+  canExit:truckOccupied&&cargo8b.mode!=='ramp'&&!moving,
+  canDrill:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&surveyed&&site&&
+    resources8c.remaining(site)>=StarfallMining8D.DRILL.kgPerBatch&&truckBatteryJ>=StarfallMining8D.DRILL.minimumEnergyJ&&mining8d.toolCondition>=.1),
+  canLoad:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&ctx.truckNearShip&&lots.length),
+  lots:lots.map(l=>({id:l.id,materialId:l.materialId,massKg:l.massKg})),
+  hint:cargo8b.mode==='ramp'?'REVERSE DOWN RAMP · EXIT LOCKED':
+   op?op.type+' '+Math.round(op.elapsedS/op.durationS*100)+'% · KEEP PARKED':
+   !surveyed?'SURVEY DEPOSIT ON FOOT BEFORE DRILLING':'PARK OVER SURVEYED DEPOSIT TO MINE'};
+}
+function truckHudAction(action,lotId){
+ if(!truckOccupied)throw Error('Enter expedition truck first');
+ if(action==='EXIT')return exitTruck();
+ if(action==='MAP'){openChart();return true;}
+ if(action==='VIEW'){camMode=(camMode+1)%2;camEye=null;return true;}
+ if(action==='LIGHTS'){truckLights=!truckLights;headlights=truckLights;return true;}
+ if(action==='MINE'){if(!truckHudInfo().canDrill)throw Error('Park over a surveyed deposit with adequate battery and drill condition');return miningStart8D();}
+ if(action==='LOAD'){
+  if(!truckHudInfo().canLoad)throw Error('Park near landed ship with a real ore lot');
+  const lot=materials8a.inventory(StarfallMining8D.TRUCK).find(l=>l.id===lotId);
+  if(!lot)throw Error('Select an existing truck ore lot');
+  return miningLoad8D(lot.id,Math.min(50,lot.massKg));
+ }
+ if(action==='CANCEL')return miningCancel8D();
+ throw Error('Unknown truck action');
+}
 function shipHoldFor8H(lotId){
  const lot=materials8a.inventory(StarfallOffworldManifest8H.HOLD).find(x=>x.id===lotId);
  if(!lot||!Number.isFinite(lot.massKg)||lot.massKg<=0)
@@ -15451,7 +15555,7 @@ function shipDockReceiveT13(observationId){
  saveFlight();return report;
 }
 function outpostOffset(front,right){const d=outpostContext();if(!d.body||!d.local||!d.landed)throw Error('Surface placement unavailable');return tangentOffsetLocal(d.body,d.local,d.forward,front,right);}
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
+window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
  get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:true,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
@@ -20292,6 +20396,7 @@ for(const [label,id] of [['Mission Photos','imaging7f-open'],['Field Journal','d
 }
 // Help is self-contained so it does not require a server, fetch, or external dependencies.
 const guide=[
+ ['Industry','Resource Test Lab · mining and gas','Open Operate → Mine, Manufacture & Store Gas. Choose Mining & manufacturing for survey → truck drill → ship haul → refinery → fabrication, or Gas collection & storage for a certified separator → nitrogen vessel → physical ship gantry. Each step opens the original game control; the live readout shows only real installed stock, power and machinery.','Land on a suitable world; original truck or genuine installed plant; energy, real material lots and finite rated vessel as appropriate.','The guide never spawns items or bypasses distance/power/pressure. If a button is blocked, inspect the linked live machine panel for the exact condition.'],
  ['Start Here','Getting started','Open Star Chart (M) or select a real star in the sky. Select a destination, align with G, then use Shift+W to warp where allowed. Approach a planet manually and descend through its atmosphere; touchdown begins EVA. Walk onto the ship rear ramp to board again.','Navigation target and a flight-capable ship','If warp is unavailable, check mode, distance, destination and alignment.'],
  ['Controls','Ship, EVA and truck','W/S control forward motion and braking, A/D steer on the surface, mouse drag steers or looks depending on button, scroll adjusts camera distance, V changes camera, T cycles time rate, L controls lights. The four-wheel truck uses X for deliberate entry and exit; B opens/locks ship vehicle cargo tie-downs near the wide starboard ramp. To unload, release with B, enter the truck with X and reverse down the wide ramp with S. To load, drive forward up the wide ramp, park, exit X and secure B; launch is blocked while cargo is partway on the ramp. the six-wheel science rover is not rideable. Open Control Settings for remapping/inversion.','Appropriate active mode','If directions feel reversed, adjust inversion in Control Settings. Remapped keys take precedence over these defaults.'],
  ['Navigation','Stars, maps and warp','Every twinkling star is an actual deterministic star system. Use the Star Chart for interstellar destinations and the Planetary Survey Map for surface waypoints and measured areas. Distant planetary details load only as needed.','A selected valid destination','Align the craft and verify warp restrictions if travel does not start.'],
@@ -20301,11 +20406,11 @@ const guide=[
  ['Operations','Rovers, satellites and communications','Operate a rover through validated commands, inspect satellites and transmission jobs and capture photographs. Remote operations require reachable powered endpoints, line-of-sight, sufficient storage, available bandwidth and transmission time. Ordinary radio is not instantaneous; any faster interstellar transport is fictional.','Powered instrument and communication route','Pending photograph: check capture state, onboard storage, link visibility, data backlog and final downlink receipt.'],
  ['Records','Research, photos and evidence','Records links to the existing science journal, mission photo gallery, event history and research bench. Evidence keeps its originating instrument, world, time, measurements and uncertainty where supported. Review or export without creating a second save store.','A recorded observation or completed received transfer','An image onboard a rover is not yet in the received gallery.'],
  ['Troubleshooting','Common failures','Cannot board? Walk onto the rear ship ramp; the truck uses X, and the science rover is non-rideable. Cannot warp? Check current mode, target and distance. No solar? Inspect eclipse, connection and battery. Rover stopped? Check slope, charge, command safety and link. FPS low? Reduce graphics load and inspect Diagnostics.','Relevant vehicle or equipment','Save before risky changes. Open Diagnostics for performance, backup and recovery.'],
- ["Industry","Industrial systems: current status","8E includes a limited working landed-ship refinery console under Engineer: iron/copper/silica separation and heated water recovery. 8F now also has an Engineer fabrication panel for finite, energy-metered wire drawing from certified copper feedstocks. Other workshop recipes require real installed precision tools. These use real 8A ship lots and ship battery energy. Other advanced industrial machines and 8F–8J remain experimental. The models live in isolated source files and are not connected to scene objects, power transactions, live workbench installation, UI controls or the offline standalone. A recipe in the manual is not a clickable build command.","Industrial model development branch; for playable work continue to use existing Engineer/Workbench tools.","If you cannot find a refinery or factory control, it has not yet been integrated. Never assume an absent station is secretly running."],
- ["Refining","8E · Refining and chemical processing","Intended chain: prospect finite ore, mine and physically haul it to a processor; use crushers, smelters, purification or electrolysis to transform actual lots into refined materials and byproducts. The isolated model checks input mass, expected electrical energy, station identity and output container space. Its illustrative recipes are NOT a certified element-balanced chemical process, and conversion does not yet debit the real game power bus.","Mined lots in accessible 8A storage; correct processor and metered power; free output container capacity.","Missing feedstock, station not installed, full tank, missing power receipt or unsupported material stops the planned process. The ship's installed fabrication workshop offers compact mechanical separation and ice recovery. A full outpost smelter, electrolyzer and chemical plant are not yet commissioned."],
- ["Manufacturing","8F · Fabricating mechanical and electronic parts","The intended workflow feeds refined steel, copper, glass, plastics, magnets and semiconductors into specialized machines: CNC/lathe, foundry, wire drawing, winding and circuit-board assembly. Every part uses a versioned bill of materials with tooling, time, energy and recoverable waste. Advanced chips and photovoltaic cells require precision tools and finite imported or salvaged chips; raw ore does not become avionics in one click.","Refined feedstocks; specialized operational workshop tools, verified electrical energy, available storage and matching design.","A motor lacking magnets or bearings cannot be manufactured. The standalone prototype does not install outputs into active vehicles yet."],
+ ["Industry","Industrial systems: current status","8E includes a limited working landed-ship refinery console under Engineer: iron/copper/silica separation and heated water recovery. 8F now also has an Engineer fabrication panel for finite, energy-metered wire drawing from certified copper feedstocks. Other workshop recipes require real installed precision tools. These use real 8A ship lots and ship battery energy. The released game also contains genuine 8D truck drilling and loading, 8F physical fabrication and kit installation, 8G rated gas vessels and nitrogen separation, and limited 8H powered physical logistics. These features are available in the offline standalones; complete 8I–8K expedition acceptance remains unfinished. A recipe in the manual is not a clickable build command.","Industrial model development branch; for playable work continue to use existing Engineer/Workbench tools.","If you cannot find a refinery or factory control, it has not yet been integrated. Never assume an absent station is secretly running."],
+ ["Refining","8E · Refining and chemical processing","Intended chain: prospect finite ore, mine and physically haul it to a processor; use crushers, smelters, purification or electrolysis to transform actual lots into refined materials and byproducts. The current source-owned models check feedstock, station identity, compatible chemical reactions, storage and finite work energy. The released ship refinery has a metered finite-battery job; installed surface chemistry requires separate qualified hardware and its real gas and power routes.","Mined lots in accessible 8A storage; correct processor and metered power; free output container capacity.","Missing feedstock, station not installed, full tank, missing power receipt or unsupported material stops the planned process. The original landed ship refinery handles selected ore and ice modes. Manufactured and physically installed 8E surface plants support additional actual chemical reactions when compatible kit, reactant, gas route, electrical power and pressure-rated vessel conditions are met."],
+ ["Manufacturing","8F · Fabricating mechanical and electronic parts","The intended workflow feeds refined steel, copper, glass, plastics, magnets and semiconductors into specialized machines: CNC/lathe, foundry, wire drawing, winding and circuit-board assembly. Every part uses a versioned bill of materials with tooling, time, energy and recoverable waste. Advanced chips and photovoltaic cells require precision tools and finite imported or salvaged chips; raw ore does not become avionics in one click.","Refined feedstocks; specialized operational workshop tools, verified electrical energy, available storage and matching design.","A motor lacking magnets or bearings cannot be manufactured. Parts enter actual finite 8A stock; only an eligible compatible machine, workbench or separately commissioned 8G hardware can put them into service. A manufactured lot by itself is not an operating vehicle."],
  ["Assembly","8G · Vehicles, rockets and habitat assembly","An engineering blueprint describes components and is not an owned machine. Intended assembly bays reserve and consume a complete real bill of materials, require tools, energy, time, physical clearance and a unique commissioning ID. The prototype issues an asset-shaped record; no actual truck driving, spacecraft flight, rocket thrust, habitat pressure envelope or renderer integration has yet been demonstrated from this record.","Valid blueprint and compatible bay, physically available parts, power, location/clearance, and live asset registration integration.","Importing a blueprint creates zero assets. Duplicate commissioning must not make a second free truck. Actual gameplay assembly is not installed yet."],
- ["Logistics","8H · Cargo, carriers and industrial logistics","The planned logistics chain uses actual containers, trucks, ship bays, loading stations, pipes and conveyors. A lot must remain owned by one place or carrier at a time. Remote worlds never acquire materials by clicking a stock icon. The prototype verifies capacity and supplied carrier-arrival evidence but does NOT calculate or render a real route.","A real carrier at the destination, compatible source/destination inventory, payload capacity, and actual energy and travel evidence.","If stock is on another planet, physically ship it. Current model alone cannot move your visible truck or cargo between worlds."],
+ ["Logistics","8H · Cargo, carriers and industrial logistics","The planned logistics chain uses actual containers, trucks, ship bays, loading stations, pipes and conveyors. A lot must remain owned by one place or carrier at a time. Remote worlds never acquire materials by clicking a stock icon. The released 8H includes original-truck route waypoints with physical arrival confirmations, depot loads and T02-powered conveyor and gas-pipe packets. It does not autonomously drive a truck or teleport a remote shipment.","A real carrier at the destination, compatible source/destination inventory, payload capacity, and actual energy and travel evidence.","If stock is on another planet, physically ship it. Current model alone cannot move your visible truck or cargo between worlds."],
  ["Habitats","8I · Pressurized habitats and life support","The prototype accounts for finite oxygen, nitrogen, carbon dioxide and water inventories, simplified leaks, gas processing and pressure. Full functionality would need a real sealed room, airlocks, pumps, filters, connected power, thermal controls, installed tanks and live crew safety rules. This is a limited atmosphere ledger, NOT a fully operational ECLSS or greenhouse.","Commissioned pressure shell, actual gas and water stores, working power, pumps and supported simulation integration.","Low gas, insufficient power, leaks or empty water stops the intended subsystem. The current model is not yet an in-game breathable habitat."],
  ["Terraforming","8J · Why planetary terraforming is slow","Terraforming means measured, mass-accounted changes to a world's atmosphere, not a green-planet button. For a simple spherical atmosphere, a mass addition ΔM changes approximate surface pressure by ΔP = ΔM·g/(4πR²). The isolated model checks finite, idempotent mass updates. It does NOT yet connect to weather, climate, biology, erosion or real stock transport.","A feasible planet, massive available gas supply, installed delivery equipment, durable emissions receipts and live atmosphere model integration.","A tiny factory cannot warm or oxygenate a whole planet instantly. Model numbers do not mean planetary changes are visible in the game."],
  ["Verification","8K · What is working versus unverified","Pure Node tests on constructed scenarios can prove local arithmetic and duplicate guards. They do not prove realistic chemistry, real station power transfer, WebGL rendering, rocket/vehicle operations, older save migration, independent browser restart, or one complete no-cheat expedition. Before release, verify the chain: deposit → haul → refine → manufacture → assemble → transport → habitat → measured atmospheric change.","Actual integrated repository; source/standalone parity; automated and browser end-to-end tests; rollback backup.","When you see experimental or unverified in a help page, the capability is not a supported playable feature. Never use Creative Mode output as evidence of industrial conservation."],
@@ -21076,6 +21181,95 @@ cancel.addEventListener('click',()=>action(()=>rt().miningCancel8D()));
 panel.append(title,status,controls,readout);host.append(panel);
 let last=0;const check=()=>{const t=performance.now();if(t-last>500){last=t;refresh();}requestAnimationFrame(check);};check();
 root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Operate');panel.scrollIntoView({block:'nearest'});refresh();}};
+})(globalThis);
+
+</script><script>
+/* STARFALL shared truck cockpit: replaces ship/EVA HUD while driving.
+ * This is UI only. Truck physics, drill, ore ownership and save remain in flight.js. */
+(function(root){'use strict';
+const ID='sf-truck-cockpit';
+const on=()=>!!root.StarfallRuntime?.truckOccupied;
+const panel=document.createElement('section');
+panel.id=ID;panel.setAttribute('aria-label','Expedition truck cockpit');panel.hidden=true;
+panel.innerHTML=`
+ <div class="sft-header"><strong>EXPEDITION TRUCK</strong><span id="sft-world">SURFACE VEHICLE</span></div>
+ <div class="sft-dials">
+  <div><small>BATTERY</small><b id="sft-battery">—</b></div>
+  <div><small>HOPPER</small><b id="sft-hopper">—</b></div>
+  <div><small>CAMERA</small><b id="sft-camera">CHASE</b></div>
+  <div><small>DRILL</small><b id="sft-drill">—</b></div>
+ </div>
+ <div id="sft-state" role="status">Vehicle initializing</div>
+ <div class="sft-tools" aria-label="Truck utility actions">
+  <button type="button" data-truck-action="EXIT">EXIT TRUCK</button>
+  <button type="button" data-truck-action="MAP">MAP</button>
+  <button type="button" data-truck-action="VIEW">VIEW</button>
+  <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
+  <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
+  <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+  <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
+ </div>
+ <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
+ <div id="sft-hint">W/S DRIVE · A/D STEER · X EXIT · V VIEW</div>
+ <div class="sft-error" role="status" id="sft-error" hidden></div>`;
+document.body.append(panel);
+const el=id=>panel.querySelector('#'+id);
+const buttons=Object.fromEntries([...panel.querySelectorAll('[data-truck-action]')].map(b=>[b.dataset.truckAction,b]));
+const lot=el('sft-lot');
+let lastLots='',lastAt=0;
+function execute(action){
+ const r=root.StarfallRuntime;
+ if(!r?.truckOccupied)return;
+ try{
+  const result=r.truckHudAction(action,lot.value);
+  el('sft-error').hidden=true;
+  if(result===false)el('sft-hint').textContent='Action blocked by vehicle safety conditions';
+ }catch(error){
+  el('sft-error').textContent=String(error?.message||error).slice(0,180);
+  el('sft-error').hidden=false;
+ }
+ refresh(true);
+}
+for(const b of Object.values(buttons)){
+ b.addEventListener('pointerdown',e=>{e.stopPropagation();},{passive:true});
+ b.addEventListener('click',e=>{e.stopPropagation();execute(b.dataset.truckAction);});
+}
+lot.addEventListener('keydown',e=>e.stopPropagation());
+function refresh(force=false){
+ const active=on();
+ document.body.dataset.truckDriving=active?'true':'false';
+ panel.hidden=!active;
+ if(!active)return;
+ const now=performance.now();if(!force&&now-lastAt<200)return;lastAt=now;
+ const info=root.StarfallRuntime.truckHudInfo();
+ el('sft-world').textContent=info.world+' · '+(info.onRamp?'RAMP':'GROUND');
+ el('sft-battery').textContent=info.batteryPct+'%';
+ el('sft-hopper').textContent=info.hopperKg.toFixed(0)+' / '+info.hopperLimitKg+' kg';
+ el('sft-camera').textContent=info.camera;
+ el('sft-drill').textContent=info.drillConditionPct+'%';
+ el('sft-state').textContent=info.cycle?
+  info.cycle+' · '+info.cyclePct+'%':info.surveyed?
+  (info.deposit+' · '+Math.round(info.oreRemainingKg)+' kg remaining'):'NO SURVEY AT CURRENT DEPOSIT';
+ el('sft-hint').textContent=info.hint+' · W/S DRIVE · A/D STEER';
+ buttons.EXIT.disabled=!info.canExit;
+ buttons.MINE.disabled=!info.canDrill;
+ buttons.LOAD.disabled=!info.canLoad;
+ buttons.CANCEL.disabled=!info.cycle;
+ buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
+ const list=JSON.stringify(info.lots.map(l=>[l.id,l.massKg]));
+ if(list!==lastLots){
+  const previous=lot.value;lot.replaceChildren();
+  for(const item of info.lots){const option=document.createElement('option');option.value=item.id;
+   option.textContent=item.materialId.replaceAll('_',' ')+' · '+item.massKg.toFixed(1)+' kg';lot.add(option);}
+  if(info.lots.some(l=>l.id===previous))lot.value=previous;
+  lastLots=list;
+ }
+ lot.hidden=!info.lots.length;
+ lot.parentElement.hidden=!info.lots.length;
+}
+function tick(){try{refresh();}catch(error){console.warn('Truck HUD refresh',error);}requestAnimationFrame(tick);}
+requestAnimationFrame(tick);
+root.StarfallTruckCockpit={refresh,execute};
 })(globalThis);
 
 </script><script>
@@ -22073,6 +22267,197 @@ go.addEventListener('click',()=>{try{const receipt=root.StarfallRuntime.machineI
 panel.append(title,expl,select,go,status,info);host.append(panel);
 let last=0;function check(){const now=performance.now();if(now-last>900){last=now;refresh();}requestAnimationFrame(check);}check();
 root.StarfallMachineInstallUI8F={refresh};
+})(globalThis);
+
+</script><script>
+/* STARFALL resource test lab — access to source-owned 8C/8D/8E/8F/8G/8H jobs.
+ * Read-only diagnostics and navigation only: this module never creates stock,
+ * starts work, bypasses energy or writes to SF saves.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Operate"]');
+if(!host)return;
+const $=id=>document.getElementById(id);
+const open=document.createElement('button');
+open.id='resource8h-open';open.type='button';open.className='ui21-link';
+open.textContent='Mine, Manufacture & Store Gas';
+open.setAttribute('aria-haspopup','dialog');
+open.setAttribute('aria-controls','resource8h-dialog');
+open.style.cssText='width:100%;text-align:left;margin:6px 0 10px';
+const note=document.createElement('p');
+note.className='ui21-intro';
+note.textContent='Guided production tests · real truck, materials, machinery and pressure vessels';
+host.insertBefore(note,host.children[1]||null);
+host.insertBefore(open,note.nextSibling);
+const style=document.createElement('style');
+style.textContent=String.raw`
+#resource8h-dialog[hidden]{display:none!important}
+#resource8h-dialog{position:fixed;inset:0;z-index:90;background:#020812e9;display:grid;place-items:center;padding:12px;overscroll-behavior:contain}
+#resource8h-dialog .resource-card{width:min(820px,97vw);max-height:92dvh;overflow:auto;overscroll-behavior:contain;background:#0c1722;border:1px solid #e9bb7890;box-shadow:0 15px 35px #0009;padding:16px;color:#e5e8e8}
+#resource8h-dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#resource8h-dialog h2{font:600 18px/1.25 "Segoe UI",sans-serif;margin:4px 0;color:#ecbb7a}
+#resource8h-dialog p{font:12px/1.6 "Segoe UI",sans-serif;color:#adbcc7;margin:8px 0}
+#resource8h-dialog button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;border:1px solid #667a82;background:#172532;color:#e5e8e8;border-radius:5px;padding:10px;font:12px "Segoe UI",sans-serif;cursor:pointer}
+#resource8h-dialog button:focus-visible{outline:2px solid #ecbb7a;outline-offset:2px}
+#resource8h-dialog button[aria-selected="true"]{border-color:#ecbb7a;background:#493925}
+#resource8h-dialog .resource-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#resource8h-dialog .resource-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+#resource8h-dialog .resource-panel{border:1px solid #ffffff24;padding:12px;min-width:0;background:#ffffff04}
+#resource8h-dialog h3{font:600 13px "Segoe UI",sans-serif;color:#ecbb7a;margin:0 0 8px}
+#resource8h-dialog .resource-steps{display:grid;gap:7px}
+#resource8h-dialog .resource-steps button{text-align:left;width:100%}
+#resource8h-dialog .resource-steps button b{display:block;color:#ecbb7a;margin-bottom:3px}
+#resource8h-dialog .resource-steps button span{display:block;color:#c0cbd0;font-size:11px;line-height:1.35}
+#resource8h-dialog pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.6 Consolas,monospace;color:#d5e0e2;max-height:48dvh;overflow:auto}
+#resource8h-dialog .resource-foot{margin-top:12px;border-top:1px solid #ffffff28;padding-top:8px}
+@media(max-width:620px),(max-height:490px){#resource8h-dialog .resource-card{max-height:94dvh;padding:11px}#resource8h-dialog .resource-grid{grid-template-columns:1fr}#resource8h-dialog pre{max-height:140px}#resource8h-dialog .resource-tabs{margin:8px 0}#resource8h-dialog button{padding:8px;min-height:37px}}
+`;
+document.head.appendChild(style);
+const overlay=document.createElement('div');
+overlay.id='resource8h-dialog';overlay.hidden=true;
+overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
+overlay.setAttribute('aria-label','Mine, manufacture and store gas test lab');
+const card=document.createElement('div');card.className='resource-card';
+const header=document.createElement('header');
+const heading=document.createElement('h2');heading.textContent='RESOURCE TEST LAB';
+const close=document.createElement('button');close.type='button';close.textContent='Close ✕';close.setAttribute('aria-label','Close resource test lab');
+header.append(heading,close);
+const intro=document.createElement('p');
+intro.textContent='Select a production chain. Each action opens its genuine existing in-game control. Prerequisites, physical travel, stored mass, power and save state are never bypassed.';
+const tabs=document.createElement('div');tabs.className='resource-tabs';tabs.setAttribute('role','tablist');
+const grid=document.createElement('div');grid.className='resource-grid';
+const left=document.createElement('section');left.className='resource-panel';
+const subtitle=document.createElement('h3');
+const steps=document.createElement('div');steps.className='resource-steps';
+left.append(subtitle,steps);
+const right=document.createElement('section');right.className='resource-panel';
+const statusTitle=document.createElement('h3');statusTitle.textContent='Live engineering readout';
+const status=document.createElement('pre');status.id='resource8h-status';status.setAttribute('aria-live','polite');
+right.append(statusTitle,status);
+grid.append(left,right);
+const foot=document.createElement('p');foot.className='resource-foot';
+foot.textContent='Evidence: inventory and machinery belong to original 8A–8H game stores. This guide does not grant ore, gas, tanks, energy, or machines. If a requirement is missing, build, survey, transport, wire or power it through the linked console.';
+card.append(header,intro,tabs,grid,foot);overlay.append(card);document.body.append(overlay);
+const routes={
+ mining:[
+  ['Survey geological deposit','Explore','resources8c-explore','StarfallProspectingUI8C','On foot: use the spectrometer and record a local finite deposit.'],
+  ['Drill ore into truck hopper','Operate','mining8d-panel','StarfallMiningUI8D','Park the original truck at the surveyed site; spend 57.6 kJ over 24 seconds per 20 kg bore.'],
+  ['Haul / load ore into ship','Operate','mining8d-panel','StarfallMiningUI8D','Drive near the ship, exit the truck and physically load an existing lot (up to 50 kg per 16-second cycle).'],
+  ['Refine real ore','Engineer','refinery8e-panel','StarfallRefineryUI8E','A landed, powered ship and correct material lots are required; yields and byproducts consume finite stock.'],
+  ['Manufacture a part','Engineer','factory8f-section','StarfallFactoryUI8F','Choose a compatible recipe and installed machine; check feedstock, waste, energy, manufacturing time and output.'],
+  ['Install machine kits','Engineer','machine-install8f-panel','StarfallMachineInstallUI8F','Machine installation consumes an actually owned certified kit and finite ship energy.'],
+  ['Inspect custody / deliveries','Engineer','logistics8h-panel','StarfallLogisticsUI8H','View real truck, depot and shipping orders without inventing or transporting stock.']
+ ],
+ gas:[
+  ['Build a rated vessel and separator','Engineer','industrial8e-physical','StarfallIndustrialSiteUI8E','Manufacture certified kits, then physically install a gas vessel and air separator on the same world.'],
+  ['Collect atmospheric nitrogen','Engineer','air-fractionation8g','StarfallAirFractionationUI8G','On an atmosphere-bearing world with powered installed facilities, separate 20 kg of real local air for 810 kJ.'],
+  ['Inspect vessel gas','Engineer','air-fractionation8g','StarfallAirFractionationUI8G','Check the collected N₂ mass in the rated original pressure-vessel stock, not a phantom ship tank.'],
+  ['Load the sealed vessel aboard','Engineer','gas-vessel-cargo8g','StarfallGasVesselCargoUI8G','Walk near the landed ship; winch the real gas-filled vessel for 90 kJ.'],
+  ['Transfer gas through a pipe','Engineer','pressure8h-live-panel','StarfallPressurePipeLiveUI8H','Advanced: build rated flanges/pipe, install a 420 W powered T02 pump and move a finite original 8A gas lot.'],
+  ['Run a chemical process','Engineer','industrial8e-physical','StarfallIndustrialSiteUI8E','Use genuine installed plant, permitted real reactants, routed input gas, power and compatible product vessel.']
+ ]};
+let active='mining',priorFocus=null;
+const fmt=(v,unit)=>Number.isFinite(Number(v))?Number(v).toFixed(2)+' '+unit:'—';
+function safe(fn,fallback=null){try{const result=fn();return result==null?fallback:result;}catch(_){return fallback;}}
+function lines(){
+ const r=root.StarfallRuntime;
+ if(!r)return ['FLIGHT NOT READY — begin a game before using these consoles.'];
+ const m=safe(()=>r.miningContext8D()),g=safe(()=>r.airFractionationContext8G()),
+  vessels=safe(()=>r.gasVesselCargoContext8G()?.vessels,[])||[],
+  deposits=safe(()=>r.miningDeposit8D()),
+  surveyed=safe(()=>deposits&&r.resources8c.observations().some(x=>x.siteId===deposits.id),false),
+  refinery=safe(()=>r.refineryContext8E()),
+  factory=safe(()=>r.factoryContext8F()),
+  ore=safe(()=>r.materials8a.inventory(root.StarfallMining8D.TRUCK),[])||[],
+  shipped=safe(()=>r.materials8a.inventory(root.StarfallMining8D.SHIP),[])||[];
+ if(active==='mining')return [
+ 'SOURCE: original world + truck + 8A lot ledger',
+ 'TRUCK: '+(m?(m.truckPresent?'ON THIS WORLD':'NOT ON THIS WORLD'):'UNKNOWN')+
+   ' / '+(m?.truckIdle?'PARKED':'MOVING / UNAVAILABLE'),
+ 'TRUCK POWER: '+fmt(m?.energyJ,'J'),
+ 'OPERATOR: '+(m?.operatorNear?'AT EQUIPMENT':'GO ON FOOT NEAR TRUCK'),
+ 'TARGET DEPOSIT: '+(deposits?.label||'NO MINERAL SITE AT CURRENT SECTOR'),
+ 'SURVEY: '+(surveyed?'RECORD EXISTS':'SURVEY THIS SECTOR'),
+ 'HOPPER: '+fmt(m?.truckHopper?.massKg,'kg'),
+ 'ORE LOTS IN TRUCK: '+ore.length,
+ 'SHIP LOADER: '+(m?.truckNearShip?'TRUCK IN RANGE':'DRIVE BACK TO SHIP'),
+ 'SHIP RAW HOLD: '+fmt(m?.shipWarehouse?.massKg,'kg'),
+ 'REFINERY: '+(refinery?.workshopInstalled?'INSTALLED':'NOT READY'),
+ 'REFINERY JOB: '+(refinery?.active?.id||'IDLE'),
+ 'FABRICATION: '+(factory?.workshopInstalled?'INSTALLED':'NOT READY'),
+ 'FABRICATION JOB: '+(factory?.active?.id||'IDLE'),
+ 'SHIP LOTS: '+shipped.length,
+ 'SAVE / RELOAD: Verify that actual ore lot IDs and masses are unchanged.'
+ ];
+ return [
+ 'SOURCE: physically modeled planetary atmosphere',
+ 'LANDING: '+(g?.landed?'LANDED':'SHIP MUST LAND'),
+ 'OPERATOR: '+(g?.eva?'EVA':'EXIT SHIP'),
+ 'AIR SEPARATORS: '+(g?.plantIds?.length||0),
+ 'RATED N₂ VESSELS: '+(g?.vesselIds?.length||0),
+ 'VESSELS WITH LIVE GAS:',
+ ...(vessels.length?vessels.slice(0,9).map(v=>
+  '  '+v.id+' · '+v.materialId+' · '+fmt(v.gasKg,'kg')+' · '+(v.location?.kind||'unknown'))
+   :['  NONE IN LOCAL GANTRY RANGE']),
+ 'ENERGY: 810 kJ per air batch; 90 kJ per sealed-vessel ship transfer',
+ 'PIPE: native T02 420 W pump, certified rated flanges, local power',
+ 'NO ATMOSPHERE / NO VESSEL = NO GAS COLLECTION',
+ 'SAVE / RELOAD: Compare real vessel ID and contained gas mass.'
+ ];
+}
+function refresh(){if(!overlay.hidden)status.textContent=lines().join('\n');}
+function navigate(step){
+ hide();
+ const route=step[1],target=step[2],api=step[3];
+ root.StarfallUI21?.openRoute?.(route);
+ try{if(typeof root[api]?.open==='function'){root[api].open();return;}}catch(_){}
+ const el=$(target);
+ if(!el){root.StarfallUI21?.openRoute?.('Engineer');return;}
+ el.scrollIntoView({block:'nearest',behavior:'auto'});
+ safe(()=>root[api]?.refresh?.());
+}
+function render(){
+ subtitle.textContent=active==='mining'?'Survey → extract → refine → fabricate':'Manufacture → collect → store → transport';
+ steps.replaceChildren();
+ routes[active].forEach((step,i)=>{
+  const button=document.createElement('button');button.type='button';
+  const label=document.createElement('b');label.textContent=(i+1)+'. '+step[0];
+  const desc=document.createElement('span');desc.textContent=step[4];
+  button.append(label,desc);
+  button.addEventListener('click',()=>navigate(step));steps.append(button);
+ });
+ for(const button of tabs.querySelectorAll('button')){
+  const selected=button.dataset.chain===active;
+  button.setAttribute('aria-selected',String(selected));
+ }
+ refresh();
+}
+for(const [key,label] of [['mining','Mining & manufacturing'],['gas','Gas collection & storage']]){
+ const button=document.createElement('button');button.type='button';button.dataset.chain=key;
+ button.setAttribute('role','tab');button.textContent=label;
+ button.addEventListener('click',()=>{active=key;render();});tabs.append(button);
+}
+function show(chain){
+ priorFocus=document.activeElement;if(chain)active=chain;
+ overlay.hidden=false;open.setAttribute('aria-expanded','true');
+ render();close.focus();
+}
+function hide(){overlay.hidden=true;open.setAttribute('aria-expanded','false');priorFocus?.focus?.();}
+open.addEventListener('click',()=>show());
+close.addEventListener('click',hide);
+overlay.addEventListener('click',e=>{if(e.target===overlay)hide();});
+document.addEventListener('keydown',e=>{
+ if(overlay.hidden)return;
+ if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();hide();}
+ if(e.key==='Tab'){
+  const controls=[...card.querySelectorAll('button:not([disabled])')];
+  const ix=controls.indexOf(document.activeElement);
+  if(e.shiftKey&&ix===0){e.preventDefault();controls[controls.length-1]?.focus();}
+  else if(!e.shiftKey&&ix===controls.length-1){e.preventDefault();controls[0]?.focus();}
+ }
+},true);
+setInterval(()=>{if(!overlay.hidden)refresh();},1200);
+root.StarfallResourceTestLab8H=Object.freeze({open:show,refresh});
 })(globalThis);
 
 </script>

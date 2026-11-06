@@ -1,0 +1,73 @@
+name: STARFALL resource production acceptance
+on:
+  push:
+    branches:
+      - feature/resource-test-lab-mining-gas-20261106
+  pull_request:
+    paths:
+      - src/physics/resource-test-lab-ui8h.js
+      - tests/resource-test-lab8h-browser.py
+      - index.html
+      - PLAY-STARFALL.html
+      - PLAY-STARFALL-MOBILE.html
+      - .github/workflows/resource-test-lab8h.yml
+jobs:
+  synchronize-offline:
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[resource-built]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Rebuild both offline standalones
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Commit synchronized HTMLs
+        shell: bash
+        run: |
+          set -eu
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if git diff --cached --quiet; then
+            echo 'Both offline builds already synchronized'
+            exit 0
+          fi
+          git commit -m 'build(resource): synchronized desktop and mobile standalones [resource-built]'
+          git pull --rebase origin feature/resource-test-lab-mining-gas-20261106
+          git push origin HEAD:feature/resource-test-lab-mining-gas-20261106
+  resource-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build exact desktop and landscape mobile editions
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          node --check src/physics/resource-test-lab-ui8h.js
+          node tests/mining-hauling8d.test.cjs
+          node tests/air-fractionation8g.test.cjs
+          node tests/factory8f.test.cjs
+          node tests/refinery8e.test.cjs
+          node tests/gas-vessel-cargo8g.test.cjs
+      - name: Install test-only Chromium
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real offline GUI and read-only inventory invariants
+        run: python tests/resource-test-lab8h-browser.py
