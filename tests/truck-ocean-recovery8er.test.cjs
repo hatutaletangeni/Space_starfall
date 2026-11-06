@@ -27,7 +27,7 @@ assert.equal(Hatch.requestEntry({...entry,truckOccupied:true}).ok,false,'No car-
 assert.match(source,/const nearWaterline=swimming&&V\.len\(rel\)<24&&Math\.abs\(side\)<15/);
 assert.match(source,/groundClearance>=-\.5&&groundClearance<=5/);
 assert.match(source,/const maxRelief=\(fromWater\|\|toWater\)/);
-assert.match(source,/speed=.*\\*traction\\*\\(shore\\?\\(truckShoreCrawl8ER\\?\\.16:\\.38\\):1\\)/);
+assert.ok(source.includes('speed=((keys.has(\'ShiftLeft\')||keys.has(\'ShiftRight\'))?20:11.5)*traction*(shore?(truckShoreCrawl8ER?.16:.38):1);'),'Shore crawl must reduce speed on wet ground');
 assert.match(source,/if\\(action==='SHORE'\\)/);
 assert.match(source,/shoreCrawl8er:truckShoreCrawl8ER/);
 const cockpit=fs.readFileSync('src/physics/truck-cockpit.js','utf8');
