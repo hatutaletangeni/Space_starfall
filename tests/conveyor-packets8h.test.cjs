@@ -175,7 +175,7 @@ test('chemical hopper capacity denial never creates cargo and packet remains phy
   env={...env,materials8a:q.materials8a,outpost5:q.outpost5};
  }
  // The material owner is full: original stock in previous tray cannot teleport to plant.
- inlet.maxMassKg=1;
+ env.materials8a.containers.find(c=>c.id===inlet.id).maxMassKg=1;
  const q=m.advance({id:'packet-full',timeS:18,dtS:3,physical8a:env.physical8a,
   materials8a:env.materials8a,outpost5:env.outpost5,body,starPos,luminosityW});
  assert.match(q.status,/HELD_CAPACITY_OR_CUSTODY/);
