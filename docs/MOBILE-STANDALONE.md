@@ -20,3 +20,14 @@ Limitations: mobile GPU/WebGL2 support varies, local-file browser storage can be
 ## Original truck stranded on a planet
 
 The mobile standalone performs one assisted recovery of an old-save original stranded truck into its own ship cargo bay on startup, when durable storage is available. It moves the exact same original 8A truck asset with its actual materials and battery; it does not create a second truck or add energy. Active 8D drilling, reserved/loaded 8H orders, a ramp in use, occupied cargo bay and overweight cargo block assistance. A source/destination receipt records this as **assisted, non-physical recovery**, excluded from Update 8H no-cheat delivery acceptance. After you unload it normally, subsequent game starts do not teleport it again. New-game original trucks already start secured in the cargo bay. On the desktop standalone the same one-time assisted rescue is only requested when opening the URL with `?recoverTruck=1`. Save/export a backup before changing stored game state.
+
+
+## Vehicle cargo bay boarding (mobile)
+1. Land on solid, reasonably level terrain. The original truck must be secured in the ship's starboard cargo rack (new games), or already on its wide ramp.
+2. From the pilot seat tap **BRIDGE** to enter the walkable ship interior. From EVA, approach the landed ship within 32 scene units and tap **BRIDGE** to board inside.
+3. Walk **aft through the main central corridor**, then turn into the **right-hand vehicle bay**. This is a continuous ship-local room, not a teleport or separate scene. A compact mobile notice shows when you enter the vehicle bay.
+4. Approach the real parked truck and press **X** once. The existing 8B tie-down operation releases its single original physical truck, then the same X action places the character into its driver state. No duplicate vehicle or energy refill is generated.
+5. Hold **▼** / reverse (default S) until the truck clears the wide starboard ramp. Steer with ◀ / ▶. Once on the ground, park and **X** to exit. The truck can be used for 8D surveying/mining as normal.
+6. Later, drive forward up the wide starboard ramp, park entirely on the deck, exit, and secure with **CARGO** from outside near the ramp as before.
+
+The ramp must reach the ground. If a steep or uneven landing blocks deployment, choose a flatter area. The boarding action requires the player to be physically near the original truck in the cargo room; pressing X in the bridge still interacts with the bridge, not with a remotely located vehicle. Existing cargo mass, custody, save state, drill/ore inventory, battery and launch-blocking checks are preserved. Mobile **X**, **BRIDGE** and **CARGO** send the currently configured remapped action code when bindings have changed. Close full-screen modals before driving or interacting.
