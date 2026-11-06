@@ -333,6 +333,7 @@ function boardVehicleBayTruck8B(){
 function interactShip8E(){
  const room=StarfallShipWalk8E.room(shipWalkAt8e.x,shipWalkAt8e.z);
  if(room==='bridge'){
+  if(!StarfallShipHatch8ER.canPilot({landed,shipWalking:shipWalking8e,room,truckOccupied,rampTransition})){showToast('BRIDGE · Physical helm station is not available');return true;}
   shipWalking8e=false;camMode=1;camEye=null;
   showToast('BRIDGE · pilot controls engaged · I to walk interior · SPACE launch');
   saveFlight();return true;
@@ -452,7 +453,7 @@ function exitShip(){
  const ns=surfaceData(nearest,pos),axis=nearest.spinAxis||[0,1,0],radial=ns.dir;
  shipBody=nearest;shipLocal=V.rot(radial,axis,-(nearest.spinAngle||0));shipForwardVec=[...forward];shipUpVec=[...up];
  if(!roverBody||roverBody!==nearest||!roverLocal)placeRoverNearShip();
- const hatchLocal=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-10,0);
+ const hatchLocal=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-30,0);
  const groundLocalEVA=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-37,0);
  const evacDir=V.norm(V.rot(hatchLocal,axis,nearest.spinAngle||0));
  evaLocal=hatchLocal;
@@ -472,7 +473,7 @@ function boardShip(transitionKind){
  if(!check.ok){showToast(check.reason);return false;}
  eva=false;swimming=false;swimDepthScene=.01;swimVerticalSceneS=0;truckOccupied=false;rampTransition=null;rampLift=0;landed=true;nearest=shipBody;groundLocal=[...shipLocal];pos=[...ship.position];forward=V.norm(ship.forward);up=V.norm(ship.up);vel=[0,0,0];camEye=null;
  hatchCooldown=1.0;walkedSinceExit=0;shipIdleElapsed=0;
- shipWalking8e=true;shipWalkAt8e={x:0,z:25,heading:0};
+ shipWalking8e=true;shipWalkAt8e={x:0,z:29.25,heading:0};
  camMode=0;showToast('8E · Inside expedition vessel · WASD walk through ship · X near bridge to pilot · S to exit aft');
  return true;
 }
@@ -773,7 +774,7 @@ function tryCrewHatchEntry8ER(atEntrance){
   rampTransition,nearShip:shipBody===nearest&&V.len(V.sub(pos,ship.position))<=EVA_BOARD_DISTANCE,
   walkedSinceExit,hatchCooldown,atEntrance});
  if(!check.ok){showToast(check.reason);return false;}
- const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-10,0);
+ const hatchLocal=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,-30,0);
  rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
  showToast('CREW HATCH · Crossing the central crew boarding ramp');return true;
 }
