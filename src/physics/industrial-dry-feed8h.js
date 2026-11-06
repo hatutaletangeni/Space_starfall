@@ -57,7 +57,7 @@ function transfer({id:jobId,sourceLotId,sourceDepotId,stationId,massKg,
    Math.abs(targetBin.maxMassKg-120)>EPS||
    Math.abs(targetBin.maxVolumeM3-.20)>EPS||
    plant.state.dryFeedContainerId!=='plantfeed8h:'+plant.id)
-  throw Error('8H real original 8A 120kg/.20m³ integrated dry plant inlet missing; old plants must use ship-fed legacy chemistry');
+  throw Error('8H real original 8A 120kg/.20m³ integrated dry plant hopper inlet missing; old plants must use ship-fed legacy chemistry');
  const sourceReach=arc(operatorLocal,depot.location.local,bodyRadius),
   stationReach=arc(operatorLocal,plant.location.local,bodyRadius),
   distance=arc(depot.location.local,plant.location.local,bodyRadius);
