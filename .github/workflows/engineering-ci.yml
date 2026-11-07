@@ -2,7 +2,7 @@ name: Starfall Engineering Regression
 
 on:
   push:
-    branches: [main, "release/**", "feature/**"]
+    branches: [main, "release/**", "feature/**", "fix/update8-release-gates-20261107"]
   pull_request:
     branches: [main]
 
