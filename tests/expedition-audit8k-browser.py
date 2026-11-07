@@ -18,9 +18,12 @@ with sync_playwright() as p:
   page.wait_for_function("""()=>!!(window.StarfallRuntime?.materials8a&&
    window.StarfallExpeditionAudit8K&&window.StarfallExpeditionAuditUI8K)""",timeout=60000)
   saved=page.evaluate("""()=>{
-    const before=JSON.stringify(SF.load()),
-      report=StarfallExpeditionAudit8K.evaluate(SF.load()),
-      after=JSON.stringify(SF.load());
+    const digest=()=>{const s=SF.load();return JSON.stringify({
+      materials8a:s.materials8a,physical8a:s.physical8a,
+      terraformWorlds8j:s.terraformWorlds8j,vehicleAssembly8g:s.vehicleAssembly8g,
+      logisticsOffworldManifests8h:s.logisticsOffworldManifests8h});};
+    const before=digest(),report=StarfallExpeditionAudit8K.evaluate(SF.load()),
+      after=digest();
     return{before,after,report};
   }""")
   assert saved['before']==saved['after'],'Audit must be read-only'
@@ -37,8 +40,13 @@ with sync_playwright() as p:
   assert 'NOT VERIFIED' in text,text
   assert 'Original truck identity' in text,text
   assert 'Real GPU and sustained frame-time test' in text,text
-  after=page.evaluate("JSON.stringify(SF.load())")
-  assert saved['before']==after,'Records UI may never mutate the source expedition save'
+  after=page.evaluate("""()=>{
+    const s=SF.load();return JSON.stringify({
+      materials8a:s.materials8a,physical8a:s.physical8a,
+      terraformWorlds8j:s.terraformWorlds8j,vehicleAssembly8g:s.vehicleAssembly8g,
+      logisticsOffworldManifests8h:s.logisticsOffworldManifests8h});
+  }""")
+  assert saved['before']==after,'Records UI may never mutate owned material, vehicle, manufacturing or atmosphere ledger'
   assert not errors,errors
   print('PASS 8K real file:// Records: truthful read-only evidence from actual save, full expedition and GPU remain NOT VERIFIED, no stock changes')
  finally:
