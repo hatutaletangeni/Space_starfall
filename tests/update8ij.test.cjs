@@ -49,3 +49,30 @@ test('8J cannot withdraw unsupported atmosphere or accept negative gas',()=>{
  assert.throws(()=>climate.advance(world(),{capturedGasKg:6e18,receiptId:'impossible'}),/Cannot withdraw/);
  assert.throws(()=>climate.advance(world(),{deliveredGasKg:-1,receiptId:'negative'}),/Invalid terraforming/);
 });
+
+test('8J canonical profile requires a planetary-scale atmosphere mass budget',()=>{
+ const earthlike={id:'world-a',radiusM:6371000,surfaceGravityMS2:9.81,
+  atmospherePressurePa:100000,mu:3.986004418e14};
+ const q=climate.feasibility(earthlike,{targetPressurePa:101000,externalImportKgS:1000,
+  nativeLife:true,landable:true});
+ const expected=4*Math.PI*earthlike.radiusM**2*1000/earthlike.surfaceGravityMS2;
+ assert.ok(Math.abs(q.requiredImportKg/expected-1)<1e-12);
+ assert.ok(q.escapeSpeedMS>11000&&q.escapeSpeedMS<11300);
+ assert.ok(q.yearsAtRate>1000000);
+ assert.equal(q.protectedWorld,true);
+ assert.equal(q.globalActionPermitted,false);
+ assert.equal(q.noPhysicalOperation,true);
+ assert.deepEqual(earthlike,{id:'world-a',radiusM:6371000,surfaceGravityMS2:9.81,
+  atmospherePressurePa:100000,mu:3.986004418e14});
+});
+test('8J lower pressure is planned capture only, without gas creation or surface edits',()=>{
+ const p={id:'world-b',radiusM:3000000,surfaceGravityMS2:4,
+  atmospherePressurePa:25000,mu:2e13};
+ const q=climate.feasibility(p,{targetPressurePa:10000,externalImportKgS:0});
+ assert.equal(q.requiredImportKg,0);
+ assert.ok(q.captureKg>0);
+ assert.equal(q.yearsAtRate,0);
+ assert.equal(q.globalActionPermitted,false);
+ assert.throws(()=>climate.feasibility(p,{targetPressurePa:-1}),/canonical SI/);
+ assert.throws(()=>climate.feasibility({...p,surfaceGravityMS2:0}),/canonical SI/);
+});
