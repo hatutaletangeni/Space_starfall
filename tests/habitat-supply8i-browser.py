@@ -80,7 +80,13 @@ with sync_playwright() as p:
   }""",initial)
   assert abs(after['waterL']-130)<1e-8,after
   assert abs(after['massKg']-3)<1e-8,after
-  assert abs(after['energyJ']-(initial['energyJ']-125000))<1e-5,after
+  # Other ship systems continue drawing power during UI interaction.
+  # Verify exact pump debit from the same committed source-owned receipt,
+  # and ensure the live ship has not gained energy during this transaction.
+  assert after['receipt']['sourceBatteryJBefore']-after['receipt']['sourceBatteryJAfter']==125000,after
+  assert after['receipt']['workJ']==125000,after
+  assert after['receipt']['energySourceId']=='ship-main:engineering-battery',after
+  assert after['energyJ']<=initial['energyJ']-125000+1e-5,after
   assert after['receipt']['status']=='COMMITTED' and after['receipt']['massKg']==5,after
   assert after['durableWater']==130 and after['durableLot']==3,after
   page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
