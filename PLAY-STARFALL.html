@@ -13132,6 +13132,99 @@ function feasibility(profile,{targetPressurePa=101325,externalImportKgS=1,
 root.StarfallTerraform8J=Object.freeze({advance,feasibility});if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallTerraform8J;
 })(typeof globalThis!=='undefined'?globalThis:this);
 </script><script>
+/* STARFALL 8K — conservative read-only expedition evidence audit.
+ * One snapshot; NO materials, vehicles, air or milestones are awarded.
+ * This is NOT an automatic certificate for a no-cheat two-world expedition.
+ * It intentionally distinguishes historical receipts from unassisted proof.
+ */
+(function(root){'use strict';
+const arr=x=>Array.isArray(x)?x:[],obj=x=>x&&typeof x==='object'&&!Array.isArray(x)?x:{};
+const valid=x=>typeof x==='string'&&x.length>0;
+const artifact=x=>typeof x==='string'&&/TEST_FIXTURE|CREATIVE|DEBUG|CHEAT/i.test(x);
+const owned=r=>r&&r.status==='COMMITTED'&&!artifact(r.sourceProvenance)&&
+ !artifact(r.provenance)&&!artifact(r.id);
+const has=(rs,where)=>rs.some(x=>owned(x)&&where(x));
+function evaluate(saved){
+ const s=obj(saved),materials=obj(s.materials8a),assets=arr(obj(s.physical8a).assets),
+  operations=arr(materials.operations),survey=obj(s.resources8c),
+  refinery=arr(obj(s.refinery8e).receipts),factory=arr(obj(s.factory8f).receipts),
+  assembly=arr(obj(s.vehicleAssembly8g).receipts),
+  offworld=arr(obj(s.logisticsOffworldManifests8h).manifests),
+  habitats=arr(obj(s.outpost5).items).filter(x=>x?.kind==='hab'&&x.habT09?.schema===1),
+  worlds=Object.values(obj(s.terraformWorlds8j)).filter(x=>x&&typeof x==='object'),
+  genuineLots=arr(materials.lots).filter(x=>x&&valid(x.id)&&!artifact(x.provenance));
+ const stages=[];
+ const push=(id,title,evidence,requirement)=>stages.push({id,title,
+  status:evidence?'EVIDENCE':'NOT_PROVEN',requirement});
+ const starting= s.freshExpedition?.schema===1&&
+  s.initialIndustrialManifest8k?.status==='COMMITTED';
+ push('manifest','Finite original expedition manifest',starting,
+  'Explicit new industrial start and one-time committed manifest');
+ const trucks=assets.filter(x=>x?.id==='truck-expedition-001');
+ push('original_truck','Original truck identity',trucks.length===1&&
+  valid(trucks[0]?.location?.kind),
+  'Exactly one persistent starter truck record; no duplicate original ID');
+ push('survey','Planet-fixed geology surveyed',arr(survey.surveys).length>0,
+  'Actual geological observations on a stable body');
+ push('mining','Finite ore physically mined and depleted',
+  arr(survey.depletions).some(x=>x?.massKg>0)&&
+  arr(survey.transactions).some(x=>x?.status==='COMMITTED'),
+  'Original surveyed 8C deposit physically depleted by 8D');
+ const refined=refinery.filter(owned);
+ const rawModes=refined.map(x=>(x.product||'')+' '+(x.mode||''));
+ push('refine','Copper, iron and water processed',
+  ['copper','iron','water'].every(q=>rawModes.some(x=>x.includes(q))),
+  'All three outputs in source-paid refinery receipts');
+ const outputs=factory.filter(owned).map(x=>x.recipeId);
+ push('electrical','Electrical subassembly physically fabricated',
+  outputs.includes('copper_wire')&&
+  outputs.some(x=>['populated_board','pcb','insulated_wire','stator','motor'].includes(x)),
+  'Refined copper conductor and a functional electrical subassembly');
+ push('energy','Energy component manufactured',
+  outputs.some(x=>['solar_module','battery_cell'].includes(x)),
+  'Original 8F solar module or battery cell with actual part and power receipts');
+ push('vehicle','Replacement vehicle commissioned',
+  assembly.some(x=>owned(x)&&['truck','science_rover'].includes(x.blueprintId))&&
+  assets.some(x=>['truck','rover'].includes(x.type)&&x.id!=='truck-expedition-001'&&
+   x.id!=='rover-science-001'&&!artifact(x.provenance)),
+  'Another unique physical vehicle from full 8G BOM; original remains accounted for');
+ push('interplanetary','Physical off-world delivery',
+  offworld.some(x=>x?.status==='DELIVERED'&&
+   valid(x.sourceWorldId)&&valid(x.destinationWorldId)&&
+   x.sourceWorldId!==x.destinationWorldId),
+  'Original ship physically flies a paid 8H cargo manifest to another world');
+ const readyHab=habitats.filter(x=>x.enabled!==false&&x.habT09.enabled===true);
+ push('habitat','T09 sealed habitat and stored life-support inputs',
+  readyHab.some(x=>x.habT09.waterL>0&&x.habT09.oxygenTankMol>0&&
+   x.habT09.scrubberCapacityMol>0&&x.habT09.airlock==='CLOSED'),
+  'Existing installed, powered T09 with source-paid water, oxygen and scrubber');
+ push('greenhouse','Greenhouse visibly produced real biomass',
+  readyHab.some(x=>x.habT09.greenhouse8i?.installed===true&&
+    x.habT09.greenhouse8i?.carbonConsumedMol>0&&
+    x.habT09.greenhouse8i?.oxygenProducedMol>0),
+  'Source-paid installed crop hardware, real T02 power, light and photosynthesis');
+ push('terraform','Planet atmosphere materially changed',
+  worlds.some(w=>arr(w.receipts).some(x=>owned(x)&&
+    x.kind==='PLANET_ATMOSPHERE_EMISSION_8J'&&x.massKg>0&&
+    x.sourceBatteryJBefore>x.sourceBatteryJAfter)),
+  'Source-paid gas emitted on a valid world; preserved small pressure receipt');
+ push('legacy','Old-save compatibility and return journey',false,
+  'Unassisted old-save/revisit verification has no self-certifying durable source receipt');
+ push('gpu','Real GPU and sustained frame-time test',false,
+  'External physical GPU measurement, not software-generated estimate');
+ const observed=stages.filter(x=>x.status==='EVIDENCE').length;
+ return{schema:1,observed,total:stages.length,stages,
+  evidenceComplete:observed===stages.length,
+  certified:false,claim:'NOT VERIFIED: full 8K requires unassisted physical end-to-end browser expedition, old-save and GPU verification.',
+  integrity:{originalTruckCount:trucks.length,realLotCount:genuineLots.length,
+   suspiciousFixtureLots:arr(materials.lots).filter(x=>artifact(x?.provenance)).length}};
+}
+const API=Object.freeze({evaluate});
+root.StarfallExpeditionAudit8K=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 8J — source-owned, physically metered tiny atmospheric gas discharge.
  * Global mean ΔP is computed from canonical planet R/g; an actual 8A rated
  * gas vessel is debited. No zero-time climate or terrain transformation.
@@ -22523,6 +22616,42 @@ act.addEventListener('click',()=>{
 for(const e of [vessel,lot,qty])e.addEventListener('change',refresh);
 let last=0;function loop(t){if(t-last>1800){last=t;refresh();}root.requestAnimationFrame(loop);}root.requestAnimationFrame(loop);
 root.StarfallAtmosphereEmissionUI8J={refresh};
+})(globalThis);
+
+</script><script>
+/* 8K — read-only acceptance evidence inside existing Records workspace.
+ * No separate HUD. Never confuses model-only or test-fixture checks with a
+ * finished no-cheat expedition.
+ */
+(function(root){'use strict';
+const host=document.querySelector('#ui21-pages .ui21-page[data-page="Records"]');
+if(!host||!root.StarfallExpeditionAudit8K||!root.SF?.load)return;
+const section=document.createElement('section');section.className='section';section.id='expedition-audit8k';
+const details=document.createElement('details');
+const summary=document.createElement('summary');summary.style.cssText='cursor:pointer;font-weight:650;padding:9px';
+summary.textContent='8K · Full industrial expedition — release evidence and missing work';
+const intro=document.createElement('p');intro.className='panel-note';
+intro.textContent='Evidence only. Checks actual saved 8A stock, 8C depletion, 8E/8F production, 8G asset IDs, 8H cargo, 8I habitat and 8J atmospheric receipts. Unit tests and fixtures are NOT a complete unassisted two-world expedition; real GPU and legacy-save checks remain separate gates.';
+const list=document.createElement('div');list.setAttribute('role','status');list.style.cssText='display:grid;gap:5px;font-size:12px';
+const verdict=document.createElement('p');verdict.className='panel-note';
+const refresh=document.createElement('button');refresh.type='button';refresh.className='science-action';
+refresh.textContent='REFRESH ORIGINAL EXPEDITION EVIDENCE';
+details.append(summary,intro,refresh,list,verdict);section.append(details);host.append(section);
+function redraw(){
+ const audit=root.StarfallExpeditionAudit8K.evaluate(root.SF.load());
+ summary.textContent='8K · Industrial expedition evidence '+audit.observed+'/'+audit.total+' · NOT RELEASE CERTIFIED';
+ list.replaceChildren();
+ for(const m of audit.stages){const line=document.createElement('div');
+  const state=m.status==='EVIDENCE'?'OBSERVED':'NOT VERIFIED';
+  line.textContent=(state==='OBSERVED'?'✓ ':'○ ')+m.title+' · '+state;
+  line.title=m.requirement;line.style.opacity=m.status==='EVIDENCE'?'1':'.76';
+  list.append(line);}
+ verdict.textContent=audit.claim+
+  (audit.integrity.suspiciousFixtureLots?(' · WARNING: '+audit.integrity.suspiciousFixtureLots+' test/debug lot(s) currently in this save.'):'');
+}
+refresh.addEventListener('click',redraw);
+details.addEventListener('toggle',()=>{if(details.open)redraw()});
+root.StarfallExpeditionAuditUI8K={refresh:redraw};
 })(globalThis);
 
 </script><script>
