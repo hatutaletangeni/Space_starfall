@@ -1,8 +1,15 @@
-name: Rebuild and verify truck bay repair PR
+name: Rebuild and verify Update 8 playable integration
 on:
   push:
-    branches: [main]
-    paths: ['.github/workflows/rebuild-truck-bay-fix.yml']
+    branches: [main, fix/update8-release-gates-20261107]
+    paths:
+      - '.github/workflows/rebuild-truck-bay-fix.yml'
+      - 'index.html'
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/build-standalone.py'
+      - 'tools/build-mobile-standalone.py'
+      - 'tools/migrate-ui22-browser-tests.py'
   workflow_dispatch:
 permissions:
   contents: write
@@ -13,7 +20,7 @@ jobs:
       - name: Check out existing truck fix branch
         uses: actions/checkout@v4
         with:
-          ref: fix/vehicle-bay-truck-boarding-20261106
+          ref: fix/update8-release-gates-20261107
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
@@ -21,6 +28,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Migrate stale browser nav to actual Mission workspace
+        run: python tools/migrate-ui22-browser-tests.py
       - name: Rebuild desktop and landscape mobile standalone
         run: |
           python tools/build-standalone.py
@@ -31,14 +40,15 @@ jobs:
           python tests/standalone-parity.py
           node tests/cargo-bay8b.test.cjs
           node tests/update8a.test.cjs
+          node tests/update8ij.test.cjs
       - name: Push validated builds to existing fix branch
         run: |
           git config user.name "starfall-ci"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html tests/
           if ! git diff --cached --quiet; then
             git commit -m "build: sync desktop and mobile truck boarding fix"
-            git push origin HEAD:fix/vehicle-bay-truck-boarding-20261106
+            git push origin HEAD:fix/update8-release-gates-20261107
           fi
       - uses: actions/upload-artifact@v4
         if: always()
