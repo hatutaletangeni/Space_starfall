@@ -15,6 +15,10 @@ on:
       - 'tests/habitat-scrubber8i*'
       - 'src/physics/manufacturing8f.js'
       - 'src/physics/habitat-t09.js'
+      - 'src/physics/greenhouse8i.js'
+      - 'src/physics/greenhouse-ui8i.js'
+      - 'src/physics/outposts-ui.js'
+      - 'tests/greenhouse8i*'
       - 'src/physics/habitat-supply-ui8i.js'
       - 'src/flight.js'
       - 'index.html'
@@ -36,6 +40,10 @@ on:
       - 'tests/habitat-scrubber8i*'
       - 'src/physics/manufacturing8f.js'
       - 'src/physics/habitat-t09.js'
+      - 'src/physics/greenhouse8i.js'
+      - 'src/physics/greenhouse-ui8i.js'
+      - 'src/physics/outposts-ui.js'
+      - 'tests/greenhouse8i*'
       - 'src/physics/habitat-supply-ui8i.js'
       - 'src/flight.js'
       - 'index.html'
@@ -72,6 +80,9 @@ jobs:
           node --check src/physics/habitat-scrubber8i.js
           node --check src/physics/habitat-scrubber-ui8i.js
           node tests/habitat-scrubber8i.test.cjs
+          node --check src/physics/greenhouse8i.js
+          node --check src/physics/greenhouse-ui8i.js
+          node tests/greenhouse8i.test.cjs
           node tests/update8ij.test.cjs
       - name: Build actual offline playable from editable owner
         run: |
@@ -92,3 +103,5 @@ jobs:
         run: python tests/atmosphere-emission8j-browser.py
       - name: Verify physical manufactured T09 CO2 scrubber service and durable original inventory in Chromium
         run: python tests/habitat-scrubber8i-browser.py
+      - name: Test actual T09 greenhouse physical BOM and native T02 powered growth in Chromium
+        run: python tests/greenhouse8i-browser.py
