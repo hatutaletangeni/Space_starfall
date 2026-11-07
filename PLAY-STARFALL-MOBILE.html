@@ -5733,6 +5733,13 @@ function command(item,action,{now=0,near=false,powered=false,body=null,occupants
  // Legacy/creative saves retain their original REPAIR behavior.
  if(action==='REPAIR'&&root.SF?.load?.()?.freshExpedition?.schema===1)
   throw Error('Industrial T09 seal repair requires source-paid manufactured parts, power and time');
+ // A legacy/default habitat may exist in an imported or tampered Industrial save.
+ // Never energize its free T09 atmosphere without a physically linked 8G shell.
+ // This identity check is only a prerequisite: the 8K audit must separately
+ // authenticate the same-world structural receipt and all paid consumables.
+ if(action==='ENABLE'&&root.SF?.load?.()?.freshExpedition?.schema===1&&
+    !(typeof item?.physicalAssetId==='string'&&/^[a-zA-Z0-9_-]{1,120}$/.test(item.physicalAssetId)))
+  throw Error('Industrial T09 activation requires a physically linked 8G manufactured habitat envelope');
  const h=ensure(item,now);
  if(!finite(now)||now<0)throw Error('Invalid habitat event time');
  if(!near)throw Error('Habitat systems controls require approaching the actual structure while on foot');
