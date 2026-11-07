@@ -15,9 +15,10 @@ function advance(saved,{deliveredGasKg=0,capturedGasKg=0,lostGasKg=0,seconds=0,r
  // Compute and validate all derived state before writing an irreversible receipt.
  const availableKg=s.atmosphereKg+deliveredGasKg;
  const withdrawnKg=capturedGasKg+lostGasKg;
- if(!Number.isFinite(availableKg)||!Number.isFinite(withdrawnKg)||
-    withdrawnKg>availableKg+1e-7)
-  throw Error('Invalid or insufficient atmospheric mass');
+ if(!Number.isFinite(availableKg)||!Number.isFinite(withdrawnKg))
+  throw Error('Invalid atmospheric mass arithmetic');
+ if(withdrawnKg>availableKg+1e-7)
+  throw Error('Cannot withdraw more atmosphere than exists');
  const nextMassKg=availableKg-withdrawnKg;
  const areaM2=4*Math.PI*s.radiusM*s.radiusM;
  const nextPressurePa=nextMassKg*s.gravityMS2/areaM2;
