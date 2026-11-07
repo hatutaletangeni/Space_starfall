@@ -29,6 +29,10 @@ function summary(){
 }
 function eligible(session,materials){
  if(!session||!materials||typeof materials.snapshot!=='function')throw Error('8K authoritative source-owned 8A ledger required');
+ // Compatibility with newer receipt-owned 8K starter manifest: never let the
+ // older bootstrap also populate a freshExpedition v1 save. The newer manifest
+ // is deliberately one-time and owns its own committed source receipt.
+ if(session.freshExpedition?.schema===1||session.initialIndustrialManifest8k)return false;
  // Preserve ALL old saves, including pre-8A saves, without guessing an original
  // manifest. A true new-galaxy reset intentionally contains no old runtime.
  if(['flightGalaxy','physical8a','materials8a','mining8d','factory8f',
