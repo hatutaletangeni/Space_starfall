@@ -168,9 +168,21 @@ function command(item,action,{now=0,near=false,powered=false,body=null,occupants
  // Never energize its free T09 atmosphere without a physically linked 8G shell.
  // This identity check is only a prerequisite: the 8K audit must separately
  // authenticate the same-world structural receipt and all paid consumables.
- if(action==='ENABLE'&&root.SF?.load?.()?.freshExpedition?.schema===1&&
-    !(typeof item?.physicalAssetId==='string'&&/^[a-zA-Z0-9_-]{1,120}$/.test(item.physicalAssetId)))
-  throw Error('Industrial T09 activation requires a physically linked 8G manufactured habitat envelope');
+ if(action==='ENABLE'&&root.SF?.load?.()?.freshExpedition?.schema===1){
+  const saved=root.SF.load(),assetId=item?.physicalAssetId;
+  const assets=Array.isArray(saved?.physical8a?.assets)?saved.physical8a.assets:[];
+  const receipts=Array.isArray(saved?.vehicleAssembly8g?.receipts)?saved.vehicleAssembly8g.receipts:[];
+  const outposts=Array.isArray(saved?.outpost5?.items)?saved.outpost5.items:[];
+  const asset=assets.find(a=>a?.id===assetId&&a.type==='habitat_envelope'&&
+    a.location?.kind==='surface'&&a.location.bodyId===item.bodyId&&
+    typeof a.provenance==='string'&&a.provenance.startsWith('structural-8g:')&&
+    !/TEST_FIXTURE|CREATIVE|DEBUG|CHEAT/i.test(a.provenance));
+  const receipt=receipts.some(x=>x?.assetId===assetId&&x.blueprintId==='habitat_shell'&&
+    ['COMMITTED','ASSEMBLED_NOT_OPERATIONAL'].includes(x.status));
+  const duplicate=outposts.some(x=>x?.kind==='hab'&&x.id!==item.id&&x.physicalAssetId===assetId);
+  if(!asset||!receipt||duplicate)
+   throw Error('Industrial T09 activation requires unique same-world 8G structural receipt and manufactured envelope');
+ }
  const h=ensure(item,now);
  if(!finite(now)||now<0)throw Error('Invalid habitat event time');
  if(!near)throw Error('Habitat systems controls require approaching the actual structure while on foot');
