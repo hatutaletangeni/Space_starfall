@@ -61,11 +61,13 @@ with sync_playwright() as p:
   }""")
   assert stage['phase']=='IN_PROGRESS',stage
   assert page.locator('#op16-log-rows').inner_text().find('ops16')<0 or page.locator('#op16-log-rows').count()==1
-  # Operations filters live in the secondary workspace after UI22 refactoring.
-  # Open the actual visible Mission → Operate workspace before editing the filter.
+  # T16 inserts the original operation summary directly into #panel-body,
+  # which UI21 assigns to Overview (not its separate Operate page).
+  # Open the visible Mission → Navigate/Overview workspace, then use original filters.
   page.locator('#sf-mission-button').click()
-  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  assert page.locator('#op16-filter-severity').is_visible(), 'T16 source-owned filter must be visible in the Overview workspace'
   page.locator('#op16-filter-severity').select_option('info')
   assert page.locator('#op16-filter-severity').input_value()=='info'
   page.locator('#op16-asset').select_option('starfall-ship')
