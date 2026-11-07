@@ -10,6 +10,11 @@ on:
       - 'src/physics/atmosphere-emission8j.js'
       - 'src/physics/atmosphere-emission-ui8j.js'
       - 'tests/atmosphere-emission8j*'
+      - 'src/physics/habitat-scrubber8i.js'
+      - 'src/physics/habitat-scrubber-ui8i.js'
+      - 'tests/habitat-scrubber8i*'
+      - 'src/physics/manufacturing8f.js'
+      - 'src/physics/habitat-t09.js'
       - 'src/physics/habitat-supply-ui8i.js'
       - 'src/flight.js'
       - 'index.html'
@@ -26,6 +31,11 @@ on:
       - 'src/physics/atmosphere-emission8j.js'
       - 'src/physics/atmosphere-emission-ui8j.js'
       - 'tests/atmosphere-emission8j*'
+      - 'src/physics/habitat-scrubber8i.js'
+      - 'src/physics/habitat-scrubber-ui8i.js'
+      - 'tests/habitat-scrubber8i*'
+      - 'src/physics/manufacturing8f.js'
+      - 'src/physics/habitat-t09.js'
       - 'src/physics/habitat-supply-ui8i.js'
       - 'src/flight.js'
       - 'index.html'
@@ -59,6 +69,9 @@ jobs:
           node --check src/physics/atmosphere-emission8j.js
           node --check src/physics/atmosphere-emission-ui8j.js
           node tests/atmosphere-emission8j.test.cjs
+          node --check src/physics/habitat-scrubber8i.js
+          node --check src/physics/habitat-scrubber-ui8i.js
+          node tests/habitat-scrubber8i.test.cjs
           node tests/update8ij.test.cjs
       - name: Build actual offline playable from editable owner
         run: |
@@ -77,3 +90,5 @@ jobs:
         run: python tests/habitat-oxygen8i-browser.py
       - name: Prove physical planetary gas conservation and saved world delta in actual Chromium
         run: python tests/atmosphere-emission8j-browser.py
+      - name: Verify physical manufactured T09 CO2 scrubber service and durable original inventory in Chromium
+        run: python tests/habitat-scrubber8i-browser.py
