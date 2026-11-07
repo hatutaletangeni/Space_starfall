@@ -60,7 +60,7 @@ with sync_playwright() as pw:
             m.lots.reduce((s,l)=>s+l.massKg,0)};
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
+        page.wait_for_function('typeof StarfallRuntime !== "undefined" && StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("structure-assembly8g")',timeout=40000)
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
         open_route(page,'Engineer')
         panel=page.locator('#structure-assembly8g')
