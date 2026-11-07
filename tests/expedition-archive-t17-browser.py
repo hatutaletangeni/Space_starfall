@@ -55,7 +55,11 @@ with sync_playwright() as p:
    return{id:record.id,bytes:photo.bytes,seed:rt.galaxy.seed,credits:SF.load().credits};
   }""")
   # Modal discoverability through original GUI, not hidden synthetic API only.
-  page.locator('#archive-t17-open').click()
+  # UI22 owns the visible route to the original archive button.
+  # Exercise Mission → Records → Save / Recovery, never the hidden quick-tool.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Records').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='SAVE / RECOVERY').click()
   assert page.locator('#archive-t17').evaluate('(el)=>!el.hidden')
   assert 'DURABLE' in page.locator('#archive-t17-save-status').inner_text()
   assert page.locator('#archive-t17-export-full').count()==1
