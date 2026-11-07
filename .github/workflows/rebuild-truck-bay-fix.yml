@@ -1,8 +1,15 @@
-name: Rebuild and verify Update 8 environment integration
+name: Rebuild and verify Update 8 playable integration
 on:
   push:
-    branches: [main]
-    paths: ['.github/workflows/rebuild-truck-bay-fix.yml']
+    branches: [main, fix/update8-release-gates-20261107]
+    paths:
+      - '.github/workflows/rebuild-truck-bay-fix.yml'
+      - 'index.html'
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/build-standalone.py'
+      - 'tools/build-mobile-standalone.py'
+      - 'tools/migrate-ui22-browser-tests.py'
   workflow_dispatch:
 permissions:
   contents: write
