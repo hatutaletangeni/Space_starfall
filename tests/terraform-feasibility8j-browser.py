@@ -31,7 +31,7 @@ with sync_playwright() as p:
   target=panel.locator('input[aria-label="Hypothetical target mean surface pressure in kPa"]')
   target.fill('200')
   target.dispatch_event('input')
-  view=panel.locator('pre').inner_text()
+  view=panel.locator(':scope > pre').inner_text()
   assert baseline['world'] in view and 'MODEL RADIUS' in view,view
   assert 'NET IMPORT FOR TARGET:' in view and 'REAL INDUSTRIAL ACTION: LOCKED / NOT IMPLEMENTED' in view,view
   assert 'Planning only' in view and 'no 8A gas lots' in view,view
