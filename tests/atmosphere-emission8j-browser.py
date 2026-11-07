@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""8J real file:// source-owned, measured tiny gas emission on sterile world.
-All gas and infrastructure in this test are explicitly TEST_FIXTURE_ONLY.
+"""8J real file:// refusal of non-industrial gas fixture on a sterile world.
+Fixture gas and infrastructure are explicitly TEST_FIXTURE_ONLY and may never be industrially vented.
+This is a negative safety test, NOT a successful no-cheat emission playthrough.
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -55,34 +56,42 @@ with sync_playwright() as p:
   q=panel.locator('input[aria-label="Gas to release in kg"]');q.fill('1');q.dispatch_event('change')
   button=panel.get_by_role('button',name='VENT SOURCE-PAID GAS TO PLANET')
   assert button.is_enabled(),panel.inner_text()
+  before=page.evaluate("""fixture=>{
+   const rt=StarfallRuntime,s=SF.load();
+   return {
+    gasKg:rt.materials8a.inventory(fixture.containerId).find(x=>x.id===fixture.lotId)?.massKg,
+    savedGasKg:s.materials8a?.lots.find(x=>x.id===fixture.lotId)?.massKg,
+    world:s.terraformWorlds8j?.[fixture.bodyId]||null,
+    emissions:rt.materials8a.operations().filter(x=>x.kind==='PLANET_ATMOSPHERE_EMISSION_8J').length
+   };
+  }""",fixture)
   button.click()
   page.wait_for_timeout(350)
   current=panel.locator('[role=status]').inner_text()
-  assert 'COMMITTED' in current,{'status':current,'panel':panel.inner_text(),
-    'context':page.evaluate('()=>StarfallRuntime.atmosphericContext8J()')}
-  result=page.evaluate("""fixture=>{
-   const rt=StarfallRuntime,s=SF.load(),w=s.terraformWorlds8j?.[fixture.bodyId],
-    gas=rt.materials8a.inventory(fixture.containerId).find(x=>x.id===fixture.lotId),
-    receipt=rt.materials8a.operations().find(x=>x.kind==='PLANET_ATMOSPHERE_EMISSION_8J');
-   return{world:w,gasKg:gas?.massKg,receipt,
-    savedGasKg:s.materials8a?.lots.find(x=>x.id===fixture.lotId)?.massKg};
+  assert 'BLOCKED' in current and 'pure gas lot' in current,{'status':current,'panel':panel.inner_text()}
+  after=page.evaluate("""fixture=>{
+   const rt=StarfallRuntime,s=SF.load();
+   return {
+    gasKg:rt.materials8a.inventory(fixture.containerId).find(x=>x.id===fixture.lotId)?.massKg,
+    savedGasKg:s.materials8a?.lots.find(x=>x.id===fixture.lotId)?.massKg,
+    world:s.terraformWorlds8j?.[fixture.bodyId]||null,
+    emissions:rt.materials8a.operations().filter(x=>x.kind==='PLANET_ATMOSPHERE_EMISSION_8J').length
+   };
   }""",fixture)
-  assert result['world']['netAddedKg']==1,result
-  assert result['world']['emittedSpeciesKg']['nitrogen']==1,result
-  assert result['world']['pressureDeltaPa']>0,result
-  assert result['gasKg']==2 and result['savedGasKg']==2,result
-  assert result['receipt']['workJ']==100000,result
-  assert result['receipt']['sourceBatteryJBefore']-result['receipt']['sourceBatteryJAfter']==100000,result
-  assert result['world']['receipts'][0]['id']==result['receipt']['id'],result
+  assert after==before,{'before':before,'after':after}
   page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!StarfallRuntime?.atmosphericContext8J',timeout=60000)
-  after=page.evaluate("""fixture=>{
-   const r=StarfallRuntime,c=r.atmosphericContext8J();
-   return{bodyId:c.bodyId,delta:c.pressureDeltaPa,
-    gas:r.materials8a.inventory(fixture.containerId).find(x=>x.id===fixture.lotId)?.massKg,
-    count:r.materials8a.operations().filter(x=>x.kind==='PLANET_ATMOSPHERE_EMISSION_8J').length};
+  reloaded=page.evaluate("""fixture=>{
+   const rt=StarfallRuntime,s=SF.load();
+   return {
+    gasKg:rt.materials8a.inventory(fixture.containerId).find(x=>x.id===fixture.lotId)?.massKg,
+    savedGasKg:s.materials8a?.lots.find(x=>x.id===fixture.lotId)?.massKg,
+    world:s.terraformWorlds8j?.[fixture.bodyId]||null,
+    emissions:rt.materials8a.operations().filter(x=>x.kind==='PLANET_ATMOSPHERE_EMISSION_8J').length
+   };
   }""",fixture)
-  assert after['bodyId']==fixture['bodyId'] and after['delta']>0 and after['gas']==2 and after['count']==1,after
-  print('PASS 8J real file:// Chromium: sterile planet emitted +1 kg N2 to persisted global pressure delta, rated source -1 kg, ship -100 kJ, no duplicate after reload')
+  assert reloaded==before,{'before':before,'reloaded':reloaded}
+  print('PASS 8J file:// Chromium industrial rejection: TEST_FIXTURE_ONLY gas cannot be emitted; inventory, planet pressure and receipts unchanged, including after reload')
+
  finally:browser.close()
