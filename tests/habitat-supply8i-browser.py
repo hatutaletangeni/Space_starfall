@@ -86,7 +86,10 @@ with sync_playwright() as p:
   assert after['receipt']['sourceBatteryJBefore']-after['receipt']['sourceBatteryJAfter']==125000,after
   assert after['receipt']['workJ']==125000,after
   assert after['receipt']['energySourceId']=='ship-main:engineering-battery',after
-  assert after['energyJ']<=initial['energyJ']-125000+1e-5,after
+  # Ordinary ship power may rise or fall before the click; the receipt records
+  # the exact pre-action battery and debit. Verify the post-action runtime
+  # matches that receipt, allowing only modest simulation-frame consumption.
+  assert abs(after['energyJ']-after['receipt']['sourceBatteryJAfter'])<1000,after
   assert after['receipt']['status']=='COMMITTED' and after['receipt']['massKg']==5,after
   assert after['durableWater']==130 and after['durableLot']==3,after
   page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
