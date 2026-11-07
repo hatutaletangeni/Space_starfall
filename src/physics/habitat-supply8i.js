@@ -42,6 +42,7 @@ function transfer({operationId,materials,habitat,sourceLotId,shipContainerId,bod
  if(arc(habitat.local,evaLocal,bodyRadius)>MAX_EVA_RANGE||
     arc(habitat.local,shipLocal,bodyRadius)>MAX_SHIP_RANGE)
   throw Error('8I operator must be within 24 and ship within 100 surface units of habitat');
+ if(habitat.habT09.airlock!=='CLOSED')throw Error('8I water service requires a closed habitat airlock');
  const water=habitat.habT09.waterL;
  if(!finite(water)||water+kg>MAX_WATER_L+EPS)throw Error('8I habitat tank lacks water capacity');
  const costJ=WORK_J_PER_KG*kg;
