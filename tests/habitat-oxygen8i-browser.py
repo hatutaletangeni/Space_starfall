@@ -41,6 +41,9 @@ with sync_playwright() as p:
    m.containers.push({id:holderId,ownerId:vesselId,kind:'rated-gas',maxMassKg:100,maxVolumeM3:1});
    m.lots.push({id:sourceId,containerId:holderId,materialId:'oxygen',
     massKg:2,volumeM3:.04,grade:1,provenance:'TEST_FIXTURE_ONLY_electrolyzed_oxygen'});
+   // Explicitly power the ORIGINAL ship in the isolated fixture; game UI
+   // must refuse physical gas transfer when ship power is switched off.
+   rt.vehicleStore.setPower('ship',true);rt.persistVehicles();
    U.persist();SF.save({physical8a:p,materials8a:m});
    window.__STARFALL_IMPORT_PENDING=true;
    return{habitatId:h.id,vesselId,sourceId,holderId};
