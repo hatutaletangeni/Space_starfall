@@ -41,6 +41,11 @@ with sync_playwright() as pw:
           const blueprints=[
             {id:'rocket_stage',station:'rocket_integration',pad:'test-rocket-pad',offset:28,mass:900},
             {id:'habitat_shell',station:'habitat_pad',pad:'test-habitat-pad',offset:-28,mass:1120}];
+          // This isolated 8G fixture represents an expedition stocked with
+          // assembly parts INSTEAD OF the default finite 8K preflight kits.
+          // Clear only test-session preflight lots before adding paid-size
+          // fixture materials; never enlarge the original ship hold.
+          m.lots=m.lots.filter(l=>!l.id.startsWith('preflight8k:'));
           let n=0;
           for(const b of blueprints){
             p.assets.push({id:b.pad,type:'industrial_plant',massKg:b.mass,volumeM3:3.7,
