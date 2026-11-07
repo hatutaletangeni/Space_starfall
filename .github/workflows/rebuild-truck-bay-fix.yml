@@ -1,7 +1,7 @@
-name: Rebuild and verify Update 8I water + 8J feasibility playables
+name: Rebuild and verify STARFALL main desktop and mobile playables
 on:
   push:
-    branches: [main, fix/update8-release-gates-20261107]
+    branches: [main]
     paths:
       - '.github/workflows/rebuild-truck-bay-fix.yml'
       - 'index.html'
@@ -9,18 +9,20 @@ on:
       - 'tests/**'
       - 'tools/build-standalone.py'
       - 'tools/build-mobile-standalone.py'
-      - 'tools/migrate-ui22-browser-tests.py'
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: starfall-main-playables
+  cancel-in-progress: false
 jobs:
-  sync-playable-fix:
+  sync-playables:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out existing truck fix branch
+      - name: Checkout current main
         uses: actions/checkout@v4
         with:
-          ref: fix/update8-release-gates-20261107
+          ref: main
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
@@ -28,49 +30,34 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Migrate stale browser nav to actual Mission workspace
-        run: python tools/migrate-ui22-browser-tests.py
-      - name: Rebuild desktop and landscape mobile standalone
+      - name: Check original truck exit and cargo rules
+        run: |
+          node --check src/flight.js
+          node tests/truck-cockpit.test.cjs
+          node tests/cargo-bay8b.test.cjs
+          node tests/mobile-vehicle-bay.test.cjs
+      - name: Build both playable standalone files
         run: |
           python tools/build-standalone.py
           python tools/build-mobile-standalone.py
-      - name: Validate current source, cargo model and offline parity
+      - name: Verify both playable files match source
         run: |
-          node --check src/flight.js
-          node --check src/physics/habitat-supply8i.js
-          node --check src/physics/habitat-supply-ui8i.js
-          node --check src/physics/terraform8j.js
-          node --check src/physics/terraform-feasibility-ui8j.js
           python tests/standalone-parity.py
-          node tests/cargo-bay8b.test.cjs
-          node tests/update8a.test.cjs
-          node tests/update8ij.test.cjs
-          node tests/habitat-supply8i.test.cjs
-          node --check src/physics/habitat-oxygen8i.js
-          node --check src/physics/habitat-oxygen-ui8i.js
-          node tests/habitat-oxygen8i.test.cjs
-          node --check src/physics/atmosphere-emission8j.js
-          node --check src/physics/atmosphere-emission-ui8j.js
-          node tests/atmosphere-emission8j.test.cjs
-          node --check src/physics/habitat-scrubber8i.js
-          node tests/habitat-scrubber8i.test.cjs
-          node --check src/physics/greenhouse8i.js
-          node tests/greenhouse8i.test.cjs
-          node --check src/physics/starter-manifest8k.js
-          node tests/starter-manifest8k.test.cjs
-      - name: Push validated builds to existing fix branch
+          python tests/mobile-standalone-parity.py
+      - name: Commit verified playable files to main
         run: |
-          git config user.name "starfall-ci"
+          git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html tests/
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
           if ! git diff --cached --quiet; then
-            git commit -m "build: sync desktop/mobile 8I-8J playable integration"
-            git push origin HEAD:fix/update8-release-gates-20261107
+            git commit -m "build: sync desktop and mobile playable with truck cargo exit fix"
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rebuilt-truck-bay-playables
+          name: starfall-main-playables
           path: |
             PLAY-STARFALL.html
             PLAY-STARFALL-MOBILE.html
