@@ -24,6 +24,14 @@ This file deliberately does **not** claim Update 8 is complete.
 - The 8J inspector only calculates canonical global pressure/mass feasibility with all planetary interventions locked. No live global gas transfers, climate, haze or terraforming output were claimed.
 - **Historical baseline:** 27/27 Update 8 CI workflows passed on older integration commit `9cd40d8` prior to adding these 8I–8J slices. The focused 8I/8J acceptance above does NOT replace running the full baseline suite again at the eventual release commit.
 
+## Verified additional 8I rated oxygen service
+
+- **PASS** real file:// Chromium source-owned oxygen refill on integration commit `f7d45430515b66592a741649cbc7bc66e4f3c291`: https://github.com/hatutaletangeni/Space_starfall/actions/runs/42365901536
+- Uses the original `8A` rated oxygen vessel gas lot, existing T09 outpost habitat oxygen cylinder, real ship battery and physical on-foot proximity. An actual Mission → Build control transfers exactly 1 kg O₂ to ~31.252 mol, records 60 kJ work and one source receipt, and survives file:// reload with no gas duplication.
+- **PASS** portable standalone rebuilding and model/parity checks on the same branch commit: https://github.com/hatutaletangeni/Space_starfall/actions/runs/42365901550
+- Source: `src/physics/habitat-oxygen8i.js`, `src/physics/habitat-oxygen-ui8i.js`; tests: `tests/habitat-oxygen8i.test.cjs`, `tests/habitat-oxygen8i-browser.py`.
+- This **does not** implement a CO₂ scrubber cartridge manufacturing chain, greenhouse self-sufficiency, new manufacturing capability, whole-planet atmospheric engineering, or the unassisted 8K release expedition.
+
 ## Required before merger into main
 
 - Pass `node tests/update8ij.test.cjs`, `node tests/habitat-supply8i.test.cjs`, real Chromium `tests/habitat-supply8i-browser.py`, and all baseline node/browser suites.
