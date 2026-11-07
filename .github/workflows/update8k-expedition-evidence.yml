@@ -7,6 +7,7 @@ on:
       - 'src/physics/expedition-audit-ui8k.js'
       - 'tests/expedition-audit8k*'
       - 'tests/update8k-time-acceleration.test.cjs'
+      - 'tests/terraform-numeric-safety8j.test.cjs'
       - '.github/workflows/update8k-expedition-evidence.yml'
       - 'index.html'
   pull_request:
@@ -39,6 +40,7 @@ jobs:
           node --check src/flight.js
           node tests/expedition-audit8k.test.cjs
           node tests/update8k-time-acceleration.test.cjs
+          node tests/terraform-numeric-safety8j.test.cjs
       - name: Rebuild real offline playables and compare source-owned embeds
         run: |
           python tools/build-standalone.py
