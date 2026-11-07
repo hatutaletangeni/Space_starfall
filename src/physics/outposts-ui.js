@@ -254,6 +254,10 @@ function habitatNear(item){
   &&O.arc(ctx.local,item.local,ctx.body.radius)<=24);
 }
 function habitatControl(action,opts={}){
+ // Guard the shared command path, not only the REPAIR button: scripted UI
+ // callers must not bypass Industrial-mode source-paid repair requirements.
+ if(action==='REPAIR'&&SF.load()?.freshExpedition?.schema===1)
+  throw Error('INDUSTRIAL_REPAIR_REQUIRES_PAID_MATERIALS: free T09 seal restoration is disabled');
  const item=selectedHabitat(),H=root.StarfallHabitatT09;
  const body=RT.galaxy.byId.get(item.bodyId)||item.bodySnapshot;
  advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
