@@ -90,8 +90,7 @@ with sync_playwright() as p:
   # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  page.locator('#launch-open').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='ROCKET LAB').click()
   page.wait_for_function("!document.getElementById('launch-dialog').hidden",timeout=15000)
   assert page.locator('#launch-dialog .op16-card').count()==2, 'Rocket Lab and nested Satellite Operations each own a distinct source card'
   assert page.locator('#sat7c-section .op16-card').count()==1
