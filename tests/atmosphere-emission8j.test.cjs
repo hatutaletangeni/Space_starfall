@@ -68,3 +68,29 @@ test('8J source reservations and physically rated gas prevent double spend',()=>
  const b=args();b.materials.lots[0].volumeM3=.001;
  assert.throws(()=>T.emit(b),/pressure/);
 });
+
+test('8J rejects inherited JS property names as atmospheric species',()=>{
+ const a=args();
+ a.physical.assets[0].state.materialId='toString';
+ a.materials.lots[0].materialId='toString';
+ assert.throws(()=>T.emit(a),/rated original gas vessel/);
+ const b=args();
+ b.physical.assets[0].state.materialId='constructor';
+ b.materials.lots[0].materialId='constructor';
+ assert.throws(()=>T.emit(b),/rated original gas vessel/);
+});
+test('8J industrial atmosphere never consumes creative or test-origin lots',()=>{
+ for(const origin of ['CREATIVE:free','TEST_FIXTURE_ONLY','debug:gas','CHEAT_supply']){
+  const a=args();
+  a.materials.lots[0].provenance=origin;
+  assert.throws(()=>T.emit(a),/pure gas lot/,origin);
+ }
+});
+test('8J refuses corrupt canonical SI base and persisted geometry',()=>{
+ const p=profile();
+ p.radiusM=1e308;
+ assert.throws(()=>T.normalize(null,p),/canonical planetary SI profile|incompatible\/corrupt/);
+ const world=T.normalize(null,profile());
+ world.radiusM=NaN;
+ assert.throws(()=>T.normalize(world,profile()),/incompatible\/corrupt/);
+});
