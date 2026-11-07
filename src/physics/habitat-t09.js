@@ -159,6 +159,11 @@ function step(item,body,simS,actualPowered){
  return inspect(item,body,powered);
 }
 function command(item,action,{now=0,near=false,powered=false,body=null,occupants=null}={}){
+ // Enforce the Industrial repair restriction at the native T09 command owner,
+ // not only at UI22. Reject before ensure() can mutate restored habitat state.
+ // Legacy/creative saves retain their original REPAIR behavior.
+ if(action==='REPAIR'&&root.SF?.load?.()?.freshExpedition?.schema===1)
+  throw Error('Industrial T09 seal repair requires source-paid manufactured parts, power and time');
  const h=ensure(item,now);
  if(!finite(now)||now<0)throw Error('Invalid habitat event time');
  if(!near)throw Error('Habitat systems controls require approaching the actual structure while on foot');
