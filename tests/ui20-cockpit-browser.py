@@ -49,7 +49,10 @@ with sync_playwright() as p:
   assert page.locator('#ui21-manual').is_visible(), 'Help should open the current searchable Field Manual'
   page.keyboard.press('Escape')
   assert page.locator('#ui21-manual').is_hidden(), 'Escape should close the Field Manual'
-  page.locator('#ui-console-open').click()
+  # UI22 has replaced the hidden legacy console toggle with Mission workspace.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   assert page.locator('#panel').is_visible()
   # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
