@@ -1,5 +1,5 @@
-from ui22_browser_nav import open_route
 #!/usr/bin/env python3
+from ui22_browser_nav import open_route
 """STARFALL 8G real offline Chromium structural-assembly regression.
 Controlled material fixtures are test-only; production never grants resources.
 """
@@ -61,7 +61,7 @@ with sync_playwright() as pw:
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
         try:
-        page.wait_for_function('typeof StarfallRuntime !== "undefined" && StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("structure-assembly8g")',timeout=40000)
+            page.wait_for_function('typeof StarfallRuntime !== "undefined" && StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("structure-assembly8g")',timeout=40000)
         except Exception:
             # Preserve the hard failure, but identify whether save, landing,
             # EVA or UI22 initialization failed after the fixture reload.
