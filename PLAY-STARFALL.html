@@ -13262,6 +13262,8 @@ const gas={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,hydrogen:.00201
 const EPS=1e-8,WORK_J_KG=100000,MAX_BATCH_KG=10;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
+const knownGas=x=>Object.prototype.hasOwnProperty.call(gas,x);
+const genuineOrigin=x=>id(x)&&!/TEST_FIXTURE|CREATIVE|DEBUG|CHEAT/i.test(x);
 function normalize(saved,profile){
  if(!profile||!id(profile.id)||!finite(profile.radiusM)||profile.radiusM<=0||
     !finite(profile.surfaceGravityMS2)||profile.surfaceGravityMS2<=0||
@@ -13278,6 +13280,8 @@ function normalize(saved,profile){
    !finite(s.netAddedKg)||!finite(s.pressureDeltaPa)||
    !Array.isArray(s.receipts)||s.receipts.length>2000||
    !s.emittedSpeciesKg||typeof s.emittedSpeciesKg!=='object'||
+   !finite(s.radiusM)||!finite(s.gravityMS2)||
+   !Number.isFinite(baseMass)||baseMass<0||
    Math.abs(s.radiusM-profile.radiusM)>1e-6||
    Math.abs(s.gravityMS2-profile.surfaceGravityMS2)>1e-6||
    new Set(s.receipts.map(r=>r.id)).size!==s.receipts.length)
@@ -13315,7 +13319,7 @@ function emit(input){
  if(!vessel||vessel.type!=='industrial_vessel'||vessel.state?.enabled!==true||
   !finite(vessel.condition)||vessel.condition<.8||
   !finite(vessel.state?.ratedPressurePa)||vessel.state.ratedPressurePa<5e6||
-  !gas[vessel.state.materialId])throw Error('8J requires a safe, enabled, rated original gas vessel');
+  !knownGas(vessel.state.materialId))throw Error('8J requires a safe, enabled, rated original gas vessel');
  const materialId=vessel.state.materialId;
  if(vessel.location?.kind==='ship'){
   if(vessel.location.parentId!=='ship-main'||vessel.location.slot!=='engineering-gas-cradle')
@@ -13330,13 +13334,16 @@ function emit(input){
  if(lots.some(l=>l.materialId!==materialId))throw Error('8J refuses mixed gas vessel');
  const l=lots.find(x=>x.id===a.sourceLotId&&x.materialId===materialId&&
   finite(x.massKg)&&x.massKg>=a.kg-EPS&&finite(x.volumeM3)&&x.volumeM3>0&&
-  finite(x.grade)&&x.grade>=.98&&id(x.provenance));
+  finite(x.grade)&&x.grade>=.98&&genuineOrigin(x.provenance));
  if(!l)throw Error('8J no adequate source-owned pure gas lot');
+ if(lots.some(x=>!finite(x.massKg)||!finite(x.volumeM3)||!genuineOrigin(x.provenance)))
+  throw Error('8J invalid or creative gas lot in source vessel');
  const total=lots.reduce((x,v)=>x+v.massKg,0),vol=lots.reduce((x,v)=>x+v.volumeM3,0);
- if(!vol||total>c.maxMassKg+EPS||vol>c.maxVolumeM3+EPS)
+ if(!Number.isFinite(total)||!Number.isFinite(vol)||!finite(c.maxMassKg)||
+    !finite(c.maxVolumeM3)||!vol||total>c.maxMassKg+EPS||vol>c.maxVolumeM3+EPS)
   throw Error('8J gas vessel overfilled');
  const pressure=total/gas[materialId]*8.314462618*293.15/vol;
- if(pressure>vessel.state.ratedPressurePa+100||pressure<1e5)
+ if(!Number.isFinite(pressure)||pressure>vessel.state.ratedPressurePa+100||pressure<1e5)
   throw Error('8J gas pressure exceeds source vessel rating');
  const held=a.materials.operations.filter(x=>x.status==='RESERVED'&&x.lotId===l.id)
   .reduce((s,x)=>s+x.massKg,0);
