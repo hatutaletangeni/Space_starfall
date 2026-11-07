@@ -16,6 +16,14 @@ This file deliberately does **not** claim Update 8 is complete.
 - **8J canonical feasibility:** The Engineer view derives radius, gravity, seed-baseline pressure and escape velocity from `StarfallPhysics.bodyProfile`; computes planetary pressure mass and hypothetical import duration without writing atmosphere, giving free gas or touching terrain. Native-life/ruins warnings are informational and ALL global interventions remain locked.
 - **Offline parity:** Builds are generated using `python tools/build-standalone.py` and `python tools/build-mobile-standalone.py`.
 
+## Verified incremental acceptance
+
+- **8I finite water service + 8J read-only planetary feasibility:** **PASS** in real offline Chromium on integration commit `3957fa0200c27b4039eaa2435bdf1f19b9490165`. Workflow: https://github.com/hatutaletangeni/Space_starfall/actions/runs/42365087198 (completed successfully).
+- The workflow executes native source invariants, both actual standalone builds, desktop source/standalone parity, an actual Mission → Build water transaction on a controlled test-only 8A lot, durable save/reload, and a real Mission → Build 8J inspector with unchanged real inventory and world-reservoir state.
+- The 8I browser acceptance showed 5 kg removed from a source-owned ship lot, 5 L credited to the existing T09 structure, 125 kJ debited from the original ship energy owner and recorded in one transaction receipt, then exactly one receipt after save/reload. This is evidence of a **water-refill feature**, not evidence of self-sustaining ecosystems.
+- The 8J inspector only calculates canonical global pressure/mass feasibility with all planetary interventions locked. No live global gas transfers, climate, haze or terraforming output were claimed.
+- **Historical baseline:** 27/27 Update 8 CI workflows passed on older integration commit `9cd40d8` prior to adding these 8I–8J slices. The focused 8I/8J acceptance above does NOT replace running the full baseline suite again at the eventual release commit.
+
 ## Required before merger into main
 
 - Pass `node tests/update8ij.test.cjs`, `node tests/habitat-supply8i.test.cjs`, real Chromium `tests/habitat-supply8i-browser.py`, and all baseline node/browser suites.
