@@ -56,6 +56,8 @@ jobs:
           node tests/habitat-scrubber8i.test.cjs
           node --check src/physics/greenhouse8i.js
           node tests/greenhouse8i.test.cjs
+          node --check src/physics/starter-manifest8k.js
+          node tests/starter-manifest8k.test.cjs
       - name: Push validated builds to existing fix branch
         run: |
           git config user.name "starfall-ci"
