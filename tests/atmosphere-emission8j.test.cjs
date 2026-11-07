@@ -21,7 +21,9 @@ test('8J source-owned gas mass, pressure and original battery exactly conserved'
  assert.equal(r.duplicate,false);
  assert.equal(r.materials.lots[0].massKg,3);
  assert.equal(r.materials.lots[0].volumeM3,.06);
- assert.equal(r.world.atmosphereKg-r.world.baselineAtmosphereKg,1);
+ assert.equal(r.world.netAddedKg,1);
+ assert.ok(r.world.pressureDeltaPa>0);
+ assert.ok(Math.abs(r.world.pressureDeltaPa-9.8/(4*Math.PI*6000000**2))<1e-18);
  assert.ok(Math.abs(r.receipt.pressureDeltaPa-9.8/(4*Math.PI*6000000**2))<1e-8);
  assert.equal(r.world.emittedSpeciesKg.oxygen,1);
  assert.equal(r.shipEnergyJ,900000);
@@ -57,6 +59,8 @@ test('8J pressure does not change in absence of a real physical transaction',()=
  assert.equal(s.pressurePa,profile().atmospherePressurePa);
  assert.equal(s.receipts.length,0);
  assert.equal(s.atmosphereKg,s.baselineAtmosphereKg);
+ assert.equal(s.netAddedKg,0);
+ assert.equal(s.pressureDeltaPa,0);
 });
 test('8J source reservations and physically rated gas prevent double spend',()=>{
  const a=args();a.materials.operations.push({id:'reserved',status:'RESERVED',lotId:'gas:lot',massKg:3.5});
