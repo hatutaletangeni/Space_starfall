@@ -103,7 +103,7 @@ jobs:
         run: python tests/terraform-feasibility8j-browser.py
       - name: Test actual rated oxygen cylinder and saved physical gas custody in Chromium
         run: python tests/habitat-oxygen8i-browser.py
-      - name: Prove physical planetary gas conservation and saved world delta in actual Chromium
+      - name: Reject TEST_FIXTURE_ONLY gas in industrial 8J browser and preserve source stock
         run: python tests/atmosphere-emission8j-browser.py
       - name: Verify physical manufactured T09 CO2 scrubber service and durable original inventory in Chromium
         run: python tests/habitat-scrubber8i-browser.py
