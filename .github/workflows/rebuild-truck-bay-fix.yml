@@ -49,6 +49,9 @@ jobs:
           node --check src/physics/habitat-oxygen8i.js
           node --check src/physics/habitat-oxygen-ui8i.js
           node tests/habitat-oxygen8i.test.cjs
+          node --check src/physics/atmosphere-emission8j.js
+          node --check src/physics/atmosphere-emission-ui8j.js
+          node tests/atmosphere-emission8j.test.cjs
       - name: Push validated builds to existing fix branch
         run: |
           git config user.name "starfall-ci"
