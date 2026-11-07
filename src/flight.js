@@ -1788,7 +1788,7 @@ function atmosphericRelease8J(vesselId,lotId,kg){
   throw Error('8J requires existing landed ship and nearby EVA operator');
  const vessel=physical8a.get(vesselId);
  const arc=(a,b)=>Math.acos(Math.max(-1,Math.min(1,V.dot(V.norm(a),V.norm(b)))))*nearest.radius;
- const close=arc(evaLocal,shipLocal)<35;
+ const close=arc(evaLocal,shipLocal)<=95; // original 8G rated 95-unit EVA-to-ship hose reach
  const vesselNear=!!(vessel?.location?.kind==='surface'&&
   Array.isArray(vessel.location.local)&&arc(evaLocal,vessel.location.local)<24);
  const old=terraformWorlds8j[c.bodyId]||null;
