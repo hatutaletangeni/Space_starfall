@@ -22676,11 +22676,17 @@ function refresh(){
    targetPressurePa:Number(target.value)*1000,
    externalImportKgS:Number(rate.value),
    nativeLife:hasLife,archaeologicalProtection:hasRuins,landable:body.landable});
+  const current=rt.atmosphericContext8J?.();
+  const released=current?.bodyId===body.id?current:null;
+  const tinyDeltaPa=released?.pressureDeltaPa||0;
+  const microReleaseAvailable=!!(released&&!released.protectedWorld&&body.landable);
   status.textContent='WORLD: '+body.name+' · '+body.id+
    '\nCLASSIFICATION: '+profile.classification+' · '+body.type+
    '\nMODEL RADIUS: '+fmt(a.radiusM/1000,1)+' km · SURFACE g: '+fmt(a.gravityMS2,3)+' m/s²'+
    '\nESCAPE VELOCITY: '+fmt(a.escapeSpeedMS/1000,2)+' km/s'+
    '\nSEEDED BASELINE: '+fmt(a.baselinePressurePa/1000,3)+' kPa'+
+   '\nSOURCE-PAID REPORTED ΔP: '+tinyDeltaPa.toExponential(9)+' Pa'+
+   '\nACTUAL PRESSURE (BASE + EMISSIONS): '+(released?.pressurePa??a.baselinePressurePa).toFixed(9)+' Pa'+
    '\nTARGET: '+fmt(a.targetPressurePa/1000,3)+' kPa'+
    '\n1 Pa MEAN PRESSURE REQUIRES: '+fmt(a.massPerPa,0)+' kg of atmosphere'+
    '\nNET IMPORT FOR TARGET: '+fmt(a.requiredImportKg,0)+' kg'+
@@ -22688,7 +22694,8 @@ function refresh(){
    '\nASSUMED CONTINUOUS IMPORT: '+fmt(a.hypotheticalRateKgS,2)+' kg/s'+
    '\nIDEALIZED YEARS AT RATE: '+(a.yearsAtRate===null?'NO IMPORT RATE':fmt(a.yearsAtRate,1))+
    '\nPLANETARY PROTECTION: '+(a.protectedWorld?'WARNING / PRESERVE NATIVE SITES':'NO IDENTIFIED NATIVE SITES; NOT CLEARED')+
-   '\nREAL INDUSTRIAL ACTION: LOCKED / NOT IMPLEMENTED'+
+   '\nSOURCE-PAID TINY GAS RELEASE: '+(microReleaseAvailable?'SEE PHYSICAL VESSEL SERVICE BELOW':'BLOCKED ON THIS WORLD')+
+   '\nGLOBAL CLIMATE/TERRAFORMING CONTROL: LOCKED / NOT IMPLEMENTED'+
    '\n\n'+a.warnings.join('\n');
  }catch(e){status.textContent='INSUFFICIENT CANONICAL WORLD DATA: '+String(e.message||e);}
 }
