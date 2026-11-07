@@ -23,7 +23,7 @@ function defaults(now=0){
  const n=gasMoles(C.pressureKPa,C.referenceK),o2=gasMoles(C.oxygenTargetKPa,C.referenceK);
  return{schema:SCHEMA,enabled:false,mode:'STANDBY',lastS:now,seal:1,volumeM3:C.volumeM3,
   oxygenMol:o2,inertMol:n-o2,carbonMol:0.0003*n,oxygenTankMol:1050,
-  inertTankMol:3500,scrubberCapacityMol:350,filteredAirMol:0,scrubberMediaInstalledKg:0,waterL:200,
+  inertTankMol:3500,scrubberCapacityMol:350,filteredAirMol:0,scrubberMediaInstalledKg:0,greenhouse8i:null,waterL:200,
   tempK:C.referenceK,occupants:0,airlock:'CLOSED',airlockUntilS:null,
   airlockRequested:'',backupJ:0,heatLossW:0,thermalLoadW:0,
   powerW:0,integratedSupplyW:0,leakRateS:C.normalLeakS,
