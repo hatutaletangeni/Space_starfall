@@ -111,6 +111,11 @@ with sync_playwright() as p:
             guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
         }""")
         assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
+        # The controlled fixture manually persisted all authoritative stores above.
+        # Prevent the old flight pagehide from replacing those newer bytes with
+        # a stale orbital snapshot during this fixture-only reload. The next
+        # page must still restore the actual disk packets, rover and ACK state.
+        page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallLaunchUI)",timeout=30000)
         restored=page.evaluate("""()=>{
