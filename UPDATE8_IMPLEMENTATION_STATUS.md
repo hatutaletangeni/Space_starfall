@@ -9,6 +9,8 @@ This file deliberately does **not** claim Update 8 is complete.
 - **UI22 visible Rocket Lab:** Original Rocket Lab can now be launched through Mission → Build; its old hidden quick-tools button remains owned by the existing implementation. The Chromium T16 test now uses the visible action.
 - **8B truck custody regression:** Browser test opens the real Mission → Build Asset Manager action rather than the permanently hidden legacy header shortcut; the remote-world no-duplication assertions remain unchanged.
 - **T16 operations regression:** Browser test opens the Overview workspace where the existing operations status card is actually mounted, then operates the real filter.
+- **Mission-first navigation:** Original Rocket Lab is available through Mission → Build, Observatory through Mission → Navigate, and Save/Restore through Mission → Records. Updated T17/T18/UI20 browser tests navigate those visible actions and retain their original source-backed assertions.
+- **CI packaging:** Branch-owned rebuild workflow now compiles desktop and mobile playables on integration source edits, without triggering itself on bot-authored bundle-only changes.
 - **8I / 8J models:** Existing source-owned habitat gas and atmospheric pressure models are now loaded in both editable and compiled game entries. Model tests check power constraints, gas conservation, pressure equation, invalid mass requests and duplicate receipts. 8J rejects replay of a receipt ID with different mass/time parameters.
 - **Offline parity:** Builds are generated using `python tools/build-standalone.py` and `python tools/build-mobile-standalone.py`.
 
