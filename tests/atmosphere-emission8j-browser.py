@@ -56,8 +56,10 @@ with sync_playwright() as p:
   button=panel.get_by_role('button',name='VENT SOURCE-PAID GAS TO PLANET')
   assert button.is_enabled(),panel.inner_text()
   button.click()
-  page.wait_for_function("""()=>document.querySelector('#atmosphere-emission8j [role=status]')
-    ?.textContent.includes('COMMITTED')""",timeout=15000)
+  page.wait_for_timeout(350)
+  current=panel.locator('[role=status]').inner_text()
+  assert 'COMMITTED' in current,{'status':current,'panel':panel.inner_text(),
+    'context':page.evaluate('()=>StarfallRuntime.atmosphericContext8J()')}
   result=page.evaluate("""fixture=>{
    const rt=StarfallRuntime,s=SF.load(),w=s.terraformWorlds8j?.[fixture.bodyId],
     gas=rt.materials8a.inventory(fixture.containerId).find(x=>x.id===fixture.lotId),
