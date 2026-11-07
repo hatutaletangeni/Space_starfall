@@ -8,6 +8,7 @@ on:
       - 'src/flight.js'
       - 'index.html'
       - 'tests/habitat-supply8i*'
+      - 'tests/terraform-feasibility8j-browser.py'
       - '.github/workflows/update8i-habitat-water-browser.yml'
   pull_request:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - 'src/flight.js'
       - 'index.html'
       - 'tests/habitat-supply8i*'
+      - 'tests/terraform-feasibility8j-browser.py'
       - '.github/workflows/update8i-habitat-water-browser.yml'
   workflow_dispatch:
 permissions:
@@ -51,3 +53,5 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Test physical 8A ship water, T09 state and durable Mission UI in Chromium
         run: python tests/habitat-supply8i-browser.py
+      - name: Verify that 8J planetary budget controls do not fabricate atmosphere
+        run: python tests/terraform-feasibility8j-browser.py
