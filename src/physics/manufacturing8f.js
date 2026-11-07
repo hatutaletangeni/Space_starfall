@@ -23,6 +23,12 @@ const RECIPES=Object.freeze({
  battery_cell:{category:'energy',station:'battery',tool:'cell-assembly',inputs:{electrode_active:1.2,copper:0.15,aluminum:0.1,electrolyte:0.25,separator:0.08,cell_casing:0.3},outputs:{battery_cell:1.95},powerW:1800,seconds:400,toleranceMm:0.5},
  solar_module:{category:'energy',station:'solar',tool:'module-laminator',inputs:{pv_cells:2,glass:4,aluminum_frame:2,insulated_wire:0.5,encapsulant:0.6},outputs:{solar_module:8.8},powerW:2200,seconds:370,toleranceMm:1},
  // A replaceable sorbent is fabricated, never conjured as a habitat toggle.
+ // Real sealed greenhouse kit: externally manufactured seeds and nutrients
+ // remain separate mandatory biological inputs, NOT part of this hardware.
+ greenhouse_kit:{category:'life_support',station:'assembly',tool:'kit-fixture',
+  inputs:{glass:2,aluminum_frame:1,insulated_wire:.3,control_board:.6,insulation_polymer:.1},
+  outputs:{greenhouse_kit:3.7},outputVolumesM3:{greenhouse_kit:.14},
+  powerW:1500,seconds:500,toleranceMm:1},
  scrubber_media:{category:'life_support',station:'press',tool:'manual-press',
   inputs:{zeolite:1,insulation_polymer:.1},outputs:{scrubber_media:1.02},
   outputVolumesM3:{scrubber_media:.002},powerW:900,seconds:180,toleranceMm:1},
