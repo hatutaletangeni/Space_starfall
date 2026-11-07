@@ -35,6 +35,7 @@ jobs:
           node --check src/flight.js
           node tests/truck-cockpit.test.cjs
           node tests/factory-material-sources8f.test.cjs
+          node tests/expedition-manifest8k.test.cjs
           node tests/cargo-bay8b.test.cjs
           node tests/mobile-vehicle-bay.test.cjs
       - name: Build both playable standalone files
