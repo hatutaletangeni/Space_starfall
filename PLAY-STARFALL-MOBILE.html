@@ -12731,7 +12731,9 @@ function transfer({operationId,materials,habitat,sourceLotId,shipContainerId,bod
  h.habT09.waterL+=kg;
  const receipt={id:operationId,kind:'HABITAT_WATER_8I',status:'COMMITTED',
   lotId:sourceLotId,habitatId:h.id,sourceContainerId:shipContainerId,
-  massKg:kg,workJ:costJ,bodyId,sourceProvenance:lot.provenance,
+  massKg:kg,workJ:costJ,energySourceId:'ship-main:engineering-battery',
+  sourceBatteryJBefore:shipEnergyJ,sourceBatteryJAfter:shipEnergyJ-costJ,
+  bodyId,sourceProvenance:lot.provenance,
   destination:'outpost5:'+h.id+':habT09.waterL'};
  m.operations.push(receipt);
  // Verify the new material snapshot is loadable; never mutate the original.
