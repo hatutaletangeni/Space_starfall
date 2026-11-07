@@ -33,8 +33,10 @@ with sync_playwright() as p:
   target.dispatch_event('input')
   view=panel.locator(':scope > pre').inner_text()
   assert baseline['world'] in view and 'MODEL RADIUS' in view,view
-  assert 'NET IMPORT FOR TARGET:' in view and 'REAL INDUSTRIAL ACTION: LOCKED / NOT IMPLEMENTED' in view,view
+  assert 'NET IMPORT FOR TARGET:' in view and 'GLOBAL CLIMATE/TERRAFORMING CONTROL: LOCKED / NOT IMPLEMENTED' in view,view
   assert 'Planning only' in view and 'no 8A gas lots' in view,view
+  assert 'SOURCE-PAID REPORTED ΔP:' in view and 'ACTUAL PRESSURE (BASE + EMISSIONS):' in view,view
+  assert 'SOURCE-PAID TINY GAS RELEASE:' in view,view
   proof=page.evaluate("""()=>{
    const rt=StarfallRuntime,b=rt.outpostContext().body,P=StarfallPhysics,
     s=rt.galaxy.byId.get(b.systemId),p=P.bodyProfile(b,P.starProfile(s.star)),
