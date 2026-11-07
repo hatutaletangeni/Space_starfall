@@ -103,8 +103,19 @@ with sync_playwright() as p:
           STARFALL_DEBUG.setSimulationTime(at);
           StarfallCommsT03.persist();
           StarfallMissionOperationsUI.persist();
-          const old=SF.load().flightGalaxy||{};
-          SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
+          const old=SF.load().flightGalaxy||{},body=rt.nearest,
+            ship=rt.engineeringAssetPoses().shipPose;
+          if(!rt.landed||ship?.bodyId!==body.id||!ship.local)
+            throw Error('Cannot save actual surface radio fixture: ship no longer landed on rover world');
+          // The original landed snapshot's groundDirection belongs to time=0.
+          // After manually advancing the planetary clock, save the REAL
+          // body-fixed ship anchor transformed through the CURRENT spin.
+          // Otherwise reload reconstructs a physically different ship location
+          // while the deployed rover remains in its correct fixed coordinates.
+          const dir=StarfallOutposts.rotate(ship.local,body.spinAxis||[0,1,0],body.spinAngle||0),
+            position=body.position.map((v,i)=>v+dir[i]*(body.radius+8));
+          SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at,
+            position,attached:body.id,groundDirection:dir,landed:true}});
           const value=SF.load(),raw=JSON.parse(localStorage.getItem('starfall_save')||'{}');
           return{packets:value.commsT03?.packets?.length||0,rovers:value.launch7?.rovers?.length||0,
             diskPackets:raw.commsT03?.packets?.length||0,diskRovers:raw.launch7?.rovers?.length||0,
