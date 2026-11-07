@@ -108,9 +108,16 @@ with sync_playwright() as p:
           const value=SF.load(),raw=JSON.parse(localStorage.getItem('starfall_save')||'{}');
           return{packets:value.commsT03?.packets?.length||0,rovers:value.launch7?.rovers?.length||0,
             diskPackets:raw.commsT03?.packets?.length||0,diskRovers:raw.launch7?.rovers?.length||0,
-            guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
+            guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length,
+            flight:{landed:value.flightGalaxy?.landed,attached:value.flightGalaxy?.attached,
+              position:value.flightGalaxy?.position,time:value.flightGalaxy?.time},
+            live:{landed:rt.landed,nearest:rt.nearest?.id,
+              shipPose:rt.engineeringAssetPoses().shipPose}};
         }""")
         assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
+        # Fail at the first invalid source-owned flight checkpoint, not after
+        # reload when the radio symptom obscures which owner lost attachment.
+        assert persisted['flight']['landed'] and persisted['flight']['attached']==setup['bodyId'],persisted
         # Flight pagehide is an independent owner and can issue a stale save
         # while the browser closes this page. Read back the REAL source owner
         # first (above), then prevent only that old-page overwrite on reload.
