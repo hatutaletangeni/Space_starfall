@@ -34,7 +34,10 @@ with sync_playwright() as p:
    return{mass:v.stats.massKg,capacity:v.stats.batteryCapacityJ,energy:v.state.energyJ,
     torque:v.stats.driveTorqueNm,solar:v.stats.maxSolarW,source:v.definition.id};
   }""")
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 visible mission workflow; all original scenario assertions remain.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   page.locator('#systems-toggle').click()
   page.wait_for_function("!document.getElementById('systems-inner').hidden",timeout=15000)
   page.locator('#workbench-open').click()

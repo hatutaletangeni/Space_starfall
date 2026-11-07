@@ -52,7 +52,10 @@ with sync_playwright() as p:
   assert report['denied'] and not report['onFoot'],report
   assert report['noMutation'],report
   assert report['surfaceHoppers']==0,'No FREE 8E factory provided on a fresh original save: '+str(report)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 visible mission workflow; all original scenario assertions remain.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   panel=page.locator('#industrial8h-surface-feed')
   assert panel.is_visible(),'Original Engineering panel must show genuine dry dock/hopper controls'
   text=panel.inner_text()

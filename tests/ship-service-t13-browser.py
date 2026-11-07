@@ -48,7 +48,11 @@ with sync_playwright() as p:
    return !!(r&&r.draws.avionics>=v.stats.avionicsW&&r.draws.instruments>=v.stats.instrumentsW);
   }""",timeout=15000)
   # UI21 places electrical systems under the Engineer route; click the visible route first.
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 deliberately hides the legacy nav. Open the visible Mission → Build
+  # workspace, which selects the original Engineer route and keeps its controls.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   page.locator('#systems-toggle').click()
   page.wait_for_function("!document.querySelector('#systems-inner').hidden && !document.querySelector('#ship-t13-panel').hidden")
   status=page.locator('#ship-t13-readout').inner_text()

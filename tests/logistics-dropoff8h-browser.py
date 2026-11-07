@@ -77,7 +77,11 @@ with sync_playwright() as p:
   }""")
   assert preflight['near'] and preflight['truck'] and preflight['lot']==20,preflight
   assert preflight['gap']<=15,preflight
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 deliberately hides the legacy nav. Open the visible Mission → Build
+  # workspace, which selects the original Engineer route and keeps its controls.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   ui=page.locator('#logistics8h-panel')
   ui.locator('#logistics8h-ore-lot').select_option(fixture['lotId'])
   ui.locator('#logistics8h-depot').select_option(fixture['depotId'])
@@ -146,7 +150,11 @@ with sync_playwright() as p:
   # stopped truck. No invented ore: source must be the committed depot lot.
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
   page.wait_for_function("StarfallRuntime.logisticsContext8H().pickupLots.length===1",timeout=20000)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 deliberately hides the legacy nav. Open the visible Mission → Build
+  # workspace, which selects the original Engineer route and keeps its controls.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   pick=page.locator('#logistics8h-pickup-lot')
   assert pick.count()==1,'Original Engineer pickup selector absent'
   expected=page.evaluate("""()=>{
@@ -224,7 +232,11 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("StarfallRuntime.logisticsContext8H?.().depots?.length===2",timeout=60000)
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22 deliberately hides the legacy nav. Open the visible Mission → Build
+  # workspace, which selects the original Engineer route and keeps its controls.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   plan=page.locator('#logistics8h-route-plan')
   page.locator('#logistics8h-route-first').select_option(fixture['depotId'])
   page.locator('#logistics8h-route-second').select_option(nextStop)
