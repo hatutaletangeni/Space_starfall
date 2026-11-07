@@ -130,7 +130,11 @@ with sync_playwright() as p:
           }));
           for(let i=0;i<10;i++)ops.advanceTo(95+i*5);
           const p=T.transport.get(pending.id);
-          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length};
+          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length,
+            diagnostics:{link:T.routeFor(p,ops.clock.lastSimulatedS),shipPose:StarfallRuntime.engineeringAssetPoses()?.shipPose,
+             roverLocal:r.local,shipEnergyJ:StarfallRuntime.vehicleStore.get('ship').state.energyJ,
+             shipRadio:StarfallRuntime.shipServiceSnapshotT13?.().radio,
+             ctx:StarfallRuntime.outpostContext(),clock:ops.clock.lastSimulatedS}};
         }""")
         assert restored['packet']['state']=='ACKED',restored
         assert restored['receipts']==1,restored
