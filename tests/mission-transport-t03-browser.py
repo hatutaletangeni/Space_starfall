@@ -130,7 +130,17 @@ with sync_playwright() as p:
           }));
           for(let i=0;i<10;i++)ops.advanceTo(95+i*5);
           const p=T.transport.get(pending.id);
-          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length};
+          const rt=StarfallRuntime,ship=rt.vehicleStore.get('ship'),pose=rt.engineeringAssetPoses(),route=T.routeFor(p,ops.clock.lastSimulatedS);
+          const disk=SF.load();
+          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length,
+            diagnostic:{landed:rt.landed,attached:rt.attached?.id||rt.attached,
+              nearest:rt.nearest?.id,shipPose:pose.shipPose,
+              shipEnergyJ:ship?.state?.energyJ,route,
+              clockS:ops.clock.lastSimulatedS,
+              savedFlight:{landed:disk.flightGalaxy?.landed,attached:disk.flightGalaxy?.attached,
+                position:disk.flightGalaxy?.position,time:disk.flightGalaxy?.time},
+              roverLocal:r.local,roverBatteryJ:r.batteryJ,
+              persistedPacketCount:disk.commsT03?.packets?.length}};
         }""")
         assert restored['packet']['state']=='ACKED',restored
         assert restored['receipts']==1,restored
