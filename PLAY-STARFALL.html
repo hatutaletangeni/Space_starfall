@@ -13015,8 +13015,17 @@ function enterTruck(){
 }
 function exitTruck(){
  if(!truckOccupied||!truckBody||!truckLocal)return false;
- if(cargo8b.mode==='ramp'){showToast('TRUCK · Reverse all the way off the ramp before exiting');return false;}
+ const onCargoDeck=cargo8b.mode==='ramp'&&cargo8b.pose.z<=BAY8B.BAY.rearZ-BAY8B.BAY.vehicleLength/2+.01;
+ if(cargo8b.mode==='ramp'&&!onCargoDeck){showToast('TRUCK · Drive fully inside the cargo deck or reverse off the ramp before exiting');return false;}
  if(keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')){showToast('TRUCK · Release throttle before exiting');return false;}
+ if(onCargoDeck){
+  // Exit into the actual ship interior, never the planetary terrain beneath the cargo bay.
+  truckOccupied=false;eva=false;shipWalking8e=true;
+  shipWalkAt8e={x:6.2,z:Math.max(2,Math.min(12,cargo8b.pose.z)),heading:0};
+  camMode=0;camEye=null;vel=[0,0,0];roverEntryCooldown=1.2;
+  showToast('VEHICLE BAY · Exited truck onto ship deck · X near truck to re-enter');
+  saveFlight();return true;
+ }
  truckOccupied=false;eva=true;const prev=truckLocal.slice(),dis=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,-4,-13);
  evaLocal=dis;const axis=truckBody.spinAxis||[0,1,0],dir=V.norm(V.rot(dis,axis,truckBody.spinAngle||0));
  evaForward=[...truckForwardVec];pos=V.add(truckBody.position,V.mul(dir,truckBody.radius+groundHeight(dis,truckBody)+EVA_HEIGHT));up=dir;camEye=null;
@@ -15390,12 +15399,12 @@ function truckHudInfo(){
   drillConditionPct:Math.round(mining8d.toolCondition*100),
   deposit:site?.label||null,surveyed,oreRemainingKg:site?resources8c.remaining(site):0,
   cycle:op?.type||null,cyclePct:op?Math.min(100,Math.round(op.elapsedS/op.durationS*100)):0,
-  canExit:truckOccupied&&cargo8b.mode!=='ramp'&&!moving,
+  canExit:truckOccupied&&!moving&&(cargo8b.mode!=='ramp'||cargo8b.pose.z<=BAY8B.BAY.rearZ-BAY8B.BAY.vehicleLength/2+.01),
   canDrill:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&surveyed&&site&&
     resources8c.remaining(site)>=StarfallMining8D.DRILL.kgPerBatch&&truckBatteryJ>=StarfallMining8D.DRILL.minimumEnergyJ&&mining8d.toolCondition>=.1),
   canLoad:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&ctx.truckNearShip&&lots.length),
   lots:lots.map(l=>({id:l.id,materialId:l.materialId,massKg:l.massKg})),
-  hint:cargo8b.mode==='ramp'?'REVERSE DOWN RAMP · EXIT LOCKED':
+  hint:cargo8b.mode==='ramp'?(cargo8b.pose.z<=BAY8B.BAY.rearZ-BAY8B.BAY.vehicleLength/2+.01?'PARKED ON DECK · EXIT TO SHIP INTERIOR':'MOVE FULLY INTO BAY OR REVERSE OFF RAMP'):
    op?op.type+' '+Math.round(op.elapsedS/op.durationS*100)+'% · KEEP PARKED':
    !surveyed?'SURVEY DEPOSIT ON FOOT BEFORE DRILLING':'PARK OVER SURVEYED DEPOSIT TO MINE'};
 }
