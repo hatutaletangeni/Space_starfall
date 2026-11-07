@@ -7,6 +7,9 @@ on:
       - 'src/physics/habitat-oxygen8i.js'
       - 'src/physics/habitat-oxygen-ui8i.js'
       - 'tests/habitat-oxygen8i*'
+      - 'src/physics/atmosphere-emission8j.js'
+      - 'src/physics/atmosphere-emission-ui8j.js'
+      - 'tests/atmosphere-emission8j*'
       - 'src/physics/habitat-supply-ui8i.js'
       - 'src/flight.js'
       - 'index.html'
@@ -20,6 +23,9 @@ on:
       - 'src/physics/habitat-oxygen8i.js'
       - 'src/physics/habitat-oxygen-ui8i.js'
       - 'tests/habitat-oxygen8i*'
+      - 'src/physics/atmosphere-emission8j.js'
+      - 'src/physics/atmosphere-emission-ui8j.js'
+      - 'tests/atmosphere-emission8j*'
       - 'src/physics/habitat-supply-ui8i.js'
       - 'src/flight.js'
       - 'index.html'
@@ -50,6 +56,9 @@ jobs:
           node --check src/physics/habitat-oxygen8i.js
           node --check src/physics/habitat-oxygen-ui8i.js
           node tests/habitat-oxygen8i.test.cjs
+          node --check src/physics/atmosphere-emission8j.js
+          node --check src/physics/atmosphere-emission-ui8j.js
+          node tests/atmosphere-emission8j.test.cjs
           node tests/update8ij.test.cjs
       - name: Build actual offline playable from editable owner
         run: |
@@ -66,3 +75,5 @@ jobs:
         run: python tests/terraform-feasibility8j-browser.py
       - name: Test actual rated oxygen cylinder and saved physical gas custody in Chromium
         run: python tests/habitat-oxygen8i-browser.py
+      - name: Prove physical planetary gas conservation and saved world delta in actual Chromium
+        run: python tests/atmosphere-emission8j-browser.py
