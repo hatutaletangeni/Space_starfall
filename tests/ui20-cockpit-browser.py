@@ -62,8 +62,7 @@ with sync_playwright() as p:
   # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  page.locator('#launch-open').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='ROCKET LAB').click()
   assert page.locator('#launch-dialog').is_visible()
   page.locator('#launch-close').click()
   # Unmodified genuine spacecraft state: no synthetic orbit, teleport, fake
