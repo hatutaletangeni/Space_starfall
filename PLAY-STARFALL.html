@@ -17072,6 +17072,17 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
       for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
         const supplied=report?.byId?.[item.id]?.power===true;
         root.StarfallHabitatT09.step(item,virtualBody,to,supplied);
+        // 8I: greenhouse acts only inside THIS original native T02 paid
+        // habitat pulse. Passive star photons are not fabricated electricity;
+        // the existing 680 W habitat DC bus already pays its pumps/valves.
+        if(root.StarfallGreenhouse8I&&item.habT09?.greenhouse8i?.installed){
+          const sunlight=root.StarfallGreenhouse8I.irradiance(
+           virtualBody,star,luminosity,item.local,P.SCENE_METERS_PER_UNIT,
+           root.StarfallEvents?.skyTransmission(body,item.local,nativeReportAtS,RT.galaxy.seed)??1);
+          const output=root.StarfallGreenhouse8I.grow(item,{
+           seconds:total/steps,powered:supplied,irradianceWm2:sunlight,nowS:to});
+          if(output.advanced){root.StarfallHabitatT09.inspect(item,virtualBody,supplied);dirty=true;}
+        }
         if(atTime-start>86400+1e-8)item.habT09.awaitingReview=true;
       }
     }
