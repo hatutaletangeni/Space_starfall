@@ -22712,9 +22712,9 @@ function render(){
   '\nTOOL            '+bom.requiredStation+' / '+bom.tool+
   '\nINPUTS          '+kg+
   '\nOUTPUTS         '+finished+' + '+bom.scrapKg.toFixed(3)+' kg SCRAP'+
-  '\\nSTOCK CHECK      '+(missing.length?'MISSING '+missing.length+' MATERIAL TYPE(S)':'REQUIRED MASSES PRESENT')+
-  '\\nSHIP HOLD NEEDS  '+requirements.map(x=>'\\n  '+x.material+': '+x.held.toFixed(2)+' / '+x.needed.toFixed(2)+' kg'+(x.missing>1e-6?' · SHORT '+x.missing.toFixed(2)+' kg':'')).join('')+
-  '\\nSTOCK NOTE       Mass only; grade, tooling, reservations and power checked by original READY quote'+
+  '\nSTOCK CHECK      '+(missing.length?'MISSING '+missing.length+' MATERIAL TYPE(S)':'REQUIRED MASSES PRESENT')+
+  '\nSHIP HOLD NEEDS  '+requirements.map(x=>'\n  '+x.material+': '+x.held.toFixed(2)+' / '+x.needed.toFixed(2)+' kg'+(x.missing>1e-6?' · SHORT '+x.missing.toFixed(2)+' kg':'')).join('')+
+  '\nSTOCK NOTE       Mass only; grade, tooling, reservations and power checked by original READY quote'+
   '\nWORK            '+bom.seconds+' s · '+bom.energyJ.toFixed(0)+' J'+
   '\nTOLERANCE       '+bom.toleranceMm+' mm (illustrative)'+
   '\nREADY           '+(q?'YES':'NO · '+reason)+
