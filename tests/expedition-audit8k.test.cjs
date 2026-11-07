@@ -46,7 +46,15 @@ test('8K real provenance only advances inspected phases; cannot assert unassiste
     sourceBatteryJBefore:100000,sourceBatteryJAfter:0}]}}});
  s.physical8a.assets.push({id:'truck-expedition-001',location:{kind:'ship'}},
   {id:'manufactured-truck-002',type:'truck',provenance:'assembly:assemble-1',location:{kind:'surface'}});
- s.outpost5={items:[{id:'hab-1',kind:'hab',enabled:true,habT09:{schema:1,
+ s.physical8a.assets.push({id:'hab-shell-1',type:'habitat_envelope',
+  provenance:'structural-8g:hab-shell-1',
+  location:{kind:'surface',bodyId:'world-b'}});
+ s.vehicleAssembly8g.receipts.push({id:'hab-build-1',assetId:'hab-shell-1',
+  blueprintId:'habitat_shell',status:'ASSEMBLED_NOT_OPERATIONAL'});
+ s.materials8a.operations.push({id:'greenhouse-install-1',kind:'HABITAT_GREENHOUSE_8I',
+  habitatId:'hab-1',status:'COMMITTED'});
+ s.outpost5={items:[{id:'hab-1',kind:'hab',bodyId:'world-b',
+  physicalAssetId:'hab-shell-1',enabled:true,habT09:{schema:1,
   enabled:true,waterL:50,oxygenTankMol:1000,scrubberCapacityMol:10,
   airlock:'CLOSED',greenhouse8i:{installed:true,carbonConsumedMol:1,oxygenProducedMol:1}}}]};
  const r=A.evaluate(s);
@@ -57,4 +65,15 @@ test('8K real provenance only advances inspected phases; cannot assert unassiste
  assert.equal(get(r,'gpu').status,'NOT_PROVEN');
  assert.equal(r.certified,false);
  assert.equal(r.evidenceComplete,false);
+});
+
+test('8K a free legacy T09 habitat cannot masquerade as a manufactured sealed asset',()=>{
+ const s=blank();s.outpost5={items:[{id:'legacy-free-hab',kind:'hab',bodyId:'world-a',
+  enabled:true,habT09:{schema:1,enabled:true,waterL:200,oxygenTankMol:1050,
+  scrubberCapacityMol:350,airlock:'CLOSED',
+  greenhouse8i:{installed:true,carbonConsumedMol:10,oxygenProducedMol:10}}}]};
+ const r=A.evaluate(s);
+ assert.equal(get(r,'habitat').status,'NOT_PROVEN');
+ assert.equal(get(r,'greenhouse').status,'NOT_PROVEN');
+ assert.equal(r.certified,false);
 });
