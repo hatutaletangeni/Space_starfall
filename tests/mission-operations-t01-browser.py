@@ -36,7 +36,11 @@ with sync_playwright() as p:
           STARFALL_DEBUG.setSimulationTime(at);
           SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
           ops.persist();
-          return {report,beforeRoverEnergy:2000000,roverEnergy:r.batteryJ,status:r.status,
+          const disk=SF.load(),savedSat=disk.launch7?.satellites?.find(x=>x.id===s.id);
+          return {savedSatEnergy:savedSat?.ops7c?.energyJ,
+            savedSatLast:savedSat?.ops7c?.lastS,
+            savedClock:disk.missionOperationsT01?.lastSimulatedS,
+            report,beforeRoverEnergy:2000000,roverEnergy:r.batteryJ,status:r.status,
             roverLast:r.ground7d?.lastTickS,satelliteLast:s.ops7c?.lastS,
             satelliteEnergy:s.ops7c?.energyJ,runTo:ops.clock.lastSimulatedS,
             playerBody:rt.nearest.id,remoteBody:planet.id};
@@ -46,6 +50,8 @@ with sync_playwright() as p:
         assert before['status'] in ('parked','complete'),before
         assert before['roverEnergy']<before['beforeRoverEnergy'] and before['roverEnergy']>=0,before
         assert before['satelliteLast'] is not None and before['satelliteEnergy']>=0,before
+        assert before['savedSatEnergy'] is not None,before
+        assert abs(before['savedSatEnergy']-before['satelliteEnergy'])<1e-6,before
         # The preceding atomic simulation turn already persisted the exact source and flight clock.
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallMissionOperationsUI && window.StarfallLaunchUI)",timeout=30000)

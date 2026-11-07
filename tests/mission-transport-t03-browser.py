@@ -108,9 +108,21 @@ with sync_playwright() as p:
           const value=SF.load(),raw=JSON.parse(localStorage.getItem('starfall_save')||'{}');
           return{packets:value.commsT03?.packets?.length||0,rovers:value.launch7?.rovers?.length||0,
             diskPackets:raw.commsT03?.packets?.length||0,diskRovers:raw.launch7?.rovers?.length||0,
-            guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
+            guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length,
+            flight:{landed:value.flightGalaxy?.landed,attached:value.flightGalaxy?.attached,
+              position:value.flightGalaxy?.position,time:value.flightGalaxy?.time},
+            live:{landed:rt.landed,nearest:rt.nearest?.id,
+              shipPose:rt.engineeringAssetPoses().shipPose}};
         }""")
         assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
+        # Fail at the first invalid source-owned flight checkpoint, not after
+        # reload when the radio symptom obscures which owner lost attachment.
+        assert persisted['flight']['landed'] and persisted['flight']['attached']==setup['bodyId'],persisted
+        # Flight pagehide is an independent owner and can issue a stale save
+        # while the browser closes this page. Read back the REAL source owner
+        # first (above), then prevent only that old-page overwrite on reload.
+        # After reload the fresh runtime must independently restore all IDs.
+        page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallLaunchUI)",timeout=30000)
         restored=page.evaluate("""()=>{
@@ -125,7 +137,17 @@ with sync_playwright() as p:
           }));
           for(let i=0;i<10;i++)ops.advanceTo(95+i*5);
           const p=T.transport.get(pending.id);
-          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length};
+          const rt=StarfallRuntime,ship=rt.vehicleStore.get('ship'),pose=rt.engineeringAssetPoses(),route=T.routeFor(p,ops.clock.lastSimulatedS);
+          const disk=SF.load();
+          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length,
+            diagnostic:{landed:rt.landed,attached:rt.attached?.id||rt.attached,
+              nearest:rt.nearest?.id,shipPose:pose.shipPose,
+              shipEnergyJ:ship?.state?.energyJ,route,
+              clockS:ops.clock.lastSimulatedS,
+              savedFlight:{landed:disk.flightGalaxy?.landed,attached:disk.flightGalaxy?.attached,
+                position:disk.flightGalaxy?.position,time:disk.flightGalaxy?.time},
+              roverLocal:r.local,roverBatteryJ:r.batteryJ,
+              persistedPacketCount:disk.commsT03?.packets?.length}};
         }""")
         assert restored['packet']['state']=='ACKED',restored
         assert restored['receipts']==1,restored

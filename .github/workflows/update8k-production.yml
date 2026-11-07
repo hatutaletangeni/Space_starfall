@@ -1,0 +1,113 @@
+name: STARFALL Update 8K preflight and physical production QA
+on:
+  push:
+    branches:
+      - main
+      - release/update8k-production-on-current-main-20261106
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'tests/expedition-manifest8k.test.cjs'
+      - 'tests/physical-machinery-visuals8k.test.cjs'
+      - 'tests/ship-service-t13-browser.py'
+      - 'PLAY-STARFALL*.html'
+      - '.github/workflows/update8k-production.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'tests/**'
+      - '.github/workflows/update8k-production.yml'
+jobs:
+  actual-custody-and-machine-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Check real production source syntax
+        run: |
+          for path in src/physics/expedition-manifest8k.js src/flight.js src/engine.js src/physics/outposts-ui.js; do node --check "$path"; done
+          python -m py_compile tests/ship-service-t13-browser.py
+      - name: One-time cargo conservation, industrial visuals and core resource models
+        run: |
+          node tests/expedition-manifest8k.test.cjs
+          node tests/physical-machinery-visuals8k.test.cjs
+          node tests/update8a.test.cjs
+          node tests/mining-hauling8d.test.cjs
+          node tests/refinery8e.test.cjs
+          node tests/factory8f.test.cjs
+          node tests/industrial-chemistry8e.test.cjs
+          node tests/industrial-site8e.test.cjs
+          node tests/industrial-kit-factory8f.test.cjs
+          node tests/ui22-workflow8er.test.cjs
+      - name: Both offline standalone bundles are rebuilt, not assumed
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+  real-browser-production-controls:
+    needs: actual-custody-and-machine-models
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Install test-only file URL Chromium with software WebGL
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Browser files must use current source
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+      - name: Actual desktop resource test, UI22 ship docking and mobile Chromium
+        run: |
+          python tests/resource-test-lab8h-browser.py
+          python tests/industrial-first-product8k-browser.py
+          python tests/ship-service-t13-browser.py
+          python tests/mobile-standalone-browser.py
+
+  publish-tested-standalones:
+    needs: [actual-custody-and-machine-models, real-browser-production-controls]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release/update8k-production-on-current-main-20261106' && !contains(github.event.head_commit.message, '[8k-bundled]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: true}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Synchronize BOTH standalone editions to latest validated branch source
+        run: |
+          git fetch origin release/update8k-production-on-current-main-20261106
+          git checkout -B release/update8k-production-on-current-main-20261106 origin/release/update8k-production-on-current-main-20261106
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Publish exact source-hash pair, preserving simultaneous edits
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if git diff --cached --quiet; then
+            echo 'Desktop and mobile are already synchronized'
+            exit 0
+          fi
+          git commit -m 'build(8K): synchronized physical industry desktop+mobile [8k-bundled]'
+          git pull --rebase origin release/update8k-production-on-current-main-20261106
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then git commit --amend --no-edit; fi
+          git push origin HEAD:release/update8k-production-on-current-main-20261106

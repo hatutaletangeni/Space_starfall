@@ -29,7 +29,16 @@ function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[]
   if(drawn>=30)break;
   if(!['industrial_plant','industrial_vessel','vehicle_frame','rocket_stage_dry','habitat_envelope'].includes(asset.type)||asset.location?.kind!=='surface'||
     asset.location.bodyId!==ctx.body.id||O.arc(ctx.local,asset.location.local,ctx.body.radius)>90)continue;
-  const item=renderLoc({kind:asset.type,bodyId:asset.location.bodyId,local:asset.location.local,facing:[0,0,1]});
+  // Respect the ORIGINAL industrial asset ID and real stored stock; never
+  // draw manufactured goods inside an EMPTY source-owned depot.
+  let kind=asset.type;
+  if(asset.type==='industrial_plant'&&asset.state?.station){
+   kind='industrial_'+asset.state.station;
+   if(asset.state.station==='cargo_depot'&&asset.state.containerId&&
+      (RT.materials8a?.inventory?.(asset.state.containerId)||[]).length)
+    kind='industrial_cargo_depot_loaded';
+  }
+  const item=renderLoc({kind,bodyId:asset.location.bodyId,local:asset.location.local,facing:[0,0,1]});
   if(item){result.push(item);drawn++;}
  }
  if(!$('outpost').hidden&&tab==='build'){const item=preview();if(item){item.preview=true;result.push(item);}}return result;}

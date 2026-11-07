@@ -19,7 +19,11 @@ with sync_playwright() as p:
   })""")
   assert initial['owner']=='ship' and initial['mode']=='secured' and initial['count']==1,initial
   assert 'SECURED INSIDE SHIP' in initial['label'],initial
-  page.locator('#asset-open').click()
+  # Follow the actual visible UI22 Mission → Build → Asset Manager route.
+  page.locator('#sf-mission-button').click()
+  page.get_by_role('button',name='03 · Build').click()
+  page.get_by_role('button',name='ASSET MANAGER',exact=True).click()
+  assert page.locator('#asset-manager').is_visible()
   assert page.locator('#truck-custody8b-asset-manager').is_visible()
   page.locator('#asset-close').click()
   page.evaluate("""() => {

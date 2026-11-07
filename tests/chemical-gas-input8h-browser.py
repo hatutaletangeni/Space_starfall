@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """Real original seed742 file:// Chromium WebGL2 inbound 8H gas UI.
 No generated starter inlet gas/kit/pipes, no developer debug owner mutations.
@@ -54,7 +55,7 @@ with sync_playwright() as p:
   assert proof['seed']==742 and proof['ship']=='ship-main' and proof['trucks']==1,proof
   assert proof['state']['schema']==1 and isinstance(proof['state']['jobs'],list),proof
   assert proof['denied'] and proof['unchanged'],proof
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   panel=page.locator('#industrial8e-physical')
   assert panel.is_visible(),'Original Engineer physical chemical plant must render'
   page.wait_for_function("""()=>{

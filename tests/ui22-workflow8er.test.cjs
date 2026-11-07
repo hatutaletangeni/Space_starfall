@@ -5,6 +5,11 @@ const index=read('index.html'),workflow=read('src/ui22-workflow.js'),style=read(
 const mobile=read('src/mobile/landscape.html'),adapter=read('src/mobile/landscape.js');
 const truck=read('src/physics/truck-cockpit.js'),truckCss=read('src/physics/truck-cockpit.css');
 for(const [path,code] of [['ui22',workflow],['mobile adapter',adapter],['truck HUD',truck]])new vm.Script(code,{filename:path});
+const routing=read('src/ui21.js');
+assert.match(routing,/pageMap\.Operate\.appendChild\(operationsStatus\)/,
+ 'Source-owned T16 diagnostics must live in the visible Operate workspace');
+assert.match(workflow,/\['ROCKET LAB','launch-open'\]/,
+ 'Native Rocket Lab must be reachable from the visible 8E-R Build menu');
 assert.match(index,/src\/ui22-workflow\.css/);
 assert.match(index,/src\/ui22-workflow\.js/);
 assert.ok(index.indexOf('src/ui22-workflow.js')>index.indexOf('src/ui21.js'),'Workflow must enhance existing page navigation');

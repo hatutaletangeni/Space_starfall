@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """STARFALL 8H: actual ORIGINAL file:// Chromium/WebGL2 Engineer UI.
 No fake gas/energy/truck/ship fixtures. Timed actual pipe movement tested
@@ -49,7 +50,7 @@ with sync_playwright() as p:
   assert q['gasJobs']['schema']==1 and isinstance(q['gasJobs']['jobs'],list),q
   assert q['empty']=={'schema':1,'jobs':[]},q
   assert q['denied'] and q['noMutation'],q
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   panel=page.locator('#industrial8e-physical')
   assert panel.is_visible(),'Original Engineer Chemical Plant panel must be visible'
   text=panel.inner_text()
