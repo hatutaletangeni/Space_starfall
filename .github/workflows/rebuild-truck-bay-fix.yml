@@ -52,6 +52,10 @@ jobs:
           node --check src/physics/atmosphere-emission8j.js
           node --check src/physics/atmosphere-emission-ui8j.js
           node tests/atmosphere-emission8j.test.cjs
+          node --check src/physics/habitat-scrubber8i.js
+          node tests/habitat-scrubber8i.test.cjs
+          node --check src/physics/greenhouse8i.js
+          node tests/greenhouse8i.test.cjs
       - name: Push validated builds to existing fix branch
         run: |
           git config user.name "starfall-ci"
