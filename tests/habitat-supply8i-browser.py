@@ -38,7 +38,9 @@ with sync_playwright() as p:
     H=StarfallHabitatT09,c=rt.outpostContext(),body=c.body,ship=rt.vehicleStore.get('ship'),
     containerId=StarfallMining8D.SHIP,lotId='t-fixture-8i-water';
    if(!c.local||!c.shipLocal||!body||!ship)throw Error('Real world, EVA and ship required');
-   const hab=U.store.add('hab',body,c.local,[1,0,0],()=>0).item;
+   const added=U.store.add('hab',body,c.local,[1,0,0],()=>0).item;
+   const hab=U.store.items.find(x=>x.id===added.id);
+   if(!hab)throw Error('Original source-owned habitat unavailable after placement');
    H.ensure(hab,rt.time);
    hab.habT09.waterL=125;
    const container=rt.materials8a.containers().find(x=>x.id===containerId);
