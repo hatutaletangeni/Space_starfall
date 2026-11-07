@@ -13144,7 +13144,65 @@ function irradiance(body,star,luminosityW,local,unitM=1000,transmission=1){
  const sun=Math.max(0,normal.reduce((s,v,i)=>s+v*dir[i]/dist,0));
  return Math.max(0,Math.min(1400,luminosityW/(4*Math.PI*(dist*unitM)**2)*sun*Math.min(1,transmission)));
 }
-root.StarfallGreenhouse8I=Object.freeze({install,grow,irradiance,
+/* Physical harvest: plant biomass stays with T09 until an operator loads
+ * its real wet-biomass lot into the ship's original bounded 8A hold.
+ * Leave seed stock alive; biomass is NOT certified edible food.
+ */
+function harvest(a){
+ if(!a||!id(a.operationId)||!a.operationId.startsWith('harvest8i:')||
+  !id(a.habitatId)||!id(a.bodyId)||!id(a.shipContainerId)||
+  !good(a.kg)||a.kg<=0||a.kg>10||!good(a.shipEnergyJ)||
+  !a.materials||a.materials.schema!==1||!Array.isArray(a.materials.containers)||
+  !Array.isArray(a.materials.lots)||!Array.isArray(a.materials.operations)||
+  !a.habitat||a.habitat.id!==a.habitatId||a.habitat.kind!=='hab'||
+  a.habitat.bodyId!==a.bodyId||a.habitat.habT09?.schema!==1)
+  throw Error('8I harvest needs actual existing original T09 greenhouse and 8A ship cargo');
+ const old=a.materials.operations.find(x=>x.id===a.operationId);
+ if(old){
+  if(old.kind!=='GREENHOUSE_HARVEST_8I'||old.habitatId!==a.habitatId||old.massKg!==a.kg)
+   throw Error('Conflicting greenhouse harvest receipt');
+  if(old.status!=='COMMITTED')throw Error('Cannot replay pending harvest');
+  return{duplicate:true,materials:cp(a.materials),habitat:cp(a.habitat),
+   shipEnergyJ:a.shipEnergyJ,receipt:cp(old)};
+ }
+ const g=a.habitat.habT09.greenhouse8i;
+ if(!g?.installed||!good(g.cropBiomassKg)||!good(g.seedMassKg)||
+    g.cropBiomassKg-g.seedMassKg+EPS<a.kg)
+  throw Error('8I no physically grown harvestable plant biomass');
+ if(!a.operatorEVA||!a.shipLanded||!a.shipPowered||a.habitat.habT09.airlock!=='CLOSED')
+  throw Error('8I sealed crop harvest needs landed powered ship, EVA and closed T09 airlock');
+ if(arc(a.habitat.local,a.evaLocal,a.bodyRadius)>24||
+    arc(a.habitat.local,a.shipLocal,a.bodyRadius)>100)
+  throw Error('8I harvest requires operator and original ship within physical range');
+ const original=a.materials.containers.find(x=>x.id===a.shipContainerId&&x.ownerId==='ship-main');
+ if(!original)throw Error('Original physical 8A ship hold missing');
+ const mass=a.materials.lots.filter(l=>l.containerId===original.id)
+  .reduce((s,l)=>s+l.massKg,0);
+ const volume=a.materials.lots.filter(l=>l.containerId===original.id)
+  .reduce((s,l)=>s+l.volumeM3,0);
+ const volumeM3=a.kg/400;
+ if(mass+a.kg>original.maxMassKg+EPS||volume+volumeM3>original.maxVolumeM3+EPS)
+  throw Error('8I original ship hold has no physical biomass mass/volume capacity');
+ const cost=a.kg*15000;
+ if(a.shipEnergyJ+EPS<cost)throw Error('8I real ship battery cannot power crop container handling');
+ const materials=cp(a.materials),habitat=cp(a.habitat);
+ const receipt={id:a.operationId,kind:'GREENHOUSE_HARVEST_8I',status:'COMMITTED',
+  habitatId:a.habitatId,bodyId:a.bodyId,massKg:a.kg,volumeM3,
+  source:'outpost5:'+a.habitatId+':habT09.greenhouse8i.cropBiomassKg',
+  destinationContainerId:original.id,
+  outputLotId:'8i:crop:'+a.operationId,workJ:cost,
+  energySourceId:'ship-main:engineering-battery',
+  sourceBatteryJBefore:a.shipEnergyJ,sourceBatteryJAfter:a.shipEnergyJ-cost};
+ if(materials.lots.some(x=>x.id===receipt.outputLotId))throw Error('8I crop lot already exists');
+ habitat.habT09.greenhouse8i.cropBiomassKg-=a.kg;
+ habitat.habT09.greenhouse8i.harvestedKg+=a.kg;
+ materials.lots.push({id:receipt.outputLotId,materialId:'raw_greenhouse_biomass',
+  containerId:original.id,massKg:a.kg,volumeM3,grade:.5,
+  provenance:'source_owned_greenhouse8i:'+a.habitatId+':'+a.operationId});
+ materials.operations.push(receipt);root.StarfallMaterials8A?.create(materials);
+ return{duplicate:false,materials,habitat,shipEnergyJ:a.shipEnergyJ-cost,receipt};
+}
+root.StarfallGreenhouse8I=Object.freeze({install,grow,harvest,irradiance,
  MOL_WATER_KG,BIOMASS_KG_MOL,ENERGY_J_PER_MOL,WORK_INSTALL_J});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallGreenhouse8I;
 })(typeof globalThis!=='undefined'?globalThis:this);
