@@ -14862,7 +14862,7 @@ function atmosphericContext8J(){
  const site=terraformWorlds8j[body.id]?StarfallAtmosphereEmission8J.normalize(
    terraformWorlds8j[body.id],profile):StarfallAtmosphereEmission8J.normalize(null,profile);
  return{bodyId:body.id,profile,protectedWorld,nativeLife,archaeologicalProtection,
-  vessels:stock,pressurePa:site.pressurePa,pressureDeltaPa:site.pressurePa-profile.atmospherePressurePa,
+  vessels:stock,pressurePa:site.pressurePa,pressureDeltaPa:site.pressureDeltaPa,
   atmosphereMassKg:site.atmosphereKg,energyJ:vehicleStore.get('ship')?.state.energyJ||0,
   landed:landed&&shipBody===body,eva:c.eva&&!!evaLocal&&!truckOccupied&&!shipWalking8e,
   powered:!!vehicleStore.get('ship')?.state.powerEnabled};
