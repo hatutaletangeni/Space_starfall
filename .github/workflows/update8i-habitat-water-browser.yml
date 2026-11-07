@@ -19,6 +19,8 @@ on:
       - 'src/physics/greenhouse-ui8i.js'
       - 'src/physics/outposts-ui.js'
       - 'tests/greenhouse8i*'
+      - 'src/physics/starter-manifest8k.js'
+      - 'tests/starter-manifest8k*'
       - 'src/physics/habitat-supply-ui8i.js'
       - 'src/flight.js'
       - 'index.html'
@@ -83,6 +85,8 @@ jobs:
           node --check src/physics/greenhouse8i.js
           node --check src/physics/greenhouse-ui8i.js
           node tests/greenhouse8i.test.cjs
+          node --check src/physics/starter-manifest8k.js
+          node tests/starter-manifest8k.test.cjs
           node tests/update8ij.test.cjs
       - name: Build actual offline playable from editable owner
         run: |
@@ -105,3 +109,5 @@ jobs:
         run: python tests/habitat-scrubber8i-browser.py
       - name: Test actual T09 greenhouse physical BOM and native T02 powered growth in Chromium
         run: python tests/greenhouse8i-browser.py
+      - name: Verify exactly one prebuilt finite ship manifest on actual new Industrial Mode expedition
+        run: python tests/starter-manifest8k-browser.py
