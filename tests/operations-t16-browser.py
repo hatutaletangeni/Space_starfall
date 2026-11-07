@@ -61,6 +61,11 @@ with sync_playwright() as p:
   }""")
   assert stage['phase']=='IN_PROGRESS',stage
   assert page.locator('#op16-log-rows').inner_text().find('ops16')<0 or page.locator('#op16-log-rows').count()==1
+  # Operations filters live in the secondary workspace after UI22 refactoring.
+  # Open the actual visible Mission → Operate workspace before editing the filter.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   page.locator('#op16-filter-severity').select_option('info')
   assert page.locator('#op16-filter-severity').input_value()=='info'
   page.locator('#op16-asset').select_option('starfall-ship')
