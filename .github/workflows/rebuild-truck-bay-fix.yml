@@ -41,6 +41,7 @@ jobs:
           node tests/cargo-bay8b.test.cjs
           node tests/update8a.test.cjs
           node tests/update8ij.test.cjs
+          node tests/habitat-supply8i.test.cjs
       - name: Push validated builds to existing fix branch
         run: |
           git config user.name "starfall-ci"
