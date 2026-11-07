@@ -33,7 +33,7 @@ test('8J refuses arithmetic overflow rather than saving Infinity', () => {
   assert.throws(() => T.advance(input, {
     deliveredGasKg: 1.6e308, capturedGasKg: 0,
     lostGasKg: 0, seconds: 1, receiptId: 'overflow'
-  }), /Invalid or insufficient atmospheric mass|Non-finite atmosphere state/);
+  }), /Invalid atmospheric mass arithmetic|Non-finite atmosphere state/);
   assert.equal(input.receipts.length, 0);
 });
 
@@ -41,7 +41,7 @@ test('8J rejects overflow in withdrawals and invalid receipt identity', () => {
   assert.throws(() => T.advance(world(), {
     deliveredGasKg: 0, capturedGasKg: 1.7e308, lostGasKg: 1.7e308,
     seconds: 1, receiptId: 'overflow-out'
-  }), /Invalid or insufficient atmospheric mass/);
+  }), /Invalid atmospheric mass arithmetic/);
   for (const bad of ['', ' ', 0, 123, 'x'.repeat(161)])
     assert.throws(() => T.advance(world(), args(bad)), /Invalid terraforming intervention/);
 });
