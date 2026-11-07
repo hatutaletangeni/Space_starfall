@@ -15,7 +15,19 @@ OUT.mkdir(parents=True,exist_ok=True)
 def check(ok,message,record=None):
  if not ok: raise AssertionError(message+' / '+repr(record))
 def visit(page,opener,modal,closer):
- page.locator('#'+opener).click(timeout=15000)
+ # The original header shortcuts are intentionally hidden by UI22. Use the
+ # source-owned buttons via their visible Mission actions without bypassing UI.
+ routes={
+   'archive-t17-open':('Records','SAVE / RECOVERY'),
+   'launch-open':('Build','ROCKET LAB')
+ }
+ if opener in routes:
+  stage,label=routes[opener]
+  page.locator('#sf-mission-button').click(timeout=15000)
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text=stage).click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text=label).click()
+ else:
+  page.locator('#'+opener).click(timeout=15000)
  page.wait_for_function("(id)=>document.getElementById(id)?.hidden===false",arg=modal,timeout=15000)
  check(page.locator('#'+modal).count()==1,'Original panel did not open',modal)
  page.locator('#'+closer).click(timeout=15000)
@@ -47,10 +59,7 @@ with sync_playwright() as p:
   check(not any(pristine[k] for k in ('stations','rovers','satellites','photos','packets')),
    'Fresh save fabricated deployed hardware or confirmed evidence',pristine)
   visit(page,'archive-t17-open','archive-t17','archive-t17-close')
-  # UI22 visible mission workflow; all original scenario assertions remain.
-  page.locator('#sf-mission-button').click()
-  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  # Verify the original Rocket Lab modal through the current Mission route.
   visit(page,'launch-open','launch-dialog','launch-close')
   page.screenshot(path=str(OUT/'01-unmodified-spaceflight.png'))
   # Permitted T18 fixture: change STARTING POSITION to a real existing solid
