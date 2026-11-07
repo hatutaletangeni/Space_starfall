@@ -23,6 +23,8 @@ test('8I debits only real ship-held water, credits original T09, charges real sh
  assert.equal(r.materials.lots[0].massKg,20);
  assert.equal(r.materials.lots[0].volumeM3,.02);
  assert.equal(r.shipEnergyJ,1e7-125000);
+ assert.equal(r.receipt.sourceBatteryJBefore-r.receipt.sourceBatteryJAfter,125000);
+ assert.equal(r.receipt.energySourceId,'ship-main:engineering-battery');
  assert.equal(r.receipt.status,'COMMITTED');
  assert.equal(r.receipt.sourceProvenance,'8e:water-refinery-receipt');
  assert.equal(r.materials.operations.length,1);
