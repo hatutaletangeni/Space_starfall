@@ -30,10 +30,12 @@ with sync_playwright() as p:
     H=StarfallHabitatT09,ops=StarfallMissionOperationsUI,c=rt.outpostContext(),
     body=c.body,ship=rt.engineeringAssetPoses().shipPose,store=U.store;
    if(!ship?.local||!c.local)throw Error('Original ship surface/EVA missing');
-   const at=(d)=>O.offset(ship.local,[1,0,0],d,0,body.radius);
-   const h0=store.add('hab',body,at(15),[1,0,0],()=>0).item,
-    b0=store.add('battery',body,at(35),[1,0,0],()=>0).item,
-    s0=store.add('solar',body,at(55),[1,0,0],()=>0).item;
+   // Place the original habitat beside the actual EVA operator, not near
+   // the ship ramp; the genuine 8I service hose is strictly 24 units.
+   const at=(d)=>O.offset(c.local,[1,0,0],d,0,body.radius);
+   const h0=store.add('hab',body,at(0),[1,0,0],()=>0).item,
+    b0=store.add('battery',body,at(20),[1,0,0],()=>0).item,
+    s0=store.add('solar',body,at(40),[1,0,0],()=>0).item;
    const h=store.items.find(x=>x.id===h0.id);
    store.link(h.id,b0.id,body);store.link(b0.id,s0.id,body);
    U.advancePowerTo(ops.clock.lastSimulatedS,(asset,t)=>ops.resolveBody(asset,t));
@@ -65,8 +67,10 @@ with sync_playwright() as p:
   button=panel.get_by_role('button',name='INSTALL SOURCE-PAID HABITAT GREENHOUSE (400 kJ)')
   assert button.is_enabled(),{'panel':panel.inner_text(),'fixture':fixture}
   button.click()
-  page.wait_for_function("""()=>document.querySelector('#greenhouse8i [role=status]')
-    ?.textContent.includes('COMMITTED')""",timeout=12000)
+  page.wait_for_timeout(350)
+  message=panel.locator('[role=status]').inner_text()
+  assert 'COMMITTED' in message,{'status':message,'panel':panel.inner_text(),
+    'context':page.evaluate('()=>StarfallRuntime.greenhouseContext8I()')}
   installation=page.evaluate("""f=>{
    const rt=StarfallRuntime,U=StarfallOutpostUI,s=SF.load(),
     h=U.store.items.find(x=>x.id===f.habitatId),
