@@ -52,7 +52,9 @@ if(storedTruck8b?.location.kind==='ship'){
   truckForwardVec=V.norm(state.forward);
 }
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
-let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
+const preflight8k=StarfallExpeditionManifest8K.initialize(session,
+ StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a)));
+let materials8a=preflight8k.materials;
 let logisticsOrders8h=StarfallLogisticsOrders8H.create(session.logisticsOrders8h);
 let logisticsRoutes8h=StarfallPhysicalRoutes8H.create(session.logisticsRoutes8h);
 let offworldManifests8h=StarfallOffworldManifest8H.create(session.logisticsOffworldManifests8h);
