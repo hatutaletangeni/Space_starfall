@@ -17,19 +17,21 @@ function normalize(saved,profile){
  if(saved==null)return{schema:1,bodyId:profile.id,radiusM:profile.radiusM,
   gravityMS2:profile.surfaceGravityMS2,baselineAtmosphereKg:baseMass,
   atmosphereKg:baseMass,pressurePa:profile.atmospherePressurePa,
-  emittedSpeciesKg:{},receipts:[],lastTimeS:0};
+  netAddedKg:0,pressureDeltaPa:0,emittedSpeciesKg:{},receipts:[],lastTimeS:0};
  const s=cp(saved);
  if(s.schema!==1||s.bodyId!==profile.id||!finite(s.atmosphereKg)||
    !finite(s.baselineAtmosphereKg)||!finite(s.pressurePa)||
+   !finite(s.netAddedKg)||!finite(s.pressureDeltaPa)||
    !Array.isArray(s.receipts)||s.receipts.length>2000||
    !s.emittedSpeciesKg||typeof s.emittedSpeciesKg!=='object'||
    Math.abs(s.radiusM-profile.radiusM)>1e-6||
    Math.abs(s.gravityMS2-profile.surfaceGravityMS2)>1e-6||
    new Set(s.receipts.map(r=>r.id)).size!==s.receipts.length)
   throw Error('8J persisted planetary intervention incompatible/corrupt');
- const expected=s.atmosphereKg*profile.surfaceGravityMS2/(4*Math.PI*profile.radiusM**2);
- if(Math.abs(s.pressurePa-expected)>Math.max(1e-7,expected*1e-9))
-  throw Error('8J atmospheric pressure not conserved by saved mass');
+ const expectedDelta=s.netAddedKg*profile.surfaceGravityMS2/(4*Math.PI*profile.radiusM**2);
+ if(Math.abs(s.pressureDeltaPa-expectedDelta)>Math.max(1e-18,Math.abs(expectedDelta)*1e-9)||
+    Math.abs(s.pressurePa-(profile.atmospherePressurePa+s.pressureDeltaPa))>1e-7)
+  throw Error('8J atmospheric pressure delta not conserved by saved mass');
  return s;
 }
 function emit(input){
@@ -91,14 +93,16 @@ function emit(input){
  const volumeDebit=a.kg*src.volumeM3/src.massKg;
  if(src.massKg-a.kg<=EPS)next.lots.splice(next.lots.indexOf(src),1);
  else{src.massKg-=a.kg;src.volumeM3=Math.max(0,src.volumeM3-volumeDebit);}
- const w=cp(state);w.atmosphereKg+=a.kg;
+ const w=cp(state);w.netAddedKg+=a.kg;
+ w.atmosphereKg=w.baselineAtmosphereKg+w.netAddedKg;
  w.emittedSpeciesKg[materialId]=(w.emittedSpeciesKg[materialId]||0)+a.kg;
- w.pressurePa=w.atmosphereKg*w.gravityMS2/(4*Math.PI*w.radiusM**2);
+ w.pressureDeltaPa=w.netAddedKg*w.gravityMS2/(4*Math.PI*w.radiusM**2);
+ w.pressurePa=p.atmospherePressurePa+w.pressureDeltaPa;
  w.lastTimeS=a.timeS;
  const receipt={id:a.receiptId,status:'COMMITTED',kind:'PLANET_ATMOSPHERE_EMISSION_8J',
   vesselId:vessel.id,lotId:l.id,gas:materialId,massKg:a.kg,
   fromBodyId:a.bodyId,toReservoir:'planet:'+a.bodyId+':atmosphere',
-  pressureDeltaPa:w.pressurePa-state.pressurePa,workJ,
+  pressureDeltaPa:a.kg*w.gravityMS2/(4*Math.PI*w.radiusM**2),workJ,
   sourceBatteryJBefore:a.shipEnergyJ,sourceBatteryJAfter:a.shipEnergyJ-workJ,
   energySourceId:'ship-main:engineering-battery',sourceProvenance:l.provenance,timeS:a.timeS};
  w.receipts.push(receipt);next.operations.push({...receipt});
