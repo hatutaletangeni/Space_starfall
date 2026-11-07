@@ -4,6 +4,7 @@ Controlled landed physical fixture; never claims manually landed flight or GPU F
 """
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+from mission_ui22_navigation import open_mission_route
 target=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').as_uri()
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,args=['--use-gl=angle','--use-angle=swiftshader',
@@ -34,7 +35,7 @@ with sync_playwright() as p:
    return{mass:v.stats.massKg,capacity:v.stats.batteryCapacityJ,energy:v.state.energyJ,
     torque:v.stats.driveTorqueNm,solar:v.stats.maxSolarW,source:v.definition.id};
   }""")
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_mission_route(page, "Engineer")
   page.locator('#systems-toggle').click()
   page.wait_for_function("!document.getElementById('systems-inner').hidden",timeout=15000)
   page.locator('#workbench-open').click()
