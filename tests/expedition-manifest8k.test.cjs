@@ -8,6 +8,12 @@ globalThis.StarfallIndustrialSite8E=require('../src/physics/industrial-site8e.js
 globalThis.StarfallMachineInstall8F=require('../src/physics/machine-install8f.js');
 const M=require('../src/physics/expedition-manifest8k.js');
 const fresh=()=>globalThis.StarfallMining8D.prepareContainers(globalThis.StarfallMaterials8A.create());
+const newer=M.initialize({freshExpedition:{schema:1,seed:742,startedAt:1},credits:200},fresh());
+assert.equal(newer.seeded,false,'Explicit newer 8K manifest owns fresh-expedition stock: older bootstrap cannot duplicate it');
+assert.equal(newer.materials.inventory().length,0);
+const receipted=M.initialize({initialIndustrialManifest8k:{status:'COMMITTED'},credits:200},fresh());
+assert.equal(receipted.seeded,false,'Existing receipt-owned 8K manifest must never be topped up by legacy bootstrap');
+assert.equal(receipted.materials.inventory().length,0);
 const first=M.initialize({version:2,credits:200,discoveries:[]},fresh());
 assert.equal(first.seeded,true,'Brand-new seed may carry ONE finite pre-existing manifest');
 const src=first.materials.snapshot(),lots=first.materials.inventory(M.HOLD),sum=M.summary();
