@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """8E real file:// WebGL2 smoke. Verifies actual renderer, module inspector,
 default ship identity and save/reload without claiming manual interior traversal.
@@ -28,7 +29,7 @@ with sync_playwright() as p:
    }"""),'Failed stable ship modules or truck custody'
   page.wait_for_function("STARFALL_DEBUG.state.fps>0 && STARFALL_DEBUG.state.renderedBodies>=0",timeout=20000)
   page.screenshot(path=str(out/'starfall-8e-exterior-software-webgl.png'))
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   page.locator('button.ui21-link',has_text='Expedition Vessel').click()
   assert page.locator('#ship8e-modules').is_visible()
   assert 'Internal vehicle cargo hold' in page.locator('#ship8e-modules').inner_text()

@@ -3,6 +3,7 @@
 source HUD and intact physical walking/boarding. Screenshot actual WebGL view.
 """
 from pathlib import Path
+from ui22_browser_nav import open_route
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
 uri=(root/'PLAY-STARFALL.html').as_uri()
@@ -24,13 +25,15 @@ with sync_playwright() as p:
   assert page.locator('.identity h1').evaluate('(e)=>parseFloat(getComputedStyle(e).fontSize)<=30')
   # UI21 expands its routed console within the viewport; the old <350px
   # UI20 compact-panel assertion is no longer the intended layout.
-  assert page.locator('.panel').evaluate('(e)=>100<e.getBoundingClientRect().height<=window.innerHeight')
+  assert page.locator('#sf-mission-button').is_visible()
+  assert page.locator('#sf-mission-flow').is_hidden()
+  assert page.locator('#panel').is_hidden(), 'No bloated legacy panel before explicit workspace request'
   for id in ['controls-open','chart-open','obs-open','archive-t17-open']:
-   assert page.locator('#'+id).is_visible(),id
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+   assert page.locator('#'+id).count()==1,id
+  open_route(page,'Engineer')
   for id in ['launch-open','asset-open']:
-   assert page.locator('#'+id).is_visible(),id
-  page.locator('#ui21-navigation button[data-route="Overview"]').click()
+   assert page.locator('#'+id).count()==1,id
+  open_route(page,'Overview')
   assert page.locator('#ui20-vehicle-frame').is_hidden()
   page.screenshot(path=str(out/'01-flight-chase.png'))
   page.keyboard.press('v')
@@ -43,11 +46,11 @@ with sync_playwright() as p:
   assert page.locator('#ui21-manual').is_visible(), 'Help should open the current searchable Field Manual'
   page.keyboard.press('Escape')
   assert page.locator('#ui21-manual').is_hidden(), 'Escape should close the Field Manual'
-  page.locator('#ui-console-open').click()
+  open_route(page,'Overview')
   assert page.locator('#panel').is_visible()
-  page.locator('#ui21-navigation button[data-route="Operate"]').click()
+  open_route(page,'Operate')
   assert page.locator('#fc-extra').is_visible()
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   page.locator('#launch-open').click()
   assert page.locator('#launch-dialog').is_visible()
   page.locator('#launch-close').click()
@@ -93,10 +96,10 @@ with sync_playwright() as p:
   page.screenshot(path=str(out/'03-truck-chase.png'))
   page.keyboard.press('v')
   page.wait_for_function("document.body.dataset.sfView==='truck-cab'",timeout=15000)
-  assert page.locator('#ui20-vehicle-frame .truck-structure').evaluate('(e)=>getComputedStyle(e).display!=="none"')
-  assert page.locator('#ui20-vehicle-frame .ship-structure').evaluate('(e)=>getComputedStyle(e).display==="none"')
-  assert 'TRUCK' in page.locator('#mode-text').inner_text()
-  assert 'TRUCK' in page.locator('#status-text').inner_text()
+  assert page.locator('#sf-truck-cockpit').is_visible(), 'Dedicated cockpit, not old ship HUD'
+  assert page.locator('#ui20-vehicle-frame').is_hidden(), 'Ship HUD must not obscure truck'
+  assert 'TRUCK' in page.locator('#mode-text').text_content()
+  assert 'TRUCK' in page.locator('#sf-truck-cockpit').text_content()
   camera=page.evaluate("""()=>{
     const a=StarfallRuntime.assetPickView().camera;
     return {eye:a?.eye,truck:StarfallRuntime.truck};

@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """T09: actual STARFALL file:// Chromium 680 W hab power, finite gas, brownout
 and leak, guard airlock, repair from finite tanks and on-disk reload.
@@ -78,7 +79,7 @@ with sync_playwright() as p:
       o2:status.oxygenTankMol,served:line.servedW};
   }""")
   assert initial['served']==680 and initial['pressure']>70,initial
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   page.locator('#outpost-open').click()
   page.locator('[data-outpost-tab="habitat"]').click()
   page.locator('#hab-t09-select').select_option(initial['id'])

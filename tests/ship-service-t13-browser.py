@@ -47,8 +47,11 @@ with sync_playwright() as p:
    const r=StarfallRuntime.engineeringSystemReport().ship,v=StarfallRuntime.vehicleStore.get('ship');
    return !!(r&&r.draws.avionics>=v.stats.avionicsW&&r.draws.instruments>=v.stats.instrumentsW);
   }""",timeout=15000)
-  # UI21 places electrical systems under the Engineer route; click the visible route first.
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # Use the REAL visible 8E-R MISSION workflow; the old UI21 tab is intentionally hidden.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='03 · Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  page.wait_for_function("document.body.classList.contains('sf-workspace-open') && !document.querySelector('#ui21-pages .ui21-page[data-page=\"Engineer\"]').hidden")
   page.locator('#systems-toggle').click()
   page.wait_for_function("!document.querySelector('#systems-inner').hidden && !document.querySelector('#ship-t13-panel').hidden")
   status=page.locator('#ship-t13-readout').inner_text()

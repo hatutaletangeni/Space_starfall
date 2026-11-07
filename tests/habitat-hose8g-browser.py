@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from ui22_browser_nav import open_route
 """STARFALL 8G real offline Chromium structural-assembly regression.
 Controlled material fixtures are test-only; production never grants resources.
 """
@@ -15,7 +16,7 @@ with sync_playwright() as pw:
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(uri,wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=60000)
+        page.wait_for_function("typeof StarfallRuntime !== 'undefined' && !!StarfallRuntime.physical8a",timeout=60000)
         seed=page.evaluate("""() => {
           const rt=StarfallRuntime,b=rt.galaxy.byId.get('star-0-p0'),p=b.position,
                 x=SF.load();
@@ -40,6 +41,11 @@ with sync_playwright() as pw:
           const blueprints=[
             {id:'rocket_stage',station:'rocket_integration',pad:'test-rocket-pad',offset:28,mass:900},
             {id:'habitat_shell',station:'habitat_pad',pad:'test-habitat-pad',offset:-28,mass:1120}];
+          // This isolated 8G fixture represents an expedition stocked with
+          // assembly parts INSTEAD OF the default finite 8K preflight kits.
+          // Clear only test-session preflight lots before adding paid-size
+          // fixture materials; never enlarge the original ship hold.
+          m.lots=m.lots.filter(l=>!l.id.startsWith('preflight8k:'));
           let n=0;
           for(const b of blueprints){
             p.assets.push({id:b.pad,type:'industrial_plant',massKg:b.mass,volumeM3:3.7,
@@ -59,9 +65,23 @@ with sync_playwright() as pw:
             m.lots.reduce((s,l)=>s+l.massKg,0)};
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
+        try:
+            page.wait_for_function('typeof StarfallRuntime !== "undefined" && StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("structure-assembly8g")',timeout=40000)
+        except Exception:
+            # Report actual restored state and runtime errors without relaxing
+            # the real landed EVA / physical assembly acceptance gate.
+            print('8G hose fixture reload diagnostics:',page.evaluate("""() => {
+              const rt=window.StarfallRuntime,save=window.SF?.load?.();
+              return {runtime:!!rt,landed:rt?.landed??null,eva:!!rt?.eva,
+                assemblyPanel:!!document.getElementById('structure-assembly8g'),
+                savedLanded:save?.flightGalaxy?.landed??null,
+                savedAttached:save?.flightGalaxy?.attached??null,
+                savedLots:save?.materials8a?.lots?.length??null,
+                importPending:window.__STARFALL_IMPORT_PENDING??null};
+            }"""),'page errors:',errors,flush=True)
+            raise
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        open_route(page,'Engineer')
         panel=page.locator('#structure-assembly8g')
         type_sel=panel.locator('select[aria-label="Select dry rocket stage or habitat envelope"]')
         pad_sel=panel.locator('select[aria-label="Select physical rocket or habitat assembly pad"]')
@@ -133,7 +153,7 @@ with sync_playwright() as pw:
         # The hose must still see the original rated vessel OWN its gas, not
         # hallucinate a generic oxygen stock lot in the ship hold.
         page.evaluate("""() => STARFALL_DEBUG.placeEvaNearGasVessel8G('hose-fixture:oxygen')""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        open_route(page,'Engineer')
         crane=page.locator('#gas-vessel-cargo8g')
         crane.locator('select[aria-label="Select physical nitrogen or oxygen vessel"]').select_option('hose-fixture:oxygen')
         crane.get_by_role('button',name='WINCH GAS VESSEL INTO SHIP').click()
@@ -151,7 +171,7 @@ with sync_playwright() as pw:
         assert ready['ready'] and ready['powered'],ready
         assert 95<ready['pressureKPa']<105 and 20<ready['oxygenPartialKPa']<22,ready
         charge_before=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        open_route(page,'Engineer')
         ui=page.locator('#habitat-hose8g')
         ui.locator('select[aria-label="Select unfinished habitat for rated gas charge"]').select_option(habitat_id)
         ui.locator('select[aria-label="Select actual rated oxygen source"]').select_option('hose-fixture:oxygen')
@@ -189,7 +209,7 @@ with sync_playwright() as pw:
         }""",habitat_id)
         assert not errors,errors
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=45000)
+        page.wait_for_function("typeof StarfallRuntime !== 'undefined' && !!StarfallRuntime.physical8a",timeout=45000)
         persisted=page.evaluate("""id => {
           const rt=StarfallRuntime,h=rt.physical8a.get(id);
           return{kg:h.massKg,pressurePa:h.state.pressurePa,receipts:h.state.meteredCharge8g?.consumedLots?.length,

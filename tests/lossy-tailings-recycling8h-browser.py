@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """8H: REAL offline Chromium STARFALL Engineering UI retains true stock:
 new lossy recycling cannot start from empty ship or fake source documents.
@@ -16,7 +17,7 @@ with sync_playwright() as p:
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(uri,wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime?.refineryQuote8E && window.StarfallRefinery8E && document.querySelector('#refinery8e-panel'))",timeout=60000)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   panel=page.locator('#refinery8e-panel')
   assert panel.is_visible(),'Original Engineer refinery console must remain available offline'
   q=page.evaluate("""()=>{

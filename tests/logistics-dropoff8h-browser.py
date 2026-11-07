@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """8H real file:// Chromium integration with an explicitly controlled physical
 test fixture. The ore, 8D extraction receipt and kit-installed empty depot are
@@ -77,7 +78,7 @@ with sync_playwright() as p:
   }""")
   assert preflight['near'] and preflight['truck'] and preflight['lot']==20,preflight
   assert preflight['gap']<=15,preflight
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   ui=page.locator('#logistics8h-panel')
   ui.locator('#logistics8h-ore-lot').select_option(fixture['lotId'])
   ui.locator('#logistics8h-depot').select_option(fixture['depotId'])
@@ -146,7 +147,7 @@ with sync_playwright() as p:
   # stopped truck. No invented ore: source must be the committed depot lot.
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
   page.wait_for_function("StarfallRuntime.logisticsContext8H().pickupLots.length===1",timeout=20000)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   pick=page.locator('#logistics8h-pickup-lot')
   assert pick.count()==1,'Original Engineer pickup selector absent'
   expected=page.evaluate("""()=>{
@@ -224,7 +225,7 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("StarfallRuntime.logisticsContext8H?.().depots?.length===2",timeout=60000)
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   plan=page.locator('#logistics8h-route-plan')
   page.locator('#logistics8h-route-first').select_option(fixture['depotId'])
   page.locator('#logistics8h-route-second').select_option(nextStop)

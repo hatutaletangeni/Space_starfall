@@ -1,3 +1,4 @@
+from ui22_browser_nav import open_route
 #!/usr/bin/env python3
 """STARFALL 8H — actual original seed742 file:// Chromium WebGL2.
 Original ENGINEER dry intake visible without new/free depot, truck, ore,
@@ -52,7 +53,7 @@ with sync_playwright() as p:
   assert report['denied'] and not report['onFoot'],report
   assert report['noMutation'],report
   assert report['surfaceHoppers']==0,'No FREE 8E factory provided on a fresh original save: '+str(report)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  open_route(page,'Engineer')
   panel=page.locator('#industrial8h-surface-feed')
   assert panel.is_visible(),'Original Engineering panel must show genuine dry dock/hopper controls'
   text=panel.inner_text()
