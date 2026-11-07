@@ -219,9 +219,8 @@ with sync_playwright() as p:
   # metadata records. Download actually created by real browser.
   # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
-  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  page.locator('#archive-t17-open').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Records').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='SAVE / RECOVERY').click()
   with page.expect_download(timeout=30000) as item:
    page.locator('#archive-t17-export-state').click()
   archive=item.value
