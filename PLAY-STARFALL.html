@@ -13270,6 +13270,8 @@ function normalize(saved,profile){
     !finite(profile.atmospherePressurePa)||!finite(profile.mu)||profile.mu<=0)
   throw Error('8J requires real canonical planetary SI profile');
  const baseMass=profile.atmospherePressurePa*4*Math.PI*profile.radiusM**2/profile.surfaceGravityMS2;
+ if(!Number.isFinite(baseMass)||baseMass<0)
+  throw Error('8J invalid canonical planetary SI profile mass budget');
  if(saved==null)return{schema:1,bodyId:profile.id,radiusM:profile.radiusM,
   gravityMS2:profile.surfaceGravityMS2,baselineAtmosphereKg:baseMass,
   atmosphereKg:baseMass,pressurePa:profile.atmospherePressurePa,
