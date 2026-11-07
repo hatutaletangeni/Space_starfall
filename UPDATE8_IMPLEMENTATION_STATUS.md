@@ -12,16 +12,18 @@ This file deliberately does **not** claim Update 8 is complete.
 - **Mission-first navigation:** Original Rocket Lab is available through Mission → Build, Observatory through Mission → Navigate, and Save/Restore through Mission → Records. Updated T17/T18/UI20 browser tests navigate those visible actions and retain their original source-backed assertions.
 - **CI packaging:** Branch-owned rebuild workflow now compiles desktop and mobile playables on integration source edits, without triggering itself on bot-authored bundle-only changes.
 - **8I / 8J models:** Existing source-owned habitat gas and atmospheric pressure models are now loaded in both editable and compiled game entries. Model tests check power constraints, gas conservation, pressure equation, invalid mass requests and duplicate receipts. 8J rejects replay of a receipt ID with different mass/time parameters.
+- **8I finite liquid-water service:** A player-accessible Engineer → Habitat Water Service transfers up to 50 kg at a time from source-owned 8A ship water lots into the **same** physical T09 habitat water tank; requires nearby EVA, closed airlock, landed powered ship, actual ship battery work at 25 kJ/kg and durable joint save. Water debits, T09 credit and a unique provenance receipt are tested in `tests/habitat-supply8i.test.cjs`. An isolated real file:// Chromium acceptance scenario is in `tests/habitat-supply8i-browser.py` and its workflow; do not claim PASS without completed run.
+- **8J canonical feasibility:** The Engineer view derives radius, gravity, seed-baseline pressure and escape velocity from `StarfallPhysics.bodyProfile`; computes planetary pressure mass and hypothetical import duration without writing atmosphere, giving free gas or touching terrain. Native-life/ruins warnings are informational and ALL global interventions remain locked.
 - **Offline parity:** Builds are generated using `python tools/build-standalone.py` and `python tools/build-mobile-standalone.py`.
 
 ## Required before merger into main
 
-- Pass `node tests/update8ij.test.cjs` and existing node test suites.
+- Pass `node tests/update8ij.test.cjs`, `node tests/habitat-supply8i.test.cjs`, real Chromium `tests/habitat-supply8i-browser.py`, and all baseline node/browser suites.
 - Pass `python tests/standalone-parity.py`, verify mobile standalone source parity.
 - Pass real file:// Chromium browser interaction for original-truck secured → ramp → surface → return → reload with same physical ID and mass/battery.
 - Pass 8H source-to-carrier-to-destination logistics, actual T02 energy debit, every target plant pipeline and 1×/10×/100× determinism.
-- Integrate 8I with original T09 installed habitat and T02 power + 8A materials, including source-paid water, oxygen, scrubbers, greenhouse, leakage, airlock and physical controls.
-- Integrate 8J with canonical world atmosphere/physics renderer, actual imported gas/energy ledger, climate/loss/feasibility/protection and persisted effects.
+- Extend 8I beyond the working source-paid T09 water service: integrate separately physical oxygen/scrubber replacement, CO₂ processing, true closed-loop greenhouse growth, nutrients, and corresponding persisted source/power balances; prove complete industrial life-support operation.
+- Extend 8J beyond read-only **canonical physical feasibility**: implement verified source-owned planet-atmosphere mass/energy interventions, climate/loss/water reservoirs, strict planetary-protection approvals and renderer/sensor-persisted effects. The current UI expressly cannot terraform.
 - Execute unassisted 8K full original-asset industrial expedition and old-save/revisit tests; report honest GPU and FPS measurements.
 - Re-run baseline galaxy, warp/landing/crew ramp, science rover, outposts, UI21/UI22, saves and offline release tests.
 
