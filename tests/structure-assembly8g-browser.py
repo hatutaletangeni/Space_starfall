@@ -60,7 +60,20 @@ with sync_playwright() as pw:
             m.lots.reduce((s,l)=>s+l.massKg,0)};
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
+        try:
         page.wait_for_function('typeof StarfallRuntime !== "undefined" && StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("structure-assembly8g")',timeout=40000)
+        except Exception:
+            # Preserve the hard failure, but identify whether save, landing,
+            # EVA or UI22 initialization failed after the fixture reload.
+            print('8G reload diagnostics:',page.evaluate("""() => {
+              const rt=window.StarfallRuntime,save=window.SF?.load?.();
+              return {runtime:!!rt,landed:rt?.landed??null,eva:!!rt?.eva,
+                assemblyPanel:!!document.getElementById('structure-assembly8g'),
+                savedLanded:save?.flightGalaxy?.landed??null,
+                savedAttached:save?.flightGalaxy?.attached??null,
+                importPending:window.__STARFALL_IMPORT_PENDING??null};
+            }"""),'page errors:',errors,flush=True)
+            raise
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
         open_route(page,'Engineer')
         panel=page.locator('#structure-assembly8g')
