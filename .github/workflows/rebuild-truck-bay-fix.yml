@@ -11,6 +11,11 @@ on:
       - 'tools/build-mobile-standalone.py'
       - 'tools/migrate-ui22-browser-tests.py'
   workflow_dispatch:
+# Serialize standalone builds: a source update may create multiple pushes while
+# the first runner is still building. Never race two non-force pushes.
+concurrency:
+  group: starfall-update8-standalone-sync
+  cancel-in-progress: false
 permissions:
   contents: write
   actions: write
