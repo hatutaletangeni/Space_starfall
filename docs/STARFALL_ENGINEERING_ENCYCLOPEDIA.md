@@ -707,3 +707,428 @@ Each entry includes its use in STARFALL or a clear [MODEL] analogy. These are co
 **Known limits [VERIFY]:** Large parts of Update 8A–8K were still under active development when this edition was compiled; a specification, isolated module, test stub, source branch or UI label is **not** proof of a full no-cheat two-world expedition. The exact current branch, tests and save format must be re-audited before changing an authoritative owner.
 
 **Your independent-development rule:** locate the owner, write the invariant, change the smallest source module, add a reproducible negative test, run desktop/mobile parity, document exact commit+PASS/FAIL, preserve rollback and only then merge. This textbook is a map and reference—not a replacement for running the code.
+
+
+
+
+---
+
+# 21. Worked source studies — learn by tracing real operations
+
+The following studies teach the investigative method you will use when modifying unfamiliar features. Each begins with a source excerpt or an exact API, then walks from intent through ownership and save state. If you see a literal fragment, check the named current source file before pasting it into a different branch; the code may evolve.
+
+## Study 1: understanding seeded randomness line by line
+
+**[SOURCE] `src/galaxy.js`** uses:
+
+```javascript
+function rngFactory(seed){
+  let s=(seed>>>0)||1;
+  return()=>((s=(Math.imul(1664525,s)+1013904223)>>>0)/4294967296);
+}
+```
+
+- `seed>>>0` coerces a numeric JavaScript value into an unsigned 32-bit integer.
+- `||1` substitutes 1 for zero, so the generated stream never initializes with 0. This is a design choice; zero would actually be a valid state for a typical LCG with nonzero additive increment, but this implementation explicitly chooses otherwise.
+- `let s` is captured by the returned closure. Calling `rngFactory(742)` twice creates two independent generators with the same initial state.
+- `Math.imul` returns 32-bit integer multiplication, avoiding floating-point rounding of a 64-bit product.
+- `>>>0` normalizes the result into the unsigned range 0..4294967295.
+- `/4294967296` produces an approximate uniform sample on [0,1) for procedural selection.
+
+**Python [MODEL]:**
+```python
+def rng_factory(seed):
+    state = (int(seed) & 0xFFFFFFFF) or 1
+    def next_value():
+        nonlocal state
+        state = (1664525 * state + 1013904223) & 0xFFFFFFFF
+        return state / 4294967296.0
+    return next_value
+```
+
+**C [MODEL]:**
+```c
+#include <stdint.h>
+typedef struct { uint32_t s; } Rng;
+void rng_init(Rng *r, uint32_t seed) { r->s = seed ? seed : 1; }
+double rng_next(Rng *r) {
+    r->s = (uint32_t)(r->s * UINT32_C(1664525) + UINT32_C(1013904223));
+    return (double)r->s / 4294967296.0;
+}
+```
+
+**Assembly mental model:** a register contains `state`; an integer multiply and add compute the new state modulo 2³²; a conversion to floating point and division/scale produces a fraction. Instruction names and ABI vary by CPU. **Why use this in STARFALL?** stable repeatable generation, easy procedural debugging, and small saved seed. **Replacement hazard:** new RNG changes already existing planets.
+
+## Study 2: understanding capacity preflight
+
+**[SOURCE] `src/physics/material-ledger8a.js`** defines a capacity check equivalent to:
+
+```javascript
+function room(id,mass,volume){
+  const c=containers.get(id);
+  if(!c)throw Error('Container missing: '+id);
+  const u=used(id);
+  if(u.massKg+mass>c.maxMassKg+EPS ||
+     u.volumeM3+volume>c.maxVolumeM3+EPS)
+    throw Error('Destination capacity exceeded');
+}
+```
+
+The order matters: **validate before debiting source stock**. Negative mass would make the condition meaningless, so upstream `reserve` also requires positive finite mass. `EPS` tolerates tiny floating-point discrepancies, not kilogram-level fraud.
+
+**Python [MODEL]:**
+```python
+def room(container, used_mass, used_volume, requested_mass, requested_volume, eps=1e-8):
+    if requested_mass <= 0 or requested_volume < 0:
+        raise ValueError("invalid transfer")
+    if used_mass + requested_mass > container["maxMassKg"] + eps:
+        raise ValueError("mass capacity exceeded")
+    if used_volume + requested_volume > container["maxVolumeM3"] + eps:
+        raise ValueError("volume capacity exceeded")
+```
+
+**C [MODEL]:**
+```c
+#include <stdbool.h>
+#include <math.h>
+typedef struct { double max_kg, max_m3; } Container;
+bool has_room(Container c, double used_kg, double used_m3, double kg, double m3) {
+    const double eps = 1e-8;
+    return isfinite(kg) && isfinite(m3) && kg > 0 && m3 >= 0 &&
+           used_kg + kg <= c.max_kg + eps &&
+           used_m3 + m3 <= c.max_m3 + eps;
+}
+```
+
+**Assembly [MODEL]:** load floating-point values, add requested quantities, compare against maximum, branch to failure. C's struct field offsets are determined by the compiler ABI. **Crucial lesson:** a low-level comparison cannot make a transaction safe if another event debits source state before capacity is validated.
+
+## Study 3: understanding the bill of materials
+
+**[SOURCE] `src/physics/factory8f.js`** reads a recipe from `StarfallManufacturing8F.RECIPES`, sums inputs and outputs, and computes:
+
+```javascript
+const input=Object.values(r.inputs).reduce((a,b)=>a+b,0);
+const output=Object.values(r.outputs).reduce((a,b)=>a+b,0);
+const scrapKg=input-output;
+const energyJ=r.powerW*r.seconds;
+```
+
+**What happens conceptually?** Material `steel:10` means ten kg of an existing certified input lot. A recipe `beam:9.6` accounts for 9.6 kg product and 0.4 kg scrap. Energy budget equals powered process rate times simulated time. No unrecorded conversions from electrical J to kg are allowed.
+
+**Python [MODEL]:**
+```python
+def quote(recipe):
+    total_input = sum(recipe["inputs"].values())
+    total_output = sum(recipe["outputs"].values())
+    if total_input < total_output:
+        raise ValueError("recipe creates matter")
+    return {
+        "scrapKg": total_input - total_output,
+        "energyJ": recipe["powerW"] * recipe["seconds"],
+    }
+```
+
+**C [MODEL]:** represent each ingredient as `struct Ingredient {int id; double mass_kg;};`, loop across ingredient arrays, sum masses and multiply power/time. Dynamic string-keyed recipes require a parser or generated static tables. **Assembly:** repeated memory reads and floating additions; it does not supply type safety or provenance without application checks.
+
+**Manufacturing exercise:** choose `copper_wire` from the genuine recipe source, calculate input mass, output mass and scrap, then compare to the actual `factory8f.js` quote and saved 8A lot receipts.
+
+## Study 4: understanding browser callbacks
+
+**[SOURCE] `src/physics/engineering-ui.js`** includes a power-change callback on the existing electrical systems panel:
+
+```javascript
+$('systems-power').onchange=e=>{
+  Store.setPower($('systems-vehicle').value,e.target.checked);
+  RT.persistVehicles();
+  refreshSystems();
+};
+```
+
+- `$('systems-power')` finds the checkbox.
+- `.onchange` installs one handler for a browser control change.
+- `e.target.checked` is a Boolean.
+- `Store.setPower(...)` changes the **existing vehicle power owner**.
+- `RT.persistVehicles()` saves the effect.
+- `refreshSystems()` reads the resulting state for display.
+
+If you remove `persistVehicles`, the UI may switch power on but reload it back off. If you only change the checkbox without the store call, the electrical model remains off. If you call `setPower` on an unrelated vehicle, the displayed ship may disagree with the actual rover.
+
+**Python [MODEL]:** in a desktop Qt/Tkinter app, bind a checkbox event to `model.set_power(vehicle_id, checked)`, then save and repaint. **C [MODEL]:** UI frameworks expose a callback pointer receiving a widget/state structure. **Assembly [MODEL]:** OS/window-system events cause a registered handler to run; there is no direct assembly substitute for the browser DOM.
+
+## Study 5: understanding the original mining economy
+
+The original `src/physics/mining-hauling8d.js` defines:
+
+```javascript
+const DRILL={
+  kitId:'drill-truck-001', kgPerBatch:20,
+  durationS:24, powerW:2400, minimumEnergyJ:57600
+};
+```
+
+`2400 W × 24 s = 57,600 J`, a finite 20 kg batch. The active job must track elapsed simulated seconds and paid energy before it can produce the 8A lot and debit the 8C deposit. The truck hopper holds at most 800 kg and 1.2 m³. For 20 kg rock at volume model 0.00058 m³/kg, the batch uses about 0.0116 m³ of hopper capacity; actual source volume may depend on lot rules.
+
+**Failure questions:** What if deposit remaining mass is 7 kg? What if truck battery has 4,000 J? What if output hopper has only 0.002 m³ left? What if player saves with 11 seconds remaining? The owner must either reject, safely pause, or use a documented partial job rule; never fabricate the full 20 kg.
+
+## Study 6: understanding planet-fixed construction
+
+`src/physics/outposts.js` normalizes the 3D surface vector, samples slope around a footprint, checks nearby structures, and checks protected vehicle boarding areas. Its `placement` returns a site only if the surface is landable and non-overlapping.
+
+**Why normalize?** A local vector's direction identifies a point on a planet independently of its arbitrary original length. **Why sample four nearby heights?** Estimate slope along two tangent axes; a central sample alone cannot distinguish flat ground from a cliff. **Why protect ramps?** Geometry may be valid to render but impossible for players to enter/exit.
+
+**Analogy:** robotics maps and civil site surveying. **Replacement:** signed-distance collision system or full terrain footprint collision, but only if it preserves original body-fixed anchors and save schema.
+
+## Study 7: understanding finite gas packets
+
+`pressure-gas-packets8h.js` uses a known set of gas molar masses and a temperature around 293.15 K, validates compatible vessel/pipe containers, then tracks two real custody hops. Distances are bounded; its 420 W powered pump must have a served native T02 report.
+
+Given nitrogen mass `m=1 kg` and molar mass approximately 0.028014 kg/mol:
+
+```text
+n ≈ 1/0.028014 = 35.696 mol
+For T=293.15 K and V=0.08 m³:
+P ≈ n×8.314462618×293.15/0.08 ≈ 1.09 MPa
+```
+
+This ideal-gas computation is a **teaching approximation**; it is not authorization to build real 8 MPa gas hardware. Packet pressure, actual receiving vessel pressure, mass, flow, electrical charge and unique lot ID must all reconcile. A `PIPE PRESSURE` readout is not a new gas source.
+
+## Study 8: understanding a planet's average atmospheric pressure
+
+**[SOURCE] `terraform8j.js`** updates world atmosphere:
+
+```javascript
+s.atmosphereKg += deliveredGasKg - capturedGasKg - lostGasKg;
+s.pressurePa = s.atmosphereKg * s.gravityMS2 /
+  (4*Math.PI*s.radiusM*s.radiusM);
+```
+
+This is a reduced-order mean hydrostatic balance: atmospheric weight `M×g` divided by sphere area `4πR²`. It assumes a uniformly distributed effective surface load and a constant gravity/radius.
+
+**Python [MODEL]:**
+```python
+from math import pi
+def pressure_pa(atmosphere_kg, radius_m, gravity_ms2):
+    assert atmosphere_kg >= 0 and radius_m > 0 and gravity_ms2 > 0
+    return atmosphere_kg * gravity_ms2 / (4*pi*radius_m**2)
+```
+
+**C [MODEL]:**
+```c
+#include <math.h>
+double pressure_pa(double mass, double radius, double gravity) {
+    const double PI = 3.14159265358979323846;
+    return mass * gravity / (4.0 * PI * radius * radius);
+}
+```
+
+**Assembly analogy:** load mass and gravity, multiply, square radius, multiply by constant `4π`, divide. The **difficult engineering issue is not arithmetic**; it is proving that `deliveredGasKg` came from a physically transported source, not arbitrary numbers supplied by a UI.
+
+---
+
+# 22. Code comprehension: read a complete change safely
+
+Suppose you want to show a ship's battery life percentage in the systems panel. **Do not** create a second stored battery counter.
+
+1. Locate original owner using `src/physics/engineering-ui.js` and its `Store.get('ship').state.energyJ`.
+2. Find rated capacity from the returned `stats.batteryCapacityJ`.
+3. Compute a derived percentage: `100 * energyJ/capacityJ`; guard zero capacity.
+4. Render text in `refreshSystems()`; update it whenever native power changes.
+5. Add a read-only test proving you do not change `state.energyJ`.
+6. Compare percentage with existing kWh battery readout.
+7. Rebuild both offline editions and open each in browser.
+8. Save/reload to confirm neither the battery nor capacity changes.
+9. Commit only source+test and generated files as required by the repository workflow.
+
+**JavaScript [MODEL]:**
+```javascript
+function batteryPercent(vehicle) {
+  const capacity = vehicle.stats.batteryCapacityJ;
+  if (!(Number.isFinite(capacity) && capacity > 0)) return null;
+  return Math.max(0,Math.min(100,100*vehicle.state.energyJ/capacity));
+}
+```
+
+**Python [MODEL]:**
+```python
+def battery_percent(energy_j, capacity_j):
+    if capacity_j <= 0: return None
+    return max(0, min(100, 100 * energy_j / capacity_j))
+```
+
+**C [MODEL]:**
+```c
+#include <math.h>
+double battery_percent(double energy_j, double cap_j) {
+    if (!isfinite(energy_j) || !isfinite(cap_j) || cap_j <= 0)
+        return NAN;
+    double p = 100.0 * energy_j / cap_j;
+    return fmin(100.0, fmax(0.0, p));
+}
+```
+
+**Assembly analogy:** loads, float divide/multiply, clamp comparisons and a return-register result. **Replacement choice:** this tiny derived function does not justify WebAssembly, Rust or a whole UI rewrite.
+
+---
+
+# 23. Algorithms and complexity: where performance actually goes
+
+Algorithmic complexity tells you roughly how work grows with input size `n`.
+
+| Pattern | Common complexity | STARFALL example | Risk |
+|---|---|---|---|
+| `array.find(x=>predicate(x))` | O(n) | Find particular source lot in a list | Repeated scan in every frame |
+| `array.filter(...)` | O(n) + allocations | Select available installed machines | GC churn under high frequency |
+| `array.map(...)` | O(n) + result allocation | Transform UI lists | Recompute unnecessarily |
+| `map.get(id)` | Expected O(1) | `material-ledger8a.js` keyed lots | Hash memory overhead |
+| `array.sort(...)` | Usually O(n log n) | Nearest surface infrastructure | Avoid on every frame for all worlds |
+| Neighbor detection naive nested loop | O(n²) | Every placed structure vs every other | Use spatial partitioning above hundreds |
+| Bounded active job step | O(1) per job, or O(active jobs) | Finite refining or pumping | Global ticking of thousands of unloaded systems |
+| Matrix × matrix (4×4) | Fixed O(1) | View/model/projection | Many per-object transforms become draw-cost |
+| Hash procedural surface sample | O(1) per sample | Terrain noise at a direction | High sample count × visible LOD |
+| Full-world traversal | O(number of worlds) | Updating all planets each frame | Must use lazy generation/caching |
+
+**Caching:** Store a derived mesh once and reuse it when inputs are unchanged. **Caution:** cached world information must not become a second independent planet identity or stock ledger.
+
+**GPU and CPU are different bottlenecks.** Replacing `filter` with `Map` might reduce CPU time, but it cannot improve an expensive fragment shader, excessive transparency blending or large canvas pixel count. Always profile before optimizing.
+
+**Memory tip:** transient `new Float32Array(16)` in a hot loop causes allocations; preallocate or reuse only after checking reentrancy. Retained GPU buffers must be explicitly deleted/evicted at suitable boundaries even though JavaScript objects are garbage collected.
+
+---
+
+# 24. Engineering history map — why these ideas exist
+
+This is **external computing and engineering history**, not an assertion that STARFALL itself implements every historical technique.
+
+| Period | Idea | STARFALL relevance |
+|---|---|---|
+| 17th century | Newton and Leibniz calculus; classical motion laws | Acceleration, orbital dynamics, changing state |
+| 18th–19th centuries | Euler, Lagrange, Hamilton; thermodynamic laws | Numerical integration, force, energy, heat, gas |
+| 19th century | Matrices, vectors, geometry | Camera orientation, surface frames, collision |
+| 1930s–1940s | Turing, von Neumann stored-program computers | Code as executable instructions and stored state |
+| 1950s | FORTRAN and early high-level numerical programming | Scientific equations in readable languages |
+| 1960s–1970s | C, Unix and modular system software | Low-level language analogues and source organization |
+| 1970s | Relational databases and transactional consistency | Durable lot/receipt conservation |
+| 1980s | Procedural graphics and coherent noise | Generated terrain without huge hand-authored maps |
+| 1980s–1990s | Real-time GPU raster pipelines and shaders | Visibility, meshes, projection and pixels |
+| 1991 | Python created by Guido van Rossum | Readable packaging and test automation |
+| 1995 | JavaScript created by Brendan Eich | Browser-based STARFALL simulation |
+| 1997 onward | ECMAScript standards | Evolving portable JS language |
+| 2000s | Programmable GPUs become mainstream | Modern vertex/fragment shader concepts |
+| 2005 | Git created by Linus Torvalds | Branching, commits, release safety |
+| 2010s | WebGL/WebGL2 and browser API evolution | Self-contained 3D game on web |
+| 2020s | WebGPU and contemporary browser GPU pipelines | Potential future rendering replacement |
+
+**Do not optimize for novelty.** A proven small source module with accurate inventory is better than a new framework with duplicated physics.
+
+---
+
+# 25. How to compare code replacements like an engineer
+
+Before suggesting a replacement, compare its **correctness risk, effort, portability, offline compatibility, performance evidence and maintenance cost**.
+
+| Existing technique | Candidate replacement | Potential benefit | Hidden cost / condition |
+|---|---|---|---|
+| Plain JS | TypeScript | Static checking of records, nulls, units | Compiler config and source map/build parity |
+| Script-order globals | Native ES modules | Explicit imports, isolation | `file://` and script order compatibility |
+| Handwritten WebGL2 | Three.js | Scene graph and shader/material tooling | Dependency bulk, possible GPU regressions |
+| WebGL2 | WebGPU | Modern compute/render API | Browser support and entire renderer rewrite |
+| JavaScript CPU kernels | C/Rust WebAssembly | Faster heavy numerical routines | Cross-language serialization and debugging |
+| JSON object saves | IndexedDB | Larger durable storage with transactional operations | Migration, schema management, async flow |
+| Single flight controller | Typed command dispatcher + subsystems | Smaller modules and clearer invariants | Large regression surface |
+| Recomputed lists | Memoized selectors | Less UI CPU churn | Cache invalidation correctness |
+| Naive spatial checks | Spatial hash or quadtree | Better dense placement scaling | Body-fixed spherical boundaries |
+| Python regex inliner | Bundler/HTML parser | More robust packaging | Offline and reproducibility constraints |
+| Manual gameplay regression | Playwright end-to-end tests | Repeatability | Browser fixtures may bypass actual in-world requirements |
+| Finite-state booleans | Formal state machine | Explicit legal transitions | Requires safe migration of legacy state |
+
+**Scientific replacement rule:** increasing apparent numerical fidelity without accounting for sources, sinks and uncertainty can **decrease** truthfulness. A high-fidelity planetary weather animation cannot compensate for gas being created from nowhere.
+
+---
+
+# 26. The lifetime of one material lot — full trace
+
+Imagine the player surveys iron-bearing rock, mines it, and ends with a steel structure. This is the **intended verified path**; exact runtime availability depends on your branch and equipment.
+
+```text
+A. Stable world seed and planet ID
+    ↓ src/galaxy.js + src/physics/planetary-resources8c.js
+B. Finite planet-fixed ore deposit with grade and remaining quantity
+    ↓ Original 8D truck on same body; drill time and battery spent
+C. New 8A lot in truck hopper; 8C depletion receipt
+    ↓ Physical truck movement and finite paid loader
+D. Same source material, now ship-owned 8A cargo
+    ↓ Refinery quote: material grade, machine/tool, input mass, power/time
+E. Iron concentrate and iron tailings with actual production receipts
+    ↓ Hematite identification; reagents, furnace and gas piping
+F. Metallic iron and accounted oxygen-bearing chemical byproducts
+    ↓ Carbon-alloy processing with real carbon
+G. Certified steel output lots in actual finite hold
+    ↓ 8F qualified manufacturing station and complete BOM
+H. Finished part + scrap + electrical receipt
+    ↓ 8G physical site installation
+I. One installed asset with unique ID, actual mass and provenance
+    ↓ Save/reload, travel and service
+J. Same identity and stock after revisiting world
+```
+
+**At every arrow ask:** *Which source object decrements? Which destination increments? Which component stores the receipt? What exact physical/world coordinates permit the handoff? Which Joules were spent? What happens on a repeated event?*
+
+Create a worksheet:
+
+| Stage | Owner ID | Before kg | After kg | J spent | Receipt | Save key |
+|---|---|---:|---:|---:|---|---|
+| Site depletion | body/site ID | ... | ... | ... | ... | ... |
+| Truck hopper | `8d:truck-expedition-001:hopper` | ... | ... | ... | ... | ... |
+| Ship hold | `8d:ship-main:materials` | ... | ... | ... | ... | ... |
+| Refinery | `refinery8e` | ... | ... | ... | ... | ... |
+| 8F factory | `factory8f` | ... | ... | ... | ... | ... |
+| Physical asset | `physical8a` | ... | ... | ... | ... | ... |
+
+Never fill this table with guessed receipts and call it verification. Extract actual fields from a reproducible game run.
+
+---
+
+# 27. Independent maintenance drills with answer criteria
+
+**Drill A — Read the code.** Locate `rngFactory`. Explain state closure, `Math.imul` and `>>>0` without opening an AI assistant. **Pass:** your Python equivalent reproduces first 10 samples for the same seed within double tolerance.
+
+**Drill B — Stop free cargo.** Write a test that reserves 8 kg of a 10 kg lot twice under different IDs, then attempts another 5 kg reservation. **Pass:** third reservation fails and no mass changes.
+
+**Drill C — Guard a save.** Fabricate a duplicate `truck-expedition-001` entry. **Pass:** load validation rejects duplicates without silently deleting user stock.
+
+**Drill D — Explain pressure.** Calculate pressure from 0.5 kg nitrogen in 0.08 m³ at 293.15 K. **Pass:** units and molar mass are correct; real-gas limits acknowledged.
+
+**Drill E — Make a real UI.** Add read-only pump watts to a panel using original T02 reports. **Pass:** no added stored energy field or `importLot` call; off/outage correctly read zero.
+
+**Drill F — Standalone parity.** Modify one source-only UI string and rebuild both bundles. **Pass:** both source/standalone parity scripts succeed at the same commit.
+
+**Drill G — Browser physics.** Drive the same truck from ship bay to terrain, park, exit and reload. **Pass:** source `physical8a` still contains exactly one original ID.
+
+**Drill H — Test honest terraforming.** Try emitting gas from an empty tank. **Pass:** action rejects, atmosphere unchanged, and there is no energy debit beyond documented failed attempt behavior.
+
+**Drill I — Commit safely.** Use a feature branch and PR for a read-only telemetry improvement. **Pass:** rollback path, clean diff, Node and browser checks, desktop/mobile sync, explicit limitation report.
+
+---
+
+# 28. Last-page field reference — where to go when something breaks
+
+| Symptom | First code owner | Verification goal |
+|---|---|---|
+| Stars disappear / wrong count | `src/galaxy.js`, `src/engine.js` | Seed stable; objects generated vs visible distinction |
+| Planet land changes between revisits | `src/engine.js`, terrain authorities | Coordinates/seed unchanged after reload |
+| Ship cannot land | `src/flight.js`, physics modules | Guard conditions and elevation frame |
+| Ship power OFF | `src/physics/engineering-ui.js` | Actual vehicle store enabled, persistent |
+| Truck X fails | `src/flight.js`, cargo custody | Safe state transition, original ID retained |
+| Mobile tap selects text | `src/mobile/landscape.css` and JS | Proper touch-action and pointer handlers |
+| Resource deposit missing | `src/physics/planetary-resources8c.js` | Canonical world composition, surveyed tile |
+| Truck hopper refuses ore | `src/physics/mining-hauling8d.js` | Battery, body, 800 kg / 1.2 m³ cap |
+| Refinery IDLE | `src/physics/refinery8e.js` | Source lot, grade, operator, energy and time |
+| Can't manufacture tank | `src/physics/factory8f.js`, `kit-recipes8f.js` | Actual certified BOM, machine tool and grade |
+| Gas packet stalled | `src/physics/pressure-gas-packets8h.js` | Real T02 420W, body geometry, lot and pipe |
+| Habitat has free atmosphere | `src/physics/habitat-t09.js` and 8K integration | Paid 8G envelope, source-owned consumables |
+| Planet changes too quickly | `src/physics/terraform8j.js` and source integration | Planetary mass/energy, rate, climate timescale |
+| Standalone stale | `tools/build-standalone.py` / mobile builder | Rebuild and parity |
+| Save has duplicate assets | `material-ledger8a.js`, `physical-inventory8a.js` | One owner, one ID, one receipt |
+| CI status unknown | `.github/workflows`, Actions UI | Completed exact-head successful run |
+
+**Final principle:** a mature engineering game is an interacting set of *verified invariants*, not a large line count. By understanding each original owner and its physical constraints, you can become the sole architect of STARFALL without memorizing every line.
