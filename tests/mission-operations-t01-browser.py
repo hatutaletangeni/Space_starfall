@@ -36,7 +36,11 @@ with sync_playwright() as p:
           STARFALL_DEBUG.setSimulationTime(at);
           SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
           ops.persist();
-          return {report,beforeRoverEnergy:2000000,roverEnergy:r.batteryJ,status:r.status,
+          const saved=SF.load(),raw=localStorage.getItem('starfall_save'),
+            disk=raw?JSON.parse(raw):{},
+            owner=key=>key?.launch7?.satellites?.find(x=>x.id===s.id)?.ops7c;
+          return {savedSatJ:owner(saved)?.energyJ,diskSatJ:owner(disk)?.energyJ,
+            diskSatLastS:owner(disk)?.lastS,report,beforeRoverEnergy:2000000,roverEnergy:r.batteryJ,status:r.status,
             roverLast:r.ground7d?.lastTickS,satelliteLast:s.ops7c?.lastS,
             satelliteEnergy:s.ops7c?.energyJ,runTo:ops.clock.lastSimulatedS,
             playerBody:rt.nearest.id,remoteBody:planet.id};
@@ -53,8 +57,12 @@ with sync_playwright() as p:
           const ops=StarfallMissionOperationsUI,s=StarfallLaunchUI.store,
           rover=s.rovers.find(x=>x.id==='test-t01-remote-rover'),
           satellite=s.satellites.find(x=>x.id==='test-t01-remote-sat');
+          const raw=localStorage.getItem('starfall_save'),disk=raw?JSON.parse(raw):{},
+            diskSat=disk?.launch7?.satellites?.find(x=>x.id==='test-t01-remote-sat')?.ops7c;
           return {present:!!rover&&!!satellite,clock:ops.clock.lastSimulatedS,
             roverEnergy:rover?.batteryJ,roverState:rover?.status,satEnergy:satellite?.ops7c?.energyJ,
+            satLastS:satellite?.ops7c?.lastS,diskSatEnergyJ:diskSat?.energyJ,
+            diskSatLastS:diskSat?.lastS,rtcTimeS:StarfallRuntime.time,
             replay:ops.advanceTo(ops.clock.lastSimulatedS).status};
         }""")
         # The 3D runtime RAF continues while Chromium navigates/reloads file://.
