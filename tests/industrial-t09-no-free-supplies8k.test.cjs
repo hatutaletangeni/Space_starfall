@@ -45,3 +45,25 @@ test('existing Industrial serialized T09 consumables are preserved, not erased',
   assert.equal(h.waterL,17);
   assert.equal(h.scrubberCapacityMol,3);
 });
+
+test('Industrial T09 activation rejects forged envelope and never initializes free state',()=>{
+  const {api,root}=load('src/physics/habitat-t09.js',true);
+  const item={id:'hab-1',kind:'hab',bodyId:'world-A',physicalAssetId:'fake-envelope'};
+  const before=JSON.stringify(item);
+  assert.throws(()=>api.command(item,'ENABLE',{now:10,near:true,powered:true}),/unique same-world 8G/);
+  assert.equal(JSON.stringify(item),before,'failed authorization must not mutate the habitat');
+});
+test('Industrial T09 activation rejects cross-world receipts and duplicate shell claims',()=>{
+  const {api,root}=load('src/physics/habitat-t09.js',true);
+  const asset={id:'envelope-1',type:'habitat_envelope',provenance:'structural-8g:paid',location:{kind:'surface',bodyId:'world-B'}};
+  const receipt={assetId:'envelope-1',blueprintId:'habitat_shell',status:'COMMITTED'};
+  const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[]}};
+  root.SF.load=()=>saved;
+  const item={id:'hab-1',kind:'hab',bodyId:'world-A',physicalAssetId:'envelope-1'};
+  assert.throws(()=>api.command(item,'ENABLE',{now:10,near:true,powered:true}),/unique same-world 8G/);
+  assert.equal(item.habT09,undefined);
+  asset.location.bodyId='world-A';
+  saved.outpost5.items=[{id:'hab-2',kind:'hab',physicalAssetId:'envelope-1'}];
+  assert.throws(()=>api.command(item,'ENABLE',{now:10,near:true,powered:true}),/unique same-world 8G/);
+  assert.equal(item.habT09,undefined);
+});
