@@ -5610,7 +5610,12 @@ function command(item,action,{now=0,near=false,powered=false,body=null,occupants
   const receipt=receipts.some(x=>x?.assetId===assetId&&x.blueprintId==='habitat_shell'&&
     ['COMMITTED','ASSEMBLED_NOT_OPERATIONAL'].includes(x.status));
   const duplicate=outposts.some(x=>x?.kind==='hab'&&x.id!==item.id&&x.physicalAssetId===assetId);
-  if(!asset||!receipt||duplicate)
+  // The persisted original outpost is the authority for the physical linkage.
+  // A transient/forged runtime item must not borrow an unclaimed 8G envelope.
+  const persisted=outposts.find(x=>x?.id===item.id&&x.kind==='hab');
+  const linked=!!persisted&&persisted.bodyId===item.bodyId&&
+    persisted.physicalAssetId===assetId&&typeof assetId==='string';
+  if(!asset||!receipt||duplicate||!linked)
    throw Error('Industrial T09 activation requires unique same-world 8G structural receipt and manufactured envelope');
  }
  const h=ensure(item,now);
