@@ -56,6 +56,8 @@ class Store{
  // Guard the authoritative Store API as well as UI22: direct callers must not
  // create a free T09 pressure volume in a fresh Industrial expedition.
  // Legacy/creative saves retain their original construction behavior.
+ if(kind==='solar'&&root.SF?.load?.()?.freshExpedition?.schema===1)
+  throw Error('Industrial solar array requires source-paid manufactured 8F solar modules and installation; free Store.add is disabled');
  if(kind==='hab'&&root.SF?.load?.()?.freshExpedition?.schema===1)
   throw Error('Industrial habitat requires atomic source-paid 8G envelope commissioning; free T09 Store.add is disabled');
  if(kind==='conveyor_drive')throw Error('8H conveyor T02 port requires a physically manufactured and installed 8E drive');
