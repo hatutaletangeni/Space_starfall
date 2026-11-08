@@ -54,7 +54,10 @@ with sync_playwright() as p:
   assert proof['seed']==742 and proof['ship']=='ship-main' and proof['trucks']==1,proof
   assert proof['state']['schema']==1 and isinstance(proof['state']['jobs'],list),proof
   assert proof['denied'] and proof['unchanged'],proof
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   panel=page.locator('#industrial8e-physical')
   assert panel.is_visible(),'Original Engineer physical chemical plant must render'
   page.wait_for_function("""()=>{

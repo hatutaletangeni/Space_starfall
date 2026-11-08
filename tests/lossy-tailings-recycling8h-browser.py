@@ -16,7 +16,10 @@ with sync_playwright() as p:
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(uri,wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime?.refineryQuote8E && window.StarfallRefinery8E && document.querySelector('#refinery8e-panel'))",timeout=60000)
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   panel=page.locator('#refinery8e-panel')
   assert panel.is_visible(),'Original Engineer refinery console must remain available offline'
   q=page.evaluate("""()=>{

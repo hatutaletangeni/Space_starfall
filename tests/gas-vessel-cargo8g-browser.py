@@ -70,7 +70,10 @@ with sync_playwright() as pw:
         assert quote['ready'] and quote['powered'],quote
         assert quote['availableAirKg']==2400,quote
         assert 0<quote['nitrogenKg']<quote['airBatchKg']
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         control=page.locator('#air-fractionation8g')
         control.locator('select[aria-label="Select physical air separator"]').select_option('air-test-plant')
         control.locator('select[aria-label="Select physical nitrogen vessel"]').select_option('air-test-nitrogen-vessel')
@@ -105,7 +108,10 @@ with sync_playwright() as pw:
         # Second physical collection must have a distinct lot and permanently
         # further deplete the same modeled surface cell, not reset at reload.
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("air-fractionation8g")',timeout=40000)
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         ui=page.locator('#air-fractionation8g')
         ui.locator('select[aria-label="Select physical air separator"]').select_option('air-test-plant')
         ui.locator('select[aria-label="Select physical nitrogen vessel"]').select_option('air-test-nitrogen-vessel')
@@ -122,7 +128,10 @@ with sync_playwright() as pw:
         # The filled physical N2 pressure vessel now moves as one owned asset
         # with the ORIGINAL gas lots still in its vessel-owned 8A container.
         page.evaluate("""() => STARFALL_DEBUG.placeEvaNearGasVessel8G('air-test-nitrogen-vessel')""")
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         crane=page.locator('#gas-vessel-cargo8g')
         crane.locator('select[aria-label="Select physical nitrogen or oxygen vessel"]').select_option('air-test-nitrogen-vessel')
         mass=page.evaluate("""() => StarfallRuntime.materials8a.inventory('vessel8e:air-test-nitrogen-vessel').reduce((s,l)=>s+l.massKg,0)""")
@@ -147,7 +156,10 @@ with sync_playwright() as pw:
           return{kind:a.location.kind,ids:ls.map(x=>x.id),kg:ls.reduce((s,x)=>s+x.massKg,0)};
         }""")
         assert reloaded['kind']=='ship' and reloaded['ids']==aboard['ids'] and abs(reloaded['kg']-mass)<1e-7,reloaded
-        page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
         crane=page.locator('#gas-vessel-cargo8g')
         crane.locator('select[aria-label="Select physical nitrogen or oxygen vessel"]').select_option('air-test-nitrogen-vessel')
         crane.get_by_role('button',name='UNLOAD GAS VESSEL ONTO GROUND').click()
