@@ -29,7 +29,10 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRFAnalyzerUI19&&window.StarfallOutpostUI&&window.StarfallCommsT03)",timeout=50000)
   assert page.evaluate("StarfallRuntime.landed && StarfallRuntime.eva")
-  page.locator('#ui21-navigation button[data-route="Engineer"]').click()
+  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   page.locator('#outpost-open').click()
   ids={}
   for kind in ['battery','solar','antenna']:
