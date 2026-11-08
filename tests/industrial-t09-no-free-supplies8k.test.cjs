@@ -67,3 +67,21 @@ test('Industrial T09 activation rejects cross-world receipts and duplicate shell
   assert.throws(()=>api.command(item,'ENABLE',{now:10,near:true,powered:true}),/unique same-world 8G/);
   assert.equal(item.habT09,undefined);
 });
+
+test('Industrial T09 rejects forged runtime identity even with a valid unclaimed shell',()=>{
+  const {api,root}=load('src/physics/habitat-t09.js',true);
+  const asset={id:'shell-paid-1',type:'habitat_envelope',provenance:'structural-8g:paid',location:{kind:'surface',bodyId:'world-A'}};
+  const receipt={assetId:asset.id,blueprintId:'habitat_shell',status:'COMMITTED'};
+  const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[]}};
+  root.SF.load=()=>saved;
+  const item={id:'runtime-forgery',kind:'hab',bodyId:'world-A',physicalAssetId:asset.id};
+  assert.throws(()=>api.command(item,'ENABLE',{now:10,near:true,powered:true}),/unique same-world 8G/);
+  assert.equal(item.habT09,undefined,'failed authorization cannot initialize a shell');
+  saved.outpost5.items=[{id:item.id,kind:'hab',bodyId:'world-B',physicalAssetId:asset.id}];
+  assert.throws(()=>api.command(item,'ENABLE',{now:10,near:true,powered:true}),/unique same-world 8G/);
+  saved.outpost5.items=[{id:item.id,kind:'hab',bodyId:'world-A',physicalAssetId:'different-shell'}];
+  assert.throws(()=>api.command(item,'ENABLE',{now:10,near:true,powered:true}),/unique same-world 8G/);
+  saved.outpost5.items=[{id:item.id,kind:'hab',bodyId:'world-A',physicalAssetId:asset.id}];
+  const result=api.command(item,'ENABLE',{now:10,near:true,powered:true});
+  assert.equal(result.enabled,true,'legitimate persisted identity remains eligible');
+});
