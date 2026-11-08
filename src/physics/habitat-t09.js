@@ -34,6 +34,16 @@ function defaults(now=0){
 function ensure(item,now=0){
  if(item?.kind!=='hab')throw Error('T09 requires an existing habitat structure');
  const old=item.habT09,was=old?.schema===SCHEMA,initial=defaults(now);
+ // A newly initialized Industrial T09 volume is an EMPTY pressure shell, not
+ // a free starter supply. Existing serialized T09 states (including legacy
+ // saves) are restored below without retroactively erasing their contents.
+ // Commissioning must independently transfer real gases, water and media.
+ if(!was&&root.SF?.load?.()?.freshExpedition?.schema===1){
+  initial.oxygenMol=0;initial.inertMol=0;initial.carbonMol=0;
+  initial.oxygenTankMol=0;initial.inertTankMol=0;
+  initial.scrubberCapacityMol=0;initial.waterL=0;
+  initial.totalKPa=0;initial.o2KPa=0;initial.co2KPa=0;
+ }
  if(was){
   for(const key of Object.keys(initial))if(old[key]!==undefined)initial[key]=old[key];
   const bounded={
