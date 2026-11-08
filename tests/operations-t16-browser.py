@@ -61,6 +61,12 @@ with sync_playwright() as p:
   }""")
   assert stage['phase']=='IN_PROGRESS',stage
   assert page.locator('#op16-log-rows').inner_text().find('ops16')<0 or page.locator('#op16-log-rows').count()==1
+  # The source-owned T16 status card remains under the Overview page. UI22
+  # collapses the legacy reconnaissance panel on boot. Open its visible
+  # Navigate workspace before operating the genuine log filters.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   page.locator('#op16-filter-severity').select_option('info')
   assert page.locator('#op16-filter-severity').input_value()=='info'
   page.locator('#op16-asset').select_option('starfall-ship')
