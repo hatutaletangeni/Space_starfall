@@ -15,7 +15,7 @@ with sync_playwright() as pw:
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(uri,wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=60000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=60000)
         seed=page.evaluate("""() => {
           const rt=StarfallRuntime,b=rt.galaxy.byId.get('star-0-p0'),p=b.position,
                 x=SF.load();
@@ -30,7 +30,7 @@ with sync_playwright() as pw:
           localStorage.setItem('starfall_save',JSON.stringify(s));
         }""",seed)
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&StarfallRuntime.outpostContext()?.local',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed&&StarfallRuntime.eva&&StarfallRuntime.outpostContext()?.local',timeout=40000)
         fixture=page.evaluate("""() => {
           const rt=StarfallRuntime,c=rt.outpostContext(),
             m=rt.materials8a.snapshot(),p=rt.physical8a.serialize(),
@@ -59,7 +59,7 @@ with sync_playwright() as pw:
             m.lots.reduce((s,l)=>s+l.massKg,0)};
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
         # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
@@ -131,7 +131,7 @@ with sync_playwright() as pw:
               neededMass:Object.values(need).reduce((s,n)=>s+n,0)};
         }""",habitat_id)
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("habitat-hose8g")',timeout=45000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed && StarfallRuntime.eva && !!document.getElementById("habitat-hose8g")',timeout=45000)
         # Use the real 8G gantry to carry the oxygen pressure vessel aboard.
         # The hose must still see the original rated vessel OWN its gas, not
         # hallucinate a generic oxygen stock lot in the ship hold.
@@ -198,7 +198,7 @@ with sync_playwright() as pw:
         }""",habitat_id)
         assert not errors,errors
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=45000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=45000)
         persisted=page.evaluate("""id => {
           const rt=StarfallRuntime,h=rt.physical8a.get(id);
           return{kg:h.massKg,pressurePa:h.state.pressurePa,receipts:h.state.meteredCharge8g?.consumedLots?.length,
@@ -265,7 +265,7 @@ with sync_playwright() as pw:
                    paid['habitat']['massKg'])<1e-5,linked
         page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function("!!(StarfallRuntime?.physical8a&&StarfallOutpostUI?.store)",timeout=45000)
+        page.wait_for_function("!!(window.StarfallRuntime?.physical8a&&window.StarfallOutpostUI?.store)",timeout=45000)
         final8i=page.evaluate("""id=>{
            const rt=StarfallRuntime,s=SF.load(),
             linked=StarfallOutpostUI.store.items.filter(x=>x.physicalAssetId===id),
