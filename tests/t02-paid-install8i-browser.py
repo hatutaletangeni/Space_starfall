@@ -41,14 +41,6 @@ with sync_playwright() as p:
      energyJ:solar?814000:720000});
     totalKg+=mass;
    }
-   // Test-only safe EVA anchor for genuine body-fixed placement. It is NOT
-   // a qualifying manufactured power or habitat part.
-   const radial=[0,1,0],outer=(n)=>{
-    const angle=n/b.radius;return[Math.sin(angle),Math.cos(angle),0];};
-   const anchor=outer(48);
-   a.assets.push({id:'TEST_FIXTURE_ONLY_EVA_ANCHOR',type:'habitat_envelope',
-    massKg:1,volumeM3:.001,condition:1,provenance:'TEST_FIXTURE_ONLY',
-    location:{kind:'surface',bodyId:b.id,local:anchor},state:{}});
    const expected={...s.flightGalaxy,seed:rt.galaxy.seed,time:0,
     position:[p[0],p[1]+b.radius+8,p[2]],attached:b.id,target:b.id,
     groundDirection:[0,1,0],up:[0,1,0],forward:[1,0,0],landed:true};
@@ -65,13 +57,34 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("""()=>!!(StarfallRuntime?.landed&&StarfallRuntime?.eva&&
     StarfallT02PaidInstallUI8I&&StarfallOutpostUI?.store)""",timeout=60000)
+  # Construct the controlled EVA anchor RELATIVE TO THE REAL LANDED SHIP,
+  # never from a guessed world north pole or unrelated globe position.
+  page.evaluate("""()=>{
+   const rt=StarfallRuntime,c=rt.outpostContext(),p=rt.physical8a.serialize(),
+    O=StarfallOutposts;
+   if(!c.shipLocal||!c.body?.radius||!c.forward)
+    throw Error('Actual landed ship body-fixed position missing');
+   const local=O.offset(c.shipLocal,c.forward,55,0,c.body.radius);
+   p.assets.push({id:'TEST_FIXTURE_ONLY_EVA_ANCHOR',type:'habitat_envelope',
+    massKg:1,volumeM3:.001,condition:1,provenance:'TEST_FIXTURE_ONLY',
+    location:{kind:'surface',bodyId:c.bodyId,local},state:{}});
+   SF.save({physical8a:p});window.__STARFALL_IMPORT_PENDING=true;
+  }""")
+  page.reload(wait_until='domcontentloaded',timeout=90000)
+  page.wait_for_function("!!(StarfallRuntime?.landed&&StarfallRuntime?.eva&&StarfallOutpostUI?.store)",timeout=60000)
   page.evaluate("""()=>{
    STARFALL_DEBUG.placeEvaNearRepairAsset8G('TEST_FIXTURE_ONLY_EVA_ANCHOR');
    const ship=StarfallRuntime.vehicleStore.get('ship');
    if(!ship.state.powerEnabled)StarfallRuntime.vehicleStore.setPower('ship',true);
   }""")
   initial=page.evaluate("""()=>{
-   const rt=StarfallRuntime,c=rt.t02PaidContext8I(),q=rt.t02PaidInstallQuote8I('solar');
+   const rt=StarfallRuntime,c=rt.t02PaidContext8I();
+   let q;try{q=rt.t02PaidInstallQuote8I('solar');}catch(e){
+    const x=rt.outpostContext(),anchor=rt.physical8a.get('TEST_FIXTURE_ONLY_EVA_ANCHOR');
+    throw Error(String(e.message)+' / actual ship→EVA '+StarfallOutposts.arc(x.shipLocal,x.local,x.body.radius).toFixed(2)+
+     ' / ship→anchor '+StarfallOutposts.arc(x.shipLocal,anchor.location.local,x.body.radius).toFixed(2)+
+     ' / EVA→anchor '+StarfallOutposts.arc(x.local,anchor.location.local,x.body.radius).toFixed(2));
+   }
    if(!q.ready||q.massKg!==8.8||!q.site||!c.eva)throw Error('Original 8F-ready solar installation unavailable');
    return{time:rt.time,shipBatteryJ:c.energyJ,quote:q,
     lots:rt.materials8a.snapshot().lots.filter(x=>x.provenance.startsWith('process:manufacture8f:')).length};
