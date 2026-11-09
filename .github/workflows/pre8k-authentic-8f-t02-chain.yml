@@ -1,0 +1,32 @@
+name: STARFALL pre8K authentic 8A to 8F to 48V T02 chain
+on:
+  push:
+    branches: [feature/pre8k-actual-8f-to-t02-supply-chain-20261109]
+    paths:
+      - tests/pre8k-real8f-to-t02-chain.test.cjs
+      - .github/workflows/pre8k-authentic-8f-t02-chain.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-fake-manufacturing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Fully execute ORIGINAL paid 8A→8F→8E→T02 receipt chain
+        run: |
+          node tests/pre8k-certified-power-bom.test.cjs
+          node tests/pre8k-real8f-to-t02-chain.test.cjs
+          node tests/t02-paid-install8i.test.cjs
+          node tests/t02-paid-grid8i.test.cjs
+      - name: Ensure untouched desktop and landscape mobile parity
+        run: |
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
