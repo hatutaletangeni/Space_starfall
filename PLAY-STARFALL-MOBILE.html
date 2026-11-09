@@ -14077,10 +14077,12 @@ if(storedTruck8b?.location.kind==='ship'){
 }
 if(originalTruckCargo8B.issue)console.warn('8B physical truck custody restored safely:',originalTruckCargo8B.issue);
 let materials8a=StarfallMining8D.prepareContainers(StarfallMaterials8A.create(session.materials8a));
-// Preserve main's pre-existing legacy preflight only for legacy-born fresh worlds.
-// The newer explicit freshExpedition route below has its OWN one-time starter
-// receipt. Never seed both manifests or silently award cargo to restored saves.
-if(session.freshExpedition?.schema!==1){
+// Preserve main's inspectable legacy preflight model, but never implicitly
+// populate a default legacy/free-roam game with 3050.9 kg or 15.88 m³ of
+// imported hardware. It blocks original mining tests and leaves no cargo
+// capacity. Only an EXPLICIT optional preflight request may apply it here.
+// New Industrial expeditions use the separate one-time 8K starter receipt.
+if(session.legacyPreflight8KOptIn===true && session.freshExpedition?.schema!==1){
  const originalPreflight=StarfallExpeditionManifest8K.initialize(session,materials8a);
  materials8a=originalPreflight.materials;
 }
