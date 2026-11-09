@@ -1,0 +1,53 @@
+name: Build and audit finite electrical bootstrap source
+on:
+  push:
+    branches: [feature/update8-pre8k-certified-electrical-feed-20261109]
+    paths:
+      - src/physics/starter-manifest8k.js
+      - src/physics/stock-parts8f.js
+      - tests/pre8k-certified-power-bom.test.cjs
+      - .github/workflows/pre8k-electrical-bootstrap.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: starfall-pre8k-certified-electrical-bootstrap
+  cancel-in-progress: false
+jobs:
+  finite-source-materials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/update8-pre8k-certified-electrical-feed-20261109
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify original 8A, original 8F BOM, one-time sourced manifest and fixed station dimensions
+        run: |
+          node --check src/physics/starter-manifest8k.js
+          node --check src/physics/stock-parts8f.js
+          node tests/pre8k-certified-power-bom.test.cjs
+          node tests/starter-manifest8k.test.cjs
+          node tests/t02-paid-install8i.test.cjs
+      - name: Rebuild actual offline desktop and landscape mobile
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Publish source-matched standalones on exact feature branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'build: synchronize physically sourced electrical bootstrap in both offline playables'
+            git pull --rebase origin feature/update8-pre8k-certified-electrical-feed-20261109
+            git push origin HEAD:feature/update8-pre8k-certified-electrical-feed-20261109
+          fi
