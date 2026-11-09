@@ -43,4 +43,16 @@ const uncommitted = snapshot();
 uncommitted.vehicleAssembly8g.receipts[0].status = 'ASSEMBLED_NOT_OPERATIONAL';
 assert.equal(stage(uncommitted, 'habitat'), 'NOT_PROVEN',
   'unfinished structural assembly is not paid commissioning evidence');
+const duplicateReceiptId = snapshot();
+duplicateReceiptId.vehicleAssembly8g.receipts.push({
+  ...duplicateReceiptId.vehicleAssembly8g.receipts[0], assetId: 'another-envelope'
+});
+assert.equal(stage(duplicateReceiptId, 'habitat'), 'NOT_PROVEN',
+  'one structural receipt ID cannot authorize multiple physical envelopes');
+const duplicateAssetReceipt = snapshot();
+duplicateAssetReceipt.vehicleAssembly8g.receipts.push({
+  ...duplicateAssetReceipt.vehicleAssembly8g.receipts[0], id: 'receipt-2'
+});
+assert.equal(stage(duplicateAssetReceipt, 'habitat'), 'NOT_PROVEN',
+  'one physical envelope cannot have multiple competing structural assembly receipts');
 console.log('8K unique physical envelope audit regression passed');
