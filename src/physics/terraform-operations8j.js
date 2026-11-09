@@ -119,7 +119,7 @@ function create(saved){
    ...inspectFrom(w),receiptId:id,source:'modeled reservoir / not direct gas measurement'}};
  }
  function inspectFrom(w){
-  const deltaPa=w.pressurePa-w.baselinePressurePa;
+  const deltaPa=w.injectedCO2Kg*w.gravityMS2/(4*Math.PI*w.radiusM*w.radiusM);
   return {bodyId:w.bodyId,pressurePa:w.pressurePa,modeledDeltaPa:deltaPa,
    pressureUncertaintyPa:.5,resolved:Math.abs(deltaPa)>=.5,
    injectedCO2Kg:w.injectedCO2Kg,escapedCO2Kg:w.escapedCO2Kg,
