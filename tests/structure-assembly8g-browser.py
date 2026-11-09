@@ -15,7 +15,7 @@ with sync_playwright() as pw:
         errors=[]
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(uri,wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=60000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=60000)
         seed=page.evaluate("""() => {
           const rt=StarfallRuntime,b=rt.galaxy.byId.get('star-0-p0'),p=b.position,
                 x=SF.load();
@@ -30,7 +30,7 @@ with sync_playwright() as pw:
           localStorage.setItem('starfall_save',JSON.stringify(s));
         }""",seed)
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&StarfallRuntime.outpostContext()?.local',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed&&StarfallRuntime.eva&&StarfallRuntime.outpostContext()?.local',timeout=40000)
         fixture=page.evaluate("""() => {
           const rt=StarfallRuntime,c=rt.outpostContext(),
             m=rt.materials8a.snapshot(),p=rt.physical8a.serialize(),
@@ -59,7 +59,7 @@ with sync_playwright() as pw:
             m.lots.reduce((s,l)=>s+l.massKg,0)};
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
         # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
@@ -106,7 +106,7 @@ with sync_playwright() as pw:
         assert habitat['state']['habitable'] is False and habitat['state']['pressurePa']==0
         assert not errors,errors
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=40000)
         persisted=page.evaluate("""() => ({
           structures:StarfallRuntime.physical8a.list().filter(x=>
             ['rocket_stage_dry','habitat_envelope'].includes(x.type)).map(x=>x.id),
@@ -166,7 +166,7 @@ with sync_playwright() as pw:
         assert abs(before_repair['shipEnergyJ']-repaired['shipEnergyJ']-before_repair['workJ'])<15000,repaired
         assert repaired['asset']['state']['launchReady'] is False
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=40000)
         restored=page.evaluate("""id => {
           const a=StarfallRuntime.physical8a.get(id),m=StarfallRuntime.materials8a.snapshot();
           return{condition:a.condition,repairs:a.state.fieldRepairs8g?.length,
@@ -229,7 +229,7 @@ with sync_playwright() as pw:
         assert charged['asset']['state']['habT09']['inertTankMol']==0
         assert charged['asset']['state']['habT09']['scrubberCapacityMol']==0
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=40000)
         saved_charge=page.evaluate("""id => {
           const a=StarfallRuntime.physical8a.get(id);
           return{massKg:a.massKg,charged:!!a.state.habitatCharge8g,

@@ -31,7 +31,7 @@ with sync_playwright() as pw:
           localStorage.setItem('starfall_save',JSON.stringify(s));
         }""",seed)
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&StarfallRuntime.outpostContext()?.local',timeout=30000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed&&StarfallRuntime.eva&&StarfallRuntime.outpostContext()?.local',timeout=30000)
         fixture=page.evaluate("""() => {
           const rt=StarfallRuntime,c=rt.outpostContext(),m=rt.materials8a.snapshot(),
             p=rt.physical8a.serialize(),ship=StarfallMining8D.SHIP,
@@ -57,7 +57,7 @@ with sync_playwright() as pw:
              expectedKg:Object.values(def.parts).reduce((a,b)=>a+b,0)};
         }""")
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("assembly-inspector8g-panel")',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("assembly-inspector8g-panel")',timeout=40000)
         diagnostic=page.evaluate("""() => ({
           context:StarfallRuntime.assemblyContext8G(),
           outpost:StarfallRuntime.outpostContext(),
@@ -110,7 +110,7 @@ with sync_playwright() as pw:
         assert 190000<=prior['energy']-made['energy']<=210000,(prior,made['energy'])
         assert not errors,errors
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=60000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=60000)
         persisted=page.evaluate("""() => ({
           frames:StarfallRuntime.physical8a.list().filter(x=>x.type==='vehicle_frame').length,
           receipts:SF.load().vehicleAssembly8g.receipts.length,
@@ -176,7 +176,7 @@ with sync_playwright() as pw:
         assert activated['asset']['state']['activationReceipt']['energyJ']==2500000
         assert len(activated['truck'])==1 and activated['truck'][0]['location']==fixture['truck']
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('StarfallRuntime.landed && StarfallRuntime.eva',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime&&StarfallRuntime.landed && StarfallRuntime.eva',timeout=40000)
         assert page.evaluate("""id => StarfallRuntime.physical8a.get(id)?.state?.operational===true""",frame_id)
         # Test-only physical placement by the already verified unique frame.
         # Then use the actual X boarding / WASD input rather than teleporting
@@ -247,7 +247,7 @@ with sync_playwright() as pw:
             StarfallRuntime.physical8a.list().filter(x=>x.id==='truck-expedition-001').length===1;
         }""",frame_id),'Unloaded vehicle lost driving progress or original truck ownership'
         page.reload(wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function('!!StarfallRuntime?.physical8a',timeout=40000)
+        page.wait_for_function('!!window.StarfallRuntime?.physical8a',timeout=40000)
         assert page.evaluate("""id => StarfallRuntime.physical8a.get(id).state.distanceM>0""",frame_id)
         assert not errors,errors
         print('PASS 8G Chromium activation: complete manufactured frame calibrated and charged 2.5MJ, distinct rideable vehicle saved without cloning expedition truck')
