@@ -40,7 +40,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
  for(const group of groups){
   const busId=group.map(x=>x.id).sort()[0],nodes=group.filter(x=>x.enabled!==false&&x.condition>.02),live=new Set(nodes.map(x=>x.id));
   const wires=store.wires.filter(w=>live.has(w.a)&&live.has(w.b)),factor=wires.length?1+WIRE_LOSS:1;
-  const specs=nodes.map(item=>({item,spec:SPECS[item.kind],generatedW:sun(item,SPECS[item.kind])}));
+  const specs=nodes.map(item=>{const spec=O().ratedSpec(item);return{item,spec,generatedW:sun(item,spec)};});
   const solar=specs.filter(x=>x.generatedW>0),batteries=specs.filter(x=>x.spec.capacityJ>0&&x.item.energyJ>0);
   const generatedW=solar.reduce((s,x)=>s+x.generatedW,0),dischargeMax=batteries.reduce((s,x)=>s+Math.min(x.spec.maxDischargeW*ETA_DISCHARGE,dt>0?x.item.energyJ*ETA_DISCHARGE/dt:x.spec.maxDischargeW*ETA_DISCHARGE),0);
   const availableW=Math.min(VOLTS*MAX_A,generatedW+dischargeMax),priority=[...specs].sort((a,b)=>a.spec.priority-b.spec.priority||a.item.id.localeCompare(b.item.id));
@@ -48,7 +48,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
    generationW:generatedW,servedW:0,wireLossW:0,chargedJ:0,dischargedJ:0,lossJ:0,sourceIds:[],loadIds:[],shedIds:[],wireIds:wires.map(w=>w.a+'↔'+w.b)};
   let servedW=0;
   for(const item of group){
-   const spec=SPECS[item.kind],available=live.has(item.id);
+   const spec=O().ratedSpec(item),available=live.has(item.id);
    report.byId[item.id]={id:item.id,bodyId:body.id,kind:item.kind,enabled:item.enabled!==false,busId,
     nameplateW:spec.solarW||spec.watts||0,loadNameplateW:spec.watts||0,generatedW:0,loadW:0,
     shedW:0,sourceIds:[],batteryJ:item.energyJ||0,capacityJ:spec.capacityJ||0,
@@ -89,7 +89,7 @@ function grid(store,body,starPos,luminosityW,simS,dt,metresPerUnit=1,occluders=[
   bus.lossJ=wireLossW*dt+dischargedJ*(1-ETA_DISCHARGE)+chargedJ*(1/ETA_CHARGE-1);
   if(bus.shedIds.length)report.faults.push({busId,reason:availableW<1?'NO_SUPPLY':'BROWNOUT_OR_OVERLOAD',items:[...bus.shedIds]});
   for(const item of group){
-   const r=report.byId[item.id],spec=SPECS[item.kind];
+   const r=report.byId[item.id],spec=O().ratedSpec(item);
    r.sourceIds=r.power?[...bus.sourceIds]:[];r.voltageV=r.power?bus.voltageV:0;r.currentA=r.loadW/VOLTS;r.batteryJ=item.energyJ||0;
    if(r.power&&r.sourceIds.length&&grossW>0){for(const id of r.sourceIds){const share=(sourceContributions.get(id)||0)/grossW;r.sourceWatts[id]=+(r.loadW*share).toFixed(5);}}
    if(live.has(item.id)){
