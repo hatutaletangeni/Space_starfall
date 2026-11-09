@@ -36,6 +36,7 @@ jobs:
           node --check src/physics/power-ledger-t02.js
           node --check src/flight.js
           node tests/t02-paid-install8i.test.cjs
+          node tests/t02-paid-grid8i.test.cjs
           node tests/industrial-t09-no-free-supplies8k.test.cjs
           node tests/update8ij.test.cjs
       - name: Build both actual offline source-matched games
