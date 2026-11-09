@@ -1,0 +1,28 @@
+name: STARFALL pre-8K real ship-manifest factory-to-T02 chain
+on:
+  push:
+    branches: [feat/pre8k-real-factory-chain-20261109]
+    paths:
+      - 'tests/pre8k-real-8f-to-t02-chain.test.cjs'
+      - '.github/workflows/pre8k-real-factory-chain.yml'
+      - 'src/physics/starter-manifest8k.js'
+      - 'src/physics/factory8f.js'
+      - 'src/physics/t02-paid-install8i.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-finite-factory-chain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Strict actual 8A/8F/8E/8I closed material and time chain
+        run: |
+          node --test tests/pre8k-real-8f-to-t02-chain.test.cjs
+          node tests/pre8k-certified-power-bom.test.cjs
+          node tests/t02-paid-install8i.test.cjs
+          node tests/t02-paid-grid8i.test.cjs
