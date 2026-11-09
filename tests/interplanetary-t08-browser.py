@@ -5,7 +5,6 @@ byte ACK, autonomous on-world camera, offscreen T05 7F image, actual B->A
 image download and science journal receipt. No remoteLink, route or GL stubs.
 Controlled pre-placed assets, NOT a human expedition or rocket insertion.
 """
-import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
@@ -29,11 +28,17 @@ with sync_playwright() as p:
       groundDirection:local,forward:[0,0,1],up:dir,landed:true}});
     return{state:SF.load(),targetId:B.id};
   }""")
-  context.add_init_script("(()=>{if(sessionStorage.getItem('t08-initialized'))return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved['state']))+");sessionStorage.setItem('t08-initialized','1');})()")
-  boot.close()
-  page=context.new_page();errors=[]
+  # The controlled initial landing location was already written through
+  # original SF.save(). Reuse this SAME real file:// tab for the reload.
+  # sessionStorage is not a reliable one-shot fixture sentinel on opaque
+  # file:// Chromium origins; re-executing add_init_script can silently
+  # overwrite later source-owned rover/photo/radio states on a second reload.
+  # A one-shot pagehide lock prevents the old orbital runtime autosaver from
+  # writing over the new landed starting state. No later saves are altered.
+  page=boot;errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
-  page.goto(file.as_uri(),wait_until='domcontentloaded',timeout=90000)
+  page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+  page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!(window.StarfallMissionOperationsUI && window.StarfallCommsT03 && window.StarfallOutpostUI && window.StarfallImagingUI7F)',timeout=45000)
   fixture=page.evaluate("""targetId=>{
     const rt=StarfallRuntime,O=StarfallOutposts,T=StarfallDeepSpaceT08,
