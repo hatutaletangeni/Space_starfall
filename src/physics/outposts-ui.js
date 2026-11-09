@@ -29,6 +29,9 @@ function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[]
   if(drawn>=30)break;
   if(!['industrial_plant','industrial_vessel','vehicle_frame','rocket_stage_dry','habitat_envelope'].includes(asset.type)||asset.location?.kind!=='surface'||
     asset.location.bodyId!==ctx.body.id||O.arc(ctx.local,asset.location.local,ctx.body.radius)>90)continue;
+  // The paid 8G structure stays in 8A, but its geometry is presented by
+  // the single linked native T09 outpost, never rendered twice.
+  if(asset.type==='habitat_envelope'&&store.items.some(x=>x.physicalAssetId===asset.id))continue;
   const item=renderLoc({kind:asset.type,bodyId:asset.location.bodyId,local:asset.location.local,facing:[0,0,1]});
   if(item){result.push(item);drawn++;}
  }
