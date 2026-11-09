@@ -1,0 +1,63 @@
+name: Update 8I-8J draft offline build and conservation gate
+on:
+  push:
+    branches:
+      - feature/8i-8j-conservation-integration-20261109
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: update8ij-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    if: "!contains(github.event.head_commit.message, '[8ij-build]')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Audit actual 8I/8J code and authoritative transaction tests
+        run: |
+          node --check src/physics/manufactured-eclss8i.js
+          node --check src/physics/terraform-operations8j.js
+          node --check src/physics/environment-ui8ij.js
+          node --check src/flight.js
+          node tests/industrial-environment8ij.test.cjs
+          node tests/expedition-manifest8k.test.cjs
+      - name: Rebuild both real offline playables from current feature sources
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install test-only Chromium
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real offline 8I/8J visible UI and no-minting smoke
+        run: |
+          python tests/industrial-environment8ij-browser.py
+          python tests/industrial-environment8ij-positive-browser.py
+      - name: Publish exact source edition on feature branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if git diff --cached --quiet; then echo 'Offline playables already synchronized'; exit 0; fi
+          git commit -m 'build(8IJ): synchronized desktop and mobile offline playables [8ij-build]'
+          git pull --rebase origin feature/8i-8j-conservation-integration-20261109
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then git commit --amend --no-edit; fi
+          git push origin HEAD:feature/8i-8j-conservation-integration-20261109
