@@ -7,11 +7,15 @@ const previousSF = globalThis.SF;
 try {
   globalThis.SF = {load: () => ({freshExpedition:{schema:1}})};
   const industrial = new outposts.Store(742);
-  const built = industrial.add('battery',body,local,facing,terrain).item;
-  assert.equal(built.energyJ,0,'Industrial battery cannot arrive with unearned 36MJ');
-  assert.equal(industrial.items[0].energyJ,0);
+  // The no-cheat 8K gate now rejects unpaid battery/solar/habitat SHELLS,
+  // not just their initial charge. Verify the original Store API itself
+  // fails closed without inventing physical material or installed assets.
+  assert.throws(()=>industrial.add('battery',body,local,facing,terrain),/source-paid manufactured 8F battery/i);
+  assert.throws(()=>industrial.add('solar',body,local,facing,terrain),/source-paid manufactured 8F solar/i);
+  assert.throws(()=>industrial.add('hab',body,local,facing,terrain),/source-paid 8G envelope/i);
+  assert.equal(industrial.items.length,0,'Rejected industrial construction must not mint any assets');
   const restored = new outposts.Store(742,industrial.serialize());
-  assert.equal(restored.items[0].energyJ,0,'Industrial zero-charge state survives save');
+  assert.equal(restored.items.length,0,'Rejected industrial construction remains absent after reload');
   globalThis.SF = {load: () => ({})};
   const creative = new outposts.Store(743);
   assert.equal(creative.add('battery',body,local,facing,terrain).item.energyJ,36e6,
@@ -22,7 +26,7 @@ try {
   const imported = new outposts.Store(743,creative.serialize());
   assert.equal(imported.items[0].energyJ,36e6,
     'Restoration must not silently erase pre-existing legacy energy');
-  console.log('Industrial battery no-free-energy and legacy persistence: PASS');
+  console.log('Industrial manufactured-shell refusal and legacy energy persistence: PASS');
 } finally {
   if (previousSF === undefined) delete globalThis.SF;
   else globalThis.SF = previousSF;
