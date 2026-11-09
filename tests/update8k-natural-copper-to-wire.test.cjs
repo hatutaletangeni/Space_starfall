@@ -39,7 +39,7 @@ function naturalCopper(){
   throw Error('No sufficiently enriched original CW01/CW03 copper occurrence in deterministic fixture worlds');
 }
 test('natural 8C copper -> 8D truck haul -> 8E real copper -> 8F wire; mass, depletion, energy and replay',()=>{
-  const {body,deposit}=naturalCopper(),resources=Resources.create();
+  const {body,deposit}=naturalCopper();let resources=Resources.create();
   const survey=resources.survey(deposit,50,'EVA field spectrometer');
   assert.equal(survey.siteId,deposit.id);
   assert.equal(Resources.site(body,deposit.local,SEED).id,deposit.id);
@@ -67,7 +67,7 @@ test('natural 8C copper -> 8D truck haul -> 8E real copper -> 8F wire; mass, dep
     for(let tick=0;tick<12;tick++){const s=mining.advance(2,batteryJ,true);pay(s.usedJ);used+=s.usedJ;}
     close(used,Mining.DRILL.minimumEnergyJ);seconds+=op.durationS;
     const done=mining.commit(materials,resources);
-    materials=done.materials;assert.equal(done.operation.status,'COMMITTED');
+    materials=done.materials;resources=done.resources;assert.equal(done.operation.status,'COMMITTED');
     assert.equal(materials.inventory(Mining.TRUCK).at(-1).provenance,deposit.id);
     // Importantly this drill owner is persisted through its original snapshot;
     // a new action uses the same saved serial and receipts, not reset IDs.
@@ -84,7 +84,7 @@ test('natural 8C copper -> 8D truck haul -> 8E real copper -> 8F wire; mass, dep
       operatorNear:true,truckIdle:true,energyJ:batteryJ});
     for(let tick=0;tick<8;tick++){const s=mining.advance(2,batteryJ,{enabled:true});pay(s.usedJ);}
     seconds+=op.durationS;
-    const moved=mining.commit(materials,resources);materials=moved.materials;
+    const moved=mining.commit(materials,resources);materials=moved.materials;resources=moved.resources;
     mining=Mining.create(mining.snapshot(),Materials,Resources);
   }
   assert.equal(materials.used(Mining.TRUCK).massKg,0);
