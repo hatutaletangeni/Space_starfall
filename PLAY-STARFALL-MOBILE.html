@@ -15606,6 +15606,15 @@ function t02PaidPickSite8I(kind){
    if(distShip<37||distShip>82||distEva>22){last='Move EVA 40–65 surface units away from ship, near desired power site';continue;}
    const protectedAreas=[{local:shipLocal,radius:37}];
    if(roverBody===nearest&&roverLocal)protectedAreas.push({local:roverLocal,radius:12});
+   // A real 8A deployed factory, vessel, vehicle or charged shell is an
+   // obstruction, even though it is not an original outpost5 power node.
+   for(const asset of physical8a.list()){
+    if(asset.location?.kind!=='surface'||asset.location.bodyId!==c.bodyId||
+       !Array.isArray(asset.location.local))continue;
+    protectedAreas.push({local:asset.location.local,
+     radius:asset.type==='habitat_envelope'?14:
+      asset.type==='vehicle_frame'?9:asset.type==='industrial_plant'?9:7});
+   }
    const p=O.placement({kind,body:c.body,local,
      heightAt:d=>Starfall3D.groundHeight(d,c.body),structures:U.store.items,
      protectedAreas});
