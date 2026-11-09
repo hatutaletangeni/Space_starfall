@@ -77,7 +77,8 @@ with sync_playwright() as p:
   }""")
   assert preflight['near'] and preflight['truck'] and preflight['lot']==20,preflight
   assert preflight['gap']<=15,preflight
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 deliberately hides the legacy nav. Open the visible Mission → Build
+  # workspace, which selects the original Engineer route and keeps its controls.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -149,7 +150,8 @@ with sync_playwright() as p:
   # stopped truck. No invented ore: source must be the committed depot lot.
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
   page.wait_for_function("StarfallRuntime.logisticsContext8H().pickupLots.length===1",timeout=20000)
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 deliberately hides the legacy nav. Open the visible Mission → Build
+  # workspace, which selects the original Engineer route and keeps its controls.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -230,7 +232,8 @@ with sync_playwright() as p:
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("StarfallRuntime.logisticsContext8H?.().depots?.length===2",timeout=60000)
   page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 deliberately hides the legacy nav. Open the visible Mission → Build
+  # workspace, which selects the original Engineer route and keeps its controls.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

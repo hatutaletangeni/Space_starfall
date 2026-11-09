@@ -61,12 +61,13 @@ with sync_playwright() as p:
   }""")
   assert stage['phase']=='IN_PROGRESS',stage
   assert page.locator('#op16-log-rows').inner_text().find('ops16')<0 or page.locator('#op16-log-rows').count()==1
-  # The source-owned T16 status card remains under the Overview page. UI22
-  # collapses the legacy reconnaissance panel on boot. Open its visible
-  # Navigate workspace before operating the genuine log filters.
+  # T16 inserts the original operation summary directly into #panel-body,
+  # which UI21 assigns to Overview (not its separate Operate page).
+  # Open the visible Mission → Navigate/Overview workspace, then use original filters.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  assert page.locator('#op16-filter-severity').is_visible(), 'T16 source-owned filter must be visible in the Overview workspace'
   page.locator('#op16-filter-severity').select_option('info')
   assert page.locator('#op16-filter-severity').input_value()=='info'
   page.locator('#op16-asset').select_option('starfall-ship')
@@ -86,17 +87,16 @@ with sync_playwright() as p:
   assert page.evaluate("document.getElementById('workbench').contains(document.activeElement)"),focus
   page.locator('#wb-close').click()
   page.wait_for_function("document.getElementById('workbench').hidden",timeout=15000)
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  page.locator('#launch-open').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='ROCKET LAB').click()
   page.wait_for_function("!document.getElementById('launch-dialog').hidden",timeout=15000)
   assert page.locator('#launch-dialog .op16-card').count()==2, 'Rocket Lab and nested Satellite Operations each own a distinct source card'
   assert page.locator('#sat7c-section .op16-card').count()==1
   assert page.locator('#launch-emergency').count()==1,'Original emergency stop retained'
   page.locator('#launch-close').click()
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

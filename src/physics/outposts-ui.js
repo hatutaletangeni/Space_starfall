@@ -29,6 +29,9 @@ function scene(){const ctx=RT.outpostContext();if(!ctx.body||!ctx.local)return[]
   if(drawn>=30)break;
   if(!['industrial_plant','industrial_vessel','vehicle_frame','rocket_stage_dry','habitat_envelope'].includes(asset.type)||asset.location?.kind!=='surface'||
     asset.location.bodyId!==ctx.body.id||O.arc(ctx.local,asset.location.local,ctx.body.radius)>90)continue;
+  // The paid 8G structure stays in 8A, but its geometry is presented by
+  // the single linked native T09 outpost, never rendered twice.
+  if(asset.type==='habitat_envelope'&&store.items.some(x=>x.physicalAssetId===asset.id))continue;
   const item=renderLoc({kind:asset.type,bodyId:asset.location.bodyId,local:asset.location.local,facing:[0,0,1]});
   if(item){result.push(item);drawn++;}
  }
@@ -123,6 +126,17 @@ function powerTick(dt,atTime=RT.time,resolveRemote=null){const byBody=new Set(st
       for(const item of store.items.filter(x=>x.kind==='hab'&&x.bodyId===bodyId)){
         const supplied=report?.byId?.[item.id]?.power===true;
         root.StarfallHabitatT09.step(item,virtualBody,to,supplied);
+        // 8I: greenhouse acts only inside THIS original native T02 paid
+        // habitat pulse. Passive star photons are not fabricated electricity;
+        // the existing 680 W habitat DC bus already pays its pumps/valves.
+        if(root.StarfallGreenhouse8I&&item.habT09?.greenhouse8i?.installed){
+          const sunlight=root.StarfallGreenhouse8I.irradiance(
+           virtualBody,star,luminosity,item.local,P.SCENE_METERS_PER_UNIT,
+           root.StarfallEvents?.skyTransmission(body,item.local,nativeReportAtS,RT.galaxy.seed)??1);
+          const output=root.StarfallGreenhouse8I.grow(item,{
+           seconds:total/steps,powered:supplied,irradianceWm2:sunlight,nowS:to});
+          if(output.advanced){root.StarfallHabitatT09.inspect(item,virtualBody,supplied);dirty=true;}
+        }
         if(atTime-start>86400+1e-8)item.habT09.awaitingReview=true;
       }
     }
@@ -243,6 +257,10 @@ function habitatNear(item){
   &&O.arc(ctx.local,item.local,ctx.body.radius)<=24);
 }
 function habitatControl(action,opts={}){
+ // Guard the shared command path, not only the REPAIR button: scripted UI
+ // callers must not bypass Industrial-mode source-paid repair requirements.
+ if(action==='REPAIR'&&SF.load()?.freshExpedition?.schema===1)
+  throw Error('INDUSTRIAL_REPAIR_REQUIRES_PAID_MATERIALS: free T09 seal restoration is disabled');
  const item=selectedHabitat(),H=root.StarfallHabitatT09;
  const body=RT.galaxy.byId.get(item.bodyId)||item.bodySnapshot;
  advancePowerTo(RT.time,(asset,t)=>root.StarfallMissionOperationsUI?.resolveBody?.(asset,t)||RT.galaxy.byId.get(asset.bodyId));
@@ -344,7 +362,7 @@ function wrapped(action){return()=>{try{action();if(store.items.length){powerTic
 $('outpost-open').onclick=()=>{lastPlacement=null;$('outpost').hidden=false;refresh();};$('outpost-close').onclick=()=>{$('outpost').hidden=true;};$('outpost').addEventListener('click',e=>{if(e.target===$('outpost'))$('outpost').hidden=true;});
 for(const b of $('outpost').querySelectorAll('[data-outpost-tab]'))b.onclick=()=>{tab=b.dataset.outpostTab;for(const btn of $('outpost').querySelectorAll('[data-outpost-tab]'))btn.setAttribute('aria-selected',String(btn===b));for(const page of $('outpost').querySelectorAll('[data-outpost-page]'))page.hidden=page.dataset.outpostPage!==tab;refresh();};
 for(const x of ['outpost-type','outpost-forward','outpost-right']){ $(x).addEventListener('change',refresh);$(x).addEventListener('input',refresh);}
-$('outpost-place').onclick=wrapped(()=>{const p=lastPlacement;if(!p||p.key!==placementKey())throw Error('No valid placement — change offset or select a safer surface');const result=store.add(p.kind,p.ctx.body,p.local,p.facing,d=>Starfall3D.groundHeight(d,p.ctx.body),p.area);if(!Number.isFinite(lastPoweredAt[p.ctx.body.id]))lastPoweredAt[p.ctx.body.id]=RT.time;lastPlacement=null;dirty=true;persist();show('Constructed '+p.kind+' · '+fmt(result.slope,1)+'° slope. Connect electrical cables to power it.');});
+$('outpost-place').onclick=wrapped(()=>{const p=lastPlacement;if(!p||p.key!==placementKey())throw Error('No valid placement — change offset or select a safer surface');if(p.kind==='hab'&&SF.load().freshExpedition?.schema===1)throw Error('INDUSTRIAL_HABITAT_REQUIRES_PAID_8G: legacy free T09 placement is disabled. Manufacture a habitat envelope and commission its physical T09 linkage first.');const result=store.add(p.kind,p.ctx.body,p.local,p.facing,d=>Starfall3D.groundHeight(d,p.ctx.body),p.area);if(!Number.isFinite(lastPoweredAt[p.ctx.body.id]))lastPoweredAt[p.ctx.body.id]=RT.time;lastPlacement=null;dirty=true;persist();show('Constructed '+p.kind+' · '+fmt(result.slope,1)+'° slope. Connect electrical cables to power it.');});
 $('outpost-remove').onclick=wrapped(()=>{const id=$('outpost-node-a').value;if(!id)throw Error('Select module A to dismantle');if(!store.remove(id))throw Error('Module unavailable');dirty=true;persist();show('Module dismantled · its cables were disconnected');});
 $('outpost-connect').onclick=wrapped(()=>{const ctx=RT.outpostContext();if(!ctx.landed)throw Error('Land before wiring');const added=store.link($('outpost-node-a').value,$('outpost-node-b').value,ctx.body);if(added){dirty=true;persist();}show(added?'Cable connected. Power network recomputes on next simulation tick.':'Those modules are already wired.');});
 $('outpost-toggle-power').onclick=wrapped(()=>{const id=$('outpost-node-a').value;const selected=store.items.find(x=>x.id===id);if(!selected)throw Error('Select module A to switch its real bus load');store.setEnabled(id,!selected.enabled);dirty=true;persist();show((selected.enabled?'Enabled ':'Isolated ')+selected.kind+' / '+selected.id);});
@@ -395,7 +413,7 @@ $('outpost-enforce-radio').onchange=()=>{radioEnforced=$('outpost-enforce-radio'
 $('hab-t09-select').onchange=refresh;
 $('hab-t09-enable').onclick=wrapped(()=>habitatControl('ENABLE'));
 $('hab-t09-disable').onclick=wrapped(()=>habitatControl('DISABLE'));
-$('hab-t09-repair').onclick=wrapped(()=>habitatControl('REPAIR'));
+$('hab-t09-repair').onclick=wrapped(()=>{if(SF.load().freshExpedition?.schema===1)throw Error('INDUSTRIAL_REPAIR_REQUIRES_PAID_MATERIALS: free legacy seal restoration disabled until source-paid repair is commissioned.');habitatControl('REPAIR');});
 $('hab-t09-set-crew').onclick=wrapped(()=>habitatControl('OCCUPANCY',{occupants:Number($('hab-t09-occupancy').value)}));
 $('hab-t09-cycle-out').onclick=wrapped(()=>habitatControl('CYCLE_OUT'));
 $('hab-t09-cycle-in').onclick=wrapped(()=>habitatControl('CYCLE_IN'));

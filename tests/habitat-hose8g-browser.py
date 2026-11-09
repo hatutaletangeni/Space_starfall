@@ -61,7 +61,7 @@ with sync_playwright() as pw:
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -136,7 +136,7 @@ with sync_playwright() as pw:
         # The hose must still see the original rated vessel OWN its gas, not
         # hallucinate a generic oxygen stock lot in the ship hold.
         page.evaluate("""() => STARFALL_DEBUG.placeEvaNearGasVessel8G('hose-fixture:oxygen')""")
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -157,7 +157,7 @@ with sync_playwright() as pw:
         assert ready['ready'] and ready['powered'],ready
         assert 95<ready['pressureKPa']<105 and 20<ready['oxygenPartialKPa']<22,ready
         charge_before=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -210,7 +210,81 @@ with sync_playwright() as pw:
         assert persisted['pressurePa']>95000 and persisted['receipts']==3
         assert not persisted['habitable'] and not persisted['lifeSupportOnline']
         assert persisted['oldTrucks']==1 and persisted['restGasLots']==0
+        # 8I original T09 commissioning from 8G hose: the genuine
+        # structural staging and metered charging operations above (whose
+        # initial inputs were EXPLICIT TEST_FIXTURES) are prerequisites.
+        # Verify the real visible Engineer UI, atomic original store debit,
+        # source-paid 500 kJ ship work, durable colon-delimited asset link,
+        # original truck uniqueness and no free T09 O2 cylinders/scrubber.
+        page.evaluate("""id => STARFALL_DEBUG.placeEvaNearRepairAsset8G(id)""",habitat_id)
+        page.locator('#sf-mission-button').click()
+        page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+        page.locator('#sf-mission-flow .sf-flow-workspace').click()
+        commission=page.locator('#habitat-commission8i')
+        assert commission.count()==1, '8I original shell-to-T09 Engineer control missing'
+        commission.locator('select[aria-label="Select actual charged 8G habitat envelope"]').select_option(habitat_id)
+        qualify=commission.get_by_role('button',name='QUALIFY SEALED SHELL & CONNECT T09')
+        assert qualify.is_enabled(),commission.inner_text()
+        qualify.click()
+        page.wait_for_function("""id => StarfallOutpostUI.store.items.some(
+         x=>x.physicalAssetId===id&&x.kind==='hab')""",arg=habitat_id,timeout=12000)
+        linked=page.evaluate("""id=>{
+          const rt=StarfallRuntime,U=StarfallOutpostUI,
+           shell=rt.physical8a.get(id),
+           habitats=U.store.items.filter(x=>x.physicalAssetId===id),
+           h=habitats[0],ops=rt.materials8a.operations()
+             .filter(x=>x.kind==='HABITAT_COMMISSION_8I'&&x.assetId===id),
+           save=SF.load(),
+           ship=rt.vehicleStore.get('ship').state;
+          return{dryKg:shell.massKg,owner:h?.id,habitats:habitats.length,
+           oxygenMol:h?.habT09.oxygenMol,waterL:h?.habT09.waterL,
+           oxygenTankMol:h?.habT09.oxygenTankMol,
+           scrubberMol:h?.habT09.scrubberCapacityMol,
+           awaitReview:h?.habT09.awaitingReview,enabled:h?.habT09.enabled,
+           structuralStatus:shell.state.assemblyStatus,
+           receipt:ops[0]||null,receiptCount:ops.length,
+           durableLink:save.outpost5?.items?.find(x=>x.id===h?.id)?.physicalAssetId,
+           durableReceipt:save.materials8a?.operations?.filter(x=>x.kind==='HABITAT_COMMISSION_8I').length,
+           truckCount:rt.physical8a.list().filter(x=>x.id==='truck-expedition-001').length,
+           battery:ship.energyJ};
+        }""",habitat_id)
+        assert linked['habitats']==1 and linked['receiptCount']==1,linked
+        assert linked['owner']=='hab8i:'+habitat_id,linked
+        assert abs(linked['dryKg']-fixture['originalMass'])<1e-6,linked
+        assert linked['oxygenMol']>0 and linked['waterL']==20,linked
+        assert linked['oxygenTankMol']==0 and linked['scrubberMol']==0,linked
+        assert linked['awaitReview'] is False and linked['enabled'] is False,linked
+        assert linked['receipt']['status']=='COMMITTED' and linked['receipt']['workJ']==500000,linked
+        assert linked['receipt']['sourceBatteryJBefore']-linked['receipt']['sourceBatteryJAfter']==500000,linked
+        assert abs(linked['battery']-linked['receipt']['sourceBatteryJAfter'])<3000,linked
+        assert linked['durableLink']==habitat_id and linked['durableReceipt']==1,linked
+        assert linked['truckCount']==1,linked
+        # New outpost T09 mass plus the dry 8A shell equals the source
+        # charged 8A shell; no duplicate O2/water or standalone source wallet.
+        assert abs(linked['dryKg']+linked['receipt']['transferredKg']-
+                   paid['habitat']['massKg'])<1e-5,linked
+        page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function("!!(StarfallRuntime?.physical8a&&StarfallOutpostUI?.store)",timeout=45000)
+        final8i=page.evaluate("""id=>{
+           const rt=StarfallRuntime,s=SF.load(),
+            linked=StarfallOutpostUI.store.items.filter(x=>x.physicalAssetId===id),
+            a=rt.physical8a.get(id),
+            receipts=rt.materials8a.operations().filter(x=>x.kind==='HABITAT_COMMISSION_8I');
+           let duplicateRejected=false;
+           try{rt.habitatCommission8I(id)}catch(e){
+              duplicateRejected=/already|charged|commission|owner/i.test(String(e.message));}
+           return{habitats:linked.length,linkedId:linked[0]?.physicalAssetId,
+            storedWater:linked[0]?.habT09?.waterL,
+            dryKg:a?.massKg,receipts:receipts.length,duplicateRejected,
+            sourceOwned:!!s.outpost5?.items?.find(x=>x.physicalAssetId===id),
+            originalTrucks:rt.physical8a.list().filter(x=>x.id==='truck-expedition-001').length};
+        }""",habitat_id)
+        assert final8i['habitats']==1 and final8i['linkedId']==habitat_id,final8i
+        assert final8i['storedWater']==20 and final8i['receipts']==1,final8i
+        assert final8i['duplicateRejected'] and final8i['sourceOwned'],final8i
+        assert final8i['originalTrucks']==1 and abs(final8i['dryKg']-fixture['originalMass'])<1e-6,final8i
         assert not errors,errors
-        print('PASS 8G Chromium: physically assembled habitat + two rated source vessels + ship water, metered 1.5 MJ O2/N2 charge, T09 pressure, strict 8A mass and durable uninhabitable state')
+        print('PASS 8G Chromium: physically assembled habitat + two rated source vessels + ship water, metered 1.5 MJ O2/N2 charge, then paid 8I original T09 link with exact moved mass, real 500 kJ energy, single durable colon ID and no duplicate owner (explicit TEST_FIXTURE inputs; not 8K acceptance)')
     finally:
         browser.close()

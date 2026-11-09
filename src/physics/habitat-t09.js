@@ -23,7 +23,7 @@ function defaults(now=0){
  const n=gasMoles(C.pressureKPa,C.referenceK),o2=gasMoles(C.oxygenTargetKPa,C.referenceK);
  return{schema:SCHEMA,enabled:false,mode:'STANDBY',lastS:now,seal:1,volumeM3:C.volumeM3,
   oxygenMol:o2,inertMol:n-o2,carbonMol:0.0003*n,oxygenTankMol:1050,
-  inertTankMol:3500,scrubberCapacityMol:350,filteredAirMol:0,waterL:200,
+  inertTankMol:3500,scrubberCapacityMol:350,filteredAirMol:0,scrubberMediaInstalledKg:0,greenhouse8i:null,waterL:200,
   tempK:C.referenceK,occupants:0,airlock:'CLOSED',airlockUntilS:null,
   airlockRequested:'',backupJ:0,heatLossW:0,thermalLoadW:0,
   powerW:0,integratedSupplyW:0,leakRateS:C.normalLeakS,
@@ -34,12 +34,22 @@ function defaults(now=0){
 function ensure(item,now=0){
  if(item?.kind!=='hab')throw Error('T09 requires an existing habitat structure');
  const old=item.habT09,was=old?.schema===SCHEMA,initial=defaults(now);
+ // A newly initialized Industrial T09 volume is an EMPTY pressure shell, not
+ // a free starter supply. Existing serialized T09 states (including legacy
+ // saves) are restored below without retroactively erasing their contents.
+ // Commissioning must independently transfer real gases, water and media.
+ if(!was&&root.SF?.load?.()?.freshExpedition?.schema===1){
+  initial.oxygenMol=0;initial.inertMol=0;initial.carbonMol=0;
+  initial.oxygenTankMol=0;initial.inertTankMol=0;
+  initial.scrubberCapacityMol=0;initial.waterL=0;
+  initial.totalKPa=0;initial.o2KPa=0;initial.co2KPa=0;
+ }
  if(was){
   for(const key of Object.keys(initial))if(old[key]!==undefined)initial[key]=old[key];
   const bounded={
    seal:[0,1],volumeM3:[20,500],oxygenMol:[0,1e6],inertMol:[0,1e6],carbonMol:[0,1e6],
    oxygenTankMol:[0,25000],inertTankMol:[0,25000],scrubberCapacityMol:[0,25000],
-   filteredAirMol:[0,25000],waterL:[0,2000],tempK:[C.absoluteMinK,C.absoluteMaxK],
+   filteredAirMol:[0,25000],scrubberMediaInstalledKg:[0,1000],waterL:[0,2000],tempK:[C.absoluteMinK,C.absoluteMaxK],
    occupants:[0,4],backupJ:[0,C.backupMaximumJ],chargeReadyAtS:[0,1e12],lastS:[0,1e12]};
   for(const [key,[lo,hi]]of Object.entries(bounded))
    initial[key]=finite(Number(initial[key]))?clamp(Number(initial[key]),lo,hi):defaults(now)[key];
@@ -159,6 +169,46 @@ function step(item,body,simS,actualPowered){
  return inspect(item,body,powered);
 }
 function command(item,action,{now=0,near=false,powered=false,body=null,occupants=null}={}){
+ // Enforce the Industrial repair restriction at the native T09 command owner,
+ // not only at UI22. Reject before ensure() can mutate restored habitat state.
+ // Legacy/creative saves retain their original REPAIR behavior.
+ if(action==='REPAIR'&&root.SF?.load?.()?.freshExpedition?.schema===1)
+  throw Error('Industrial T09 seal repair requires source-paid manufactured parts, power and time');
+ // A legacy/default habitat may exist in an imported or tampered Industrial save.
+ // Never energize its free T09 atmosphere without a physically linked 8G shell.
+ // This identity check is only a prerequisite: the 8K audit must separately
+ // authenticate the same-world structural receipt and all paid consumables.
+ if(action==='ENABLE'&&root.SF?.load?.()?.freshExpedition?.schema===1){
+  const saved=root.SF.load(),assetId=item?.physicalAssetId;
+  const assets=Array.isArray(saved?.physical8a?.assets)?saved.physical8a.assets:[];
+  const receipts=Array.isArray(saved?.vehicleAssembly8g?.receipts)?saved.vehicleAssembly8g.receipts:[];
+  const outposts=Array.isArray(saved?.outpost5?.items)?saved.outpost5.items:[];
+  const asset=assets.find(a=>a?.id===assetId&&a.type==='habitat_envelope'&&
+    a.location?.kind==='surface'&&a.location.bodyId===item.bodyId&&
+    typeof a.provenance==='string'&&a.provenance.startsWith('structural-8g:')&&
+    !/TEST_FIXTURE|CREATIVE|DEBUG|CHEAT/i.test(a.provenance));
+  // Activation must not accept a borrowed, unfinished or multiply claimed
+  // structural receipt. The manufacturing owner, not T09, owns its payment.
+  const matching=receipts.filter(x=>x?.assetId===assetId&&x.blueprintId==='habitat_shell'&&
+    ['COMMITTED','ASSEMBLED_NOT_OPERATIONAL'].includes(x.status)&&
+    typeof x.id==='string'&&asset?.provenance==='structural-8g:'+x.id&&
+    x.id===assetId&&x.bodyId===item.bodyId&&typeof x.facilityId==='string'&&
+    x.facilityId.length>0&&x.energyJ>0&&x.massKg>0&&
+    Math.abs(x.massKg-asset.massKg)<.01&&Array.isArray(x.consumedLots)&&
+    x.consumedLots.length>0&&x.consumedLots.every(l=>typeof l?.lotId==='string'&&
+      l.lotId.length>0&&l.massKg>0));
+  const receipt=matching.length===1&&receipts.filter(x=>x?.assetId===assetId&&
+    x.blueprintId==='habitat_shell').length===1&&
+    receipts.filter(x=>x?.id===matching[0]?.id).length===1;
+  const duplicate=outposts.some(x=>x?.kind==='hab'&&x.id!==item.id&&x.physicalAssetId===assetId);
+  // The persisted original outpost is the authority for the physical linkage.
+  // A transient/forged runtime item must not borrow an unclaimed 8G envelope.
+  const persisted=outposts.find(x=>x?.id===item.id&&x.kind==='hab');
+  const linked=!!persisted&&persisted.bodyId===item.bodyId&&
+    persisted.physicalAssetId===assetId&&typeof assetId==='string';
+  if(!asset||!receipt||duplicate||!linked)
+   throw Error('Industrial T09 activation requires unique same-world 8G structural receipt and manufactured envelope');
+ }
  const h=ensure(item,now);
  if(!finite(now)||now<0)throw Error('Invalid habitat event time');
  if(!near)throw Error('Habitat systems controls require approaching the actual structure while on foot');

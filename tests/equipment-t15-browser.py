@@ -34,7 +34,7 @@ with sync_playwright() as p:
    return{mass:v.stats.massKg,capacity:v.stats.batteryCapacityJ,energy:v.state.energyJ,
     torque:v.stats.driveTorqueNm,solar:v.stats.maxSolarW,source:v.definition.id};
   }""")
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

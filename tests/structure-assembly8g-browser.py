@@ -61,7 +61,7 @@ with sync_playwright() as pw:
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.landed&&StarfallRuntime.eva&&!!document.getElementById("structure-assembly8g")',timeout=40000)
         initial_battery=page.evaluate("""() => StarfallRuntime.vehicleStore.get('ship').state.energyJ""")
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -137,7 +137,7 @@ with sync_playwright() as pw:
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("field-repair8g")',timeout=40000)
         page.evaluate("""id => STARFALL_DEBUG.placeEvaNearRepairAsset8G(id)""",rocket['id'])
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -198,7 +198,7 @@ with sync_playwright() as pw:
         quote=page.evaluate("""id => StarfallRuntime.habitatChargeQuote8G(id)""",habitat['id'])
         assert quote['ready'] and quote['powered'],quote
         assert quote['estimatedPressureKPa']>95 and quote['oxygenPartialKPa']>20,quote
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()

@@ -103,14 +103,30 @@ with sync_playwright() as p:
           STARFALL_DEBUG.setSimulationTime(at);
           StarfallCommsT03.persist();
           StarfallMissionOperationsUI.persist();
-          const old=SF.load().flightGalaxy||{};
-          SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at}});
+          const old=SF.load().flightGalaxy||{},body=rt.nearest,
+            ship=rt.engineeringAssetPoses().shipPose;
+          if(!rt.landed||ship?.bodyId!==body.id||!ship.local)
+            throw Error('Cannot save actual surface radio fixture: ship no longer landed on rover world');
+          // The original landed snapshot's groundDirection belongs to time=0.
+          // After manually advancing the planetary clock, save the REAL
+          // body-fixed ship anchor transformed through the CURRENT spin.
+          // Otherwise reload reconstructs a physically different ship location
+          // while the deployed rover remains in its correct fixed coordinates.
+          const dir=StarfallOutposts.rotate(ship.local,body.spinAxis||[0,1,0],body.spinAngle||0),
+            position=body.position.map((v,i)=>v+dir[i]*(body.radius+8));
+          SF.save({flightGalaxy:{...old,seed:rt.galaxy.seed,time:at,
+            position,attached:body.id,groundDirection:dir,landed:true}});
           const value=SF.load(),raw=JSON.parse(localStorage.getItem('starfall_save')||'{}');
           return{packets:value.commsT03?.packets?.length||0,rovers:value.launch7?.rovers?.length||0,
             diskPackets:raw.commsT03?.packets?.length||0,diskRovers:raw.launch7?.rovers?.length||0,
             guard:localStorage.getItem('t03-fixture-installed'),bytes:JSON.stringify(raw).length};
         }""")
         assert persisted['packets']>=2 and persisted['rovers']>=1 and persisted['diskPackets']>=2 and persisted['diskRovers']>=1,persisted
+        # The controlled fixture manually persisted all authoritative stores above.
+        # Prevent the old flight pagehide from replacing those newer bytes with
+        # a stale orbital snapshot during this fixture-only reload. The next
+        # page must still restore the actual disk packets, rover and ACK state.
+        page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
         page.reload(wait_until='domcontentloaded',timeout=90000)
         page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallLaunchUI)",timeout=30000)
         restored=page.evaluate("""()=>{
@@ -125,7 +141,11 @@ with sync_playwright() as p:
           }));
           for(let i=0;i<10;i++)ops.advanceTo(95+i*5);
           const p=T.transport.get(pending.id);
-          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length};
+          return {packet:p,rover:r.status,receipts:T.transport.receipts.filter(x=>x===pending.id).length,
+            diagnostics:{link:T.routeFor(p,ops.clock.lastSimulatedS),shipPose:StarfallRuntime.engineeringAssetPoses()?.shipPose,
+             roverLocal:r.local,shipEnergyJ:StarfallRuntime.vehicleStore.get('ship').state.energyJ,
+             shipRadio:StarfallRuntime.shipServiceSnapshotT13?.().radio,
+             ctx:StarfallRuntime.outpostContext(),clock:ops.clock.lastSimulatedS}};
         }""")
         assert restored['packet']['state']=='ACKED',restored
         assert restored['receipts']==1,restored

@@ -1,0 +1,61 @@
+name: Rebuild pre-8K playtest release candidate desktop and mobile
+on:
+  push:
+    branches: [release/update8-pre8k-playtest-20261109]
+    paths:
+      - index.html
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/build-standalone.py'
+      - 'tools/build-mobile-standalone.py'
+      - '.github/workflows/update8-playtest-branch-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: starfall-update8-playtest-source-sync
+  cancel-in-progress: false
+jobs:
+  build-verified-standalones:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/update8-pre8k-playtest-20261109
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify retained original truck bay, old manifest and new industrial device owners
+        run: |
+          set -eu
+          node --check src/flight.js
+          node tests/truck-cockpit.test.cjs
+          node tests/expedition-manifest8k.test.cjs
+          node tests/industrial-battery-no-free-charge8k.test.cjs
+          node tests/t02-paid-install8i.test.cjs
+          node tests/t02-paid-grid8i.test.cjs
+          node tests/habitat-commission8i.test.cjs
+          node tests/update8ij.test.cjs
+      - name: Build source-owned offline desktop and landscape mobile
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+      - name: Strict current version parity
+        run: |
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Commit only rebuilt proven standalones to playtest branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'build: sync Update 8 playtest desktop and mobile from reconciled main sources'
+            git pull --rebase origin release/update8-pre8k-playtest-20261109
+            git push origin HEAD:release/update8-pre8k-playtest-20261109
+          fi

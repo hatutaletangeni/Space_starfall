@@ -54,7 +54,7 @@ with sync_playwright() as p:
   assert proof['seed']==742 and proof['ship']=='ship-main' and proof['trucks']==1,proof
   assert proof['state']['schema']==1 and isinstance(proof['state']['jobs'],list),proof
   assert proof['denied'] and proof['unchanged'],proof
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

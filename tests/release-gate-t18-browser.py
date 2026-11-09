@@ -15,7 +15,19 @@ OUT.mkdir(parents=True,exist_ok=True)
 def check(ok,message,record=None):
  if not ok: raise AssertionError(message+' / '+repr(record))
 def visit(page,opener,modal,closer):
- page.locator('#'+opener).click(timeout=15000)
+ # The original header shortcuts are intentionally hidden by UI22. Use the
+ # source-owned buttons via their visible Mission actions without bypassing UI.
+ routes={
+   'archive-t17-open':('Records','SAVE / RECOVERY'),
+   'launch-open':('Build','ROCKET LAB')
+ }
+ if opener in routes:
+  stage,label=routes[opener]
+  page.locator('#sf-mission-button').click(timeout=15000)
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text=stage).click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text=label).click()
+ else:
+  page.locator('#'+opener).click(timeout=15000)
  page.wait_for_function("(id)=>document.getElementById(id)?.hidden===false",arg=modal,timeout=15000)
  check(page.locator('#'+modal).count()==1,'Original panel did not open',modal)
  page.locator('#'+closer).click(timeout=15000)
@@ -47,10 +59,7 @@ with sync_playwright() as p:
   check(not any(pristine[k] for k in ('stations','rovers','satellites','photos','packets')),
    'Fresh save fabricated deployed hardware or confirmed evidence',pristine)
   visit(page,'archive-t17-open','archive-t17','archive-t17-close')
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
-  page.locator('#sf-mission-button').click()
-  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
+  # Verify the original Rocket Lab modal through the current Mission route.
   visit(page,'launch-open','launch-dialog','launch-close')
   page.screenshot(path=str(OUT/'01-unmodified-spaceflight.png'))
   # Permitted T18 fixture: change STARTING POSITION to a real existing solid
@@ -75,7 +84,7 @@ with sync_playwright() as p:
   page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallOutpostUI&&window.StarfallScienceUI)",timeout=60000)
   check(page.evaluate("StarfallRuntime.landed && StarfallRuntime.eva && !!StarfallRuntime.outpostContext()?.body"),'Landed EVA source not ready')
   # Open original Outposts UI by DOM event; no direct outpost .add or .link.
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -165,7 +174,7 @@ with sync_playwright() as p:
   page.locator('#outpost-close').click()
   # A player-visible field-sensor acquisition; wait its actual time budget,
   # without directly calling source.sample() or inserting journal evidence.
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Explore').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -184,7 +193,7 @@ with sync_playwright() as p:
    'Real UI instrument record lacks world/energy/position',obs)
   page.locator('#field-close').click()
   # Original T15 Workbench UI changes a rover part once; no direct store.apply.
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -217,11 +226,10 @@ with sync_playwright() as p:
   page.locator('#wb-close').click()
   # Portable STATE_ONLY archive is allowed here because there are no camera
   # metadata records. Download actually created by real browser.
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
-  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  page.locator('#archive-t17-open').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Records').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='SAVE / RECOVERY').click()
   with page.expect_download(timeout=30000) as item:
    page.locator('#archive-t17-export-state').click()
   archive=item.value

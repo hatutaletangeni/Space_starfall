@@ -39,11 +39,12 @@ jobs:
           done
       - name: Strict offline standalone parity
         run: python tests/standalone-parity.py
-      - name: Rebuild standalone and recheck reproducibility
+      - name: Rebuild desktop and mobile standalones and verify both tracked builds
         run: |
           python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
           python tests/standalone-parity.py
-          git diff --exit-code -- PLAY-STARFALL.html
+          git diff --exit-code -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
 
   browser-smoke:
     runs-on: ubuntu-latest

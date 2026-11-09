@@ -1,0 +1,54 @@
+name: STARFALL 8K full expedition evidence gates
+on:
+  push:
+    branches: [fix/update8-release-gates-20261107]
+    paths:
+      - 'src/physics/expedition-audit8k.js'
+      - 'src/physics/expedition-audit-ui8k.js'
+      - 'tests/expedition-audit8k*'
+      - 'tests/update8k-time-acceleration.test.cjs'
+      - 'tests/terraform-numeric-safety8j.test.cjs'
+      - '.github/workflows/update8k-expedition-evidence.yml'
+      - 'index.html'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/physics/expedition-audit8k.js'
+      - 'src/physics/expedition-audit-ui8k.js'
+      - 'tests/expedition-audit8k*'
+      - '.github/workflows/update8k-expedition-evidence.yml'
+      - 'index.html'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evidence-and-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check read-only evidence model and original game
+        run: |
+          node --check src/physics/expedition-audit8k.js
+          node --check src/physics/expedition-audit-ui8k.js
+          node --check src/flight.js
+          node tests/expedition-audit8k.test.cjs
+          node tests/update8k-time-acceleration.test.cjs
+          node tests/terraform-numeric-safety8j.test.cjs
+      - name: Rebuild real offline playables and compare source-owned embeds
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+      - name: Install browser
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Verify read-only physical expedition report in real Chromium
+        run: python tests/expedition-audit8k-browser.py

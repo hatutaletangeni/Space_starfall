@@ -1,0 +1,32 @@
+name: STARFALL T08 exact file reload rover and offworld downlink
+on:
+  push:
+    branches: [fix/update8-release-gates-20261107]
+    paths:
+      - tests/interplanetary-t08-browser.py
+      - .github/workflows/t08-file-reload-regression.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  genuine-file-reload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build exactly current source and validate desktop and mobile parity
+        run: |
+          set -eu
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install headless Chromium with native software WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Verify REAL two-world T08 network, rover photo ACK and unchanged save after reload
+        run: python tests/interplanetary-t08-browser.py

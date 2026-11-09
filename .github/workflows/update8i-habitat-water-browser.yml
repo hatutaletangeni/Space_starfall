@@ -1,0 +1,113 @@
+name: STARFALL 8I real habitat water and storage acceptance
+on:
+  push:
+    branches: [fix/update8-release-gates-20261107]
+    paths:
+      - 'src/physics/habitat-supply8i.js'
+      - 'src/physics/habitat-oxygen8i.js'
+      - 'src/physics/habitat-oxygen-ui8i.js'
+      - 'tests/habitat-oxygen8i*'
+      - 'src/physics/atmosphere-emission8j.js'
+      - 'src/physics/atmosphere-emission-ui8j.js'
+      - 'tests/atmosphere-emission8j*'
+      - 'src/physics/habitat-scrubber8i.js'
+      - 'src/physics/habitat-scrubber-ui8i.js'
+      - 'tests/habitat-scrubber8i*'
+      - 'src/physics/manufacturing8f.js'
+      - 'src/physics/habitat-t09.js'
+      - 'src/physics/greenhouse8i.js'
+      - 'src/physics/greenhouse-ui8i.js'
+      - 'src/physics/outposts-ui.js'
+      - 'tests/greenhouse8i*'
+      - 'src/physics/starter-manifest8k.js'
+      - 'tests/starter-manifest8k*'
+      - 'src/physics/habitat-supply-ui8i.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'tests/habitat-supply8i*'
+      - 'tests/terraform-feasibility8j-browser.py'
+      - '.github/workflows/update8i-habitat-water-browser.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/physics/habitat-supply8i.js'
+      - 'src/physics/habitat-oxygen8i.js'
+      - 'src/physics/habitat-oxygen-ui8i.js'
+      - 'tests/habitat-oxygen8i*'
+      - 'src/physics/atmosphere-emission8j.js'
+      - 'src/physics/atmosphere-emission-ui8j.js'
+      - 'tests/atmosphere-emission8j*'
+      - 'src/physics/habitat-scrubber8i.js'
+      - 'src/physics/habitat-scrubber-ui8i.js'
+      - 'tests/habitat-scrubber8i*'
+      - 'src/physics/manufacturing8f.js'
+      - 'src/physics/habitat-t09.js'
+      - 'src/physics/greenhouse8i.js'
+      - 'src/physics/greenhouse-ui8i.js'
+      - 'src/physics/outposts-ui.js'
+      - 'tests/greenhouse8i*'
+      - 'src/physics/habitat-supply-ui8i.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'tests/habitat-supply8i*'
+      - 'tests/terraform-feasibility8j-browser.py'
+      - '.github/workflows/update8i-habitat-water-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  physical-water-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test original 8A mass/power/receipt constraints
+        run: |
+          node --check src/flight.js
+          node --check src/physics/habitat-supply8i.js
+          node --check src/physics/habitat-supply-ui8i.js
+          node tests/habitat-supply8i.test.cjs
+          node --check src/physics/habitat-oxygen8i.js
+          node --check src/physics/habitat-oxygen-ui8i.js
+          node tests/habitat-oxygen8i.test.cjs
+          node --check src/physics/atmosphere-emission8j.js
+          node --check src/physics/atmosphere-emission-ui8j.js
+          node tests/atmosphere-emission8j.test.cjs
+          node --check src/physics/habitat-scrubber8i.js
+          node --check src/physics/habitat-scrubber-ui8i.js
+          node tests/habitat-scrubber8i.test.cjs
+          node --check src/physics/greenhouse8i.js
+          node --check src/physics/greenhouse-ui8i.js
+          node tests/greenhouse8i.test.cjs
+          node --check src/physics/starter-manifest8k.js
+          node tests/starter-manifest8k.test.cjs
+          node tests/update8ij.test.cjs
+      - name: Build actual offline playable from editable owner
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+      - name: Install actual Chromium browser
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Test physical 8A ship water, T09 state and durable Mission UI in Chromium
+        run: python tests/habitat-supply8i-browser.py
+      - name: Verify that 8J planetary budget controls do not fabricate atmosphere
+        run: python tests/terraform-feasibility8j-browser.py
+      - name: Test actual rated oxygen cylinder and saved physical gas custody in Chromium
+        run: python tests/habitat-oxygen8i-browser.py
+      - name: Reject TEST_FIXTURE_ONLY gas in industrial 8J browser and preserve source stock
+        run: python tests/atmosphere-emission8j-browser.py
+      - name: Verify physical manufactured T09 CO2 scrubber service and durable original inventory in Chromium
+        run: python tests/habitat-scrubber8i-browser.py
+      - name: Test actual T09 greenhouse physical BOM and native T02 powered growth in Chromium
+        run: python tests/greenhouse8i-browser.py
+      - name: Verify exactly one prebuilt finite ship manifest on actual new Industrial Mode expedition
+        run: python tests/starter-manifest8k-browser.py
