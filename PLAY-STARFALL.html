@@ -12670,6 +12670,8 @@ function create(saved){
   if(!body||typeof body.id!=='string'||body.landable!==true||body.kind==='star'||
    !positive(body.radiusM)||!positive(body.gravityMS2)||!positive(body.pressurePa))
    throw Error('8J candidate must be a real landable atmospheric body with a valid science profile');
+  if(body.protectedNativeLife===true||body.protectedRuins===true)
+   throw Error('8J planetary protection: identified native ecology/ruins require a reviewed intervention permit');
   if(body.gravityMS2<0.5||body.gravityMS2>30||body.pressurePa<100||body.pressurePa>2e6||
     (positive(body.temperatureK)&&(body.temperatureK<160||body.temperatureK>350)))
    throw Error('8J environmental feasibility gate: use a sealed habitat on this unsuitable world');
@@ -14744,9 +14746,16 @@ function manufacturedHabitatRun8I(assetId){
 function terraformWorldProfile8J(){
  if(!nearest?.landable)throw Error('8J select and land on an atmospheric solid world');
  const p=P.scienceProfile(galaxy,nearest);
+ if(p.composition?.atmosphereMode==='legacy vacuum-compatible'||
+    (p.composition?.atmosphereMoleFractions&&
+     Object.keys(p.composition.atmosphereMoleFractions).length===0))
+  throw Error('8J world has CW01 modeled vacuum: no atmospheric CO2 vent accepted');
+ const knownRuins=Array.isArray(SF.load().discoveries)&&SF.load().discoveries.some(d=>
+  (d.bodyId===nearest.id||d.planet===nearest.name)&&/ruin|archaeolog/i.test(String(d.type||'')));
  return {id:nearest.id,kind:nearest.kind,landable:nearest.landable,
   radiusM:p.radiusM,gravityMS2:p.surfaceGravityMS2,
   pressurePa:p.atmospherePressurePa,
+  protectedNativeLife:nearest.life===true,protectedRuins:knownRuins,
   temperatureK:p.estimatedEquilibriumTemperatureK};
 }
 function terraformContext8J(){
@@ -23200,13 +23209,13 @@ function action(run,id){
  try{const result=run();refresh();
   $(id).textContent='COMPLETE: '+JSON.stringify(result).slice(0,560);}
  catch(e){$(id).textContent='BLOCKED: '+String(e.message||e);} }
-$('hab-8i-commission').addEventListener('click',()=>action(()=>
- root.StarfallRuntime.manufacturedHabitatCommission8I(sel.value),'hab-8i-status'));
-$('hab-8i-run').addEventListener('click',()=>action(()=>
- root.StarfallRuntime.manufacturedHabitatRun8I(sel.value),'hab-8i-status'));
-$('terra-8j-vent').addEventListener('click',()=>action(()=>
+$('hab-8i-commission').addEventListener('click',e=>{e.stopPropagation();action(()=>
+ root.StarfallRuntime.manufacturedHabitatCommission8I(sel.value),'hab-8i-status');});
+$('hab-8i-run').addEventListener('click',e=>{e.stopPropagation();action(()=>
+ root.StarfallRuntime.manufacturedHabitatRun8I(sel.value),'hab-8i-status');});
+$('terra-8j-vent').addEventListener('click',e=>{e.stopPropagation();action(()=>
  root.StarfallRuntime.terraformRelease8J(vessel.value,lot.value,Number($('terra-8j-mass').value)),
- 'terra-8j-status'));
+ 'terra-8j-status');});
 $('terra-8j-measure').addEventListener('click',refresh);
 vessel.addEventListener('change',paintLots);sel.addEventListener('change',refresh);
 document.addEventListener('click',e=>{if(e.target?.closest?.('#sf-mission-flow,.ui21-page[data-page="Engineer"],#sf-mission-button'))refresh();});
