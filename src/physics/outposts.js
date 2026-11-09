@@ -70,10 +70,13 @@ function cleanItem(item){
  if(!item||typeof item!=='object'||!SPECS[item.kind]||
   typeof item.id!=='string'||typeof item.bodyId!=='string')return null;
  try{
-  const industrial=root.SF?.load?.()?.freshExpedition?.schema===1;
+  // Imported legacy power nodes are historical physical save assets.
+  // Never erase their existing battery energy or generation on migration,
+  // even when the user subsequently marks the expedition Industrial.
+  // Fresh Industrial Store.add STILL refuses unpaid new shells.
   const owner=installedProof8I(item);
   const claim=['solar','battery'].includes(item.kind)&&
-    (Boolean(item.installOperationId)||industrial);
+    Boolean(item.installOperationId);
   const certified=!claim||owner;
   const paid=claim&&owner,sourceCap=paid&&item.kind==='battery'?9600000:
    (claim&&!certified?0:SPECS[item.kind].capacityJ);
