@@ -86,13 +86,34 @@ function advance(asset,{toS,powered,powerReceipt,body=null}){
  const h=checked(asset,true),s=asset.state.eclss8i;
  if(!valid(toS)||toS+EPS<s.lastS)throw Error('8I simulation clock reversal');
  const dt=toS-s.lastS;
- if(dt>3600)throw Error('8I unattended time gap exceeds bounded 3600 s integration; service review required');
  if(dt<EPS)return{unchanged:true,asset:cp(asset),usedJ:0,status:status(asset,!!powered)};
  const need=powered?BASE_W*dt:0;
  if(powered)receiptCheck(powerReceipt,'eclss8i:cycle:'+asset.id+':'+s.lastS.toFixed(3)+':'+toS.toFixed(3),need);
  const beforeWet=wetKg(h),next=cp(asset),item={kind:'hab',enabled:true,
   condition:next.condition,habT09:next.state.habT09};
- t09().step(item,body,toS,!!powered);
+ const slices=Math.ceil(dt/3600),MAX_SLICES=96;
+ if(slices<=MAX_SLICES){
+  // Same original T09 model at 1×/10×/100×, with each paid power/thermal
+  // integration step bounded to <=3600 simulated seconds.
+  for(let i=1;i<=slices;i++){
+   const endpoint=i===slices?toS:s.lastS+dt*i/slices;
+   t09().step(item,body,endpoint,!!powered);
+  }
+ }else{
+  // A long unattended blackout must not softlock the owned habitat or bill
+  // impossible electrical work. Analytical leak+cooling is conservative;
+  // flag manual review instead of silently claiming full ECLSS operation.
+  if(powered)throw Error('8I paid >4-day live service requires bounded operations scheduler; switch to safe offline review');
+  const a=item.habT09,C=t09().CONFIG,rate=C.normalLeakS+
+   (1-a.seal)**2*C.maxLeakS+(a.airlock==='OPEN_OUT'?.0009:0);
+  const retained=Math.exp(-rate*dt);
+  a.oxygenMol*=retained;a.inertMol*=retained;a.carbonMol*=retained;
+  const ambient=t09().external(body).temperatureK,alpha=Math.exp(-C.thermalLeakWPerK*dt/C.thermalCapacityJK);
+  a.tempK=Math.max(C.absoluteMinK,Math.min(C.absoluteMaxK,ambient+(a.tempK-ambient)*alpha));
+  a.lastS=toS;a.powerW=0;a.integratedSupplyW=0;a.lastPower=false;
+  a.awaitingReview=true;a.enabled=false;a.airlock='CLOSED';a.airlockUntilS=null;
+  item.enabled=false;
+ }
  const after=item.habT09;
  if(after.occupants!==0)throw Error('8I unsupported metabolic mass without food ledger');
  const afterWet=wetKg(after),vent=Math.max(0,beforeWet-afterWet);
