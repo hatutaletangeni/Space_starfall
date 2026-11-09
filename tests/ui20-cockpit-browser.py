@@ -25,15 +25,19 @@ with sync_playwright() as p:
   # UI21 expands its routed console within the viewport; the old <350px
   # UI20 compact-panel assertion is no longer the intended layout.
   assert page.locator('.panel').evaluate('(e)=>100<e.getBoundingClientRect().height<=window.innerHeight')
-  for id in ['controls-open','chart-open','obs-open','archive-t17-open']:
-   assert page.locator('#'+id).is_visible(),id
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 intentionally hides legacy header shortcuts. Verify that each
+  # existing source-owned tool remains discoverable as a visible Mission action.
   page.locator('#sf-mission-button').click()
+  for label in ['STAR CHART','OBSERVATORY']:
+   assert page.locator('#sf-mission-flow .sf-flow-action').filter(has_text=label).is_visible(),label
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Records').click()
+  for label in ['SAVE / RECOVERY','CONTROL SETTINGS']:
+   assert page.locator('#sf-mission-flow .sf-flow-action').filter(has_text=label).is_visible(),label
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  for label in ['ROCKET LAB','ASSET MANAGER']:
+   assert page.locator('#sf-mission-flow .sf-flow-action').filter(has_text=label).is_visible(),label
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  for id in ['launch-open','asset-open']:
-   assert page.locator('#'+id).is_visible(),id
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -49,18 +53,20 @@ with sync_playwright() as p:
   assert page.locator('#ui21-manual').is_visible(), 'Help should open the current searchable Field Manual'
   page.keyboard.press('Escape')
   assert page.locator('#ui21-manual').is_hidden(), 'Escape should close the Field Manual'
-  page.locator('#ui-console-open').click()
+  # UI22 has replaced the hidden legacy console toggle with Mission workspace.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Navigate').click()
+  page.locator('#sf-mission-flow .sf-flow-workspace').click()
   assert page.locator('#panel').is_visible()
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()
   assert page.locator('#fc-extra').is_visible()
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  page.locator('#launch-open').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='ROCKET LAB').click()
   assert page.locator('#launch-dialog').is_visible()
   page.locator('#launch-close').click()
   # Unmodified genuine spacecraft state: no synthetic orbit, teleport, fake

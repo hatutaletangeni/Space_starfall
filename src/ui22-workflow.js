@@ -5,7 +5,7 @@
  if(!panel||!root.StarfallUI21)return;
  const stages=[
   {name:'Navigate',number:'01',hint:'Choose a destination and travel to it',page:'Overview',
-   actions:[['STAR CHART','chart-open'],['FIND MY TRUCK','truck-plot-course8b'],['SURFACE MAP','survey-open'],['FLIGHT SYSTEMS','systems-toggle']]},
+   actions:[['STAR CHART','chart-open'],['OBSERVATORY','obs-open'],['FIND MY TRUCK','truck-plot-course8b'],['SURFACE MAP','survey-open'],['FLIGHT SYSTEMS','systems-toggle']]},
   {name:'Explore',number:'02',hint:'Land, survey and investigate',page:'Explore',
    actions:[['WORLD SURVEY','survey-open'],['FIELD LAB','field-open'],['DISCOVERIES','discovery-open'],['ECOLOGY','ecology-open'],['RUINS','ruin-open']]},
   {name:'Build',number:'03',hint:'Prepare and construct your equipment',page:'Engineer',
