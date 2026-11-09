@@ -70,8 +70,8 @@ test('Industrial T09 activation rejects cross-world receipts and duplicate shell
 
 test('Industrial T09 rejects forged runtime identity even with a valid unclaimed shell',()=>{
   const {api,root}=load('src/physics/habitat-t09.js',true);
-  const asset={id:'shell-paid-1',type:'habitat_envelope',provenance:'structural-8g:paid',location:{kind:'surface',bodyId:'world-A'}};
-  const receipt={id:'paid',assetId:asset.id,blueprintId:'habitat_shell',status:'COMMITTED'};
+  const asset={id:'shell-paid-1',type:'habitat_envelope',provenance:'structural-8g:shell-paid-1',massKg:20,location:{kind:'surface',bodyId:'world-A'}};
+  const receipt={id:asset.id,assetId:asset.id,blueprintId:'habitat_shell',status:'ASSEMBLED_NOT_OPERATIONAL',bodyId:'world-A',facilityId:'factory-1',energyJ:500,massKg:20,consumedLots:[{lotId:'iron-1',massKg:20}]};
   const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[]}};
   root.SF.load=()=>saved;
   const item={id:'runtime-forgery',kind:'hab',bodyId:'world-A',physicalAssetId:asset.id};
@@ -89,16 +89,32 @@ test('Industrial T09 rejects forged runtime identity even with a valid unclaimed
 test('Industrial activation rejects a borrowed or duplicate structural receipt before mutation',()=>{
  const {api,root}=load('src/physics/habitat-t09.js',true);
  const item={id:'hab-paid',kind:'hab',bodyId:'world-A',physicalAssetId:'shell-paid'};
- const asset={id:item.physicalAssetId,type:'habitat_envelope',provenance:'structural-8g:paid',location:{kind:'surface',bodyId:item.bodyId}};
- const receipt={id:'other',assetId:asset.id,blueprintId:'habitat_shell',status:'COMMITTED'};
+ const asset={id:item.physicalAssetId,type:'habitat_envelope',provenance:'structural-8g:shell-paid',massKg:20,location:{kind:'surface',bodyId:item.bodyId}};
+ const receipt={id:'other',assetId:asset.id,blueprintId:'habitat_shell',status:'ASSEMBLED_NOT_OPERATIONAL',bodyId:item.bodyId,facilityId:'factory-1',energyJ:500,massKg:20,consumedLots:[{lotId:'iron-1',massKg:20}]};
  const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[{id:item.id,kind:'hab',bodyId:item.bodyId,physicalAssetId:asset.id}]}};
  root.SF.load=()=>saved;
  assert.throws(()=>api.command(item,'ENABLE',{near:true,powered:true}),/unique same-world 8G/);
  assert.equal(item.habT09,undefined);
- receipt.id='paid';
+ receipt.id='shell-paid';
  saved.vehicleAssembly8g.receipts.push({...receipt});
  assert.throws(()=>api.command(item,'ENABLE',{near:true,powered:true}),/unique same-world 8G/);
  assert.equal(item.habT09,undefined);
  saved.vehicleAssembly8g.receipts.pop();
+ assert.equal(api.command(item,'ENABLE',{near:true,powered:true}).enabled,true);
+});
+
+test('Industrial activation refuses unpaid structural receipts without mutating T09',()=>{
+ const {api,root}=load('src/physics/habitat-t09.js',true);
+ const asset={id:'shell-2',type:'habitat_envelope',massKg:20,provenance:'structural-8g:shell-2',location:{kind:'surface',bodyId:'world-A'}};
+ const receipt={id:'shell-2',assetId:'shell-2',blueprintId:'habitat_shell',status:'ASSEMBLED_NOT_OPERATIONAL',bodyId:'world-A',facilityId:'factory-1',energyJ:0,massKg:20,consumedLots:[{lotId:'iron-1',massKg:20}]};
+ const item={id:'hab-2',kind:'hab',bodyId:'world-A',physicalAssetId:asset.id};
+ const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[{...item}]}};
+ root.SF.load=()=>saved;
+ assert.throws(()=>api.command(item,'ENABLE',{near:true,powered:true}),/unique same-world 8G/);
+ assert.equal(item.habT09,undefined);
+ receipt.energyJ=500;receipt.consumedLots=[];
+ assert.throws(()=>api.command(item,'ENABLE',{near:true,powered:true}),/unique same-world 8G/);
+ assert.equal(item.habT09,undefined);
+ receipt.consumedLots=[{lotId:'iron-1',massKg:20}];
  assert.equal(api.command(item,'ENABLE',{near:true,powered:true}).enabled,true);
 });
