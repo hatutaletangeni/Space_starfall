@@ -67,13 +67,13 @@ function action(run,id){
  try{const result=run();refresh();
   $(id).textContent='COMPLETE: '+JSON.stringify(result).slice(0,560);}
  catch(e){$(id).textContent='BLOCKED: '+String(e.message||e);} }
-$('hab-8i-commission').addEventListener('click',()=>action(()=>
- root.StarfallRuntime.manufacturedHabitatCommission8I(sel.value),'hab-8i-status'));
-$('hab-8i-run').addEventListener('click',()=>action(()=>
- root.StarfallRuntime.manufacturedHabitatRun8I(sel.value),'hab-8i-status'));
-$('terra-8j-vent').addEventListener('click',()=>action(()=>
+$('hab-8i-commission').addEventListener('click',e=>{e.stopPropagation();action(()=>
+ root.StarfallRuntime.manufacturedHabitatCommission8I(sel.value),'hab-8i-status');});
+$('hab-8i-run').addEventListener('click',e=>{e.stopPropagation();action(()=>
+ root.StarfallRuntime.manufacturedHabitatRun8I(sel.value),'hab-8i-status');});
+$('terra-8j-vent').addEventListener('click',e=>{e.stopPropagation();action(()=>
  root.StarfallRuntime.terraformRelease8J(vessel.value,lot.value,Number($('terra-8j-mass').value)),
- 'terra-8j-status'));
+ 'terra-8j-status');});
 $('terra-8j-measure').addEventListener('click',refresh);
 vessel.addEventListener('change',paintLots);sel.addEventListener('change',refresh);
 document.addEventListener('click',e=>{if(e.target?.closest?.('#sf-mission-flow,.ui21-page[data-page="Engineer"],#sf-mission-button'))refresh();});
