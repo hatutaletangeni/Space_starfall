@@ -14,7 +14,7 @@ function snapshot() {
       location: {kind: 'surface', bodyId: 'world-b'},
       provenance: 'structural-8g:receipt-1'}]},
     vehicleAssembly8g: {receipts: [{assetId: 'envelope-1',
-      blueprintId: 'habitat_shell', status: 'COMMITTED'}]},
+      id: 'receipt-1', blueprintId: 'habitat_shell', status: 'COMMITTED'}]},
     materials8a: {operations: [{kind: 'HABITAT_GREENHOUSE_8I',
       habitatId: 'hab-1', status: 'COMMITTED'}]},
     outpost5: {items: [habitat('hab-1')]}
@@ -35,4 +35,12 @@ const duplicatedAsset = snapshot();
 duplicatedAsset.physical8a.assets.push({...duplicatedAsset.physical8a.assets[0]});
 assert.equal(stage(duplicatedAsset, 'habitat'), 'NOT_PROVEN',
   'duplicate physical asset identities are not independently valid');
+const forged = snapshot();
+forged.vehicleAssembly8g.receipts[0].id = 'other-receipt';
+assert.equal(stage(forged, 'habitat'), 'NOT_PROVEN',
+  'a receipt for a different structure cannot authorize this envelope');
+const uncommitted = snapshot();
+uncommitted.vehicleAssembly8g.receipts[0].status = 'ASSEMBLED_NOT_OPERATIONAL';
+assert.equal(stage(uncommitted, 'habitat'), 'NOT_PROVEN',
+  'unfinished structural assembly is not paid commissioning evidence');
 console.log('8K unique physical envelope audit regression passed');
