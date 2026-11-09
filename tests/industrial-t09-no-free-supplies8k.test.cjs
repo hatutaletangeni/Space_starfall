@@ -56,7 +56,7 @@ test('Industrial T09 activation rejects forged envelope and never initializes fr
 test('Industrial T09 activation rejects cross-world receipts and duplicate shell claims',()=>{
   const {api,root}=load('src/physics/habitat-t09.js',true);
   const asset={id:'envelope-1',type:'habitat_envelope',provenance:'structural-8g:paid',location:{kind:'surface',bodyId:'world-B'}};
-  const receipt={assetId:'envelope-1',blueprintId:'habitat_shell',status:'COMMITTED'};
+  const receipt={id:'paid',assetId:'envelope-1',blueprintId:'habitat_shell',status:'COMMITTED'};
   const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[]}};
   root.SF.load=()=>saved;
   const item={id:'hab-1',kind:'hab',bodyId:'world-A',physicalAssetId:'envelope-1'};
@@ -71,7 +71,7 @@ test('Industrial T09 activation rejects cross-world receipts and duplicate shell
 test('Industrial T09 rejects forged runtime identity even with a valid unclaimed shell',()=>{
   const {api,root}=load('src/physics/habitat-t09.js',true);
   const asset={id:'shell-paid-1',type:'habitat_envelope',provenance:'structural-8g:paid',location:{kind:'surface',bodyId:'world-A'}};
-  const receipt={assetId:asset.id,blueprintId:'habitat_shell',status:'COMMITTED'};
+  const receipt={id:'paid',assetId:asset.id,blueprintId:'habitat_shell',status:'COMMITTED'};
   const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[]}};
   root.SF.load=()=>saved;
   const item={id:'runtime-forgery',kind:'hab',bodyId:'world-A',physicalAssetId:asset.id};
@@ -84,4 +84,21 @@ test('Industrial T09 rejects forged runtime identity even with a valid unclaimed
   saved.outpost5.items=[{id:item.id,kind:'hab',bodyId:'world-A',physicalAssetId:asset.id}];
   const result=api.command(item,'ENABLE',{now:10,near:true,powered:true});
   assert.equal(result.enabled,true,'legitimate persisted identity remains eligible');
+});
+
+test('Industrial activation rejects a borrowed or duplicate structural receipt before mutation',()=>{
+ const {api,root}=load('src/physics/habitat-t09.js',true);
+ const item={id:'hab-paid',kind:'hab',bodyId:'world-A',physicalAssetId:'shell-paid'};
+ const asset={id:item.physicalAssetId,type:'habitat_envelope',provenance:'structural-8g:paid',location:{kind:'surface',bodyId:item.bodyId}};
+ const receipt={id:'other',assetId:asset.id,blueprintId:'habitat_shell',status:'COMMITTED'};
+ const saved={freshExpedition:{schema:1},physical8a:{assets:[asset]},vehicleAssembly8g:{receipts:[receipt]},outpost5:{items:[{id:item.id,kind:'hab',bodyId:item.bodyId,physicalAssetId:asset.id}]}};
+ root.SF.load=()=>saved;
+ assert.throws(()=>api.command(item,'ENABLE',{near:true,powered:true}),/unique same-world 8G/);
+ assert.equal(item.habT09,undefined);
+ receipt.id='paid';
+ saved.vehicleAssembly8g.receipts.push({...receipt});
+ assert.throws(()=>api.command(item,'ENABLE',{near:true,powered:true}),/unique same-world 8G/);
+ assert.equal(item.habT09,undefined);
+ saved.vehicleAssembly8g.receipts.pop();
+ assert.equal(api.command(item,'ENABLE',{near:true,powered:true}).enabled,true);
 });
