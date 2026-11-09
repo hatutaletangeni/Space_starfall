@@ -1889,8 +1889,8 @@ function manufacturedHabitatRun8I(assetId){
 }
 function terraformWorldProfile8J(){
  if(!nearest?.landable)throw Error('8J select and land on an atmospheric solid world');
- const p=P.scienceProfile(galaxy,nearest);
- if(p.composition?.atmosphereMode==='legacy vacuum-compatible'||
+ const p=P.scienceProfile(galaxy,nearest),localClimate=StarfallMeteorologyLW03.base(nearest,galaxy.seed);
+ if(localClimate.vacuum||p.composition?.atmosphereMode==='legacy vacuum-compatible'||
     (p.composition?.atmosphereMoleFractions&&
      Object.keys(p.composition.atmosphereMoleFractions).length===0))
   throw Error('8J world has CW01 modeled vacuum: no atmospheric CO2 vent accepted');
@@ -1898,9 +1898,9 @@ function terraformWorldProfile8J(){
   (d.bodyId===nearest.id||d.planet===nearest.name)&&/ruin|archaeolog/i.test(String(d.type||'')));
  return {id:nearest.id,kind:nearest.kind,landable:nearest.landable,
   radiusM:p.radiusM,gravityMS2:p.surfaceGravityMS2,
-  pressurePa:p.atmospherePressurePa,
+  pressurePa:localClimate.pressurePa,
   protectedNativeLife:nearest.life===true,protectedRuins:knownRuins,
-  temperatureK:p.estimatedEquilibriumTemperatureK};
+  temperatureK:localClimate.temperatureK};
 }
 function terraformContext8J(){
  const c=outpostContext(),assets=physical8a.list().filter(a=>
