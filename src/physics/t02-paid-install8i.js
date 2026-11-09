@@ -112,7 +112,7 @@ function install(a){
  }
  materials.lots=materials.lots.filter(x=>x.massKg>EPS);
  const item={id:p.deviceId,kind:a.kind,bodyId:a.bodyId,
-  installOperationId:a.operationId,installedMassKg:spec.kg,
+  installOperationId:a.operationId,installedMassKg:spec.kg,paidCertified8I:true,
   local:cp(a.local),facing:[0,0,1],height:0,energyJ:0,
   temperatureK:290,condition:1,enabled:true,
   ...(a.kind==='solar'?{ratedSolarW:spec.nameplateW,areaM2:spec.areaM2,efficiency:spec.efficiency}:
