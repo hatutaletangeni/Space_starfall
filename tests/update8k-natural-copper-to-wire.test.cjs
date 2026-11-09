@@ -134,7 +134,7 @@ test('natural 8C copper -> 8D truck haul -> 8E real copper -> 8F wire; mass, dep
       station,bodyId:body.id,
       energyReceipt:{operationId:id,sourceId:'finite-expedition-battery',usedJ:b.energyJ}});
     assert.equal(done.receipt.status,'COMMITTED');
-    assert.equal(Plant.create(done.operations).process({id,materials:done.materials}).duplicate,true);
+    assert.equal(Plant.create(done.operations).process({id,sourceContainerId:HOLD,materials:done.materials}).duplicate,true);
     materials=Materials.create(done.materials);plant=Plant.create(done.operations);
   }
   // Each 1-mol roasting batch consumes 159.152g Cu2S and finite oxygen.
