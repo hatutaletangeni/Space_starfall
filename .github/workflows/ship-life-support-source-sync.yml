@@ -1,0 +1,51 @@
+name: Verify and rebuild STARFALL blackout-power playtest branch
+on:
+  push:
+    branches: [feature/update8-pre8k-life-support-power-20261109]
+    paths:
+      - src/flight.js
+      - src/physics/life-support8e.js
+      - tests/ship-life-support-blackout8i.test.cjs
+      - .github/workflows/ship-life-support-source-sync.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: starfall-pre8k-ship-blackout-source-sync
+  cancel-in-progress: false
+jobs:
+  physically-billed-life-support:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/update8-pre8k-life-support-power-20261109
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Blackout CO2, ship battery, save and energy model
+        run: |
+          node --check src/flight.js
+          node tests/ship-life-support-blackout8i.test.cjs
+          node tests/update8ij.test.cjs
+      - name: Build both actual offline games from editable sources
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Publish only rebuilt verified desktop and mobile
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'build: sync powered life-support blackout fix in both offline playables'
+            git pull --rebase origin feature/update8-pre8k-life-support-power-20261109
+            git push origin HEAD:feature/update8-pre8k-life-support-power-20261109
+          fi
