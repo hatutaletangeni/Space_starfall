@@ -8082,6 +8082,9 @@ const RECIPES=Object.freeze({
   inputs:{aluminum:2.1},outputs:{aluminum_frame:2},powerW:610,seconds:130,toleranceMm:1.1},
  aluminum_sheet:{category:'lightweight_structure',station:'bench',tool:'hand-shear',
   inputs:{aluminum:1},outputs:{aluminum_sheet:.95},powerW:520,seconds:110,toleranceMm:1},
+ cell_casing:{category:'electrochemical_hardware',station:'bench',tool:'hand-shear',
+  inputs:{aluminum:.34},outputs:{cell_casing:.30},powerW:540,seconds:160,toleranceMm:.5,
+  engineeringNote:'Shaped aluminum electrochemical cell canister blank, not a proven sealed or thermally certified lithium cell. Eight batches require 2.72 kg aluminum and output 2.4 kg cases plus 0.32 kg physical machining scrap.'},
  motor_field_coil:{category:'electromagnetic_stock',station:'bench',tool:'hand-winder',
   inputs:{copper:.70,glass:.10},outputs:{motor_field_coil:.76},
   powerW:640,seconds:260,toleranceMm:.5},
@@ -12747,25 +12750,33 @@ if(typeof module!=='undefined'&&module.exports)module.exports=api;
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-8;
 const CONTENT=Object.freeze([
  ['stocked_chips',.5,.0005,'prelaunch_imported_semiconductors'],
- ['pv_cells',2,.01,'prelaunch_certified_photovoltaics'],
+ ['pv_cells',4,.02,'prelaunch_certified_photovoltaics_for_two_finite_modules'],
  ['discrete_components',1,.002,'prelaunch_electronic_components'],
  ['solder',1,.001,'prelaunch_solder_supply'],
  ['copper',8,.003,'prelaunch_refined_copper_repair_stock'],
  ['aluminum',10,.004,'prelaunch_refined_aluminum_repair_stock'],
  ['steel',20,.008,'prelaunch_structural_spares'],
- ['glass',4,.002,'prelaunch_verified_glass'],
+ ['glass',8,.004,'prelaunch_verified_glass'],
  ['insulation_polymer',5,.007,'prelaunch_polymer_feedstock'],
  ['crop_seeds',.05,.0001,'prelaunch_biological_seed_packet'],
  ['fertilizer',2,.002,'prelaunch_finite_plant_nutrients'],
  ['zeolite',5,.005,'prelaunch_sorbent_mineral'],
  ['magnets',1,.001,'prelaunch_motor_magnets'],
  ['electrolyte',3,.003,'prelaunch_electrochemical_supply'],
+ ['electrode_active',9.6,.006,'prelaunch_certified_cell_electrode_mix_single_pack_only'],
+ ['encapsulant',1.2,.002,'prelaunch_certified_photovoltaic_uv_encapsulant_two_modules_only'],
  ['separator',1,.002,'prelaunch_battery_separator'],
  ['refractory_block',10,.005,'prelaunch_firebrick_spares'],
  ['laminate',1,.002,'prelaunch_electrical_laminate'],
  ['etchant',1,.001,'prelaunch_reaction_consumable'],
  ['carbon',3,.002,'prelaunch_reductant'],
  ['water',50,.05,'prelaunch_sealed_water_stock'],
+ // These are SEALED, physically shipped premanufactured machine kits, NOT
+ // magically installed machinery. Original 8F kit installer must charge its
+ // own work energy and move each exact 8A kit lot into an 8A machine asset.
+ ['machine_kit_extruder',160,.30,'prelaunch_finite_polymer_extruder_kit_uninstalled'],
+ ['machine_kit_laminator',210,.39,'prelaunch_finite_pv_laminator_kit_uninstalled'],
+ ['machine_kit_battery',260,.44,'prelaunch_finite_cell_assembly_kit_uninstalled'],
 ]);
 const SUM=Object.freeze({massKg:CONTENT.reduce((s,x)=>s+x[1],0),
  volumeM3:CONTENT.reduce((s,x)=>s+x[2],0),uniqueLots:CONTENT.length});
