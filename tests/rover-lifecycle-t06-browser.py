@@ -4,7 +4,6 @@ robot mission via T03 powered ship LOS, 7D sensor readings + 7F camera, power
 blackout and 48V rover battery service. Controlled rocket capsule fixture:
 no claim of a fully flown human orbital launch or interplanetary radio.
 """
-import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
@@ -26,19 +25,13 @@ with sync_playwright() as p:
     up:[0,1,0],landed:true}});
    return SF.load();
   }""")
-  # file:// Chromium may reinitialize sessionStorage on hard page.reload().
-  # An init script that checks ONLY sessionStorage can silently RE-INJECT the
-  # original blank rover fixture over a genuinely durable mission on reload.
-  # Use a persistent, test-only localStorage marker, written/read back BEFORE
-  # source boot. Keep every original final rover, camera and ACK assertion.
-  # A file:// reload may execute init scripts before storage markers settle.
-  # The actual saved mission receipt is more authoritative than a marker: never
-  # overwrite a valid deployed rover with the original empty landed fixture.
-  context.add_init_script("(()=>{const m='starfall-t06-fixture-seeded';const raw=localStorage.getItem('starfall_save');if(raw){try{const s=JSON.parse(raw);if((s.launch7?.launches||[]).some(x=>x.id==='launch-t06-browser')){localStorage.setItem(m,'1');return;}}catch(e){}}if(localStorage.getItem(m)==='1')return;localStorage.setItem('starfall_save',"+json.dumps(json.dumps(saved))+");localStorage.setItem(m,'1');if(localStorage.getItem(m)!=='1')throw Error('T06 fixture marker not durable');})()")
-  boot.close()
-  page=context.new_page()
-  page.on('pageerror',lambda e:errors.append(str(e)))
-  page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
+  # Real SF.save() already stored the controlled landing in this SAME
+  # file:// tab. Never add an init script which replays an older blank rover
+  # fixture on later reload. Shield the first pagehide autosave from
+  # clobbering the fresh landing snapshot; leave later real saves intact.
+  page=boot
+  page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+  page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallCommsT03 && window.StarfallRoverT06 && window.StarfallImagingUI7F)",timeout=45000)
   setUp=page.evaluate("""()=>{
     const rt=StarfallRuntime,body=rt.nearest,O=StarfallOutposts,T=StarfallRoverT06,

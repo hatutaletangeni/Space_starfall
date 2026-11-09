@@ -16,7 +16,7 @@ with sync_playwright() as p:
   page.on('pageerror',lambda e:errors.append(str(e)))
   page.goto(uri,wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("!!(window.StarfallRuntime?.refineryQuote8E && window.StarfallRefinery8E && document.querySelector('#refinery8e-panel'))",timeout=60000)
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

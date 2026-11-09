@@ -33,7 +33,83 @@ function placement({kind,body,local,heightAt,structures=[],protectedAreas=[],slo
  for(const p of protectedAreas){if(p?.local&&arc(d,p.local,radius)<spec.radius+(p.radius||0)+1)throw Error('Construction would block a vehicle or its boarding ramp');}
  return{local:d,height:h,slopeDeg:slope*180/PI};
 }
-function cleanItem(item){if(!item||typeof item!=='object'||!SPECS[item.kind]||typeof item.id!=='string'||typeof item.bodyId!=='string')return null;try{return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,energyJ:clamp(Number(item.energyJ)||0,0,SPECS[item.kind].capacityJ),temperatureK:clamp(Number(item.temperatureK)||290,2,1500),condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),enabled:item.enabled!==false,radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,habT09:item.kind==='hab'&&root.StarfallHabitatT09?root.StarfallHabitatT09.ensure({kind:'hab',habT09:item.habT09},Number(item.habT09?.lastS)||0):undefined,t10:['lab','storage'].includes(item.kind)&&item.t10?.schema===1?copy(item.t10):undefined,padT11:item.kind==='foundation'&&root.StarfallPadT11?root.StarfallPadT11.repair(item.padT11):undefined,bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string'):[]};}catch(_){return null;}}
+/* A paid T02 device is a real 8F manufactured item, not a creative
+ * Store.add solar/battery. Validate its native 8A receipt on EACH save load;
+ * never trust a serialized paidCertified8I flag from a user-modified save.
+ */
+function installedProof8I(item){
+ if(!['solar','battery'].includes(item?.kind))return false;
+ if(typeof item.id!=='string'||typeof item.installOperationId!=='string')return false;
+ const saved=root.SF?.load?.();
+ const receipts=saved?.materials8a?.operations;
+ if(!Array.isArray(receipts))return false;
+ const found=receipts.filter(x=>x?.id===item.installOperationId&&
+   x.kind==='T02_PAID_INSTALL_8I'&&x.status==='COMMITTED'&&
+   x.deviceId===item.id&&x.bodyId===item.bodyId&&
+   x.sourceContainerId&&x.installedMassKg===item.installedMassKg&&
+   x.workJ>0&&x.sourceBatteryJBefore>=x.sourceBatteryJAfter&&
+   Math.abs(x.sourceBatteryJBefore-x.sourceBatteryJAfter-x.workJ)<=Math.max(1e-5,x.workJ*1e-9));
+ return found.length===1;
+}
+function ratedSpec(item){
+ const base=SPECS[item.kind];if(!base)return null;
+ if(!['solar','battery'].includes(item.kind))return base;
+ // Legacy original modules retain their original T02 watt/charge ratings.
+ if(!item.installOperationId)return item.paidCertified8I===false?
+  {...base,solarW:0,capacityJ:0,maxChargeW:0,maxDischargeW:0}:base;
+ if(item.paidCertified8I!==true)return{...base,solarW:0,capacityJ:0,
+  maxChargeW:0,maxDischargeW:0};
+ if(item.kind==='solar')return{...base,solarW:Math.min(400,Math.max(0,item.ratedSolarW||0)),
+  areaM2:Math.min(2.3,Math.max(0,item.areaM2||0)),
+  efficiency:Math.min(.24,Math.max(0,item.efficiency||0))};
+ return{...base,capacityJ:Math.min(9600000,Math.max(0,item.ratedCapacityJ||0)),
+  maxChargeW:Math.min(1000,Math.max(0,item.ratedChargeW||0)),
+  maxDischargeW:Math.min(1800,Math.max(0,item.ratedDischargeW||0))};
+}
+function cleanItem(item){
+ if(!item||typeof item!=='object'||!SPECS[item.kind]||
+  typeof item.id!=='string'||typeof item.bodyId!=='string')return null;
+ try{
+  // Imported legacy power nodes are historical physical save assets.
+  // Never erase their existing battery energy or generation on migration,
+  // even when the user subsequently marks the expedition Industrial.
+  // Fresh Industrial Store.add STILL refuses unpaid new shells.
+  const owner=installedProof8I(item);
+  const claim=['solar','battery'].includes(item.kind)&&
+    Boolean(item.installOperationId);
+  const certified=!claim||owner;
+  const paid=claim&&owner,sourceCap=paid&&item.kind==='battery'?9600000:
+   (claim&&!certified?0:SPECS[item.kind].capacityJ);
+  return{id:item.id.slice(0,90),bodyId:item.bodyId.slice(0,120),kind:item.kind,
+   physicalAssetId:item.kind==='hab'&&typeof item.physicalAssetId==='string'&&
+     /^[a-zA-Z0-9:_-]{1,120}$/.test(item.physicalAssetId)?item.physicalAssetId:undefined,
+   installOperationId:paid?item.installOperationId:undefined,
+   installedMassKg:paid&&Number.isFinite(item.installedMassKg)?item.installedMassKg:undefined,
+   paidCertified8I:claim?!!owner:undefined,
+   ratedSolarW:paid&&item.kind==='solar'?Math.min(400,Math.max(0,Number(item.ratedSolarW)||0)):undefined,
+   areaM2:paid&&item.kind==='solar'?Math.min(2.3,Math.max(0,Number(item.areaM2)||0)):undefined,
+   efficiency:paid&&item.kind==='solar'?Math.min(.24,Math.max(0,Number(item.efficiency)||0)):undefined,
+   ratedCapacityJ:paid&&item.kind==='battery'?Math.min(9600000,Math.max(0,Number(item.ratedCapacityJ)||0)):undefined,
+   ratedChargeW:paid&&item.kind==='battery'?Math.min(1000,Math.max(0,Number(item.ratedChargeW)||0)):undefined,
+   ratedDischargeW:paid&&item.kind==='battery'?Math.min(1800,Math.max(0,Number(item.ratedDischargeW)||0)):undefined,
+   local:saneDir(item.local),facing:saneDir(item.facing||[0,0,1]),
+   height:Number.isFinite(item.height)?clamp(item.height,-2500,2500):0,
+   energyJ:clamp(Number(item.energyJ)||0,0,sourceCap),
+   temperatureK:clamp(Number(item.temperatureK)||290,2,1500),
+   condition:clamp(Number.isFinite(Number(item.condition))?Number(item.condition):1,0,1),
+   enabled:certified&&item.enabled!==false,
+   radioT04:item.kind==='antenna'&&root.StarfallAntennaT04?root.StarfallAntennaT04.repair(item.radioT04):undefined,
+   habT09:item.kind==='hab'&&root.StarfallHabitatT09?
+    root.StarfallHabitatT09.ensure({kind:'hab',habT09:item.habT09},Number(item.habT09?.lastS)||0):undefined,
+   t10:['lab','storage'].includes(item.kind)&&item.t10?.schema===1?copy(item.t10):undefined,
+   padT11:item.kind==='foundation'&&root.StarfallPadT11?root.StarfallPadT11.repair(item.padT11):undefined,
+   bodySnapshot:item.bodySnapshot&&item.bodySnapshot.id===item.bodyId&&
+    Number.isFinite(item.bodySnapshot.radius)&&Number.isFinite(item.bodySnapshot.orbitPeriod)&&
+    item.bodySnapshot.orbitPeriod>0?copy(item.bodySnapshot):null,
+   samples:Array.isArray(item.samples)?item.samples.filter(x=>typeof x==='string'):[]
+  };
+ }catch(_){return null;}
+}
 function intersectsSphere(a,b,centre,r){const d=V.sub(b,a),f=V.sub(centre,a),den=V.dot(d,d);if(den<1e-16)return false;const t=clamp(V.dot(f,d)/den,0,1);return V.len(V.sub(V.add(a,V.mul(d,t)),centre))<r;}
 function radioLink(a,b,occluders=[],rangeScene=Infinity,metresPerSceneUnit=1){const dist=V.len(V.sub(b,a));if(!Number.isFinite(dist)||dist>rangeScene||dist<0) return{connected:false,reason:'Out of radio range',delayS:0,quality:0};for(const oc of occluders){if(oc?.radius>0&&intersectsSphere(a,b,oc.position,oc.radius))return{connected:false,reason:'Body blocks line-of-sight',delayS:0,quality:0};}
  return{connected:true,reason:'Line of sight',delayS:dist*metresPerSceneUnit/C,quality:clamp(1-dist/Math.max(1,rangeScene),0,1),distanceScene:dist};}
@@ -52,9 +128,20 @@ class Store{
  constructor(seed,saved){this.seed=seed;this.items=[];this.wires=[];this.relays=[];this.receipts=[];this.serial=0;this.messages=[];this.lastTick=0;this.restore(saved);}
  restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;const ids=new Set();this.items=(Array.isArray(saved.items)?saved.items:[]).map(cleanItem).filter(x=>{if(!x||ids.has(x.id))return false;ids.add(x.id);return true;});this.wires=(Array.isArray(saved.wires)?saved.wires:[]).filter(x=>x&&ids.has(x.a)&&ids.has(x.b)&&x.a!==x.b).map(x=>({a:x.a,b:x.b}));this.relays=(Array.isArray(saved.relays)?saved.relays:[]).filter(x=>typeof x.id==='string'&&typeof x.bodyId==='string'&&Number.isFinite(x.phase)&&Number.isFinite(x.altitude)).map(x=>({...x,altitude:clamp(x.altitude,300,12000),periodS:clamp(x.periodS||1200,120,1e8),axis:saneDir(x.axis||[0,1,0])}));this.receipts=(Array.isArray(saved.receipts)?saved.receipts:[]).filter(x=>x.id&&x.labId&&x.observationId);this.serial=clamp(Number(saved.serial)||0,0,1e7);this.lastTick=Math.max(0,Number(saved.lastTick)||0);}
  serialize(){return{schema:1,seed:this.seed,serial:this.serial,items:copy(this.items),wires:copy(this.wires),relays:copy(this.relays),receipts:copy(this.receipts),lastTick:this.lastTick};}
- add(kind,body,local,forward,heightAt,protectedAreas=[]){if(kind==='conveyor_drive')throw Error('8H conveyor T02 port requires a physically manufactured and installed 8E drive');
+ add(kind,body,local,forward,heightAt,protectedAreas=[]){
+ // Guard the authoritative Store API as well as UI22: direct callers must not
+ // create a free T09 pressure volume in a fresh Industrial expedition.
+ // Legacy/creative saves retain their original construction behavior.
+ // A free battery shell is still an unpaid 8F manufactured asset, even at zero charge.
+ if(kind==='battery'&&root.SF?.load?.()?.freshExpedition?.schema===1)
+  throw Error('Industrial battery requires source-paid manufactured 8F battery modules and installation; free Store.add is disabled');
+ if(kind==='solar'&&root.SF?.load?.()?.freshExpedition?.schema===1)
+  throw Error('Industrial solar array requires source-paid manufactured 8F solar modules and installation; free Store.add is disabled');
+ if(kind==='hab'&&root.SF?.load?.()?.freshExpedition?.schema===1)
+  throw Error('Industrial habitat requires atomic source-paid 8G envelope commissioning; free T09 Store.add is disabled');
+ if(kind==='conveyor_drive')throw Error('8H conveyor T02 port requires a physically manufactured and installed 8E drive');
  if(kind==='pressure_pipeline_pump')
-  throw Error('8H pressure pipeline T02 port requires paid manufactured 8E hardware');if(this.items.length>=320)throw Error('Global structure limit reached');const p=placement({kind,body,local,heightAt,structures:this.items,protectedAreas}),id='outpost-'+this.seed+'-'+(++this.serial);const item={id,bodyId:body.id,kind,local:p.local,facing:saneDir(forward),height:p.height,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]};if(kind==='antenna'&&root.StarfallAntennaT04)item.radioT04=root.StarfallAntennaT04.repair(null);if(kind==='hab'&&root.StarfallHabitatT09)root.StarfallHabitatT09.ensure(item,root.StarfallRuntime?.time||0);if(kind==='battery')item.energyJ=SPECS.battery.capacityJ*.5;this.items.push(item);return{item:copy(item),slope:p.slopeDeg};}
+  throw Error('8H pressure pipeline T02 port requires paid manufactured 8E hardware');if(this.items.length>=320)throw Error('Global structure limit reached');const p=placement({kind,body,local,heightAt,structures:this.items,protectedAreas}),id='outpost-'+this.seed+'-'+(++this.serial);const item={id,bodyId:body.id,kind,local:p.local,facing:saneDir(forward),height:p.height,bodySnapshot:{id:body.id,systemId:body.systemId,parentId:body.parentId||null,kind:body.kind,type:body.type,seed:body.seed,radius:body.radius,gravity:body.gravity,landable:body.landable,atmosphere:body.atmosphere,life:body.life,spinPeriod:body.spinPeriod,spinPhase:body.spinPhase,spinAxis:body.spinAxis,orbitRadius:body.orbitRadius,orbitPeriod:body.orbitPeriod,phase:body.phase,tilt:body.tilt,parentOrbit:body.parentId?(()=>{const p=root.StarfallRuntime?.galaxy?.byId?.get(body.parentId);return p?{id:p.id,orbitRadius:p.orbitRadius,orbitPeriod:p.orbitPeriod,phase:p.phase,tilt:p.tilt}:null;})():null},energyJ:0,temperatureK:290,condition:1,enabled:true,samples:[]};if(kind==='antenna'&&root.StarfallAntennaT04)item.radioT04=root.StarfallAntennaT04.repair(null);if(kind==='hab'&&root.StarfallHabitatT09)root.StarfallHabitatT09.ensure(item,root.StarfallRuntime?.time||0);if(kind==='battery')item.energyJ=root.SF?.load?.()?.freshExpedition?.schema===1?0:SPECS.battery.capacityJ*.5;this.items.push(item);return{item:copy(item),slope:p.slopeDeg};}
  remove(id){if(!this.items.some(x=>x.id===id))return false;this.items=this.items.filter(x=>x.id!==id);this.wires=this.wires.filter(x=>x.a!==id&&x.b!==id);/* Keep original science receipt provenance after dismantling a lab. */return true;}
  link(a,b,body){const x=this.items.find(i=>i.id===a),y=this.items.find(i=>i.id===b);if(!x||!y||a===b||x.bodyId!==y.bodyId||x.bodyId!==body.id)throw Error('Connect two modules on the same body');if(arc(x.local,y.local,body.radius)>80)throw Error('Cable exceeds 80 scene units');if(this.wires.some(w=>(w.a===a&&w.b===b)||(w.a===b&&w.b===a)))return false;if(this.wires.length>=600)throw Error('Cable limit');this.wires.push({a,b});return true;}
  configureRadio(id,options){const item=this.items.find(x=>x.id===id);if(!item||item.kind!=='antenna'||!root.StarfallAntennaT04)throw Error('Select a real antenna and initialize T04 hardware');return root.StarfallAntennaT04.configure(item,options);}
@@ -64,7 +151,7 @@ class Store{
  surfaceItems(bodyId,anchor,radius,max=64){if(!bodyId||!anchor)return[];const all=this.items.filter(x=>x.bodyId===bodyId&&arc(x.local,anchor,radius)<260).sort((a,b)=>arc(a.local,anchor,radius)-arc(b.local,anchor,radius));return all.slice(0,max);}
  connectedGroups(bodyId){const nodes=this.items.filter(x=>x.bodyId===bodyId);const byId=new Map(nodes.map(x=>[x.id,x])),adj=new Map(nodes.map(x=>[x.id,[]]));for(const w of this.wires){if(adj.has(w.a)&&adj.has(w.b)&&[w.a,w.b].every(id=>{const item=byId.get(id);return item.kind!=='connector'||item.enabled!==false&&item.condition>.02;})){adj.get(w.a).push(w.b);adj.get(w.b).push(w.a);}}
  const seen=new Set(),groups=[];for(const node of nodes){if(seen.has(node.id))continue;const queue=[node.id],group=[];seen.add(node.id);for(let i=0;i<queue.length;i++){const id=queue[i];group.push(byId.get(id));for(const n of adj.get(id))if(!seen.has(n)){seen.add(n);queue.push(n);}}groups.push(group);}return groups;}
- power(body,starPos,luminosityW,bodyTime,dt,metresPerSceneUnit=1,occluders=[],skyTransmission=()=>1){if(root.StarfallPowerLedgerT02)return root.StarfallPowerLedgerT02.grid(this,body,starPos,luminosityW,bodyTime,dt,metresPerSceneUnit,occluders,skyTransmission);if(!(dt>=0&&Number.isFinite(dt)))throw Error('Invalid elapsed time');const report={groups:0,generationW:0,servedW:0,shed:[],chargedJ:0,dischargedJ:0,lossJ:0,wireLossW:0,busVoltageV:48,currentA:0,byId:{}};const groups=this.connectedGroups(body.id),axis=body.spinAxis||[0,1,0];for(const group of groups){report.groups++;const on=group.filter(i=>i.enabled&&i.condition>.02);let gen=0;const active=[];for(const item of on){const spec=SPECS[item.kind];let solar=0;if(spec.solarW){const worldUp=rotate(item.local,axis,body.spinAngle||0),worldPoint=V.add(body.position,V.mul(worldUp,body.radius+item.height));const fromStar=V.norm(V.sub(starPos,worldPoint)),day=Math.max(0,V.dot(worldUp,fromStar));const flux=luminosityW/(4*PI*Math.max(1,V.len(V.sub(starPos,worldPoint))*metresPerSceneUnit)**2);
+ power(body,starPos,luminosityW,bodyTime,dt,metresPerSceneUnit=1,occluders=[],skyTransmission=()=>1){if(root.StarfallPowerLedgerT02)return root.StarfallPowerLedgerT02.grid(this,body,starPos,luminosityW,bodyTime,dt,metresPerSceneUnit,occluders,skyTransmission);if(!(dt>=0&&Number.isFinite(dt)))throw Error('Invalid elapsed time');const report={groups:0,generationW:0,servedW:0,shed:[],chargedJ:0,dischargedJ:0,lossJ:0,wireLossW:0,busVoltageV:48,currentA:0,byId:{}};const groups=this.connectedGroups(body.id),axis=body.spinAxis||[0,1,0];for(const group of groups){report.groups++;const on=group.filter(i=>i.enabled&&i.condition>.02);let gen=0;const active=[];for(const item of on){const spec=ratedSpec(item);let solar=0;if(spec.solarW){const worldUp=rotate(item.local,axis,body.spinAngle||0),worldPoint=V.add(body.position,V.mul(worldUp,body.radius+item.height));const fromStar=V.norm(V.sub(starPos,worldPoint)),day=Math.max(0,V.dot(worldUp,fromStar));const flux=luminosityW/(4*PI*Math.max(1,V.len(V.sub(starPos,worldPoint))*metresPerSceneUnit)**2);
     const eclipse=day>0&&occluders.some(occ=>occ.radius>0&&intersectsSphere(worldPoint,starPos,occ.position,occ.radius));
     const atmo=body.kind==='moon'?1:/dense|thick|storm|turbid/i.test(body.atmosphere||'')?.70:.92;const weatherFactor=clamp(Number(skyTransmission(item.local,bodyTime))||0,0,1);
     solar=eclipse?0:Math.min(spec.solarW,(spec.areaM2||0)*(spec.efficiency||0)*Math.min(flux,5e5)*day*atmo*weatherFactor);gen+=solar;}active.push({item,spec,solar});}
@@ -82,5 +169,5 @@ class Store{
  addReceipt(lab,obs,time,link){if(lab.kind!=='lab'||!this.items.some(x=>x.id===lab.id))throw Error('Lab unavailable');if(this.receipts.some(x=>x.labId===lab.id&&x.observationId===obs.id))return false;if(lab.samples.length>=SPECS.lab.records)throw Error('Lab data storage full; place another lab');if(this.receipts.length>=400)throw Error('Lab receipt ledger full (400): export and explicitly archive evidence before accepting more; no observations discarded');this.receipts.push({id:'receipt-'+lab.id+'-'+obs.id,labId:lab.id,observationId:obs.id,bodyId:obs.bodyId,instrument:obs.instrument,value:obs.value,unit:obs.unit,uncertainty:obs.uncertainty,timeS:obs.timeS,receivedAtS:time,delayS:link.delayS,quality:obs.quality,location:obs.location,model:obs.model,calibrated:obs.calibrated});lab.samples.push(obs.id);return true;}
 }
 function rotate(v,axis,angle){const n=V.norm(axis),c=Math.cos(angle),s=Math.sin(angle);return V.add(V.add(V.mul(v,c),V.mul(V.cross(n,v),s)),V.mul(n,V.dot(n,v)*(1-c)));}
-root.StarfallOutposts={SPECS,V,arc,offset,basis,placement,radioLink,relayPosition,rotate,Store,C,copy};if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallOutposts;
+root.StarfallOutposts={SPECS,ratedSpec,V,arc,offset,basis,placement,radioLink,relayPosition,rotate,Store,C,copy};if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallOutposts;
 })(globalThis);

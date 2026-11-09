@@ -1,0 +1,53 @@
+name: STARFALL 8I finite 48 V solar and battery real browser acceptance
+on:
+  push:
+    branches:
+      - fix/update8-release-gates-20261107
+    paths:
+      - 'src/physics/t02-paid-install8i.js'
+      - 'src/physics/t02-paid-install-ui8i.js'
+      - 'src/physics/outposts.js'
+      - 'src/physics/power-ledger-t02.js'
+      - 'src/flight.js'
+      - 'index.html'
+      - 'tests/t02-paid-install8i*'
+      - '.github/workflows/update-8i-paid-t02-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production-owner-and-visible-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real 8F/8E/8A provenance and clock model
+        run: |
+          set -eu
+          node --check src/physics/t02-paid-install8i.js
+          node --check src/physics/t02-paid-install-ui8i.js
+          node --check src/physics/outposts.js
+          node --check src/physics/power-ledger-t02.js
+          node --check src/flight.js
+          node tests/t02-paid-install8i.test.cjs
+          node tests/t02-paid-grid8i.test.cjs
+          node tests/industrial-t09-no-free-supplies8k.test.cjs
+          node tests/update8ij.test.cjs
+      - name: Build both actual offline source-matched games
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install real SwiftShader WebGL2 Chromium
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real player Mission Build install, 100x time, finite solar and uncharged battery, reload
+        run: python tests/t02-paid-install8i-browser.py

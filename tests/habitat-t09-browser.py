@@ -22,34 +22,15 @@ with sync_playwright() as p:
     up:[0,1,0],forward:[1,0,0],landed:true}});
    return SF.load();
   }""")
-  # The sessionStorage marker can vanish across file:// page contexts. Do not
-  # overwrite a genuinely persisted T09 habitat/wire graph with the original
-  # empty landed boot fixture just because that auxiliary marker is missing.
-  # Source-owned outpost data always wins over test initialization.
-  ctx.add_init_script("""(()=>{
-    // A reload is a test of real source persistence. Never re-inject the old
-    // landed boot fixture during navigationType=reload, irrespective of
-    // file-origin sessionStorage/window.name behavior.
-    if(performance.getEntriesByType('navigation')[0]?.type==='reload')return;
-    let prior=null;
-    try{prior=JSON.parse(localStorage.getItem('starfall_save')||'null');}catch(_){}
-    // window.name is page-scoped and survives reload even if file://
-    // sessionStorage is lost; this fixture must only seed a NEW page once.
-    if(window.name==='starfall-t09-fixture-applied')return;
-    if(prior?.outpost5?.items?.length||prior?.outpost5?.wires?.length){
-      window.name='starfall-t09-fixture-applied';return;
-    }
-    if(sessionStorage.getItem('t09-fixture')){
-      window.name='starfall-t09-fixture-applied';return;
-    }
-    localStorage.setItem('starfall_save',__T09_SAVED__);
-    sessionStorage.setItem('t09-fixture','1');
-    window.name='starfall-t09-fixture-applied';
-  })()""".replace('__T09_SAVED__',json.dumps(json.dumps(saved))))
-  boot.close()
-  page=ctx.new_page();errors=[]
+  # Preserve the real persisted flight fixture within the same file:// page.
+  # Opening a second page and installing a storage-seeding init script could
+  # overwrite the habitat ledger on the later reload. Reuse the original tab
+  # and suppress only the outgoing pre-reload pagehide write, as T13 does.
+  boot.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+  page=boot
+  errors=[]
   page.on('pageerror',lambda e:errors.append(str(e)))
-  page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
+  page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function('!!window.StarfallOutpostUI && !!window.StarfallMissionOperationsUI && !!window.StarfallHabitatT09',timeout=40000)
   initial=page.evaluate("""()=>{
     const rt=StarfallRuntime,O=StarfallOutposts,H=StarfallHabitatT09,U=StarfallOutpostUI,
@@ -78,7 +59,7 @@ with sync_playwright() as p:
       o2:status.oxygenTankMol,served:line.servedW};
   }""")
   assert initial['served']==680 and initial['pressure']>70,initial
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

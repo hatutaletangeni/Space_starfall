@@ -19,7 +19,11 @@ with sync_playwright() as p:
   })""")
   assert initial['owner']=='ship' and initial['mode']=='secured' and initial['count']==1,initial
   assert 'SECURED INSIDE SHIP' in initial['label'],initial
-  page.locator('#asset-open').click()
+  # Asset Manager resides in the intentionally hidden legacy #sf-quick-tools.
+  # UI22 Mission → Build exposes a visible action that calls its original listener.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='ASSET MANAGER').click()
   assert page.locator('#truck-custody8b-asset-manager').is_visible()
   page.locator('#asset-close').click()
   page.evaluate("""() => {

@@ -28,7 +28,7 @@ with sync_playwright() as p:
    }"""),'Failed stable ship modules or truck custody'
   page.wait_for_function("STARFALL_DEBUG.state.fps>0 && STARFALL_DEBUG.state.renderedBodies>=0",timeout=20000)
   page.screenshot(path=str(out/'starfall-8e-exterior-software-webgl.png'))
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

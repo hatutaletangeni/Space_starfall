@@ -33,7 +33,7 @@ with sync_playwright() as p:
   assert state['bins']==2,state
   assert state['ore']==0 and state['depleted']==0,state
   assert state['active'] is None,state
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22 visible mission workflow; all original scenario assertions remain.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
   page.locator('#sf-mission-flow .sf-flow-workspace').click()

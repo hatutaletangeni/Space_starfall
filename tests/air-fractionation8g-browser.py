@@ -70,7 +70,7 @@ with sync_playwright() as pw:
         assert quote['ready'] and quote['powered'],quote
         assert quote['availableAirKg']==2400,quote
         assert 0<quote['nitrogenKg']<quote['airBatchKg']
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()
@@ -108,7 +108,7 @@ with sync_playwright() as pw:
         # Second physical collection must have a distinct lot and permanently
         # further deplete the same modeled surface cell, not reset at reload.
         page.wait_for_function('StarfallRuntime.eva && !!document.getElementById("air-fractionation8g")',timeout=40000)
-        # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+        # UI22 visible mission workflow; all original scenario assertions remain.
         page.locator('#sf-mission-button').click()
         page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
         page.locator('#sf-mission-flow .sf-flow-workspace').click()

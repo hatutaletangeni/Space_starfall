@@ -5,11 +5,11 @@
  if(!panel||!root.StarfallUI21)return;
  const stages=[
   {name:'Navigate',number:'01',hint:'Choose a destination and travel to it',page:'Overview',
-   actions:[['STAR CHART','chart-open'],['FIND MY TRUCK','truck-plot-course8b'],['SURFACE MAP','survey-open'],['FLIGHT SYSTEMS','systems-toggle']]},
+   actions:[['STAR CHART','chart-open'],['OBSERVATORY','obs-open'],['FIND MY TRUCK','truck-plot-course8b'],['SURFACE MAP','survey-open'],['FLIGHT SYSTEMS','systems-toggle']]},
   {name:'Explore',number:'02',hint:'Land, survey and investigate',page:'Explore',
    actions:[['WORLD SURVEY','survey-open'],['FIELD LAB','field-open'],['DISCOVERIES','discovery-open'],['ECOLOGY','ecology-open'],['RUINS','ruin-open']]},
   {name:'Build',number:'03',hint:'Prepare and construct your equipment',page:'Engineer',
-   actions:[['ENGINEERING WORKBENCH','workbench-open'],['RESOURCE TEST LAB','@resources'],['ASSET MANAGER','asset-open'],['OUTPOSTS','outpost-open']]},
+   actions:[['ENGINEERING WORKBENCH','workbench-open'],['ROCKET LAB','launch-open'],['RESOURCE TEST LAB','@resources'],['ASSET MANAGER','asset-open'],['OUTPOSTS','outpost-open']]},
   {name:'Operate',number:'04',hint:'Use vehicles, machinery and missions',page:'Operate',
    actions:[['MINE & HAUL ORE','@mining'],['COLLECT & STORE GAS','@gas'],['SHIP SYSTEMS','systems-toggle'],['VEHICLE INVENTORY','physical8a-dialog']]},
   {name:'Records',number:'05',hint:'Save progress and review your expedition',page:'Records',
