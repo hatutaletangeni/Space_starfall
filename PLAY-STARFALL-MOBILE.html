@@ -5756,8 +5756,14 @@ function command(item,action,{now=0,near=false,powered=false,body=null,occupants
     a.location?.kind==='surface'&&a.location.bodyId===item.bodyId&&
     typeof a.provenance==='string'&&a.provenance.startsWith('structural-8g:')&&
     !/TEST_FIXTURE|CREATIVE|DEBUG|CHEAT/i.test(a.provenance));
-  const receipt=receipts.some(x=>x?.assetId===assetId&&x.blueprintId==='habitat_shell'&&
-    ['COMMITTED','ASSEMBLED_NOT_OPERATIONAL'].includes(x.status));
+  // Activation must not accept a borrowed, unfinished or multiply claimed
+  // structural receipt. The manufacturing owner, not T09, owns its payment.
+  const matching=receipts.filter(x=>x?.assetId===assetId&&x.blueprintId==='habitat_shell'&&
+    ['COMMITTED','ASSEMBLED_NOT_OPERATIONAL'].includes(x.status)&&
+    typeof x.id==='string'&&asset?.provenance==='structural-8g:'+x.id);
+  const receipt=matching.length===1&&receipts.filter(x=>x?.assetId===assetId&&
+    x.blueprintId==='habitat_shell').length===1&&
+    receipts.filter(x=>x?.id===matching[0]?.id).length===1;
   const duplicate=outposts.some(x=>x?.kind==='hab'&&x.id!==item.id&&x.physicalAssetId===assetId);
   // The persisted original outpost is the authority for the physical linkage.
   // A transient/forged runtime item must not borrow an unclaimed 8G envelope.
