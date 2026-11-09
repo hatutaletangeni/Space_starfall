@@ -56,6 +56,9 @@ class Store{
  // Guard the authoritative Store API as well as UI22: direct callers must not
  // create a free T09 pressure volume in a fresh Industrial expedition.
  // Legacy/creative saves retain their original construction behavior.
+ // A free battery shell is still an unpaid 8F manufactured asset, even at zero charge.
+ if(kind==='battery'&&root.SF?.load?.()?.freshExpedition?.schema===1)
+  throw Error('Industrial battery requires source-paid manufactured 8F battery modules and installation; free Store.add is disabled');
  if(kind==='solar'&&root.SF?.load?.()?.freshExpedition?.schema===1)
   throw Error('Industrial solar array requires source-paid manufactured 8F solar modules and installation; free Store.add is disabled');
  if(kind==='hab'&&root.SF?.load?.()?.freshExpedition?.schema===1)
