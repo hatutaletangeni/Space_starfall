@@ -124,7 +124,7 @@ test('paid 8I habitat sources run on original 48 V solar/battery and survive bla
               {ratedSolarW:400,areaM2:2.3,efficiency:.24})
  }));
  const saved={freshExpedition:{schema:1},physical8a:commissioned.physical,
-   materials8a:mats,vehicleAssembly8g:commissioned.assembly,
+   materials8a:mats,vehicleAssembly8g:input.assembly,
    outpost5:null};
  const previousSF=globalThis.SF;globalThis.SF={load:()=>saved};
  try{
