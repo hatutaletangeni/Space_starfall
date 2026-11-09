@@ -21,9 +21,9 @@ with sync_playwright() as p:
    const b=rt.galaxy.systems.flatMap(s=>s.planets)
     .find(w=>{
       if(!w.landable||w.life||['Rocky','Shattered'].includes(w.type))return false;
-      const x=P.scienceProfile(rt.galaxy,w);
-      const v=x.estimatedEquilibriumTemperatureK;
-      return x.atmospherePressurePa>100 && x.atmospherePressurePa<2e6 &&
+      const x=P.scienceProfile(rt.galaxy,w),climate=StarfallMeteorologyLW03.base(w,rt.galaxy.seed);
+      const v=climate.temperatureK;
+      return !climate.vacuum && climate.pressurePa>100 && climate.pressurePa<2e6 &&
        x.surfaceGravityMS2>=.5 && x.surfaceGravityMS2<30 && v>160&&v<350 &&
        Object.keys(x.composition?.atmosphereMoleFractions||{}).length>0;
     });
