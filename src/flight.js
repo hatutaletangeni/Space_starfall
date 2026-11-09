@@ -1894,9 +1894,12 @@ function terraformWorldProfile8J(){
     (p.composition?.atmosphereMoleFractions&&
      Object.keys(p.composition.atmosphereMoleFractions).length===0))
   throw Error('8J world has CW01 modeled vacuum: no atmospheric CO2 vent accepted');
+ const knownRuins=Array.isArray(SF.load().discoveries)&&SF.load().discoveries.some(d=>
+  (d.bodyId===nearest.id||d.planet===nearest.name)&&/ruin|archaeolog/i.test(String(d.type||'')));
  return {id:nearest.id,kind:nearest.kind,landable:nearest.landable,
   radiusM:p.radiusM,gravityMS2:p.surfaceGravityMS2,
   pressurePa:p.atmospherePressurePa,
+  protectedNativeLife:nearest.life===true,protectedRuins:knownRuins,
   temperatureK:p.estimatedEquilibriumTemperatureK};
 }
 function terraformContext8J(){
