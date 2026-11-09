@@ -13261,7 +13261,12 @@ function evaluate(saved){
  // No-cheat 8K MUST NOT accept an old one-click free outpost5 habitat.
  // The native T09 simulation and 8G paid pressure envelope are presently
  // distinct owners; require explicit nonduplicating physical linkage.
- const physicalHabitat=hab=>assets.find(a=>a.id===hab.physicalAssetId&&
+ // A physical 8G envelope may commission at most one T09 structure. Duplicate
+ // outpost claims cannot independently satisfy habitat or greenhouse evidence.
+ const physicalHabitat=hab=>hab.physicalAssetId&&
+  habitats.filter(x=>x.physicalAssetId===hab.physicalAssetId).length===1&&
+  assets.filter(a=>a.id===hab.physicalAssetId&&a.type==='habitat_envelope').length===1&&
+  assets.find(a=>a.id===hab.physicalAssetId&&
   a.type==='habitat_envelope'&&
   a.location?.kind==='surface'&&a.location.bodyId===hab.bodyId&&
   valid(a.provenance)&&!artifact(a.provenance)&&
