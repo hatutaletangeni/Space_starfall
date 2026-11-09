@@ -15,7 +15,13 @@ OUT.mkdir(parents=True,exist_ok=True)
 def check(ok,message,record=None):
  if not ok: raise AssertionError(message+' / '+repr(record))
 def visit(page,opener,modal,closer):
- page.locator('#'+opener).click(timeout=15000)
+ if opener=='archive-t17-open':
+  # Real UI22 Mission Records action, not deliberately hidden legacy navigation.
+  page.locator('#sf-mission-button').click(timeout=15000)
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Records').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='SAVE / RECOVERY').click()
+ else:
+  page.locator('#'+opener).click(timeout=15000)
  page.wait_for_function("(id)=>document.getElementById(id)?.hidden===false",arg=modal,timeout=15000)
  check(page.locator('#'+modal).count()==1,'Original panel did not open',modal)
  page.locator('#'+closer).click(timeout=15000)
