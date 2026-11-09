@@ -86,11 +86,10 @@ with sync_playwright() as p:
   assert page.evaluate("document.getElementById('workbench').contains(document.activeElement)"),focus
   page.locator('#wb-close').click()
   page.wait_for_function("document.getElementById('workbench').hidden",timeout=15000)
-  # UI22: navigate through visible Mission workspace; keep all behavior assertions.
+  # UI22: use the genuinely visible Build-stage Rocket Lab action, not hidden legacy page controls.
   page.locator('#sf-mission-button').click()
   page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
-  page.locator('#sf-mission-flow .sf-flow-workspace').click()
-  page.locator('#launch-open').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='ROCKET LAB').click()
   page.wait_for_function("!document.getElementById('launch-dialog').hidden",timeout=15000)
   assert page.locator('#launch-dialog .op16-card').count()==2, 'Rocket Lab and nested Satellite Operations each own a distinct source card'
   assert page.locator('#sat7c-section .op16-card').count()==1
