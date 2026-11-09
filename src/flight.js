@@ -1890,6 +1890,10 @@ function manufacturedHabitatRun8I(assetId){
 function terraformWorldProfile8J(){
  if(!nearest?.landable)throw Error('8J select and land on an atmospheric solid world');
  const p=P.scienceProfile(galaxy,nearest);
+ if(p.composition?.atmosphereMode==='legacy vacuum-compatible'||
+    (p.composition?.atmosphereMoleFractions&&
+     Object.keys(p.composition.atmosphereMoleFractions).length===0))
+  throw Error('8J world has CW01 modeled vacuum: no atmospheric CO2 vent accepted');
  return {id:nearest.id,kind:nearest.kind,landable:nearest.landable,
   radiusM:p.radiusM,gravityMS2:p.surfaceGravityMS2,
   pressurePa:p.atmospherePressurePa,
