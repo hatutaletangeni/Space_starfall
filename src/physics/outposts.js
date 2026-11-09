@@ -48,7 +48,7 @@ function installedProof8I(item){
    x.deviceId===item.id&&x.bodyId===item.bodyId&&
    x.sourceContainerId&&x.installedMassKg===item.installedMassKg&&
    x.workJ>0&&x.sourceBatteryJBefore>=x.sourceBatteryJAfter&&
-   x.sourceBatteryJBefore-x.sourceBatteryJAfter===x.workJ);
+   Math.abs(x.sourceBatteryJBefore-x.sourceBatteryJAfter-x.workJ)<=Math.max(1e-5,x.workJ*1e-9));
  return found.length===1;
 }
 function ratedSpec(item){
