@@ -143,6 +143,26 @@ with sync_playwright() as p:
   assert battery['remaining']==0 and battery['receipts']==2 and battery['originalTrucks']==1,battery
   assert battery['time']-b0['job']['startedAtS']>=600,battery
   assert battery['receipt']['sourceBatteryJBefore']-battery['receipt']['sourceBatteryJAfter']==450000,battery
+  # Verify player-facing wiring on the SAME original T02 outpost bus.
+  # The two 8F-built physical nodes must connect without hidden owner APIs.
+  page.locator('#sf-mission-button').click()
+  page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Build').click()
+  page.locator('#sf-mission-flow .sf-flow-action').filter(has_text='OUTPOSTS').click()
+  assert page.locator('#outpost').is_visible(),'Actual original Outposts UI did not open'
+  page.locator('[data-outpost-tab="power"]').click()
+  page.locator('#outpost-node-a').select_option(solar['owner']['id'])
+  page.locator('#outpost-node-b').select_option(battery['node']['id'])
+  page.locator('#outpost-connect').click()
+  physical_wire=page.evaluate("""([a,b])=>{
+   const U=StarfallOutpostUI,s=SF.load().outpost5,
+    valid=w=>(w.a===a&&w.b===b)||(w.a===b&&w.b===a);
+   return{runtime:U.store.wires.filter(valid).length,
+    saved:(s?.wires||[]).filter(valid).length,
+    nodeA:U.store.items.find(x=>x.id===a)?.paidCertified8I,
+    nodeB:U.store.items.find(x=>x.id===b)?.paidCertified8I};
+  }""",[solar['owner']['id'],battery['node']['id']])
+  assert physical_wire=={'runtime':1,'saved':1,'nodeA':True,'nodeB':True},physical_wire
+  page.locator('#outpost-close').click()
   page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
   page.reload(wait_until='domcontentloaded',timeout=90000)
   page.wait_for_function("""()=>!!(StarfallRuntime?.t02PaidContext8I&&StarfallOutpostUI?.store)""",timeout=60000)
@@ -150,14 +170,20 @@ with sync_playwright() as p:
     const r=StarfallRuntime,items=StarfallOutpostUI.store.items,
       solar=items.find(x=>x.kind==='solar'&&x.paidCertified8I),
       battery=items.find(x=>x.kind==='battery'&&x.paidCertified8I),
-      ops=r.materials8a.operations().filter(x=>x.kind==='T02_PAID_INSTALL_8I');
-    return{solar, battery,receipts:ops.length,
+      ops=r.materials8a.operations().filter(x=>x.kind==='T02_PAID_INSTALL_8I'),
+      wired=StarfallOutpostUI.store.wires.filter(w=>
+       w.a===solar?.id&&w.b===battery?.id||
+       w.b===solar?.id&&w.a===battery?.id).length;
+    return{solar, battery,receipts:ops.length,wired,
       active:r.t02PaidContext8I().active,
       originalTrucks:r.physical8a.list().filter(x=>x.id==='truck-expedition-001').length};
   }""")
   assert stored['solar']['ratedSolarW']==400 and stored['battery']['ratedCapacityJ']==9600000,stored
-  assert stored['battery']['energyJ']==0 and stored['receipts']==2 and stored['active'] is None,stored
+  # Storage begins EMPTY at installation; once the player wires live solar,
+  # the original grid may subsequently charge it from actual incident photons.
+  assert 0<=stored['battery']['energyJ']<=9600000 and stored['receipts']==2 and stored['active'] is None,stored
+  assert stored['wired']==1,'Original outpost5 cable did not survive source-owned offline reload'
   assert stored['originalTrucks']==1 and not errors,errors
-  print('PASS controlled 8I real file:// Chromium: Mission Build paid source-lot solar 400 W + 48V battery 9.6MJ EMPTY, genuine KeyT 100x simulated 300s/600s, 8A materials and 700kJ committed once, persisted original T02 nodes, no truck duplication. Test inputs explicitly synthetic 8F-format receipts.')
+  print('PASS controlled 8I real file:// Chromium: Mission Build paid source-lot solar 400 W + 48V battery 9.6MJ EMPTY, genuine KeyT 100x simulated 300s/600s, 8A materials and 700kJ committed once, persisted original T02 nodes, user-facing wired bus, no truck duplication. Test inputs explicitly synthetic 8F-format receipts.')
  finally:
   browser.close()
