@@ -15595,7 +15595,11 @@ function t02PaidPickSite8I(kind){
  if(!c.landed||!c.eva||!c.body?.landable||!U?.store||!shipLocal||!evaLocal||
   shipBody!==nearest||truckOccupied||manufacturedOccupied8G||shipWalking8e)
   throw Error('Land, exit ship, and walk on EVA near your intended original T02 construction site');
- const opts=[[0,0],[8,0],[-8,0],[0,8],[0,-8],[15,0],[-15,0],[0,15],[0,-15]];
+ const opts=[[0,0],[8,0],[-8,0],[0,8],[0,-8],[15,0],[-15,0],[0,15],[0,-15],
+  [20,0],[-20,0],[0,20],[0,-20],[23,0],[-23,0],[0,23],[0,-23],
+  [16,16],[16,-16],[-16,16],[-16,-16],
+  [21,10],[21,-10],[-21,10],[-21,-10],
+  [10,21],[10,-21],[-10,21],[-10,-21]];
  let last='No safe terrain or clearance for the actual T02 installation';
  const spec=StarfallT02PaidInstall8I.SPECS[kind];
  for(const [front,right] of opts){
