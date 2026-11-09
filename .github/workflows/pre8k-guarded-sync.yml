@@ -1,0 +1,70 @@
+name: Update 8 pre-8K guarded standalone synchronization
+on:
+  push:
+    branches:
+      - feature/update8-pre8k-release-repairs-20261109
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: pre8k-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  sync-desktop-and-mobile:
+    if: "!contains(github.event.head_commit.message, '[pre8k-built]')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build from exact editable source
+        run: |
+          set -eu
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          node --check src/ui22-workflow.js
+      - name: Publish exact source-matched binaries to feature branch
+        run: |
+          set -eu
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'build(pre8k): sync desktop and mobile from source [pre8k-built]'
+          git pull --rebase origin feature/update8-pre8k-release-repairs-20261109
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then git commit --amend --no-edit; fi
+          git push origin HEAD:feature/update8-pre8k-release-repairs-20261109
+  ui-browser-regression:
+    if: "contains(github.event.head_commit.message, '[pre8k-built]')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify both offline editions
+        run: |
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install software-WebGL Chromium test runtime
+        run: |
+          python -m pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Check real visible Mission Rocket Lab and source-owned controls
+        run: python tests/operations-t16-browser.py
