@@ -13422,7 +13422,7 @@ function evaluate(saved){
   a.provenance.startsWith('structural-8g:')&&
   arr(obj(s.vehicleAssembly8g).receipts).some(r=>
    r.assetId===a.id&&r.blueprintId==='habitat_shell'&&
-   ['COMMITTED','ASSEMBLED_NOT_OPERATIONAL'].includes(r.status)));
+   owned(r)&&valid(r.id)&&a.provenance==='structural-8g:'+r.id));
  const readyHab=habitats.filter(x=>x.enabled!==false&&x.habT09.enabled===true&&physicalHabitat(x));
  push('habitat','8G-linked T09 sealed habitat and stored life support',
   readyHab.some(x=>x.habT09.waterL>0&&x.habT09.oxygenTankMol>0&&
