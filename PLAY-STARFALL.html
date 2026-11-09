@@ -24914,6 +24914,9 @@ const detail=document.createElement('pre');
 detail.style.cssText='white-space:pre-wrap;font:11px/1.55 Consolas,monospace;color:#cde2e7;background:#0c1d27;padding:9px;border:1px solid #52677355';
 section.append(title,help,picker,row,status,detail);host.append(section);
 function refresh(){
+ // Do not repeatedly run terrain clearance and 8F provenance scans while
+ // the player is in Flight, Explore or another Mission workspace.
+ if(!host.isConnected||host.hidden||host.closest('[hidden]'))return;
  const c=rt()?.t02PaidContext8I?.();if(!c)return;
  const spec=c.components?.find(x=>x.kind===picker.value);
  let q=null,reason='';
