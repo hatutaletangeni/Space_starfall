@@ -181,5 +181,5 @@ test('REAL fresh manifest -> 3 installed 8F machine kits -> 2 actual solar panel
   shipEnergyJ:s.shipJ,
   energyReceipt:{operationId:'t02paid8i:4',status:'COMMITTED',
    sourceId:'ship-main:engineering-battery',usedJ:450000}
- }}),/requires|part|lot/i,'no free second battery without real electrode inputs');
+ }}),/needs|requires|part|lot/i,'no free second battery without real electrode inputs');
 });
