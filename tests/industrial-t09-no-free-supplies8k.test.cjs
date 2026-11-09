@@ -118,3 +118,18 @@ test('Industrial activation refuses unpaid structural receipts without mutating 
  receipt.consumedLots=[{lotId:'iron-1',massKg:20}];
  assert.equal(api.command(item,'ENABLE',{near:true,powered:true}).enabled,true);
 });
+
+
+test('real 8G colon-delimited physical envelope survives source-owned outpost save and reload',()=>{
+ const {api}=load('src/physics/outposts.js',true);
+ const raw={schema:1,seed:742,items:[{id:'outpost-hab-1',kind:'hab',bodyId:'star-0-p0',
+   physicalAssetId:'structure8g:1',local:[0,1,0],facing:[0,0,1],condition:1}]};
+ const first=new api.Store(742,raw);
+ assert.equal(first.items.length,1);
+ assert.equal(first.items[0].physicalAssetId,'structure8g:1');
+ const saved=first.serialize();
+ const restored=new api.Store(742,saved);
+ assert.equal(restored.items[0].physicalAssetId,'structure8g:1');
+ const forged=new api.Store(742,{...raw,items:[{...raw.items[0],physicalAssetId:'../../invalid'}]});
+ assert.equal(forged.items[0].physicalAssetId,undefined,'unsafe asset IDs remain rejected');
+});
