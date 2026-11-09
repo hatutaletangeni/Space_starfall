@@ -87,7 +87,7 @@ with sync_playwright() as p:
   page.locator('#hab-8i-select').select_option(fixture['habId'])
   page.locator('#hab-8i-commission').click()
   assert 'COMPLETE:' in page.locator('#hab-8i-status').inner_text(),page.locator('#hab-8i-status').inner_text()
-  page.evaluate("() => StarfallRuntime.setSimulationTime(120)")
+  page.evaluate("() => STARFALL_DEBUG.setSimulationTime(120)")
   page.locator('#hab-8i-run').click()
   assert 'COMPLETE:' in page.locator('#hab-8i-status').inner_text(),page.locator('#hab-8i-status').inner_text()
   page.locator('#terra-8j-vessel').select_option(fixture['vesselId'])
