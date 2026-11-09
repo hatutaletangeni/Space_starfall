@@ -13420,6 +13420,8 @@ function evaluate(saved){
   a.location?.kind==='surface'&&a.location.bodyId===hab.bodyId&&
   valid(a.provenance)&&!artifact(a.provenance)&&
   a.provenance.startsWith('structural-8g:')&&
+  arr(obj(s.vehicleAssembly8g).receipts).filter(r=>r.id===a.provenance.slice('structural-8g:'.length)).length===1&&
+  arr(obj(s.vehicleAssembly8g).receipts).filter(r=>r.assetId===a.id&&r.blueprintId==='habitat_shell').length===1&&
   arr(obj(s.vehicleAssembly8g).receipts).some(r=>
    r.assetId===a.id&&r.blueprintId==='habitat_shell'&&
    owned(r)&&valid(r.id)&&a.provenance==='structural-8g:'+r.id));
