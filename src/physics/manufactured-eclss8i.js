@@ -5,7 +5,7 @@
  */
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-6,BASE_W=680,COMMISSION_J=250000;
-const M={oxygenMol:.031998,inertMol:.028014,carbonMol:.04401};
+const M={oxygen:.031998,inert:.028014,carbon:.04401};
 const valid=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 function t09(){if(!root.StarfallHabitatT09)throw Error('Original T09 source-owned habitat solver unavailable');return root.StarfallHabitatT09;}
 function checked(asset,operational=false){
@@ -26,7 +26,7 @@ function checked(asset,operational=false){
  return h;
 }
 function wetKg(h){
- return h.oxygenMol*M.oxygen+h.inertMol*M.inertMol+
+ return h.oxygenMol*M.oxygen+h.inertMol*M.inert+
   (h.carbonMol+h.filteredAirMol)*M.carbonMol+h.waterL;
 }
 function pressure(h){
