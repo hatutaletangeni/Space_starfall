@@ -54,7 +54,18 @@ const blackout=I.advance(run.asset,{toS:200,powered:false});
 assert.equal(blackout.usedJ,0);assert.ok(blackout.asset.massKg<run.asset.massKg);
 assert.equal(blackout.asset.state.lifeSupportOnline,false);
 assert.throws(()=>I.advance(run.asset,{toS:99,powered:false}),/reversal/);
-assert.throws(()=>I.advance(run.asset,{toS:10000,powered:false}),/bounded 3600 s/);
+const warp100=I.advance(run.asset,{toS:7300,powered:false});
+assert.equal(warp100.usedJ,0,'100x elapsed blackout must never debit a fictional battery');
+assert.equal(warp100.asset.state.eclss8i.lastS,7300);
+assert.ok(warp100.asset.massKg<=run.asset.massKg,'fast-forward leak removes no less than zero gas');
+const longBlackout=I.advance(run.asset,{toS:500000,powered:false});
+assert.equal(longBlackout.usedJ,0,'Long catch-up remains unpowered');
+assert.equal(longBlackout.asset.state.eclss8i.lastS,500000,'Long skip must not permanently softlock an asset');
+assert.equal(longBlackout.asset.state.habT09.awaitingReview,true);
+assert.ok(longBlackout.asset.massKg<=run.asset.massKg,'No atmosphere created during blackout');
+assert.throws(()=>I.advance(run.asset,{toS:500000,powered:true,
+ powerReceipt:payable('eclss8i:cycle:'+charged.id+':100.000:500000.000',680*(500000-100))}),
+ /bounded operations scheduler/);
 const body={id:'world:1',kind:'planet',landable:true,radiusM:6e6,
  gravityMS2:9.8,pressurePa:85000,temperatureK:260};
 const vessel={id:'vessel:CO2',type:'industrial_vessel',condition:1,
