@@ -27,7 +27,7 @@ function checked(asset,operational=false){
 }
 function wetKg(h){
  return h.oxygenMol*M.oxygen+h.inertMol*M.inert+
-  (h.carbonMol+h.filteredAirMol)*M.carbonMol+h.waterL;
+  (h.carbonMol+h.filteredAirMol)*M.carbon+h.waterL;
 }
 function pressure(h){
  return (h.oxygenMol+h.inertMol+h.carbonMol)*8.314462618*h.tempK/(25*1000);
@@ -43,7 +43,7 @@ function status(asset,powered=false){
   powered:powered&&on,pressureKPa:current.pressureKPa,
   oxygenKPa:current.oxygenKPa,carbonKPa:current.carbonKPa,
   temperatureK:h.tempK,waterKg:h.waterL,oxygenKg:h.oxygenMol*M.oxygen,
-  nitrogenKg:h.inertMol*M.inertMol,filteredCo2Kg:h.filteredAirMol*M.carbonMol,
+  nitrogenKg:h.inertMol*M.inert,filteredCo2Kg:h.filteredAirMol*M.carbon,
   scrubberRemainingMol:h.scrubberCapacityMol||0,airlock:h.airlock,
   energyConsumedJ:asset.state.eclss8i?.energyJ||0,
   ventedKg:asset.state.eclss8i?.ventedKg||0,
@@ -100,8 +100,8 @@ function advance(asset,{toS,powered,powerReceipt,body=null}){
  next.state.habT09=after;
  next.massKg-=vent;
  next.state.oxygenKg=after.oxygenMol*M.oxygen;
- next.state.inertKg=after.inertMol*M.inertMol;
- next.state.carbonKg=after.carbonMol*M.carbonMol;
+ next.state.inertKg=after.inertMol*M.inert;
+ next.state.carbonKg=after.carbonMol*M.carbon;
  next.state.pressurePa=pressure(after)*1000;
  next.state.eclss8i.lastS=toS;
  next.state.eclss8i.energyJ+=need;
