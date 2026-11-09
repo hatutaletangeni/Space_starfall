@@ -25,6 +25,8 @@ function create(saved){
   if(!body||typeof body.id!=='string'||body.landable!==true||body.kind==='star'||
    !positive(body.radiusM)||!positive(body.gravityMS2)||!positive(body.pressurePa))
    throw Error('8J candidate must be a real landable atmospheric body with a valid science profile');
+  if(body.protectedNativeLife===true||body.protectedRuins===true)
+   throw Error('8J planetary protection: identified native ecology/ruins require a reviewed intervention permit');
   if(body.gravityMS2<0.5||body.gravityMS2>30||body.pressurePa<100||body.pressurePa>2e6||
     (positive(body.temperatureK)&&(body.temperatureK<160||body.temperatureK>350)))
    throw Error('8J environmental feasibility gate: use a sealed habitat on this unsuitable world');
