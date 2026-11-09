@@ -191,7 +191,12 @@ function command(item,action,{now=0,near=false,powered=false,body=null,occupants
   // structural receipt. The manufacturing owner, not T09, owns its payment.
   const matching=receipts.filter(x=>x?.assetId===assetId&&x.blueprintId==='habitat_shell'&&
     ['COMMITTED','ASSEMBLED_NOT_OPERATIONAL'].includes(x.status)&&
-    typeof x.id==='string'&&asset?.provenance==='structural-8g:'+x.id);
+    typeof x.id==='string'&&asset?.provenance==='structural-8g:'+x.id&&
+    x.id===assetId&&x.bodyId===item.bodyId&&typeof x.facilityId==='string'&&
+    x.facilityId.length>0&&x.energyJ>0&&x.massKg>0&&
+    Math.abs(x.massKg-asset.massKg)<.01&&Array.isArray(x.consumedLots)&&
+    x.consumedLots.length>0&&x.consumedLots.every(l=>typeof l?.lotId==='string'&&
+      l.lotId.length>0&&l.massKg>0));
   const receipt=matching.length===1&&receipts.filter(x=>x?.assetId===assetId&&
     x.blueprintId==='habitat_shell').length===1&&
     receipts.filter(x=>x?.id===matching[0]?.id).length===1;
