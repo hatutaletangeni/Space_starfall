@@ -39,6 +39,7 @@ jobs:
           node tests/industry-crosschain8e-8f.test.cjs
           node tests/pre8k-real8f-to-t02-chain.test.cjs
           node tests/update8k-natural-copper-to-wire.test.cjs
+          node tests/update8k-powered-habitat-chain.test.cjs
           node tests/t02-paid-grid8i.test.cjs
           node tests/industrial-t09-no-free-supplies8k.test.cjs
           node tests/habitat-oxygen8i.test.cjs
