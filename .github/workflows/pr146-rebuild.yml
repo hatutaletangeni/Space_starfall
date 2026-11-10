@@ -1,0 +1,33 @@
+name: Rebuild PR146 offline sources once
+on:
+  push:
+    branches:
+      - fix/8i-commission-duplicate-lot-guard-20261110
+    paths:
+      - .github/workflows/pr146-rebuild.yml
+permissions:
+  contents: write
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Rebuild both tracked offline playables from editable source
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+      - name: Commit only the rebuilt artifacts on this PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build(8I): synchronize desktop and mobile standalones with anti-replay guard"
+            git push origin HEAD:fix/8i-commission-duplicate-lot-guard-20261110
+          fi
