@@ -50,6 +50,11 @@ function commission(a){
   !Array.isArray(structural.consumedLots)||!structural.consumedLots.length||
   structural.consumedLots.some(x=>!id(x.lotId)||!good(x.massKg)||x.massKg<=0))
   throw Error('8I habitat must come from paid 8G pressure shell and life-support-rack BOM');
+ // Reject duplicated or cross-spent BOM/charge lot identities before any transfer.
+ // This is a local anti-replay check, NOT full upstream 8A provenance certification.
+ const structuralIds=structural.consumedLots.map(x=>x.lotId);
+ if(new Set(structuralIds).size!==structuralIds.length)
+  throw Error('8I duplicate structural consumed lot identity');
  const charge=asset.state?.habitatCharge8g,h=asset.state?.habT09;
  if(!charge||!id(charge.jobId)||
   !/^hab(?:charge|hose)8g:/.test(charge.jobId)||
@@ -64,6 +69,10 @@ function commission(a){
   h.oxygenTankMol!==0||h.inertTankMol!==0||h.scrubberCapacityMol!==0||
   h.waterL<=0||h.oxygenMol<=0||h.inertMol<=0)
   throw Error('8I needs finite physically charged, unoccupied 8G volume with no free life-support supplies');
+ const chargeIds=charge.consumedLots.map(x=>x.lotId||x.id);
+ if(new Set(chargeIds).size!==chargeIds.length||
+  chargeIds.some(x=>structuralIds.includes(x)))
+  throw Error('8I duplicate or cross-spent charge lot identity');
  const oxygenKg=h.oxygenMol*MOL.oxygen,
   inertKg=h.inertMol*MOL.nitrogen,
   carbonKg=h.carbonMol*MOL.carbon,

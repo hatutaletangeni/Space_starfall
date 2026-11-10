@@ -92,3 +92,15 @@ test('source-paid 8G hose with COMMITTED metered gas receipt also qualifies',()=
  const r=C.commission(a);
  assert.equal(r.receipt.chargeReceiptId,charge.jobId);
 });
+
+test('reject duplicate structural lot claims and charge lot replay before transfer',()=>{
+ const structural=fixture();
+ structural.assembly.receipts[0].consumedLots.push({lotId:'paid-part-1',massKg:10});
+ assert.throws(()=>C.commission(structural),/duplicate structural consumed lot/);
+ const charged=fixture();
+ charged.physical.assets[0].state.habitatCharge8g.consumedLots[1].id='finite-oxygen';
+ assert.throws(()=>C.commission(charged),/duplicate or cross-spent charge lot/);
+ const cross=fixture();
+ cross.assembly.receipts[0].consumedLots[0].lotId='finite-oxygen';
+ assert.throws(()=>C.commission(cross),/duplicate or cross-spent charge lot/);
+});
