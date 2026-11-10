@@ -2389,8 +2389,15 @@ function industrialEquipment8E(reactionId,assetId,sourceMode='ship'){
     vesselId:vessel.id,pipeId:proof.pipeId,powerPortId:proof.sourcePortId};
  }
  for(const materialId of Object.keys(recipe.output)){
-  if(StarfallIndustrialChemistry8E.species[materialId].phase!=='gas'){
-   destinations[materialId]=StarfallMining8D.SHIP;continue;
+  const phase=StarfallIndustrialChemistry8E.species[materialId].phase;
+  if(phase!=='gas'){
+   // A finished SOLID made from actual surface-hopper feed returns to
+   // that same original installed 8A 120kg hopper. Only a paid native
+   // 250W T02 conveyor can subsequently move it to a real dry depot.
+   // Liquids retain the existing ship-hold path; never put liquid in a dry tray.
+   destinations[materialId]=sourceMode==='surface'&&
+    ['solid','alloy'].includes(phase)?drySourceId:StarfallMining8D.SHIP;
+   continue;
   }
   const {vessel,proof}=adjacent(materialId,'product');
   if(pressureGasPackets8h.list().some(j=>j.status==='ACTIVE'&&j.pipeId===proof.pipeId))
@@ -3021,13 +3028,16 @@ function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
  const ctx=logisticsConveyorContext8H(),phys=physical8a;
  if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
   throw Error('8H conveyor initiation requires a real landed on-foot EVA operator');
- if(sourceId===targetId||!ctx.depots.some(x=>x.id===sourceId)||
+ const plantSource=ctx.plantTargets.some(x=>x.id===sourceId);
+ const depotSource=ctx.depots.some(x=>x.id===sourceId);
+ if(sourceId===targetId||!(plantSource||depotSource)||
   !(ctx.depots.some(x=>x.id===targetId)||
-    ctx.plantTargets.some(x=>x.id===targetId))||
+    !plantSource&&ctx.plantTargets.some(x=>x.id===targetId))||
   !ctx.drives.some(x=>x.id===driveId))
-  throw Error('8H choose certified source depot, separate paid depot or chemical plant hopper, and one certified drive');
- const source=phys.get(sourceId),lot=materials8a.inventory(source.state.containerId)
-  .find(x=>x.id===lotId);
+  throw Error('8H choose paid depot → depot/plant OR paid surface plant OUTPUT hopper → depot; a genuinely wired 250W drive is mandatory');
+ const source=phys.get(sourceId),
+  sourceContainerId=plantSource?source.state.dryFeedContainerId:source.state.containerId,
+  lot=materials8a.inventory(sourceContainerId).find(x=>x.id===lotId);
  if(!lot||!Number.isFinite(massKg)||massKg<=0||massKg>40||
   lot.massKg+1e-7<massKg)
   throw Error('8H choose a genuine dry original 8A source lot and <=40 kg mass');
