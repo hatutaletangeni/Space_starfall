@@ -34,14 +34,22 @@ function inspect({physical8a,materials8a,outpost5,powerReport,bodyId,bodyRadius,
    Math.abs(t.massKg-a.massKg)<EPS);
   return installed?a:null;
  }
- const from=item(sourceId,'cargo_depot');
+ const chemicalKinds=['reduction_furnace','glass_furnace','high_temp_cell',
+  'electrolyzer','catalytic_reactor'];
+ const depotSource=item(sourceId,'cargo_depot');
+ // The SOURCE may be a paid plant only when the destination is a distinct
+ // paid dry depot. 8E created the original solid product in its already-paid
+ // bounded machine hopper; the belt must still transport the actual 8A lot.
+ const plantSource=depotSource?null:
+  chemicalKinds.map(kind=>item(sourceId,kind)).find(Boolean);
+ const from=depotSource||plantSource;
  const to=item(targetId,'cargo_depot')||
-  ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
-   .map(kind=>item(targetId,kind)).find(Boolean);
- if(!from||!to)return fail('NO_CERTIFIED_ENDPOINT','Source must be an installed dry depot; destination a paid depot or genuine 8E chemical station');
- const stationFeed=to.state.station!=='cargo_depot';
+  (plantSource?null:chemicalKinds.map(kind=>item(targetId,kind)).find(Boolean));
+ if(!from||!to)return fail('NO_CERTIFIED_ENDPOINT',
+  'Require paid depot → paid depot/plant OR paid solid-output plant → paid depot');
  for(const a of [from,to]){
-  const isFeed=a===to&&stationFeed;
+  const isFeed=a.state.station!=='cargo_depot';
+
   const port=isFeed?a.state.dryFeedContainerId:a.state.containerId;
   const c=ledger.containers().find(c=>c.id===port&&c.ownerId===a.id&&
    (isFeed?/dry-reactant feed hopper/i:/dry-solid cargo dock/i).test(c.kind));

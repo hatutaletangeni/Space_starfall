@@ -12411,14 +12411,22 @@ function inspect({physical8a,materials8a,outpost5,powerReport,bodyId,bodyRadius,
    Math.abs(t.massKg-a.massKg)<EPS);
   return installed?a:null;
  }
- const from=item(sourceId,'cargo_depot');
+ const chemicalKinds=['reduction_furnace','glass_furnace','high_temp_cell',
+  'electrolyzer','catalytic_reactor'];
+ const depotSource=item(sourceId,'cargo_depot');
+ // The SOURCE may be a paid plant only when the destination is a distinct
+ // paid dry depot. 8E created the original solid product in its already-paid
+ // bounded machine hopper; the belt must still transport the actual 8A lot.
+ const plantSource=depotSource?null:
+  chemicalKinds.map(kind=>item(sourceId,kind)).find(Boolean);
+ const from=depotSource||plantSource;
  const to=item(targetId,'cargo_depot')||
-  ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
-   .map(kind=>item(targetId,kind)).find(Boolean);
- if(!from||!to)return fail('NO_CERTIFIED_ENDPOINT','Source must be an installed dry depot; destination a paid depot or genuine 8E chemical station');
- const stationFeed=to.state.station!=='cargo_depot';
+  (plantSource?null:chemicalKinds.map(kind=>item(targetId,kind)).find(Boolean));
+ if(!from||!to)return fail('NO_CERTIFIED_ENDPOINT',
+  'Require paid depot → paid depot/plant OR paid solid-output plant → paid depot');
  for(const a of [from,to]){
-  const isFeed=a===to&&stationFeed;
+  const isFeed=a.state.station!=='cargo_depot';
+
   const port=isFeed?a.state.dryFeedContainerId:a.state.containerId;
   const c=ledger.containers().find(c=>c.id===port&&c.ownerId===a.id&&
    (isFeed?/dry-reactant feed hopper/i:/dry-solid cargo dock/i).test(c.kind));
@@ -12536,15 +12544,18 @@ function create(saved){
   if(assets.some(a=>!a||a.location?.kind!=='surface'||a.location.bodyId!==bodyId||
     a.condition<.5||a.state?.enabled!==true))
    throw Error('8H conveyor stations must be installed, healthy and same-world');
-  if(assets[0].state?.station!=='cargo_depot'||
-    !(assets.at(-1).state?.station==='cargo_depot'||
-     ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
-      .includes(assets.at(-1).state?.station))||
+  const chemicalKinds=['reduction_furnace','glass_furnace','high_temp_cell',
+   'electrolyzer','catalytic_reactor'];
+  const sourcePlant=chemicalKinds.includes(assets[0].state?.station);
+  const sourceDepot=assets[0].state?.station==='cargo_depot';
+  const targetDepot=assets.at(-1).state?.station==='cargo_depot';
+  const targetPlant=chemicalKinds.includes(assets.at(-1).state?.station);
+  if(!(sourceDepot&&(targetDepot||targetPlant)||sourcePlant&&targetDepot)||
     assets.slice(1,-1).some(a=>a.state?.station!=='conveyor_drive'||
      a.state?.kitMaterialId!=='plant_kit_conveyor_drive'||a.massKg!==180))
-   throw Error('8H original certified dry depot and manufactured conveyor drive required');
+   throw Error('8H real dry plant output requires a PAID plant-to-depot line, or paid depot-to-depot/plant line');
   const containers=assets.map((a,i)=>{
-   const isPlant=i===assets.length-1&&a.state.station!=='cargo_depot';
+   const isPlant=(i===0||i===assets.length-1)&&a.state.station!=='cargo_depot';
    const containerId=isPlant?a.state.dryFeedContainerId:a.state.containerId;
    const c=materials.containers().find(v=>v.id===containerId&&v.ownerId===a.id);
    if(!c||!new RegExp(isPlant?'dry-reactant feed hopper':
@@ -16433,8 +16444,15 @@ function industrialEquipment8E(reactionId,assetId,sourceMode='ship'){
     vesselId:vessel.id,pipeId:proof.pipeId,powerPortId:proof.sourcePortId};
  }
  for(const materialId of Object.keys(recipe.output)){
-  if(StarfallIndustrialChemistry8E.species[materialId].phase!=='gas'){
-   destinations[materialId]=StarfallMining8D.SHIP;continue;
+  const phase=StarfallIndustrialChemistry8E.species[materialId].phase;
+  if(phase!=='gas'){
+   // A finished SOLID made from actual surface-hopper feed returns to
+   // that same original installed 8A 120kg hopper. Only a paid native
+   // 250W T02 conveyor can subsequently move it to a real dry depot.
+   // Liquids retain the existing ship-hold path; never put liquid in a dry tray.
+   destinations[materialId]=sourceMode==='surface'&&
+    ['solid','alloy'].includes(phase)?drySourceId:StarfallMining8D.SHIP;
+   continue;
   }
   const {vessel,proof}=adjacent(materialId,'product');
   if(pressureGasPackets8h.list().some(j=>j.status==='ACTIVE'&&j.pipeId===proof.pipeId))
@@ -17065,13 +17083,16 @@ function logisticsConveyorStart8H(lotId,sourceId,driveId,targetId,massKg){
  const ctx=logisticsConveyorContext8H(),phys=physical8a;
  if(!ctx.onFoot||!ctx.operatorLocal||!ctx.bodyId||!ctx.bodyRadius)
   throw Error('8H conveyor initiation requires a real landed on-foot EVA operator');
- if(sourceId===targetId||!ctx.depots.some(x=>x.id===sourceId)||
+ const plantSource=ctx.plantTargets.some(x=>x.id===sourceId);
+ const depotSource=ctx.depots.some(x=>x.id===sourceId);
+ if(sourceId===targetId||!(plantSource||depotSource)||
   !(ctx.depots.some(x=>x.id===targetId)||
-    ctx.plantTargets.some(x=>x.id===targetId))||
+    !plantSource&&ctx.plantTargets.some(x=>x.id===targetId))||
   !ctx.drives.some(x=>x.id===driveId))
-  throw Error('8H choose certified source depot, separate paid depot or chemical plant hopper, and one certified drive');
- const source=phys.get(sourceId),lot=materials8a.inventory(source.state.containerId)
-  .find(x=>x.id===lotId);
+  throw Error('8H choose paid depot → depot/plant OR paid surface plant OUTPUT hopper → depot; a genuinely wired 250W drive is mandatory');
+ const source=phys.get(sourceId),
+  sourceContainerId=plantSource?source.state.dryFeedContainerId:source.state.containerId,
+  lot=materials8a.inventory(sourceContainerId).find(x=>x.id===lotId);
  if(!lot||!Number.isFinite(massKg)||massKg<=0||massKg>40||
   lot.massKg+1e-7<massKg)
   throw Error('8H choose a genuine dry original 8A source lot and <=40 kg mass');
@@ -24494,7 +24515,7 @@ panel.id='conveyor8h-live-panel';panel.setAttribute('aria-label','8H physical co
 const heading=document.createElement('div');heading.className='section-title';
 heading.textContent='8H · LIVE POWERED CONVEYOR ROUTE';
 const intro=document.createElement('p');intro.className='panel-note';
-intro.textContent='Manufactured dry source depot → original 180 kg conveyor drive and 40 kg tray → separate certified depot OR genuine installed 8E chemical feed hopper. Install and wire the drive’s 250 W native T02 motor. Each real powered time step advances the original 8A packet; power loss pauses custody in place. Machine hoppers are bounded to 120 kg / 0.20 m³.';
+intro.textContent='Powered 8H dry conveyor: paid depot → paid depot or 8E machine feed, AND real 8E surface-made solid OUTPUT → paid depot. The plant keeps solid product in its original 120kg/.20m³ hopper when CHEMICAL SOURCE = SURFACE. A manufactured 180kg drive and its real 250W native T02 wired load move every original 8A lot through the 40kg tray. No free output teleportation.';
 const source=document.createElement('select');source.id='conveyor8h-source';
 const target=document.createElement('select');target.id='conveyor8h-target';
 const drive=document.createElement('select');drive.id='conveyor8h-drive';
@@ -24510,7 +24531,7 @@ openWiring.textContent='OPEN NATIVE 48 V WIRING';
 const lot=document.createElement('select');lot.id='conveyor8h-source-lot';
 const kg=document.createElement('input');kg.type='number';kg.id='conveyor8h-kg';
 kg.value='12';kg.min='.01';kg.max='40';kg.step='.01';
-for(const [s,title] of [[source,'Existing dry source depot'],[target,'Existing dry destination depot'],[drive,'Installed 180kg T02-wired conveyor drive'],[lot,'Real original 8A source material lot']]){
+for(const [s,title] of [[source,'Existing dry source depot or paid surface plant output hopper'],[target,'Existing dry destination depot or paid input plant'],[drive,'Installed 180kg T02-wired conveyor drive'],[lot,'Real original 8A source material lot']]){
  s.setAttribute('aria-label',title);
  s.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
 }
@@ -24523,7 +24544,7 @@ const installation=document.createElement('div');installation.className='obs-too
 installation.id='conveyor8h-port-installation';
 installation.append(portTarget,portInstall,openWiring);
 const portGuide=document.createElement('p');portGuide.className='panel-note';
-portGuide.textContent='STEP 1: Manufacture a 180 kg 8E conveyor drive kit and physically erect it. Walk EVA to within 15 scene units of that drive and install the zero-extra-mass 250 W native electrical load. STEP 2: OPEN NATIVE 48 V WIRING; physically wire its new 8h-port module to a previously installed solar/battery T02 source, using the outpost connector if necessary. Unwired and unpowered drives cannot move material. STEP 3: Select true dry ore, source and destination depots, then start the packet.';
+portGuide.textContent='STEP 1: Manufacture and install a real 180kg conveyor drive, then install its 250W motor port and wire it to genuine T02 supply. STEP 2: For surface-made solids, select ACTUAL 8A SURFACE PLANT FEED HOPPER when running chemical work; the paid 120kg hopper keeps the finished solid. STEP 3: Select the finished lot in that plant as conveyor SOURCE and a separate paid receiving DEPOT as TARGET. Start the packet; native powered ticks advance it without duplicating electricity or material.';
 const fields=document.createElement('div');fields.className='obs-tools';
 fields.append(source,lot,drive,target,kg,start);
 const status=document.createElement('p');status.className='panel-note';
@@ -24551,14 +24572,20 @@ function refresh(){
  choices(portTarget,unwired.map(x=>[x.id,x.id+' · ORIGINAL 180kg PAID DRIVE · 0 W until wired']), 'No unconfigured original 8E drive');
  portInstall.disabled=!ctx.onFoot||!ctx.bodyRadius||!portTarget.value;
  openWiring.disabled=!document.querySelector('#outpost-open');
- choices(source,depots.map(x=>[x.id,x.id+' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' kg dry']), 'No certified source dry depot');
- const current=depots.find(x=>x.id===source.value),materialLots=current?.lots||[];
+ const sourceRows=[...depots,...plants];
+ choices(source,sourceRows.map(x=>[x.id,
+  (plants.includes(x)?'8E PAID PLANT SOLID OUTPUT · ':'DEPOT · ')+
+  x.id+' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' kg dry']),
+  'No certified source depot or plant');
+ const current=sourceRows.find(x=>x.id===source.value),
+  isPlantSource=plants.some(x=>x.id===source.value),
+  materialLots=current?.lots||[];
  choices(lot,materialLots.map(l=>[l.id,l.materialId+' · '+l.massKg.toFixed(2)+' kg · '+l.provenance]),'No real dry stock in source');
  choices(drive,drives.map(x=>[x.id,x.id+' · native T02 motor '+x.portId]),'No installed 250W drive');
  choices(target,[
   ...depots.filter(x=>x.id!==source.value).map(x=>[x.id,
    'DEPOT · '+x.id+' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' kg stored']),
-  ...plants.map(x=>[x.id,'8E PLANT HOPPER · '+x.station+' · '+x.id+
+  ...(!isPlantSource?plants:[]).map(x=>[x.id,'8E PLANT HOPPER · '+x.station+' · '+x.id+
    ' · '+x.lots.reduce((s,l)=>s+l.massKg,0).toFixed(2)+' / 120 kg'])
  ],'No certified physical destination');
  const active=ctx.packets.some(p=>p.status==='ACTIVE');
@@ -24583,7 +24610,7 @@ function refresh(){
  ];
  const output=lines.join('\n');if(output!==last){last=output;readout.textContent=output;}
  if(performance.now()>=reportUntil)
-  status.textContent='Choose actual dry stock in a manufactured depot, a physically adjacent installed drive and separate depot. EVA near source to reserve; future native powered ticks move ore.';
+  status.textContent='Choose a genuine source depot OR plant solid-output hopper, an installed wired 250W drive and a separate paid destination. Native powered ticks move one original 8A lot at a time.';
 }
 source.addEventListener('change',()=>{lot.dataset.signature='';target.dataset.signature='';refresh();});
 portInstall.addEventListener('click',()=>{try{

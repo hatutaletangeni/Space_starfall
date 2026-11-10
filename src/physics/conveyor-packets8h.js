@@ -42,15 +42,18 @@ function create(saved){
   if(assets.some(a=>!a||a.location?.kind!=='surface'||a.location.bodyId!==bodyId||
     a.condition<.5||a.state?.enabled!==true))
    throw Error('8H conveyor stations must be installed, healthy and same-world');
-  if(assets[0].state?.station!=='cargo_depot'||
-    !(assets.at(-1).state?.station==='cargo_depot'||
-     ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
-      .includes(assets.at(-1).state?.station))||
+  const chemicalKinds=['reduction_furnace','glass_furnace','high_temp_cell',
+   'electrolyzer','catalytic_reactor'];
+  const sourcePlant=chemicalKinds.includes(assets[0].state?.station);
+  const sourceDepot=assets[0].state?.station==='cargo_depot';
+  const targetDepot=assets.at(-1).state?.station==='cargo_depot';
+  const targetPlant=chemicalKinds.includes(assets.at(-1).state?.station);
+  if(!(sourceDepot&&(targetDepot||targetPlant)||sourcePlant&&targetDepot)||
     assets.slice(1,-1).some(a=>a.state?.station!=='conveyor_drive'||
      a.state?.kitMaterialId!=='plant_kit_conveyor_drive'||a.massKg!==180))
-   throw Error('8H original certified dry depot and manufactured conveyor drive required');
+   throw Error('8H real dry plant output requires a PAID plant-to-depot line, or paid depot-to-depot/plant line');
   const containers=assets.map((a,i)=>{
-   const isPlant=i===assets.length-1&&a.state.station!=='cargo_depot';
+   const isPlant=(i===0||i===assets.length-1)&&a.state.station!=='cargo_depot';
    const containerId=isPlant?a.state.dryFeedContainerId:a.state.containerId;
    const c=materials.containers().find(v=>v.id===containerId&&v.ownerId===a.id);
    if(!c||!new RegExp(isPlant?'dry-reactant feed hopper':

@@ -43,6 +43,7 @@ jobs:
           node tests/update8k-powered-habitat-chain.test.cjs
           node tests/update8k-electrolysis-atmosphere-chain.test.cjs
           node tests/update8k-natural-ore-two-world-custody.test.cjs
+          node tests/update8h-plant-output-conveyor.test.cjs
           node tests/t02-paid-grid8i.test.cjs
           node tests/industrial-t09-no-free-supplies8k.test.cjs
           node tests/habitat-oxygen8i.test.cjs
