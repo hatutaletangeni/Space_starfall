@@ -40,11 +40,11 @@ function worlds(){
  throw Error('No original seed-742 iron world and distinct landable destination');
 }
 const flight=(body,time,landed)=>({seed:742,time,landed,attached:body.id,
- position:[body.position[0]+body.radius+(landed?8:200),body.position[1],body.position[2]],
- groundDirection:[1,0,0]});
+ position:[body.position[0],body.position[1]+body.radius+(landed?8:200),body.position[2]],
+ groundDirection:[0,1,0]});
 test('seed-742 natural ore -> original drill and loader -> prebuilt kit-paid depot -> distinct-world durable ship delivery',()=>{
- const {origin,dest,site}=worlds(),siteLocal=[
-  Math.sin(.06),Math.cos(.06),0];
+ const {origin,dest,site}=worlds(),siteAngle=53/dest.radius,siteLocal=[
+  Math.sin(siteAngle),Math.cos(siteAngle),0];
  let materials=Mining.prepareContainers(Materials.create()),physical=Physical.create().serialize(),
  resources=Resources.create(),mining=Mining.create(null,Materials,Resources);
  const spec=Site.KITS.plant_kit_cargo_depot;
@@ -57,7 +57,7 @@ test('seed-742 natural ore -> original drill and loader -> prebuilt kit-paid dep
  const built=Site.install({jobId:'plant8e:destination-depot',
   assetId:'facility8e:destination-depot',materials:materials.snapshot(),physical,
   shipContainerId:Mining.SHIP,kitLotId:'finite-depot-kit',bodyId:dest.id,
-  local:siteLocal,shipLocal:[1,0,0],operatorLocal:siteLocal,
+  local:siteLocal,shipLocal:[0,1,0],operatorLocal:siteLocal,
   bodyRadius:dest.radius,energyReceipt:{operationId:'plant8e:destination-depot',
    sourceId:'ship-main:engineering-battery',usedJ:shipEnergyCost}});
  materials=Materials.create(built.materials);physical=built.physical;
