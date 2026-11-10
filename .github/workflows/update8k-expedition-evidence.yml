@@ -26,6 +26,7 @@ jobs:
           node --check src/physics/expedition-audit8k.js
           node --check src/physics/expedition-audit-ui8k.js
           node --check src/flight.js
+          python -m py_compile tools/benchmark-real-gpu-8k.py
           node tests/expedition-audit8k.test.cjs
           node tests/update8k-time-acceleration.test.cjs
           node tests/terraform-numeric-safety8j.test.cjs
