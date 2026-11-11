@@ -4,7 +4,6 @@ existing radioLink occlusion, program transfer, blackout and reload.
 No stubbed link/connectivity; controlled installed rover fixture only.
 """
 from pathlib import Path
-import json
 from playwright.sync_api import sync_playwright
 
 target=(Path(__file__).resolve().parents[1]/'PLAY-STARFALL.html').resolve()
@@ -27,33 +26,13 @@ with sync_playwright() as p:
             attached:b.id,groundDirection:up,forward:[0,0,1],up,landed:true}});
           return SF.load();
         }""")
-        # The live first tab can autosave its orbital position while a second WebGL
-        # tab boots; initialize the landed record before that tab's JS starts.
-        # A localStorage sentinel survives file:// reloads reliably; sessionStorage may not.
-        snapshot=json.dumps(json.dumps(landed_save))
-        # Do not replace a newer real rover/comms save with the old landed
-        # fixture if file:// origin policy drops an auxiliary localStorage key.
-        # The marker alone is insufficient proof that the save is still the
-        # original fixture; inspect actual persisted mission custody first.
-        context.add_init_script("""(()=>{
-          // Never replay the old landed fixture on a true reload. A reload
-          // must prove genuine packet and rover persistence, not reseed it.
-          if(performance.getEntriesByType('navigation')[0]?.type==='reload')return;
-          const raw=localStorage.getItem('starfall_save');
-          let state=null;try{state=raw?JSON.parse(raw):null;}catch(_){}
-          if(state?.commsT03?.packets?.length||state?.launch7?.rovers?.length)return;
-          if(localStorage.getItem('t03-fixture-installed'))return;
-          localStorage.setItem('starfall_save',__T03_FIXTURE__);
-          localStorage.setItem('t03-fixture-installed','1');
-        })()""".replace('__T03_FIXTURE__',snapshot))
-        # Close the old simulation BEFORE the new one boots. Otherwise its
-        # pagehide save can overwrite source-owned launched rover packet state.
-        # The init-script now restores the precise landed fixture on the new tab.
-        page.close()
-        page=context.new_page()
-        page.on('pageerror',lambda e:errors.append(str(e)))
-        page.goto(target.as_uri(),wait_until='domcontentloaded',timeout=90000)
-        page.wait_for_function("!!(window.StarfallRuntime && window.StarfallCommsT03)",timeout=30000)
+        # Restore the real disk snapshot in this same tab. A second tab and a
+        # replaying context init script can race file:// origin startup and
+        # replace newer rover/packet state with the old landed fixture. Lock
+        # the old page's autosavers, then let the ordinary loader read disk.
+        page.evaluate("window.__STARFALL_IMPORT_PENDING=true")
+        page.reload(wait_until='domcontentloaded',timeout=90000)
+        page.wait_for_function("!!(window.StarfallRuntime && window.StarfallCommsT03 && window.StarfallMissionOperationsUI)",timeout=30000)
         setup=page.evaluate("""()=>{
           const rt=StarfallRuntime,UI=StarfallLaunchUI,O=StarfallOutposts,T=StarfallCommsT03,
             body=rt.nearest,ship=rt.engineeringAssetPoses().shipPose;

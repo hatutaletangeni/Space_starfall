@@ -57,7 +57,7 @@ with sync_playwright() as p:
     window.__STARFALL_IMPORT_PENDING=true;
    }""")
    page.reload(wait_until='domcontentloaded',timeout=90000)
-   page.wait_for_function('!!(StarfallRuntime?.landed&&StarfallRuntime?.eva)',timeout=60000)
+   page.wait_for_function('!!(window.StarfallRuntime?.landed&&window.StarfallRuntime?.eva)',timeout=60000)
    page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
    before=page.evaluate("""()=>({ctx:StarfallRuntime.miningContext8D(),
      mass:StarfallRuntime.materials8a.inventory().reduce((n,l)=>n+l.massKg,0)})""")

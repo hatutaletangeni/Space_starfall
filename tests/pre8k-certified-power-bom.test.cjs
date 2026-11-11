@@ -97,3 +97,16 @@ test('preflight cannot duplicate or credit old saves, planets or second use',()=
  assert.equal(legacy.applied,false);
  assert.deepEqual(legacy.materials,result.materials);
 });
+
+// The first electronics tools require controllers in their own BOMs. Finite
+// shipped, uninstalled tools must make the first boards possible.
+test('first precision and electronics tool loops are broken by certified finite kits',()=>{
+ const {result}=mk();
+ for(const id of ['machine_kit_cnc','machine_kit_etcher','machine_kit_solder_station']){
+  const lot=result.materials.lots.find(l=>l.materialId===id),spec=K.CAPS[id];
+  assert.ok(lot,id+' missing: its first source-tool loop is blocked');
+  assert.equal(lot.massKg,spec.massKg);assert.equal(lot.volumeM3,spec.volumeM3);
+ }
+ assert.ok(!result.materials.lots.some(l=>l.materialId==='control_board'),
+  'boards must actually be made from finite supplied chips at paid installed tools');
+});

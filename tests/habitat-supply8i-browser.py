@@ -65,6 +65,17 @@ with sync_playwright() as p:
   panel.locator('input[aria-label="Water to transfer, kg"]').dispatch_event('change')
   button=panel.get_by_role('button',name='PUMP SOURCE-PAID WATER TO HABITAT')
   assert button.is_enabled(),panel.inner_text()
+  # Observe the actual transaction in one JS turn. Native solar/generator and
+  # other loads keep running between the click and later browser assertions.
+  page.evaluate("""()=>{
+   const rt=StarfallRuntime,transfer=rt.habitatSupplyWater8I;
+   rt.habitatSupplyWater8I=(...args)=>{
+    const before=rt.vehicleStore.get('ship').state.energyJ,receipt=transfer(...args);
+    window.__waterDebitObservation={before,after:rt.vehicleStore.get('ship').state.energyJ,
+     receiptId:receipt.id};
+    return receipt;
+   };
+  }""")
   button.click()
   page.wait_for_function("""()=>document.querySelector('#habitat-supply8i [role=status]')
     ?.textContent.includes('TRANSFER COMMITTED')""",timeout=10000)
@@ -74,22 +85,21 @@ with sync_playwright() as p:
     receipt=rt.materials8a.operations().find(x=>x.kind==='HABITAT_WATER_8I'),
     saved=SF.load();
    return{waterL:hab?.habT09?.waterL,massKg:original?.massKg,
-    energyJ:rt.vehicleStore.get('ship').state.energyJ,receipt,
+    energyJ:rt.vehicleStore.get('ship').state.energyJ,receipt,atomic:window.__waterDebitObservation,
     durableWater:saved.outpost5?.items?.find(x=>x.id===data.habitatId)?.habT09?.waterL,
     durableLot:saved.materials8a?.lots?.find(x=>x.id===data.lotId)?.massKg};
   }""",initial)
   assert abs(after['waterL']-130)<1e-8,after
   assert abs(after['massKg']-3)<1e-8,after
-  # Other ship systems continue drawing power during UI interaction.
-  # Verify exact pump debit from the same committed source-owned receipt,
-  # and ensure the live ship has not gained energy during this transaction.
+  # Exact real before/after energy at the action boundary, with ordinary
+  # source charging left active. No timing-dependent tolerance is needed.
   assert after['receipt']['sourceBatteryJBefore']-after['receipt']['sourceBatteryJAfter']==125000,after
   assert after['receipt']['workJ']==125000,after
   assert after['receipt']['energySourceId']=='ship-main:engineering-battery',after
-  # Ordinary ship power may rise or fall before the click; the receipt records
-  # the exact pre-action battery and debit. Verify the post-action runtime
-  # matches that receipt, allowing only modest simulation-frame consumption.
-  assert abs(after['energyJ']-after['receipt']['sourceBatteryJAfter'])<1000,after
+  assert after['atomic']['before']-after['atomic']['after']==125000,after
+  assert after['atomic']['before']==after['receipt']['sourceBatteryJBefore'],after
+  assert after['atomic']['after']==after['receipt']['sourceBatteryJAfter'],after
+  assert after['atomic']['receiptId']==after['receipt']['id'],after
   assert after['receipt']['status']=='COMMITTED' and after['receipt']['massKg']==5,after
   assert after['durableWater']==130 and after['durableLot']==3,after
   page.evaluate("window.__STARFALL_IMPORT_PENDING=true")

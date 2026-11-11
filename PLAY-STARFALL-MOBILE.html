@@ -12955,7 +12955,7 @@ const CONTENT=Object.freeze([
  ['pv_cells',4,.02,'prelaunch_certified_photovoltaics_for_two_finite_modules'],
  ['discrete_components',40,.08,'prelaunch_finite_electronic_components'],
  ['solder',20,.02,'prelaunch_finite_solder_supply'],
- ['copper',250,.094,'prelaunch_refined_copper_for_first_refineries'],
+ ['copper',280,.106,'prelaunch_refined_copper_for_first_refineries'],
  ['aluminum',200,.08,'prelaunch_refined_aluminum_for_first_electrolysis_plant'],
  ['steel',20,.008,'prelaunch_structural_spares'],
  ['glass',200,.10,'prelaunch_verified_glass_for_first_glass_furnace'],
@@ -12986,6 +12986,10 @@ const CONTENT=Object.freeze([
  ['vessel_kit_carbon_monoxide',170,4,'prelaunch_finite_empty_reduction_byproduct_vessel_kit'],
  ['plant_kit_pressure_pipeline',320,.95,'prelaunch_finite_first_byproduct_pipe_kit_uninstalled'],
  ['machine_kit_cnc',220,.42,'prelaunch_finite_first_precision_tool_kit_uninstalled'],
+ // Both electronics-tool BOMs themselves consume control boards. Ship the
+ // first tools, not fictional locally fabricated chips or granted boards.
+ ['machine_kit_etcher',230,.47,'prelaunch_finite_first_pcb_etcher_kit_uninstalled'],
+ ['machine_kit_solder_station',65,.12,'prelaunch_finite_first_board_assembly_kit_uninstalled'],
  ['drill_head',4,.001,'prelaunch_two_finite_replacement_drill_heads'],
 ]);
 const SUM=Object.freeze({massKg:CONTENT.reduce((s,x)=>s+x[1],0),

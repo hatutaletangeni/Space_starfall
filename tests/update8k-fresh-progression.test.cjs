@@ -60,7 +60,8 @@ test('a new finite expedition can make its first mined iron, hand-wound motor an
   m=M.create(r.materials);p=r.physical;return{id:r.machine.id,station:r.machine.state.station,
    tools:r.machine.state.tools,installed:true,condition:1};
  }
- const cnc=installMachine('machine_kit_cnc');
+ const cnc=installMachine('machine_kit_cnc'),etcher=installMachine('machine_kit_etcher'),
+  solder=installMachine('machine_kit_solder_station');
  close(total(m,p),initialMass);
  resources.survey(deposit,0);
  for(let i=0;i<5;i++){
@@ -104,6 +105,8 @@ test('a new finite expedition can make its first mined iron, hand-wound motor an
   const out=factory.commit({materials:m.snapshot(),transformer:Transform.create(trans),machine});
   m=M.create(out.materials);trans=out.transformations;factory.apply(out.factory);
  }
+ make('pcb',etcher);make('populated_board',solder);
+ assert.ok(m.inventory(D.SHIP).some(l=>l.materialId==='control_board'&&l.provenance.startsWith('process:')));
  for(let i=0;i<5;i++)make('iron_bracket',bench);for(let i=0;i<4;i++)make('steel_bracket',bench);
  make('machine_kit_hand_winder',assembly);const hand=installMachine('machine_kit_hand_winder');
  make('motor_field_coil',hand);make('brushed_dc_motor',hand);make('drill_head',cnc);

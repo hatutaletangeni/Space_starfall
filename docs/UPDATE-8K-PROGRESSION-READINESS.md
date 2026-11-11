@@ -8,15 +8,17 @@ certify the complete no-debug two-world expedition or real hardware performance.
 - **First furnace deadlock:** the prior fresh manifest shipped no smelter, but
   making a smelter required hundreds of kilograms of metal that only a smelter
   could refine. Manifest version 2 ships one sealed reduction furnace, empty CO
-  vessel, pressure pipeline and CNC. Each is a real 8A kit, uninstalled until
+  vessel, pressure pipeline, CNC, PCB etcher and solder station. Each is a real 8A kit, uninstalled until
   its original paid installer consumes it. No operating plant, power port,
   refined local ore, replacement truck or manufacturing receipt is granted.
+  The two electronics-tool BOMs also require control boards; shipping their first
+  uninstalled kits breaks that second circular dependency.
 - **Finite specialty supply shortfall:** the game currently has no local polymer,
   refractory-brick, laminate or chip production chain. New expeditions carry
   explicitly finite prelaunch stock for the downstream plant BOMs. Two PV modules
   and one eight-cell battery remain the semiconductor/electrode energy bootstrap;
   no free solar installation or charged battery is added. The version-2 manifest
-  is **5,051.85 kg / 11.7141 m³**, within the original 9,000 kg / 16 m³ hold.
+  is **5,376.85 kg / 12.3161 m³**, within the original 9,000 kg / 16 m³ hold.
 - **Permanent drill exhaustion:** previously the drill crossed its 10% limit
   after about 188 bores (3.76 tonnes) and requested nonexistent service. A 60 s,
   120 kJ service operation now exchanges a ship-held certified 2 kg head for the
@@ -52,7 +54,8 @@ new one. Legacy saves and original truck IDs are retained.
   manifest, installs the genuine source-owned equipment with the native ship
   vehicle energy store, mines/hauls 100 kg from original seed-742 geology,
   refines hematite, produces iron/steel with the actual chemistry, fabricates and
-  installs a hand winder, manufactures a motor and CNC replacement head, then
+  installs a hand winder, manufactures a real populated control board, motor
+  and CNC replacement head, then
   services the existing drill. All material, truck/ship energy, scrap and original
   truck identity reconcile. No test-owned material lots or installed fixtures.
   This source test does **not** exercise native gas-pump ticks or real flight.
@@ -67,6 +70,11 @@ new one. Legacy saves and original truck IDs are retained.
   Screenshots are CI artifacts; software WebGL is not real phone/GPU evidence.
 - Required 8K CI includes these checks and the original fresh-manifest browser
   regression. Desktop/mobile standalones are rebuilt from the same source.
+
+Browser regression hardening also observes the 8I water debit synchronously at
+the actual transaction boundary (ordinary ship charging remains active), and
+restores T03 radio/rover snapshots in one tab without replaying older fixtures.
+No energy tolerance or persistence assertion is weakened.
 
 The remaining release acceptance requirements are tracked in
 `STARFALL_8K_RELEASE_ACCEPTANCE.md`; source and controlled browser checks do not
