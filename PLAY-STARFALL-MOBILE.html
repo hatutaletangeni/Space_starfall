@@ -14233,12 +14233,74 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
-/* Coupled six equal-area latitude-band perturbation climate, SI reservoirs.
+/* Shared production energy-balance numerics. SI only; references and benchmark
+ * limits: docs/CLIMATE-VALIDATION.md. Numerical verification is not evidence
+ * of forecast skill on procedurally generated worlds. */
+(function(root){'use strict';
+const SIGMA=5.670374419e-8,VERSION=3,clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function valid(x){return typeof x==='number'&&Number.isFinite(x);}
+function saturationPa(T){
+ if(!valid(T)||T<=0)throw Error('Positive water temperature required');
+ if(T<273.16)return Math.exp(9.550426-5723.265/T+3.53068*Math.log(T)-.00728332*T); // Murphy & Koop (2005), ice; supported >=110 K
+ if(T>=647.096)return 22.064e6; // critical endpoint; phase model flags extrapolation
+ const theta=1-T/647.096,a=[-7.85951783,1.84408259,-11.7866497,22.6807411,-15.9618719,1.80122502],b=[1,1.5,3,3.5,4,7.5];
+ return 22.064e6*Math.exp(647.096/T*a.reduce((s,v,n)=>s+v*theta**b[n],0)); // IAPWS SR1-86(1992), Eq. 1
+}
+function insolation(flux,count,declination){
+ if(!valid(flux)||flux<0||!Number.isInteger(count)||count<2||count>128||!valid(declination)||Math.abs(declination)>Math.PI/2)throw Error('Invalid latitude insolation');
+ // Four-point Gauss integration in x=sin(latitude); exact equal-area cells.
+ const nodes=[-.8611363115940526,-.3399810435848563,.3399810435848563,.8611363115940526],weights=[.3478548451374538,.6521451548625461,.6521451548625461,.3478548451374538];
+ const values=Array.from({length:count},(_,n)=>{let q=0;for(let k=0;k<4;k++){
+  const x=-1+(2*n+1+nodes[k])/count,cosLat=Math.sqrt(Math.max(0,1-x*x)),sunset=Math.acos(clamp(-x/Math.max(1e-20,cosLat)*Math.tan(declination),-1,1));
+  q+=weights[k]*Math.max(0,flux/Math.PI*(sunset*x*Math.sin(declination)+cosLat*Math.cos(declination)*Math.sin(sunset)))/2;
+ }return q;});
+ const mean=values.reduce((s,v)=>s+v,0)/count,factor=mean>0?flux/(4*mean):0;
+ return values.map(v=>v*factor); // conservative quadrature normalization: <Q>=S/4 for every season
+}
+function transport(temperatures,D=.6){
+ if(!Array.isArray(temperatures)||temperatures.length<2||!temperatures.every(valid)||!valid(D)||D<0)throw Error('Invalid spherical heat transport');
+ const n=temperatures.length,h=2/n,faces=Array(n+1).fill(0);
+ for(let j=1;j<n;j++){const x=-1+j*h;faces[j]=D*(1-x*x)*(temperatures[j]-temperatures[j-1])/h;}
+ return temperatures.map((_,j)=>(faces[j+1]-faces[j])/h);
+}
+function outgoingDelta(baseK,anomalyK,emissivity=1){
+ // Factorized Stefan-Boltzmann difference retains sub-ULP perturbations.
+ return emissivity*SIGMA*anomalyK*(4*baseK**3+6*baseK**2*anomalyK+4*baseK*anomalyK**2+anomalyK**3);
+}
+function thermalStep({surfaceK,deepK,baseK,dt,forcingWm2,surfaceCapacity=2e7,deepCapacity=4e8,exchange=1.2,emissivity=1,linearFeedback=null,latent=()=>0}){
+ if(![surfaceK,deepK,baseK,dt,forcingWm2,surfaceCapacity,deepCapacity,exchange,emissivity].every(valid)||baseK<=0||dt<0||dt>86400||surfaceCapacity<=0||deepCapacity<=0||exchange<0||emissivity<=0||emissivity>1||linearFeedback!==null&&(!valid(linearFeedback)||linearFeedback<0))throw Error('Invalid energy-balance state');
+ if(!dt)return{surfaceK,deepK,radiationWm2:0,latentJm2:0,residualJm2:0};
+ const deepAt=x=>(deepCapacity*deepK+dt*exchange*x)/(deepCapacity+dt*exchange),
+ olr=x=>linearFeedback===null?outgoingDelta(baseK,x,emissivity):linearFeedback*x,
+ residual=x=>surfaceCapacity*(x-surfaceK)+deepCapacity*(deepAt(x)-deepK)+latent(x)-dt*(forcingWm2-olr(x));
+ let lo=3-baseK,hi=Math.max(100,Math.abs(surfaceK)*2+10);while(residual(hi)<0&&hi<1e7)hi*=2;
+ if(residual(lo)>0||residual(hi)<0)throw Error('Energy input outside thermal bracket');
+ let x=clamp(surfaceK,lo,hi);
+ for(let k=0;k<48;k++){
+  const f=residual(x),eps=1e-4,lp=(latent(x+eps)-latent(x-eps))/(2*eps),
+   derivative=surfaceCapacity+dt*exchange*deepCapacity/(deepCapacity+dt*exchange)+lp+dt*(linearFeedback===null?4*emissivity*SIGMA*(baseK+x)**3:linearFeedback),
+   proposed=x-f/derivative;
+  if(f>0)hi=x;else lo=x;
+  if(Math.abs(f)<=1e-24+1e-12*Math.max(1e-24,Math.abs(dt*forcingWm2),Math.abs(latent(x)),surfaceCapacity*Math.abs(x)))break;
+  const next=valid(proposed)&&proposed>=lo&&proposed<=hi?proposed:(lo+hi)/2;
+  if(next===x)break;x=next;
+ }
+ const deep=deepAt(x),phase=latent(x),radiationWm2=forcingWm2-olr(x),error=residual(x);
+ if(!valid(error)||Math.abs(error)>1e-5+1e-9*Math.max(1,Math.abs(dt*forcingWm2),Math.abs(phase)))throw Error('Thermal solver failed energy closure');
+ return{surfaceK:x,deepK:deep,radiationWm2,latentJm2:phase,residualJm2:error};
+}
+const API=Object.freeze({VERSION,SIGMA,saturationPa,insolation,transport,outgoingDelta,thermalStep});root.StarfallClimateEnergy8J=API;if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script>
+<script>
+/* Coupled 24 equal-area latitude-band perturbation climate, SI reservoirs.
  * CW01 owns composition. Controls evolve beside interventions to preserve old
  * world baselines exactly. No terrain, ecology or planetary IDs are rewritten.
  */
 (function(root){'use strict';
-const R=8.314462618,SIGMA=5.670374419e-8,CS=2e7,CO=4e8,LF=334000,LV=2.5e6,DAY=86400;
+const energy=root.StarfallClimateEnergy8J||(typeof require==='function'?require('./climate-energy8j.js'):null);
+const R=8.314462618,SIGMA=5.670374419e-8,CS=2e7,CO=4e8,LF=334000,LV=2.5e6,DAY=86400,BANDS=24;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),sum=x=>Object.values(x||{}).reduce((s,n)=>s+n,0);
 const MW={H2:.002016,He:.004003,CH4:.016043,N2:.028014,O2:.031998,CO2:.04401,H2O:.01801528,Ar:.03995,SO2:.064066};
 const names={CO2:'carbon_dioxide',CH4:'methane',H2:'hydrogen',N2:'nitrogen',O2:'oxygen'};
@@ -14249,16 +14311,16 @@ function inputs(body,profile,seed,flux){
  const gases=Object.fromEntries(Object.entries(mix).map(([k,v])=>[names[k]||k,mean?profile.atmospherePressurePa*area/profile.surfaceGravityMS2*v*MW[k]/mean:0]));
  const water=Math.min(Math.max(0,profile.massKg||0)*(composition.majorMaterialMassFractions.H2O||0),area*1000);
  return{schema:2,bodyId:body.id,compositionVersion:composition.schema,gases,waterKg:water,area,
- baselineK:root.StarfallFieldScience?.profile(body,seed)?.temperatureK||Math.max(30,Math.pow(Math.max(0,flux)*(1-profile.albedo)/(4*SIGMA),.25)),
+ molarMassKgMol:mean||.01801528,baselineK:root.StarfallFieldScience?.profile(body,seed)?.temperatureK||Math.max(30,Math.pow(Math.max(0,flux)*(1-profile.albedo)/(4*SIGMA),.25)),
  albedo:profile.albedo,tilt:body.axialTilt||0,periodS:Math.max(DAY,body.orbitPeriod||365*DAY),flux,profile:JSON.parse(JSON.stringify(profile)),
  provenance:'CW01 seeded composition, canonical R/g/pressure; accessible water layer capped at 1000 kg/m² and bulk H2O inventory; high uncertainty'};
 }
-function waterStep(w,T,dt,area,gravity,pressure){
+function waterStep(w,T,dt,area,gravity,pressure,molarMass=.02897){
  const before=LV*w.vaporKg-LF*w.iceKg,total=w.liquidKg+w.iceKg+w.vaporKg;
- const saturation=611.2*Math.exp(clamp(17.67*(T-273.15)/(T-29.65),-60,25));
- const target=Math.min(total,saturation*area/Math.max(.01,gravity)*.622);
+ const saturation=energy.saturationPa(T);
+ const target=Math.min(total,saturation*area/Math.max(.01,gravity)*(.01801528/molarMass));
  const vapor=(target-w.vaporKg)*(-Math.expm1(-dt/DAY));
- if(vapor>0){const q=Math.min(vapor,w.liquidKg);w.liquidKg-=q;w.vaporKg+=q;}
+ if(vapor>0){const q=Math.min(vapor,w.liquidKg),sublimated=Math.min(vapor-q,w.iceKg);w.liquidKg-=q;w.iceKg-=sublimated;w.vaporKg+=q+sublimated;}
  else{w.vaporKg+=vapor;if(pressure<611)w.iceKg-=vapor;else w.liquidKg-=vapor;}
  // Below the water triple-point pressure, condensate is ice, never a new ocean.
  const fraction=pressure<611?1:clamp((278.15-T)/10,0,1),solid=w.liquidKg+w.iceKg,
@@ -14268,8 +14330,8 @@ function waterStep(w,T,dt,area,gravity,pressure){
 }
 function initialize(world,i,timeS){
  const oldHeat=world.climate8j?.storedHeatJ;
- const bands=Array.from({length:6},(_,n)=>{const lat=Math.asin(-1+(n+.5)/3),T=Math.max(30,i.baselineK+12*Math.cos(lat)-9),ice=T<273.15||i.profile.atmospherePressurePa<611?i.waterKg/6:0;
- const w={iceKg:ice,liquidKg:i.waterKg/6-ice,vaporKg:0};return{lat,anomalyK:0,deepAnomalyK:0,water:{...w},controlWater:{...w},cloudDelta:0};});
+ const bands=Array.from({length:BANDS},(_,n)=>{const lat=Math.asin(-1+(n+.5)*2/BANDS),T=Math.max(30,i.baselineK+12*Math.cos(lat)-9),ice=T<273.15||i.profile.atmospherePressurePa<611?i.waterKg/BANDS:0;
+ const w={iceKg:ice,liquidKg:i.waterKg/BANDS-ice,vaporKg:0};return{lat,anomalyK:0,deepAnomalyK:0,water:{...w},controlWater:{...w},cloudDelta:0};});
  world.climate8j={schema:2,lastS:timeS,bands,anomalyK:world.climate8j?.anomalyK||0,storedHeatJ:0,radiativeJ:0,latentJ:0,escapeWorkJ:0,escapedKg:0,steps:0,hazeOpacity:0,initialHeatJ:0,energyResidualJ:0,cloudDelta:0,iceCoverageDelta:0,deepAnomalyK:0};
  // Preserve the old thermal anomaly during migration rather than resetting it.
  for(const b of bands){b.anomalyK=world.climate8j.anomalyK;if(Number.isFinite(oldHeat))b.deepAnomalyK=(oldHeat/i.area-CS*b.anomalyK)/CO;}
@@ -14280,38 +14342,40 @@ function advance(world,profile,flux,timeS,context){
  let i=world.climateInputs8j;
  if(!i){if(!context?.body||context.body.id!==profile.id)throw Error('Canonical climate world required');i=world.climateInputs8j=inputs(context.body,profile,context.seed??742,flux);}
  if(i.bodyId!==profile.id||i.schema!==2||!(i.area>0))throw Error('Incompatible climate input snapshot');
+ if(!i.molarMassKgMol){const mass=Object.values(i.gases).reduce((s,v)=>s+v,0),moles=Object.entries(i.gases).reduce((s,[k,v])=>s+v/({hydrogen:.002016,methane:.016043,nitrogen:.028014,oxygen:.031998,carbon_dioxide:.04401}[k]||MW[k]||.02897),0);i.molarMassKgMol=moles>0?mass/moles:.01801528;}
  if(world.climate8j?.schema!==2)initialize(world,i,timeS);
- const c=world.climate8j,seconds=timeS-c.lastS;
+ const c=world.climate8j;
+ if(c.bands.length===6){c.bands=c.bands.flatMap((b,n)=>Array.from({length:4},(_,j)=>({...b,lat:Math.asin(-1+(n*4+j+.5)*2/BANDS),water:Object.fromEntries(Object.entries(b.water).map(([k,v])=>[k,v/4])),controlWater:Object.fromEntries(Object.entries(b.controlWater).map(([k,v])=>[k,v/4]))})));}
+ const seconds=timeS-c.lastS;
  if(seconds<=0)return c;if(seconds>DAY)throw Error('Climate must advance in bounded daily substeps');
- if(c.bands.length!==6||!c.bands.every(b=>finite(b.anomalyK)&&finite(b.deepAnomalyK)&&[b.water,b.controlWater].every(w=>Object.values(w).every(v=>finite(v)&&v>=0))))throw Error('Corrupt coupled climate reservoirs');
- const a=i.area/6,delta=gas=>(world.emittedSpeciesKg?.[gas]||0)-(world.capturedSpeciesKg?.[gas]||0)-(world.baselineCapturedSpeciesKg?.[gas]||0)-(world.escapedSpeciesKg?.[gas]||0);
+ if(c.bands.length!==BANDS||!c.bands.every(b=>finite(b.anomalyK)&&finite(b.deepAnomalyK)&&[b.water,b.controlWater].every(w=>Object.values(w).every(v=>finite(v)&&v>=0))))throw Error('Corrupt coupled climate reservoirs');
+ const a=i.area/BANDS,delta=gas=>(world.emittedSpeciesKg?.[gas]||0)-(world.capturedSpeciesKg?.[gas]||0)-(world.baselineCapturedSpeciesKg?.[gas]||0)-(world.escapedSpeciesKg?.[gas]||0);
  let remaining=seconds;
  while(remaining>1e-8){const dt=Math.min(3600,remaining),now=c.lastS+dt,co2=delta('carbon_dioxide')/i.area,ch4=delta('methane')/i.area,
  co2base=Math.max(.01,(i.gases.carbon_dioxide||0)/i.area),ch4base=Math.max(.001,(i.gases.methane||0)/i.area),
  greenhouse=5.35*Math.log1p(Math.max(-.999999999,co2/co2base))+1.5*Math.log1p(Math.max(-.999999999,ch4/ch4base));
- const old=c.bands.map(b=>b.anomalyK),season=2*Math.PI*now/i.periodS;
- for(let n=0;n<6;n++){
-  const b=c.bands[n],baseT=Math.max(30,i.baselineK+12*Math.cos(b.lat)-9+8*Math.sin(b.lat)*Math.sin(season)*Math.sin(i.tilt)),T=Math.max(3,baseT+b.anomalyK),
-   priorLatent=(LV*(b.water.vaporKg-b.controlWater.vaporKg)-LF*(b.water.iceKg-b.controlWater.iceKg)),
-   controlLatent=waterStep(b.controlWater,baseT,dt,a,profile.surfaceGravityMS2,profile.atmospherePressurePa),
-   forcedLatent=waterStep(b.water,T,dt,a,profile.surfaceGravityMS2,world.pressurePa),latent=forcedLatent-controlLatent,
-   iceDelta=(b.water.iceKg-b.controlWater.iceKg)/Math.max(1,i.waterKg/6),vaporDelta=(b.water.vaporKg-b.controlWater.vaporKg)/a,
+ const old=c.bands.map(b=>b.anomalyK),season=2*Math.PI*now/i.periodS,
+  solar=energy.insolation(flux,BANDS,Math.asin(Math.sin(i.tilt)*Math.sin(season))),transport=energy.transport(old,.6);
+ for(let n=0;n<BANDS;n++){
+  const b=c.bands[n],baseT=Math.max(30,i.baselineK+12*Math.cos(b.lat)-9+8*Math.sin(b.lat)*Math.sin(season)*Math.sin(i.tilt)),
+   iceDelta=(b.water.iceKg-b.controlWater.iceKg)/Math.max(1,i.waterKg/BANDS),vaporDelta=(b.water.vaporKg-b.controlWater.vaporKg)/a,
    cloud=clamp(vaporDelta/20,-.8,.8),albedo=clamp(i.albedo+.3*iceDelta+.15*cloud,.02,.95),
-   insolation=flux/4*Math.max(.15,1+.4*Math.cos(b.lat)+.2*Math.sin(b.lat)*Math.sin(season)*Math.sin(i.tilt)),
    vaporForcing=2*Math.log1p(Math.max(-.999999,vaporDelta/Math.max(.01,b.controlWater.vaporKg/a))),
-   radiation=insolation*(i.albedo-albedo)+greenhouse+vaporForcing-4*SIGMA*Math.pow(Math.max(30,baseT),3)*b.anomalyK,
-   ocean=1.2*(b.anomalyK-b.deepAnomalyK),transport=.6*((n>0?old[n-1]-old[n]:0)+(n<5?old[n+1]-old[n]:0));
-  b.anomalyK+=(dt*(radiation-ocean+transport)-latent/a)/CS;b.deepAnomalyK+=dt*ocean/CO;b.cloudDelta=cloud;
-  c.radiativeJ+=radiation*a*dt;c.latentJ+=latent;
-  // Accounting check uses the change in phase energy, not fictional biomass.
-  if(!finite(priorLatent)||!finite(b.anomalyK)||Math.abs(b.anomalyK)>1e5)throw Error('Climate outside numerical model envelope');
+   forcing=solar[n]*(i.albedo-albedo)+greenhouse+vaporForcing+transport[n],
+   control={...b.controlWater},controlLatent=waterStep(control,baseT,dt,a,profile.surfaceGravityMS2,profile.atmospherePressurePa,i.molarMassKgMol),
+   phase=x=>{const water={...b.water};const work=waterStep(water,Math.max(3,baseT+x),dt,a,profile.surfaceGravityMS2,world.pressurePa,i.molarMassKgMol);return{water,work:(work-controlLatent)/a};},
+   result=energy.thermalStep({surfaceK:b.anomalyK,deepK:b.deepAnomalyK,baseK:baseT,dt,forcingWm2:forcing,surfaceCapacity:CS,deepCapacity:CO,exchange:1.2,latent:x=>phase(x).work}),
+   forced=phase(result.surfaceK);
+  b.anomalyK=result.surfaceK;b.deepAnomalyK=result.deepK;b.water=forced.water;b.controlWater=control;b.cloudDelta=cloud;
+  c.radiativeJ+=(result.radiationWm2-transport[n])*a*dt;c.latentJ+=result.latentJm2*a;
+  if(!finite(b.anomalyK)||Math.abs(b.anomalyK)>1e5)throw Error('Climate outside numerical model envelope');
  }
  // Only introduced atmospheric gas can escape: baseline evolution is paired out.
  // Jeans tail with a separate finite stellar-XUV work budget; never creates gas.
  let escapeBudget=flux*1e-5*i.area/4*.15*dt;
  world.escapedSpeciesKg=world.escapedSpeciesKg||{};
  for(const [gas,mw]of [['hydrogen',.002016],['methane',.016043],['nitrogen',.028014],['oxygen',.031998],['carbon_dioxide',.04401],['carbon_monoxide',.02801]]){
-  const available=Math.max(0,(world.emittedSpeciesKg?.[gas]||0)-(world.capturedSpeciesKg?.[gas]||0)-(world.escapedSpeciesKg[gas]||0)),temperature=Math.max(30,i.baselineK+c.bands.reduce((s,b)=>s+b.anomalyK,0)/6),
+  const available=Math.max(0,(world.emittedSpeciesKg?.[gas]||0)-(world.capturedSpeciesKg?.[gas]||0)-(world.escapedSpeciesKg[gas]||0)),temperature=Math.max(30,i.baselineK+c.bands.reduce((s,b)=>s+b.anomalyK,0)/BANDS),
    binding=profile.mu/profile.radiusM,lambda=binding*mw/(R*temperature),rate=Math.min(1,(1+lambda)*Math.exp(-Math.min(700,lambda)))*1e-6,
    lost=Math.min(available*(-Math.expm1(-rate*dt)),escapeBudget/Math.max(1,binding));
   world.escapedSpeciesKg[gas]=(world.escapedSpeciesKg[gas]||0)+lost;escapeBudget-=lost*binding;c.escapeWorkJ+=lost*binding;c.escapedKg+=lost;
@@ -14321,18 +14385,20 @@ function advance(world,profile,flux,timeS,context){
  const waterDelta=c.bands.reduce((s,b)=>s+b.water.vaporKg-b.controlWater.vaporKg,0);
  world.waterVaporDeltaKg=waterDelta;
  root.StarfallAtmosphereEmission8J.balance(world,profile);
- c.anomalyK=c.bands.reduce((s,b)=>s+b.anomalyK,0)/6;c.deepAnomalyK=c.bands.reduce((s,b)=>s+b.deepAnomalyK,0)/6;
+ c.anomalyK=c.bands.reduce((s,b)=>s+b.anomalyK,0)/BANDS;c.deepAnomalyK=c.bands.reduce((s,b)=>s+b.deepAnomalyK,0)/BANDS;
  c.storedHeatJ=c.bands.reduce((s,b)=>s+a*(CS*b.anomalyK+CO*b.deepAnomalyK)+LV*(b.water.vaporKg-b.controlWater.vaporKg)-LF*(b.water.iceKg-b.controlWater.iceKg),0);
  c.energyResidualJ=c.storedHeatJ-c.radiativeJ-c.initialHeatJ;
- c.cloudDelta=c.bands.reduce((s,b)=>s+b.cloudDelta,0)/6;
- c.iceCoverageDelta=c.bands.reduce((s,b)=>s+(b.water.iceKg-b.controlWater.iceKg)/Math.max(1,i.waterKg/6),0)/6;
+ c.cloudDelta=c.bands.reduce((s,b)=>s+b.cloudDelta,0)/BANDS;
+ c.iceCoverageDelta=c.bands.reduce((s,b)=>s+(b.water.iceKg-b.controlWater.iceKg)/Math.max(1,i.waterKg/BANDS),0)/BANDS;
  c.liquidWaterKg=c.bands.reduce((s,b)=>s+b.water.liquidKg,0);c.surfaceK=i.baselineK+c.anomalyK;
  c.hazeOpacity=-Math.expm1(-1e-5*Math.max(0,root.StarfallAtmosphereEmission8J.massDelta(world))/i.area);
- c.model='Six equal-area latitude bands, paired baseline, finite surface/deep heat, CO2/CH4 opacity, water vapor/cloud/ice albedo, latent heat and XUV-limited Jeans-tail escape; coarse game climate, not a validated GCM';
+ c.solverVersion=energy.VERSION;
+ c.validation={numerics:'analytical EBM, spherical diffusion and water-property benchmarks',forecast:'uncalibrated procedural world',extrapolated:profile.atmospherePressurePa<4e4||profile.atmospherePressurePa>1.5e5||!i.gases.carbon_dioxide||i.gases.carbon_dioxide/world.baselineAtmosphereKg>.003||c.bands.some(b=>i.baselineK+b.anomalyK<110||i.baselineK+b.anomalyK>647.096)||Math.abs(c.anomalyK)>30,provenance:i.provenance};
+ c.model='Benchmark-verified nonlinear energy balance; 24 equal-area latitude bands, paired baseline, finite surface/deep heat, CO2/CH4 opacity, water vapor/cloud/ice albedo, latent heat and XUV-limited Jeans-tail escape; coarse game climate, not a validated GCM';
  return c;
 }
-function sample(world,dir){const c=world?.climate8j;if(c?.schema!==2)return null;const n=Array.isArray(dir)?clamp(Math.floor((dir[1]/(Math.hypot(...dir)||1)+1)*3),0,5):-1,b=c.bands[n];return{anomalyK:b?.anomalyK??c.anomalyK,cloudDelta:b?.cloudDelta??c.cloudDelta,iceCoverageDelta:c.iceCoverageDelta};}
-root.StarfallCoupledClimate8J=Object.freeze({advance,inputs,sample,CS,CO,LF,LV});
+function sample(world,dir){const c=world?.climate8j;if(c?.schema!==2)return null;const n=Array.isArray(dir)?clamp(Math.floor((dir[1]/(Math.hypot(...dir)||1)+1)*c.bands.length/2),0,c.bands.length-1):-1,b=c.bands[n];return{anomalyK:b?.anomalyK??c.anomalyK,cloudDelta:b?.cloudDelta??c.cloudDelta,iceCoverageDelta:c.iceCoverageDelta};}
+root.StarfallCoupledClimate8J=Object.freeze({advance,inputs,sample,waterStep,CS,CO,LF,LV});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallCoupledClimate8J;
 })(globalThis);
 
@@ -26220,7 +26286,7 @@ function refresh(){const r=root.StarfallRuntime;if(!r?.industryCompletion8K)retu
  const a=r.physical8a.list(),body=r.nearest?.id,v=a.filter(x=>x.type==='industrial_vessel'&&x.location?.bodyId===body),h=root.StarfallOutpostUI?.store.items.filter(x=>x.kind==='hab'&&x.bodyId===body)||[];
  fill(collector,a.filter(x=>x.state?.station==='atmospheric_capture'&&x.location?.bodyId===body));fill(stage,a.filter(x=>x.type==='rocket_stage_dry'&&x.location?.bodyId===body));fill(hydrogen,v.filter(x=>x.state.materialId==='hydrogen'));fill(oxygen,v.filter(x=>x.state.materialId==='oxygen'));fill(capture,v.map(x=>({...x,label:x.id+' · '+x.state.materialId})));fill(hab,h);
  const view=r.planetaryEngineeringView(body);
- readout.textContent='PLANET DELTA '+(view?view.pressureDeltaPa.toExponential(5)+' Pa · thermal anomaly '+view.anomalyK.toExponential(5)+' K · added-column optical opacity '+view.hazeOpacity.toExponential(5):'No recorded intervention')+(view?.climate?.schema===2?' · clouds Δ '+view.cloudDelta.toExponential(3)+' · ice Δ '+view.iceCoverageDelta.toExponential(3)+' · escaped '+view.climate.escapedKg.toExponential(3)+' kg · energy residual '+view.climate.energyResidualJ.toExponential(3)+' J':'')+'\n'+a.filter(x=>x.state.orbital8g).map(x=>x.id+' · conditioned H2 '+x.state.orbital8g.hydrogenKg.toFixed(3)+' kg · vented '+x.state.orbital8g.ventedKg.toFixed(3)+' kg').join('\n')+'\n'+h.map(x=>{const c=x.habT09?.regenerative8i,g=x.habT09?.greenhouse8i;return x.id+' · '+(c?'REGENERATIVE · biomass '+g.cropBiomassKg.toFixed(5)+' kg · wastewater '+c.wasteWaterKg.toFixed(5)+' kg · brine '+c.brineKg.toFixed(5)+' kg · reclaimed '+c.recoveredWaterKg.toFixed(5)+' kg · latest food deficit '+(c.lastStarvedMol||0).toExponential(3)+' mol':'No manufactured recycler installed');}).join('\n');
+ readout.textContent='PLANET DELTA '+(view?view.pressureDeltaPa.toExponential(5)+' Pa · thermal anomaly '+view.anomalyK.toExponential(5)+' K · added-column optical opacity '+view.hazeOpacity.toExponential(5):'No recorded intervention')+(view?.climate?.schema===2?' · clouds Δ '+view.cloudDelta.toExponential(3)+' · ice Δ '+view.iceCoverageDelta.toExponential(3)+' · escaped '+view.climate.escapedKg.toExponential(3)+' kg · energy residual '+view.climate.energyResidualJ.toExponential(3)+' J':'')+(view?.climate?.validation?'\nCLIMATE v'+view.climate.solverVersion+' · solver benchmarks verified · world inputs inferred'+(view.climate.validation.extrapolated?' · outside benchmark regime':''):'')+'\n'+a.filter(x=>x.state.orbital8g).map(x=>x.id+' · conditioned H2 '+x.state.orbital8g.hydrogenKg.toFixed(3)+' kg · vented '+x.state.orbital8g.ventedKg.toFixed(3)+' kg').join('\n')+'\n'+h.map(x=>{const c=x.habT09?.regenerative8i,g=x.habT09?.greenhouse8i;return x.id+' · '+(c?'REGENERATIVE · biomass '+g.cropBiomassKg.toFixed(5)+' kg · wastewater '+c.wasteWaterKg.toFixed(5)+' kg · brine '+c.brineKg.toFixed(5)+' kg · reclaimed '+c.recoveredWaterKg.toFixed(5)+' kg · latest food deficit '+(c.lastStarvedMol||0).toExponential(3)+' mol':'No manufactured recycler installed');}).join('\n');
 }
 let last=0;function tick(t){if(t-last>1000){last=t;if(!section.closest('[hidden]'))refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 root.StarfallIndustryCompletionUI8K={refresh};

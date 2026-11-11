@@ -22,6 +22,8 @@ jobs:
       - run: |
           node tests/industry-completion8k.test.cjs
           node tests/orbital-baseline-climate8k.test.cjs
+          node tests/climate-benchmarks8j.test.cjs
+          node tools/validate-climate8j.cjs artifacts/climate-validation
           node tests/industrial-launch-no-free-rocket8k.test.cjs
           node tests/habitat-t09.test.cjs
           python tools/build-standalone.py
@@ -37,4 +39,6 @@ jobs:
         if: always()
         with:
           name: industry-completion-native-ui
-          path: artifacts/industry-completion/
+          path: |
+            artifacts/industry-completion/
+            artifacts/climate-validation/

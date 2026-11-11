@@ -137,3 +137,8 @@ model and the same persisted gas mass.
 ## Orbital, baseline extraction and coupled climate extension
 
 See [the current source/energy budgets, phase equations, approximations and acceptance scope](docs/ORBITAL-BASELINE-COUPLED-CLIMATE.md). This extends the earlier sounding-only and release-recovery paths. Coupled climate is a conservative coarse game simulation, not a validated GCM.
+
+
+## Climate numerical verification
+
+[Climate validation scope, source equations, numerical tolerances and reproduced results](docs/CLIMATE-VALIDATION.md). Solver v3 uses 24 equal-area bands, spherical diffusion, normalized insolation, nonlinear implicit radiation and enthalpy-coupled phase change. Benchmarks verify the numerical kernel; forecast skill for inferred procedural worlds is not established.

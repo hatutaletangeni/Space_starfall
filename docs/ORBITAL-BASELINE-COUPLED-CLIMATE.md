@@ -22,7 +22,9 @@ Baseline extraction can make the planetary pressure delta **negative**. The same
 
 ## Coupled planetary climate
 
-The runtime uses six equal-area latitude bands with seasonal forcing, finite surface and deep-reservoir heat, conservative inter-band transport, greenhouse forcing from net CO2/CH4 changes, water-vapor/cloud feedback, ice albedo and finite liquid/ice/vapor reservoirs. Phase changes carry latent heat. Below the water triple-point pressure condensate is ice, not a newly created ocean. Accessible water is a declared upper-layer prior capped at 1000 kg/m² and the original CW01 bulk water inventory, not infinite water or an industrial stock grant.
+The numerical kernel has since been upgraded and benchmark-verified; see [the validation report and forecast limits](CLIMATE-VALIDATION.md).
+
+The runtime uses 24 equal-area latitude bands with seasonal forcing, finite surface and deep-reservoir heat, conservative inter-band transport, greenhouse forcing from net CO2/CH4 changes, water-vapor/cloud feedback, ice albedo and finite liquid/ice/vapor reservoirs. Phase changes carry latent heat. Below the water triple-point pressure condensate is ice, not a newly created ocean. Accessible water is a declared upper-layer prior capped at 1000 kg/m² and the original CW01 bulk water inventory, not infinite water or an industrial stock grant.
 
 An evolving control accompanies each intervention so zero industrial intervention produces exactly zero change to legacy temperature/pressure/cloud/ice presentation. Surface/deep sensible heat and latent heat reconcile against net radiative work. Radiative forcing constants (including 5.35 W/m² logarithmic CO2 scaling) are approximate game parameters; extrapolation to alien atmospheres is uncertain. Introduced gases can escape through a bounded Jeans-tail approximation with a separately limited stellar-XUV work budget. This is not a calibrated general circulation model or a claim of real planetary habitability.
 

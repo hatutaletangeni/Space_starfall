@@ -1,0 +1,175 @@
+{
+  "solverVersion": 3,
+  "allPassed": true,
+  "validationLevel": "numerical verification and reference-property checks",
+  "forecastSkillEstablished": false,
+  "results": [
+    {
+      "name": "Spherical solar budget, all tested seasons",
+      "error": 1.7053025658242404e-13,
+      "tolerance": 1e-10,
+      "unit": "W/m²",
+      "pass": true,
+      "scope": "Conservation, not observational validation"
+    },
+    {
+      "name": "North spherical P2 diffusion eigenmode",
+      "error": 2.6978419498391304e-14,
+      "tolerance": 1e-10,
+      "unit": "W/m²",
+      "pass": true,
+      "scope": "Analytical spatial-operator verification; North et al. 1981"
+    },
+    {
+      "name": "No net energy from latitude transport",
+      "error": 1.3322676295501878e-15,
+      "tolerance": 1e-10,
+      "unit": "W/m²",
+      "pass": true,
+      "scope": "Closed polar boundary conservation"
+    },
+    {
+      "name": "Geoffroy two-layer step response, surface",
+      "error": 0.00013652568895761164,
+      "tolerance": 0.001,
+      "unit": "K",
+      "pass": true,
+      "scope": "Published EBM equations and reference parameters; not a historical climate hindcast",
+      "samples": [
+        {
+          "years": 1,
+          "surfaceK": 0.4473446582328425,
+          "referenceSurfaceK": 0.4474811839218001,
+          "deepK": 0.00160603974052724,
+          "referenceDeepK": 0.0016023672171694527
+        },
+        {
+          "years": 10,
+          "surfaceK": 1.85220030402638,
+          "referenceSurfaceK": 1.8523351406694137,
+          "deepK": 0.08552462601089818,
+          "referenceDeepK": 0.08552167838385932
+        },
+        {
+          "years": 50,
+          "surfaceK": 2.1948862582632884,
+          "referenceSurfaceK": 2.194887546764026,
+          "deepK": 0.5686508559386799,
+          "referenceDeepK": 0.568654028291098
+        },
+        {
+          "years": 100,
+          "surfaceK": 2.3966934942981974,
+          "referenceSurfaceK": 2.3966955527595357,
+          "deepK": 1.0744786101235746,
+          "referenceDeepK": 1.0744837697645013
+        },
+        {
+          "years": 200,
+          "surfaceK": 2.6941702390579843,
+          "referenceSurfaceK": 2.6941729605477334,
+          "deepK": 1.820119670227433,
+          "referenceDeepK": 1.8201264917839812
+        }
+      ],
+      "fastYears": 3.8828612763366532,
+      "slowYears": 241.5881049013809
+    },
+    {
+      "name": "Geoffroy two-layer step response, deep ocean",
+      "error": 0.000006821556548297636,
+      "tolerance": 0.001,
+      "unit": "K",
+      "pass": true,
+      "scope": "Independent analytical matrix-exponential reference"
+    },
+    {
+      "name": "Two-layer accumulated energy closure",
+      "error": 0.0000820159912109375,
+      "tolerance": 0.01,
+      "unit": "J/m²",
+      "pass": true,
+      "scope": "Sensible storage equals integrated net radiative work"
+    },
+    {
+      "name": "Time-step refinement",
+      "error": 0.0007666269078350219,
+      "tolerance": 0.03,
+      "unit": "ratio error",
+      "pass": true,
+      "scope": "First-order implicit convergence",
+      "dailyErrorK": 0.00013652568895761164,
+      "halfDailyErrorK": 0.00006828902057914865,
+      "ratio": 1.999233373092165
+    },
+    {
+      "name": "Nonlinear blackbody equilibrium",
+      "error": 2.7759483600675594e-10,
+      "tolerance": 0.000001,
+      "unit": "K",
+      "pass": true,
+      "scope": "Independent Stefan-Boltzmann equilibrium",
+      "expectedK": 254.5313641586735,
+      "computedK": 254.53136415839592
+    },
+    {
+      "name": "Earth effective emission temperature consistency",
+      "error": 0.03136415867351161,
+      "tolerance": 0.5,
+      "unit": "K",
+      "pass": true,
+      "scope": "Rounded published TOA budget consistency, not surface-temperature prediction",
+      "computedK": 254.5313641586735,
+      "inputSolarWm2": 1360,
+      "inputAlbedo": 0.3,
+      "observationalTargetK": 254.5
+    },
+    {
+      "name": "Water saturation reference points",
+      "error": 0.000023301712020978845,
+      "tolerance": 0.0001,
+      "unit": "relative",
+      "pass": true,
+      "scope": "IAPWS saturation correlation / rounded thermodynamic check points",
+      "points": [
+        {
+          "T": 273.16,
+          "p": 611.657,
+          "computedPa": 611.6570697405119
+        },
+        {
+          "T": 300,
+          "p": 3536.8,
+          "computedPa": 3536.7175865049244
+        },
+        {
+          "T": 373.1243,
+          "p": 101325,
+          "computedPa": 101325.01516961289
+        },
+        {
+          "T": 647.096,
+          "p": 22064000,
+          "computedPa": 22064000
+        }
+      ]
+    },
+    {
+      "name": "Ice saturation at 200 K",
+      "error": 0.0000014461879153659929,
+      "tolerance": 0.00001,
+      "unit": "Pa",
+      "pass": true,
+      "scope": "Murphy & Koop ice parameterization reproduction; no independent field validation"
+    },
+    {
+      "name": "Microscopic forcing retention",
+      "error": 0,
+      "tolerance": 0,
+      "unit": "failure count",
+      "pass": true,
+      "scope": "Sub-ULP anomaly preserved; no visual amplification",
+      "anomalyK": 4.999998814004279e-28
+    }
+  ]
+}
