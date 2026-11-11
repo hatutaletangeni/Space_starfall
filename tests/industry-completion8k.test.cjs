@@ -120,3 +120,13 @@ test('manufactured flight starts above actual terrain without changing planetary
  close(q.mission.profile.mu,a.body.gravity*9.80665*(a.body.radius*1000)**2);
  F.advance(q.mission.flight,q.mission.profile,1);assert.ok(q.mission.flight.x>a.body.radius*1000+30000);
 });
+
+test('saturated native water and crop storage retain source mass instead of losing overflow on reload',()=>{
+ const G=require('../src/physics/greenhouse8i.js'),q=C.installLoop(loop()),h=q.habitat.habT09;
+ h.waterL=2000;const start=cabinMass(h);C.crew(h,60,true);close(cabinMass(h),start);assert.ok(h.waterL<=2000);
+ assert.ok(h.regenerative8i.wasteWaterKg+h.regenerative8i.brineKg>0);
+ q.habitat.enabled=true;Object.assign(h,{oxygenTankMol:0,tempK:293.15,seal:1});
+ Object.assign(h.greenhouse8i,{cropBiomassKg:5,lastS:0,condition:1,carbonConsumedMol:0,waterConsumedKg:0,oxygenProducedMol:0});
+ const before=structuredClone(h);const out=G.grow(q.habitat,{seconds:10,powered:true,irradianceWm2:1400,nowS:10});
+ assert.equal(out.advanced,false);assert.equal(h.greenhouse8i.cropBiomassKg,5);assert.equal(h.waterL,before.waterL);
+});

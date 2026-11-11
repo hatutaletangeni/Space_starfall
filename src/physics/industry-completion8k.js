@@ -82,10 +82,10 @@ function crew(h,dt,powered){const c=h.regenerative8i,g=h.greenhouse8i;if(!c||!g)
  if(powered&&h.enabled&&h.airlock==='CLOSED'){
   // A 120 W allocation INSIDE the existing 680 W bus, 25 kJ/kg work.
   let workAvailable=120*dt;
-  const feed=Math.min(c.wasteWaterKg,workAvailable/25000),returned=feed*.98;
+  const feed=Math.min(c.wasteWaterKg,workAvailable/25000,Math.max(0,2000-h.waterL)/.98),returned=feed*.98;
   c.wasteWaterKg-=feed;c.brineKg+=feed-returned;h.waterL+=returned;c.recoveredWaterKg+=returned;c.processingJ+=feed*25000;workAvailable-=feed*25000;
   // Idealized distillation of water-only reject. Minerals remain separate.
-  const distilled=Math.min(c.brineKg,workAvailable/2600000);
+  const distilled=Math.min(c.brineKg,workAvailable/2600000,Math.max(0,2000-h.waterL));
   c.brineKg-=distilled;h.waterL+=distilled;c.recoveredWaterKg+=distilled;
   c.processingJ+=distilled*2600000;workAvailable-=distilled*2600000;
   c.availableProcessingJ=Math.max(0,workAvailable);

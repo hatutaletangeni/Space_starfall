@@ -50,7 +50,9 @@ CO2 before the greenhouse can grow. The purchased optical distribution hardware 
 from 6 to 24 m². Native light, temperature, power and food limits still apply.
 Photosynthetic O2 goes into the existing finite oxygen reserve, using 15 kJ/mol
 of the remaining 120 W processing budget; it is not vented into an already
-full cabin. Saturated storage stops that portion of growth. Growth uses external stellar photons; no biomass appears
+full cabin. Saturated storage stops that portion of growth. The regenerative crop store is
+bounded at 5 kg, and purification stops at the native 2,000 L potable capacity;
+excess source water remains in the wastewater/reject reservoirs. Growth uses external stellar photons; no biomass appears
 without them.
 
 Drinking water and metabolic water enter a finite wastewater reservoir. A

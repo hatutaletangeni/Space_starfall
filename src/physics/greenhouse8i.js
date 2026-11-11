@@ -106,7 +106,8 @@ function grow(item,{seconds,powered,irradianceWm2,nowS}){
  const byCarbon=Math.max(0,h.carbonMol),byWater=h.waterL/MOL_WATER_KG,
   byNutrients=g.nutrientKg/NUTRIENT_KG_MOL;
  const oxygenBudget=h.regenerative8i?Math.min(Math.max(0,25000-h.oxygenTankMol),Math.max(0,h.regenerative8i.availableProcessingJ||0)/15000):Infinity;
- const mol=Math.max(0,Math.min(byPhoton,byCarbon,byWater,byNutrients,oxygenBudget));
+ const byStorage=h.regenerative8i?Math.max(0,5-g.cropBiomassKg)/(BIOMASS_KG_MOL+NUTRIENT_KG_MOL):Infinity;
+ const mol=Math.max(0,Math.min(byPhoton,byCarbon,byWater,byNutrients,oxygenBudget,byStorage));
  if(mol<EPS)return{advanced:false,reason:'NO_CO2_WATER_OR_NUTRIENTS',co2Mol:0};
  const water=mol*MOL_WATER_KG,nutrient=mol*NUTRIENT_KG_MOL,
   biomass=mol*BIOMASS_KG_MOL+nutrient;
