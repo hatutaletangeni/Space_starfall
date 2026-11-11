@@ -33,8 +33,13 @@ function evaluate(saved){
  push('survey','Planet-fixed geology surveyed',arr(survey.surveys).length>0,
   'Actual geological observations on a stable body');
  push('mining','Finite ore physically mined and depleted',
-  arr(survey.depletions).some(x=>x?.massKg>0)&&
-  arr(survey.transactions).some(x=>x?.status==='COMMITTED'),
+  // The original 8C extraction owner stores no status field: insertion IS
+  // its commit. Join its identity/quantity to the actual paid 8D history.
+  arr(survey.transactions).some(x=>x?.massKg>0&&
+   arr(survey.depletions).some(d=>d.id===x.siteId&&d.massKg>=x.massKg)&&
+   arr(obj(s.mining8d).history).some(h=>owned(h)&&h.type==='DRILL'&&
+    h.id===x.id&&h.source===x.siteId&&h.destination===x.destinationContainerId&&
+    Math.abs(h.massKg-x.massKg)<1e-8&&h.energyJ>0)),
   'Original surveyed 8C deposit physically depleted by 8D');
  const refined=refinery.filter(owned);
  const rawModes=refined.map(x=>(x.product||'')+' '+(x.mode||''));

@@ -33,7 +33,9 @@ test('8K real provenance only advances inspected phases; cannot assert unassiste
  const s=blank();
  Object.assign(s,{freshExpedition:{schema:1},initialIndustrialManifest8k:{status:'COMMITTED'},
   resources8c:{surveys:[{id:'survey-1'}],depletions:[{id:'d1',massKg:20}],
-    transactions:[{id:'extract-1',status:'COMMITTED'}]},
+    transactions:[{id:'extract-1',siteId:'d1',massKg:20,destinationContainerId:'truck-hopper'}]},
+  mining8d:{history:[{id:'extract-1',type:'DRILL',status:'COMMITTED',source:'d1',
+    destination:'truck-hopper',massKg:20,energyJ:57600}]},
   refinery8e:{receipts:['copper','iron','water'].map((x,i)=>({
    id:'refine-'+i,mode:x+'_separation',product:x,status:'COMMITTED'}))},
   factory8f:{receipts:['copper_wire','populated_board','solar_module'].map((x,i)=>({

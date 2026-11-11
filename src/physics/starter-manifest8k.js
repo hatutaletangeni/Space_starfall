@@ -7,15 +7,15 @@
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-8;
 const CONTENT=Object.freeze([
- ['stocked_chips',.5,.0005,'prelaunch_imported_semiconductors'],
+ ['stocked_chips',8,.008,'prelaunch_finite_imported_semiconductors_400_boards_maximum'],
  ['pv_cells',4,.02,'prelaunch_certified_photovoltaics_for_two_finite_modules'],
- ['discrete_components',1,.002,'prelaunch_electronic_components'],
- ['solder',1,.001,'prelaunch_solder_supply'],
- ['copper',8,.003,'prelaunch_refined_copper_repair_stock'],
- ['aluminum',10,.004,'prelaunch_refined_aluminum_repair_stock'],
+ ['discrete_components',40,.08,'prelaunch_finite_electronic_components'],
+ ['solder',20,.02,'prelaunch_finite_solder_supply'],
+ ['copper',250,.094,'prelaunch_refined_copper_for_first_refineries'],
+ ['aluminum',200,.08,'prelaunch_refined_aluminum_for_first_electrolysis_plant'],
  ['steel',20,.008,'prelaunch_structural_spares'],
- ['glass',8,.004,'prelaunch_verified_glass'],
- ['insulation_polymer',5,.007,'prelaunch_polymer_feedstock'],
+ ['glass',200,.10,'prelaunch_verified_glass_for_first_glass_furnace'],
+ ['insulation_polymer',200,.28,'prelaunch_finite_polymer_no_local_synthesis_claim'],
  ['crop_seeds',.05,.0001,'prelaunch_biological_seed_packet'],
  ['fertilizer',2,.002,'prelaunch_finite_plant_nutrients'],
  ['zeolite',5,.005,'prelaunch_sorbent_mineral'],
@@ -24,9 +24,9 @@ const CONTENT=Object.freeze([
  ['electrode_active',9.6,.006,'prelaunch_certified_cell_electrode_mix_single_pack_only'],
  ['encapsulant',1.2,.002,'prelaunch_certified_photovoltaic_uv_encapsulant_two_modules_only'],
  ['separator',1,.002,'prelaunch_battery_separator'],
- ['refractory_block',10,.005,'prelaunch_firebrick_spares'],
- ['laminate',1,.002,'prelaunch_electrical_laminate'],
- ['etchant',1,.001,'prelaunch_reaction_consumable'],
+ ['refractory_block',1400,.70,'prelaunch_finite_firebrick_no_local_ceramic_process'],
+ ['laminate',160,.32,'prelaunch_finite_electrical_laminate_400_boards_maximum'],
+ ['etchant',30,.03,'prelaunch_finite_reaction_consumable'],
  ['carbon',3,.002,'prelaunch_reductant'],
  ['water',50,.05,'prelaunch_sealed_water_stock'],
  // These are SEALED, physically shipped premanufactured machine kits, NOT
@@ -35,6 +35,14 @@ const CONTENT=Object.freeze([
  ['machine_kit_extruder',160,.30,'prelaunch_finite_polymer_extruder_kit_uninstalled'],
  ['machine_kit_laminator',210,.39,'prelaunch_finite_pv_laminator_kit_uninstalled'],
  ['machine_kit_battery',260,.44,'prelaunch_finite_cell_assembly_kit_uninstalled'],
+ // The first furnace cannot be made from metals that only that furnace can
+ // refine. These finite, UNINSTALLED imports break that dependency without
+ // granting ore, finished vehicles, installed power or chemistry receipts.
+ ['plant_kit_reduction_furnace',1100,3.4,'prelaunch_finite_first_smelter_kit_uninstalled'],
+ ['vessel_kit_carbon_monoxide',170,4,'prelaunch_finite_empty_reduction_byproduct_vessel_kit'],
+ ['plant_kit_pressure_pipeline',320,.95,'prelaunch_finite_first_byproduct_pipe_kit_uninstalled'],
+ ['machine_kit_cnc',220,.42,'prelaunch_finite_first_precision_tool_kit_uninstalled'],
+ ['drill_head',4,.001,'prelaunch_two_finite_replacement_drill_heads'],
 ]);
 const SUM=Object.freeze({massKg:CONTENT.reduce((s,x)=>s+x[1],0),
  volumeM3:CONTENT.reduce((s,x)=>s+x[2],0),uniqueLots:CONTENT.length});
@@ -63,7 +71,7 @@ function prepare(saved,expedition,oldReceipt,shipContainerId){
   materials.importLot({id:'8k:manifest:'+materialId,materialId,containerId:shipContainerId,
    massKg,volumeM3,grade:1,provenance:origin+':'+source});
  }
- const receipt={schema:1,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
+ const receipt={schema:1,manifestVersion:2,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
   seed:expedition.seed,startedAt:expedition.startedAt,status:'COMMITTED',source:origin,
   sourceStatement:'Pre-manufactured finite ship-owned cargo before expedition launch, NOT in-situ manufacture',
   destinationContainerId:shipContainerId,massKg:SUM.massKg,volumeM3:SUM.volumeM3,

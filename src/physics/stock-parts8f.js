@@ -5,6 +5,9 @@
  */
 (function(root){'use strict';
 const RECIPES=Object.freeze({
+ drill_head:{category:'mining_service',station:'machine',tool:'cnc',
+  inputs:{steel:2.2},outputs:{drill_head:2},powerW:1700,seconds:240,toleranceMm:.2,
+  engineeringNote:'Replaceable steel cutting-head prototype with tracked swarf. Alloy selection, heat treatment and cutting life are simplified, not certified rock-drill performance.'},
  copper_busbar:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.5},outputs:{copper_busbar:.48},powerW:420,seconds:95,toleranceMm:.8},
  copper_contact:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.2},outputs:{copper_contact:.19},powerW:360,seconds:70,toleranceMm:.5},
  aluminum_frame:{category:'lightweight_structure',station:'bench',tool:'hand-shear',

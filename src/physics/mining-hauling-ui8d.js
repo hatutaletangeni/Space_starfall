@@ -17,9 +17,12 @@ const controls=document.createElement('div');controls.className='obs-tools';
 const drill=document.createElement('button');drill.type='button';drill.className='science-action';drill.textContent='START 20 KG BORE / 24 S';
 const load=document.createElement('button');load.type='button';load.className='science-action';load.textContent='LOAD 50 KG INTO SHIP / 16 S';
 const cancel=document.createElement('button');cancel.type='button';cancel.className='science-action';cancel.textContent='CANCEL MACHINE CYCLE';
+const service=document.createElement('button');service.type='button';service.className='science-action';
+service.textContent='REPLACE DRILL HEAD / 60 S';
+service.title='Uses one certified 2 kg ship-held head and 120 kJ truck battery; returns the worn head as scrap. Fabricate replacements with the CNC.';
 const lotPicker=document.createElement('select');lotPicker.setAttribute('aria-label','Truck cargo lot for physical loader');
 lotPicker.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
-controls.append(drill,lotPicker,load,cancel);
+controls.append(drill,lotPicker,load,service,cancel);
 let lastLots='';
 function refresh(){
  const r=rt();if(!r?.mining8d||!r.materials8a){readout.textContent='Waiting for authoritative 8D runtime';return;}
@@ -46,10 +49,19 @@ function refresh(){
  'OPERATOR    '+(ctx.operatorNear?'NEAR TRUCK':'TOO FAR / NOT ON FOOT OR IN CAB')+
  '  |  SHIP LOADER '+(ctx.truckNearShip?'IN RANGE':'OUT OF RANGE')+'\n'+
  'CYCLE       '+(op?op.type+' · '+(100*op.elapsedS/op.durationS).toFixed(1)+'% · '+op.energyJ.toFixed(0)+' J consumed':'IDLE')+'\n'+
- 'TRUCK LOTS  '+lots.length+'  |  SHIP LOTS '+shipped.length;
- drill.disabled=!!op||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||!survey||remaining<StarfallMining8D.DRILL.kgPerBatch;
+ 'TRUCK LOTS  '+lots.length+'  |  SHIP LOTS '+shipped.length+'\n'+
+ 'SPARE HEADS '+Math.floor(shipped.filter(l=>l.materialId==='drill_head'&&l.grade>=.98)
+  .reduce((n,l)=>n+l.massKg,0)/StarfallMining8D.SERVICE.headMassKg)+' · manufacture DRILL HEAD at installed CNC';
+ drill.disabled=!!op||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||!survey||remaining<StarfallMining8D.DRILL.kgPerBatch||r.mining8d.toolCondition<.1||ctx.energyJ<StarfallMining8D.DRILL.minimumEnergyJ;
  load.disabled=!!op||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||!ctx.truckNearShip||!lots.length;
  cancel.disabled=!op;
+ const head=shipped.find(l=>l.materialId==='drill_head'&&l.grade>=.98&&
+  l.massKg-r.materials8a.operations().filter(o=>o.status==='RESERVED'&&o.lotId===l.id)
+   .reduce((n,o)=>n+o.massKg,0)>=StarfallMining8D.SERVICE.headMassKg);
+ service.dataset.lotId=head?.id||'';
+ service.disabled=!!op||!head||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||
+  !ctx.truckNearShip||ctx.shipBodyId!==ctx.bodyId||r.mining8d.toolCondition>=1-1e-8||
+  ctx.energyJ<StarfallMining8D.SERVICE.minimumEnergyJ;
 }
 function action(fn){try{const result=fn();status.textContent='8D · '+(result?.type||'Operation')+' accepted. Progress only advances while you remain physically at the truck with electrical power.';}catch(e){status.textContent='8D · '+String(e?.message||e);}refresh();}
 drill.addEventListener('click',()=>action(()=>rt().miningStart8D()));
@@ -59,6 +71,7 @@ load.addEventListener('click',()=>action(()=>{
  return rt().miningLoad8D(lot.id,Math.min(50,lot.massKg));
 }));
 cancel.addEventListener('click',()=>action(()=>rt().miningCancel8D()));
+service.addEventListener('click',()=>action(()=>rt().miningService8D(service.dataset.lotId)));
 panel.append(title,status,controls,readout);host.append(panel);
 let last=0;const check=()=>{const t=performance.now();if(t-last>500){last=t;refresh();}requestAnimationFrame(check);};check();
 root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Operate');panel.scrollIntoView({block:'nearest'});refresh();}};

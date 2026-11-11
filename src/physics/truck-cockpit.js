@@ -32,6 +32,7 @@ panel.innerHTML=`
   <div class="sft-tools">
    <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
    <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+   <button type="button" data-truck-action="SERVICE">REPLACE DRILL HEAD</button>
    <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
   </div>
   <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
@@ -80,6 +81,7 @@ function refresh(force=false){
  buttons.EXIT.disabled=!info.canExit;
  buttons.MINE.disabled=!info.canDrill;
  buttons.LOAD.disabled=!info.canLoad;
+ buttons.SERVICE.disabled=!info.canService;
  buttons.CANCEL.disabled=!info.cycle;
  buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
  buttons.SHORE.textContent=info.shoreCrawl?'SHORE CRAWL ON':'SHORE CRAWL';

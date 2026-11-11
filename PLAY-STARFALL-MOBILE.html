@@ -7399,6 +7399,7 @@ const TRUCK='8d:truck-expedition-001:hopper',SHIP='8d:ship-main:materials';
 const LIMITS=Object.freeze({truckMassKg:800,truckVolumeM3:1.2,shipMassKg:9000,shipVolumeM3:16});
 const DRILL=Object.freeze({kitId:'drill-truck-001',kgPerBatch:20,durationS:24,powerW:2400,minimumEnergyJ:57600,volumeM3PerKg:.00058});
 const LOADER=Object.freeze({kgPerBatch:50,durationS:16,powerW:1400,volumeM3PerKg:.00058});
+const SERVICE=Object.freeze({headMassKg:2,durationS:60,powerW:2000,minimumEnergyJ:120000});
 const clone=v=>JSON.parse(JSON.stringify(v));
 const finite=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
 const idok=n=>typeof n==='string'&&n.length>0&&n.length<=128;
@@ -7411,13 +7412,34 @@ function prepareContainers(materials){
 function normalize(saved){
  if(saved==null)return{schema:1,sequence:0,toolCondition:1,active:null,history:[]};
  if(saved.schema!==1||!Number.isSafeInteger(saved.sequence)||saved.sequence<0||!Array.isArray(saved.history)||saved.history.length>500||!saved.history.every(h=>idok(h.id)&&idok(h.type))||(saved.toolCondition!==undefined&&(!finite(saved.toolCondition)||saved.toolCondition>1))||
-  (saved.active!==null&&saved.active!==undefined&&(!idok(saved.active.id)||!['DRILL','LOAD'].includes(saved.active.type)||!finite(saved.active.elapsedS)||!finite(saved.active.energyJ)||!finite(saved.active.durationS))))throw Error('Corrupt 8D mining save — do not reset stock');
+  (saved.active!==null&&saved.active!==undefined&&(!idok(saved.active.id)||!['DRILL','LOAD','SERVICE'].includes(saved.active.type)||!finite(saved.active.elapsedS)||!finite(saved.active.energyJ)||!finite(saved.active.durationS))))throw Error('Corrupt 8D mining save — do not reset stock');
  return {schema:1,sequence:saved.sequence,toolCondition:saved.toolCondition===undefined?1:saved.toolCondition,active:saved.active?clone(saved.active):null,history:clone(saved.history)};
 }
 function create(saved,Materials,Resources){
  let state=normalize(saved);
  const inventoryFactory=Materials,resourceFactory=Resources;
  function snapshot(){return clone(state);}
+ function serviceHead(materials,lotId){
+  const s=materials.snapshot(),lot=s.lots.find(l=>l.id===lotId&&l.containerId===SHIP&&l.materialId==='drill_head');
+  const held=s.operations.filter(o=>o.status==='RESERVED'&&o.lotId===lotId).reduce((n,o)=>n+o.massKg,0);
+  if(!lot||!finite(lot.grade)||lot.grade<.98||lot.massKg-held+1e-8<SERVICE.headMassKg)
+   throw Error('One unreserved certified 2 kg drill head must be physically aboard ship');
+  return lot;
+ }
+ function startService({lotId,materials,bodyId,truckBodyId,shipBodyId,truckPresent,
+  truckNearShip,operatorNear,truckIdle=true,energyJ}){
+  if(state.active)throw Error('Finish or cancel the current operation');
+  if(!idok(bodyId)||truckBodyId!==bodyId||shipBodyId!==bodyId||!truckPresent||
+   !truckNearShip||!operatorNear||!truckIdle)
+   throw Error('Park the original truck near landed ship and remain beside it for drill service');
+  if(state.toolCondition>=1-1e-8)throw Error('Drill head is already in full condition');
+  if(!finite(energyJ)||energyJ<SERVICE.minimumEnergyJ)throw Error('Truck battery too low for drill service');
+  serviceHead(materials,lotId);
+  state.sequence++;
+  state.active={id:'8d:service:'+state.sequence,type:'SERVICE',bodyId,lotId,
+   massKg:SERVICE.headMassKg,durationS:SERVICE.durationS,powerW:SERVICE.powerW,elapsedS:0,energyJ:0};
+  return clone(state.active);
+ }
  function startDrill({deposit,surveyed,bodyId,truckBodyId,truckPresent,operatorNear,energyJ,truckIdle=true}){
   if(state.active)throw Error('Finish or cancel the current operation');
   if(state.toolCondition<.1)throw Error('Drill head worn below safe operating condition; service required');
@@ -7453,8 +7475,8 @@ function create(saved,Materials,Resources){
  function commit(materials,resources){
   const a=state.active;
   if(!a||a.elapsedS+1e-6<a.durationS)throw Error('8D machine cycle incomplete');
-  const nextMaterials=prepareContainers(inventoryFactory.create(materials.snapshot())),
-        nextResources=resourceFactory.create(resources.serialize());
+  let nextMaterials=prepareContainers(inventoryFactory.create(materials.snapshot()));
+  const nextResources=resourceFactory.create(resources.serialize());
   if(a.type==='DRILL'){
    const d=a.deposit;if(d.id!==a.siteId||d.bodyId!==a.bodyId||d.type!==a.materialId)throw Error('Drill target identity mismatch');
    if(nextResources.remaining(d)<a.massKg)throw Error('Insufficient unmined deposit mass');
@@ -7469,6 +7491,21 @@ function create(saved,Materials,Resources){
    if(a.massKg>lot.massKg+1e-8)throw Error('Truck material was consumed before loading');
    nextMaterials.reserve(a.id,a.lotId,SHIP,a.massKg);
    nextMaterials.commit(a.id);
+  }else if(a.type==='SERVICE'){
+   if(a.energyJ+1e-6<SERVICE.minimumEnergyJ)throw Error('Drill service energy not paid');
+   serviceHead(nextMaterials,a.lotId);
+   const s=nextMaterials.snapshot(),head=s.lots.find(l=>l.id===a.lotId),oldKg=head.massKg;
+   head.massKg-=SERVICE.headMassKg;head.volumeM3*=head.massKg/oldKg;
+   s.lots=s.lots.filter(l=>l.massKg>1e-8);
+   // The paid original truck includes its worn 2 kg head. Swap equal masses;
+   // retired tooling is real scrap, not a refund of a new usable head.
+   s.lots.push({id:'service:'+a.id+':worn-head',materialId:'manufacturing_scrap',
+    containerId:SHIP,massKg:SERVICE.headMassKg,volumeM3:.002,
+    grade:0,provenance:'retired-drill-head:'+a.id});
+   s.operations.push({id:a.id,kind:'DRILL_SERVICE_8D',status:'COMMITTED',
+    sourceLotId:a.lotId,massKg:SERVICE.headMassKg,energyJ:a.energyJ,bodyId:a.bodyId});
+   nextMaterials=inventoryFactory.create(s); // Capacity/identity before changing condition.
+   state.toolCondition=1;
   }else throw Error('Unknown 8D operation');
   state.history.push({id:a.id,type:a.type,status:'COMMITTED',massKg:a.massKg,
    source:a.type==='DRILL'?a.siteId:a.lotId,destination:a.type==='DRILL'?TRUCK:SHIP,energyJ:a.energyJ});
@@ -7477,9 +7514,11 @@ function create(saved,Materials,Resources){
   return {materials:nextMaterials,resources:nextResources,operation:clone(state.history[state.history.length-1])};
  }
  function receipt(id){return state.history.find(h=>h.id===id)?clone(state.history.find(h=>h.id===id)):null;}
- return Object.freeze({startDrill,startLoad,advance,commit,cancel,snapshot,receipt,get toolCondition(){return state.toolCondition;},get active(){return state.active?clone(state.active):null;}});
+ return Object.freeze({startDrill,startLoad,startService,advance,commit,cancel,snapshot,receipt,
+  apply:saved=>{state=normalize(saved);},
+  get toolCondition(){return state.toolCondition;},get active(){return state.active?clone(state.active):null;}});
 }
-root.StarfallMining8D=Object.freeze({TRUCK,SHIP,LIMITS,DRILL,LOADER,create,prepareContainers});
+root.StarfallMining8D=Object.freeze({TRUCK,SHIP,LIMITS,DRILL,LOADER,SERVICE,create,prepareContainers});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallMining8D;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
@@ -8225,6 +8264,9 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallKitRe
  */
 (function(root){'use strict';
 const RECIPES=Object.freeze({
+ drill_head:{category:'mining_service',station:'machine',tool:'cnc',
+  inputs:{steel:2.2},outputs:{drill_head:2},powerW:1700,seconds:240,toleranceMm:.2,
+  engineeringNote:'Replaceable steel cutting-head prototype with tracked swarf. Alloy selection, heat treatment and cutting life are simplified, not certified rock-drill performance.'},
  copper_busbar:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.5},outputs:{copper_busbar:.48},powerW:420,seconds:95,toleranceMm:.8},
  copper_contact:{category:'electrical_stock',station:'bench',tool:'hand-shear',inputs:{copper:.2},outputs:{copper_contact:.19},powerW:360,seconds:70,toleranceMm:.5},
  aluminum_frame:{category:'lightweight_structure',station:'bench',tool:'hand-shear',
@@ -12909,15 +12951,15 @@ if(typeof module!=='undefined'&&module.exports)module.exports=api;
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-8;
 const CONTENT=Object.freeze([
- ['stocked_chips',.5,.0005,'prelaunch_imported_semiconductors'],
+ ['stocked_chips',8,.008,'prelaunch_finite_imported_semiconductors_400_boards_maximum'],
  ['pv_cells',4,.02,'prelaunch_certified_photovoltaics_for_two_finite_modules'],
- ['discrete_components',1,.002,'prelaunch_electronic_components'],
- ['solder',1,.001,'prelaunch_solder_supply'],
- ['copper',8,.003,'prelaunch_refined_copper_repair_stock'],
- ['aluminum',10,.004,'prelaunch_refined_aluminum_repair_stock'],
+ ['discrete_components',40,.08,'prelaunch_finite_electronic_components'],
+ ['solder',20,.02,'prelaunch_finite_solder_supply'],
+ ['copper',250,.094,'prelaunch_refined_copper_for_first_refineries'],
+ ['aluminum',200,.08,'prelaunch_refined_aluminum_for_first_electrolysis_plant'],
  ['steel',20,.008,'prelaunch_structural_spares'],
- ['glass',8,.004,'prelaunch_verified_glass'],
- ['insulation_polymer',5,.007,'prelaunch_polymer_feedstock'],
+ ['glass',200,.10,'prelaunch_verified_glass_for_first_glass_furnace'],
+ ['insulation_polymer',200,.28,'prelaunch_finite_polymer_no_local_synthesis_claim'],
  ['crop_seeds',.05,.0001,'prelaunch_biological_seed_packet'],
  ['fertilizer',2,.002,'prelaunch_finite_plant_nutrients'],
  ['zeolite',5,.005,'prelaunch_sorbent_mineral'],
@@ -12926,9 +12968,9 @@ const CONTENT=Object.freeze([
  ['electrode_active',9.6,.006,'prelaunch_certified_cell_electrode_mix_single_pack_only'],
  ['encapsulant',1.2,.002,'prelaunch_certified_photovoltaic_uv_encapsulant_two_modules_only'],
  ['separator',1,.002,'prelaunch_battery_separator'],
- ['refractory_block',10,.005,'prelaunch_firebrick_spares'],
- ['laminate',1,.002,'prelaunch_electrical_laminate'],
- ['etchant',1,.001,'prelaunch_reaction_consumable'],
+ ['refractory_block',1400,.70,'prelaunch_finite_firebrick_no_local_ceramic_process'],
+ ['laminate',160,.32,'prelaunch_finite_electrical_laminate_400_boards_maximum'],
+ ['etchant',30,.03,'prelaunch_finite_reaction_consumable'],
  ['carbon',3,.002,'prelaunch_reductant'],
  ['water',50,.05,'prelaunch_sealed_water_stock'],
  // These are SEALED, physically shipped premanufactured machine kits, NOT
@@ -12937,6 +12979,14 @@ const CONTENT=Object.freeze([
  ['machine_kit_extruder',160,.30,'prelaunch_finite_polymer_extruder_kit_uninstalled'],
  ['machine_kit_laminator',210,.39,'prelaunch_finite_pv_laminator_kit_uninstalled'],
  ['machine_kit_battery',260,.44,'prelaunch_finite_cell_assembly_kit_uninstalled'],
+ // The first furnace cannot be made from metals that only that furnace can
+ // refine. These finite, UNINSTALLED imports break that dependency without
+ // granting ore, finished vehicles, installed power or chemistry receipts.
+ ['plant_kit_reduction_furnace',1100,3.4,'prelaunch_finite_first_smelter_kit_uninstalled'],
+ ['vessel_kit_carbon_monoxide',170,4,'prelaunch_finite_empty_reduction_byproduct_vessel_kit'],
+ ['plant_kit_pressure_pipeline',320,.95,'prelaunch_finite_first_byproduct_pipe_kit_uninstalled'],
+ ['machine_kit_cnc',220,.42,'prelaunch_finite_first_precision_tool_kit_uninstalled'],
+ ['drill_head',4,.001,'prelaunch_two_finite_replacement_drill_heads'],
 ]);
 const SUM=Object.freeze({massKg:CONTENT.reduce((s,x)=>s+x[1],0),
  volumeM3:CONTENT.reduce((s,x)=>s+x[2],0),uniqueLots:CONTENT.length});
@@ -12965,7 +13015,7 @@ function prepare(saved,expedition,oldReceipt,shipContainerId){
   materials.importLot({id:'8k:manifest:'+materialId,materialId,containerId:shipContainerId,
    massKg,volumeM3,grade:1,provenance:origin+':'+source});
  }
- const receipt={schema:1,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
+ const receipt={schema:1,manifestVersion:2,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
   seed:expedition.seed,startedAt:expedition.startedAt,status:'COMMITTED',source:origin,
   sourceStatement:'Pre-manufactured finite ship-owned cargo before expedition launch, NOT in-situ manufacture',
   destinationContainerId:shipContainerId,massKg:SUM.massKg,volumeM3:SUM.volumeM3,
@@ -13840,8 +13890,13 @@ function evaluate(saved){
  push('survey','Planet-fixed geology surveyed',arr(survey.surveys).length>0,
   'Actual geological observations on a stable body');
  push('mining','Finite ore physically mined and depleted',
-  arr(survey.depletions).some(x=>x?.massKg>0)&&
-  arr(survey.transactions).some(x=>x?.status==='COMMITTED'),
+  // The original 8C extraction owner stores no status field: insertion IS
+  // its commit. Join its identity/quantity to the actual paid 8D history.
+  arr(survey.transactions).some(x=>x?.massKg>0&&
+   arr(survey.depletions).some(d=>d.id===x.siteId&&d.massKg>=x.massKg)&&
+   arr(obj(s.mining8d).history).some(h=>owned(h)&&h.type==='DRILL'&&
+    h.id===x.id&&h.source===x.siteId&&h.destination===x.destinationContainerId&&
+    Math.abs(h.massKg-x.massKg)<1e-8&&h.energyJ>0)),
   'Original surveyed 8C deposit physically depleted by 8D');
  const refined=refinery.filter(owned);
  const rawModes=refined.map(x=>(x.product||'')+' '+(x.mode||''));
@@ -14247,7 +14302,7 @@ function updateVehicleSystems(dt){
      level:modularShip8e.describe('life').level});
  }
  engineeringSystemSeconds+=elapsed;
- miningAdvance8D(dt);
+ miningAdvance8D(elapsed);
  refineryAdvance8E(elapsed);
  industrialAdvance8E(elapsed);
  factoryAdvance8F(elapsed);
@@ -17481,6 +17536,9 @@ function truckHudInfo(){
  const ctx=miningContext8D(),site=miningDeposit8D(),op=mining8d.active;
  const surveyed=!!site&&resources8c.observations().some(x=>x.siteId===site.id);
  const lots=materials8a.inventory(StarfallMining8D.TRUCK),moving=keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown');
+ const spareHead=materials8a.inventory(StarfallMining8D.SHIP).find(l=>l.materialId==='drill_head'&&
+  l.grade>=.98&&l.massKg-materials8a.operations().filter(o=>o.status==='RESERVED'&&o.lotId===l.id)
+   .reduce((n,o)=>n+o.massKg,0)>=StarfallMining8D.SERVICE.headMassKg);
  return {occupied:truckOccupied,cargoMode:cargo8b.mode,onRamp:cargo8b.mode==='ramp',
   world:nearest?.name||'Unknown',batteryJ:truckBatteryJ,batteryPct:Math.round(truckBatteryJ/44e6*100),
   hopperKg:hopper.massKg,hopperLimitKg:StarfallMining8D.LIMITS.truckMassKg,
@@ -17492,6 +17550,10 @@ function truckHudInfo(){
   canDrill:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&surveyed&&site&&
     resources8c.remaining(site)>=StarfallMining8D.DRILL.kgPerBatch&&truckBatteryJ>=StarfallMining8D.DRILL.minimumEnergyJ&&mining8d.toolCondition>=.1),
   canLoad:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&ctx.operatorNear&&ctx.truckNearShip&&lots.length),
+  serviceHeadLotId:spareHead?.id||null,
+  canService:!!(truckOccupied&&cargo8b.mode==='ground'&&!op&&ctx.truckPresent&&ctx.truckIdle&&
+   ctx.operatorNear&&ctx.truckNearShip&&ctx.shipBodyId===ctx.bodyId&&spareHead&&
+   mining8d.toolCondition<1-1e-8&&truckBatteryJ>=StarfallMining8D.SERVICE.minimumEnergyJ),
   lots:lots.map(l=>({id:l.id,materialId:l.materialId,massKg:l.massKg})),
   hint:cargo8b.mode==='ramp'?(cargo8b.pose.z<=BAY8B.BAY.rearZ-BAY8B.BAY.vehicleLength/2+.01?'PARKED ON DECK · EXIT TO SHIP INTERIOR':'MOVE FULLY INTO BAY OR REVERSE OFF RAMP'):
    op?op.type+' '+Math.round(op.elapsedS/op.durationS*100)+'% · KEEP PARKED':
@@ -17514,6 +17576,10 @@ function truckHudAction(action,lotId){
   return miningLoad8D(lot.id,Math.min(50,lot.massKg));
  }
  if(action==='CANCEL')return miningCancel8D();
+ if(action==='SERVICE'){
+  const info=truckHudInfo();if(!info.canService)throw Error('Park beside landed ship with a certified spare drill head and 120 kJ battery');
+  return miningService8D(info.serviceHeadLotId);
+ }
  throw Error('Unknown truck action');
 }
 function shipHoldFor8H(lotId){
@@ -17573,21 +17639,42 @@ function miningLoad8D(lotId,massKg=50){
  saveFlight();return result;
 }
 function miningCancel8D(){if(!mining8d.cancel())return false;saveFlight();return true;}
+function miningService8D(lotId){
+ const ctx=miningContext8D(),before=mining8d.snapshot();
+ const result=mining8d.startService({...ctx,lotId,materials:materials8a});
+ let durable=false;try{durable=saveFlight()===true;}catch(error){console.error(error);}
+ if(!durable){mining8d.apply(before);throw Error('Drill service could not be saved; no stock consumed');}
+ return result;
+}
 function miningAdvance8D(dt){
  if(!mining8d.active)return;
  const ctx=miningContext8D(),active=mining8d.active;
  const canRun=ctx.truckPresent&&ctx.operatorNear&&ctx.truckIdle&&ctx.truckBodyId===active.bodyId&&
   (active.type==='DRILL'?miningDeposit8D()?.id===active.siteId:ctx.truckNearShip&&ctx.shipBodyId===active.bodyId);
  try{
-  const result=mining8d.advance(Math.min(dt,.04),truckBatteryJ,{enabled:canRun});
+  // The render loop caps wall dt at .04 s and KeyT at 100x: at most two
+  // bounded 2 s model steps cover the full native-clock interval.
+  let result={usedJ:0,completed:false},remaining=Math.min(dt,4);
+  while(remaining>1e-9){
+   const seconds=Math.min(remaining,2),step=mining8d.advance(seconds,
+    Math.max(0,truckBatteryJ-result.usedJ),{enabled:canRun});
+   result.usedJ+=step.usedJ;result.completed=step.completed;remaining-=seconds;
+   if(step.completed||step.paused)break;
+  }
   truckBatteryJ=Math.max(0,truckBatteryJ-result.usedJ);
   if(result.completed){
    // Both authoritative resources are validated on independent clones and
    // swapped only after the transaction succeeds; one SF.save persists all.
+   const before=mining8d.snapshot(),oldMaterials=materials8a,oldResources=resources8c;
    const committed=mining8d.commit(materials8a,resources8c);
    materials8a=committed.materials;resources8c=committed.resources;
    // Preserve separately saved legacy truck payload; extracted ore is in 8A lots.
-   saveFlight();showToast('8D · '+committed.operation.type+' completed · '+committed.operation.massKg+' kg stock conserved');
+   let durable=false;try{durable=saveFlight()===true;}catch(error){console.error(error);}
+   if(!durable){
+    mining8d.apply(before);materials8a=oldMaterials;resources8c=oldResources;
+    throw Error('8D completion not durable; paid cycle held for retry');
+   }
+   showToast('8D · '+committed.operation.type+' completed · '+committed.operation.massKg+' kg stock conserved');
   }
  }catch(error){console.error('8D operation paused:',error);}
 }
@@ -17842,7 +17929,7 @@ function truckLocator8ER(){
   label:'EXPEDITION TRUCK',bodyId:body.id,atWater:!!window.StarfallHydrosphereLW04?.sample(body,actualLocal,groundHeight(actualLocal,body),simTime,GALAXY_SEED)?.hasWater};
 }
 window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
- get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,t02PaidContext8I,t02PaidInstallQuote8I,t02PaidInstallStart8I,t02PaidInstallCancel8I,t02PaidInstallTick8I,habitatCommissionContext8I,habitatCommission8I,habitatSupplyContext8I,habitatSupplyWater8I,habitatScrubberContext8I,habitatSupplyScrubber8I,greenhouseContext8I,greenhouseInstall8I,greenhouseHarvest8I,habitatOxygenContext8I,habitatSupplyOxygen8I,atmosphericContext8J,atmosphericRelease8J,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+ get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,t02PaidContext8I,t02PaidInstallQuote8I,t02PaidInstallStart8I,t02PaidInstallCancel8I,t02PaidInstallTick8I,habitatCommissionContext8I,habitatCommission8I,habitatSupplyContext8I,habitatSupplyWater8I,habitatScrubberContext8I,habitatSupplyScrubber8I,greenhouseContext8I,greenhouseInstall8I,greenhouseHarvest8I,habitatOxygenContext8I,habitatSupplyOxygen8I,atmosphericContext8J,atmosphericRelease8J,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,miningService8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:false,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -17893,6 +17980,7 @@ Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{
  const local=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,-11),radial=V.rot(local,truckBody.spinAxis||[0,1,0],truckBody.spinAngle||0);
  evaLocal=local;pos=V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(local,truckBody)+EVA_HEIGHT));up=radial;evaForward=[...truckForwardVec];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setInteriorPosition(x,z){if(!interiorState||!(interiorState.kind==='cave'?window.StarfallGeologyLW02.canStand:StarfallInteriors.canStand)(interiorState.layout,x,z))throw Error('Not a valid interior floor coordinate');interiorState.at={x,z};const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;camEye=null;},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){if(!Number.isFinite(t)||t<0||t>=1e13)throw Error('Invalid simulation time');simTime=physicsClock.set(t);galaxy.update(simTime);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
 })();
+
 </script><script>
 /* STARFALL 6E: minimal accessible keybinding settings. Loaded after flight. */
 (function(root){'use strict';
@@ -23986,9 +24074,12 @@ const controls=document.createElement('div');controls.className='obs-tools';
 const drill=document.createElement('button');drill.type='button';drill.className='science-action';drill.textContent='START 20 KG BORE / 24 S';
 const load=document.createElement('button');load.type='button';load.className='science-action';load.textContent='LOAD 50 KG INTO SHIP / 16 S';
 const cancel=document.createElement('button');cancel.type='button';cancel.className='science-action';cancel.textContent='CANCEL MACHINE CYCLE';
+const service=document.createElement('button');service.type='button';service.className='science-action';
+service.textContent='REPLACE DRILL HEAD / 60 S';
+service.title='Uses one certified 2 kg ship-held head and 120 kJ truck battery; returns the worn head as scrap. Fabricate replacements with the CNC.';
 const lotPicker=document.createElement('select');lotPicker.setAttribute('aria-label','Truck cargo lot for physical loader');
 lotPicker.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
-controls.append(drill,lotPicker,load,cancel);
+controls.append(drill,lotPicker,load,service,cancel);
 let lastLots='';
 function refresh(){
  const r=rt();if(!r?.mining8d||!r.materials8a){readout.textContent='Waiting for authoritative 8D runtime';return;}
@@ -24015,10 +24106,19 @@ function refresh(){
  'OPERATOR    '+(ctx.operatorNear?'NEAR TRUCK':'TOO FAR / NOT ON FOOT OR IN CAB')+
  '  |  SHIP LOADER '+(ctx.truckNearShip?'IN RANGE':'OUT OF RANGE')+'\n'+
  'CYCLE       '+(op?op.type+' · '+(100*op.elapsedS/op.durationS).toFixed(1)+'% · '+op.energyJ.toFixed(0)+' J consumed':'IDLE')+'\n'+
- 'TRUCK LOTS  '+lots.length+'  |  SHIP LOTS '+shipped.length;
- drill.disabled=!!op||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||!survey||remaining<StarfallMining8D.DRILL.kgPerBatch;
+ 'TRUCK LOTS  '+lots.length+'  |  SHIP LOTS '+shipped.length+'\n'+
+ 'SPARE HEADS '+Math.floor(shipped.filter(l=>l.materialId==='drill_head'&&l.grade>=.98)
+  .reduce((n,l)=>n+l.massKg,0)/StarfallMining8D.SERVICE.headMassKg)+' · manufacture DRILL HEAD at installed CNC';
+ drill.disabled=!!op||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||!survey||remaining<StarfallMining8D.DRILL.kgPerBatch||r.mining8d.toolCondition<.1||ctx.energyJ<StarfallMining8D.DRILL.minimumEnergyJ;
  load.disabled=!!op||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||!ctx.truckNearShip||!lots.length;
  cancel.disabled=!op;
+ const head=shipped.find(l=>l.materialId==='drill_head'&&l.grade>=.98&&
+  l.massKg-r.materials8a.operations().filter(o=>o.status==='RESERVED'&&o.lotId===l.id)
+   .reduce((n,o)=>n+o.massKg,0)>=StarfallMining8D.SERVICE.headMassKg);
+ service.dataset.lotId=head?.id||'';
+ service.disabled=!!op||!head||!ctx.truckPresent||!ctx.operatorNear||!ctx.truckIdle||
+  !ctx.truckNearShip||ctx.shipBodyId!==ctx.bodyId||r.mining8d.toolCondition>=1-1e-8||
+  ctx.energyJ<StarfallMining8D.SERVICE.minimumEnergyJ;
 }
 function action(fn){try{const result=fn();status.textContent='8D · '+(result?.type||'Operation')+' accepted. Progress only advances while you remain physically at the truck with electrical power.';}catch(e){status.textContent='8D · '+String(e?.message||e);}refresh();}
 drill.addEventListener('click',()=>action(()=>rt().miningStart8D()));
@@ -24028,6 +24128,7 @@ load.addEventListener('click',()=>action(()=>{
  return rt().miningLoad8D(lot.id,Math.min(50,lot.massKg));
 }));
 cancel.addEventListener('click',()=>action(()=>rt().miningCancel8D()));
+service.addEventListener('click',()=>action(()=>rt().miningService8D(service.dataset.lotId)));
 panel.append(title,status,controls,readout);host.append(panel);
 let last=0;const check=()=>{const t=performance.now();if(t-last>500){last=t;refresh();}requestAnimationFrame(check);};check();
 root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Operate');panel.scrollIntoView({block:'nearest'});refresh();}};
@@ -24068,6 +24169,7 @@ panel.innerHTML=`
   <div class="sft-tools">
    <button type="button" data-truck-action="MINE">DRILL 20 KG</button>
    <button type="button" data-truck-action="LOAD">LOAD ORE</button>
+   <button type="button" data-truck-action="SERVICE">REPLACE DRILL HEAD</button>
    <button type="button" data-truck-action="CANCEL">STOP CYCLE</button>
   </div>
   <label class="sft-lots">Ore lot <select id="sft-lot" aria-label="Ore lot to load into ship"></select></label>
@@ -24116,6 +24218,7 @@ function refresh(force=false){
  buttons.EXIT.disabled=!info.canExit;
  buttons.MINE.disabled=!info.canDrill;
  buttons.LOAD.disabled=!info.canLoad;
+ buttons.SERVICE.disabled=!info.canService;
  buttons.CANCEL.disabled=!info.cycle;
  buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
  buttons.SHORE.textContent=info.shoreCrawl?'SHORE CRAWL ON':'SHORE CRAWL';

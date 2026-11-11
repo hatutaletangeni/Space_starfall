@@ -40,6 +40,8 @@ jobs:
           node tests/industry-crosschain8e-8f.test.cjs
           node tests/pre8k-real8f-to-t02-chain.test.cjs
           node tests/update8k-natural-copper-to-wire.test.cjs
+          node tests/update8k-fresh-progression.test.cjs
+          node tests/mining-service8d.test.cjs
           node tests/update8k-powered-habitat-chain.test.cjs
           node tests/update8k-electrolysis-atmosphere-chain.test.cjs
           node tests/update8k-natural-ore-two-world-custody.test.cjs
@@ -65,8 +67,18 @@ jobs:
       - name: Verify read-only physical expedition report in real Chromium
         run: |
           python tests/expedition-audit8k-browser.py
+          python tests/starter-manifest8k-browser.py
+          python tests/update8k-readiness-browser.py
           python tests/mining-hauling8d-browser.py
           python tests/t02-paid-install8i-browser.py
           python tests/terraform-feasibility8j-browser.py
           python tests/atmosphere-emission8j-browser.py
+      - name: Upload desktop and landscape mobile readiness screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: update8k-readiness-browser
+          path: artifacts/8k-readiness-browser/
+          if-no-files-found: ignore
+          retention-days: 14
 
