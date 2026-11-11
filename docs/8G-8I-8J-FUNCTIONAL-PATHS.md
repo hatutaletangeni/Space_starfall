@@ -57,7 +57,9 @@ Harvest remains explicitly modeled biomass, not automatically safe food.
 
 ## 8J: physical capture, finite thermal response and presentation
 
-The capture command recovers only a gas whose atmospheric addition is already
+Fabricate and erect a 740 kg atmospheric capture plant through the original
+8F/8E kit chain. Its source-owned installation, condition and actual ship/EVA
+umbilical proximity are required. The capture command recovers only a gas whose atmospheric addition is already
 inventoried in the persistent 8J reservoir. Unmeasured baseline composition is
 not converted into pure material. A matching real receiving pressure vessel,
 free capacity, same-world EVA, landed powered ship and planetary protection

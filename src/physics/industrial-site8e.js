@@ -7,6 +7,7 @@ const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ids=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const KITS=Object.freeze({
+ plant_kit_atmospheric_capture:{type:'industrial_plant',station:'atmospheric_capture',tools:['air_intake','selective_separation','compressor','rated_collection_outlet'],massKg:740,volumeM3:2.4,workJ:1350000,radiusScene:8},
  plant_kit_tailings_stockpile:{type:'industrial_plant',station:'tailings_stockpile',
   tools:['ground_liner','retaining_mesh','surveyed_pile_boundary'],
   massKg:10,volumeM3:.04,workJ:120000,radiusScene:3},

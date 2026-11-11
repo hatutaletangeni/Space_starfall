@@ -55,7 +55,8 @@ test('native T09 preserves recycler on reload and does not double-charge old cre
 function world(){return{schema:1,bodyId:'a',radiusM:1000,gravityMS2:1,baselineAtmosphereKg:1000000,atmosphereKg:1000100,pressurePa:(1000100)/(4*Math.PI*1e6),netAddedKg:100,pressureDeltaPa:100/(4*Math.PI*1e6),emittedSpeciesKg:{oxygen:100},receipts:[],lastTimeS:0};}
 test('capture transfers finite inventoried atmosphere to pressure-bounded 8A vessel with source energy and no baseline fabrication',()=>{
  const w=world(),profile={id:'a',radiusM:1000,surfaceGravityMS2:1,atmospherePressurePa:1e6/(4*Math.PI*1e6),mu:1e6},a=rocket();
- const input={operationId:'capture8j:1',world:w,profile,materials:a.materials,physical:a.physical,vesselId:'oxygen',kg:1,shipEnergyJ:20e6,timeS:10,protectedWorld:false,landable:true};
+ a.physical.assets.push({id:'collector',type:'industrial_plant',massKg:740,condition:1,location:{kind:'surface',bodyId:'a'},state:{station:'atmospheric_capture',enabled:true}});a.physical.transfers.push({assetId:'collector',action:'INSTALL',status:'COMMITTED',massKg:740,sourceLotId:'manufactured-kit'});
+ const input={collectorId:'collector',operationId:'capture8j:1',world:w,profile,materials:a.materials,physical:a.physical,vesselId:'oxygen',kg:1,shipEnergyJ:20e6,timeS:10,protectedWorld:false,landable:true};
  const q=C.capture(input);close(q.world.netAddedKg,99);close(M.create(q.materials).used('tank:oxygen').massKg,31);
  close(q.world.netAddedKg+M.create(q.materials).inventory().reduce((s,l)=>s+l.massKg,0),100+a.materials.lots.reduce((s,l)=>s+l.massKg,0));
  assert.ok(q.shipEnergyJ<18e6);assert.throws(()=>C.capture({...input,protectedWorld:true}),/Protected/);
@@ -78,4 +79,21 @@ test('a single kilogram retains sub-ULP thermal and optical changes without magn
  C.climate(w,p,1360,0);C.climate(w,p,1360,1);
  assert.ok(w.climate8j.anomalyK>0&&w.climate8j.anomalyK<1e-15);
  assert.ok(w.climate8j.hazeOpacity>0&&w.climate8j.hazeOpacity<1e-15);
+});
+
+test('runtime operation arguments cannot replace authoritative stock, physical owners or battery',()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),src=fs.readFileSync(require.resolve('../src/flight.js'),'utf8');
+ const text=src.slice(src.indexOf('function industryCompletion8K('),src.indexOf('function atmosphericRelease8J('));
+ const a=rocket(),context={atmosphericContext8J:()=>({bodyId:'a',landed:true,eva:true,powered:true}),
+  vehicleStore:{get:()=>({state:{energyJ:12345678}})},SF:{storageStatus:()=>({durable:true})},
+  evaLocal:[0,1,0],shipLocal:[0,1,0],nearest:a.body,simTime:10,
+  physical8a:{get:id=>a.physical.assets.find(x=>x.id===id),serialize:()=>a.physical},
+  materials8a:{snapshot:()=>a.materials},vehicleAssembly8g:{snapshot:()=>a.assembly},
+  StarfallOutposts:{arc:()=>0},V:{rot:x=>x},
+  StarfallIndustryCompletion8K:{launch:input=>{assert.equal(input.shipEnergyJ,12345678);
+   assert.equal(input.materials,a.materials);assert.equal(input.physical,a.physical);assert.equal(input.body,a.body);throw Error('VALIDATED_NATIVE_OWNERS');}},
+  StarfallLaunchUI:{store:{serialize:()=>a.launchStore}}};
+ context.window=context;vm.createContext(context);vm.runInContext(text,context);
+ assert.throws(()=>context.industryCompletion8K('rocket8g',{stageId:'stage',hydrogenVesselId:'hydrogen',oxygenVesselId:'oxygen',
+  hydrogenKg:2,materials:{lots:['invented']},physical:{assets:['invented']},shipEnergyJ:1e100,body:{id:'fake'}}),/VALIDATED_NATIVE_OWNERS/);
 });

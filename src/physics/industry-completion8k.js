@@ -82,8 +82,10 @@ function crew(h,dt,powered){const c=h.regenerative8i,g=h.greenhouse8i;if(!c||!g)
 function capture(a){
  const m=cp(a.materials),world=root.StarfallAtmosphereEmission8J.normalize(a.world,a.profile),v=a.physical.assets.find(x=>x.id===a.vesselId);
  requireThat(a.operationId?.startsWith('capture8j:')&&good(a.kg)&&a.kg>0&&a.kg<=10&&good(a.shipEnergyJ)&&a.shipEnergyJ>=a.kg*2e6,'Capture requires <=10 kg and 2 MJ/kg ship separation/compression work');
- requireThat(!a.protectedWorld&&a.landable&&a.timeS>=world.lastTimeS,'Protected world or regressed clock');
+ requireThat(!a.protectedWorld&&!a.nativeLife&&!a.archaeologicalProtection&&a.landable&&a.timeS>=world.lastTimeS,'Protected world or regressed clock');
  requireThat(!m.operations.some(o=>o.id===a.operationId)&&!world.receipts.some(r=>r.id===a.operationId),'Capture already committed');
+ const collector=a.physical.assets.find(x=>x.id===a.collectorId);
+ requireThat(collector?.type==='industrial_plant'&&collector.state?.station==='atmospheric_capture'&&collector.state.enabled&&collector.condition>=.8&&collector.massKg===740&&collector.location?.bodyId===a.profile.id&&a.physical.transfers?.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&t.assetId===collector.id&&t.massKg===740&&t.sourceLotId),'Actual manufactured atmospheric capture plant required');
  const gas=v?.state?.materialId,mw={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,carbon_monoxide:.02801,hydrogen:.002016,methane:.016043}[gas];
  requireThat(v?.type==='industrial_vessel'&&v.condition>=.8&&v.location?.bodyId===a.profile.id&&v.state.enabled&&mw&&v.state.ratedPressurePa>=5e6,'Actual same-world rated receiving vessel required');
  const available=(world.emittedSpeciesKg[gas]||0)-(world.capturedSpeciesKg?.[gas]||0);
@@ -95,7 +97,7 @@ function capture(a){
  const mass=ledger.used(bin.id).massKg+a.kg,volume=a.kg/mw*R*293.15/5e6;
  requireThat(mass/mw*R*293.15/bin.maxVolumeM3<=v.state.ratedPressurePa+EPS,'Capture would overpressure vessel');
  ledger.importLot({id:a.operationId+':gas',materialId:gas,massKg:a.kg,volumeM3:volume,containerId:bin.id,grade:1,provenance:'atmospheric-capture:'+a.operationId});
- const materials=ledger.snapshot(),receipt={id:a.operationId,kind:'ATMOSPHERIC_CAPTURE',status:'COMMITTED',gas,massKg:a.kg,energyJ:workJ,bodyId:a.profile.id};materials.operations.push(receipt);
+ const materials=ledger.snapshot(),receipt={id:a.operationId,kind:'ATMOSPHERIC_CAPTURE',status:'COMMITTED',gas,massKg:a.kg,energyJ:workJ,energySourceId:'ship-main:engineering-battery',collectorId:collector.id,sourceAtmosphereKgBefore:world.atmosphereKg,sourceSpeciesKgBefore:available,bodyId:a.profile.id};materials.operations.push(receipt);
  world.capturedSpeciesKg=world.capturedSpeciesKg||{};world.capturedSpeciesKg[gas]=(world.capturedSpeciesKg[gas]||0)+a.kg;
  world.netAddedKg=Math.max(0,world.netAddedKg-a.kg);world.atmosphereKg=world.baselineAtmosphereKg+world.netAddedKg;
  world.pressureDeltaPa=world.netAddedKg*a.profile.surfaceGravityMS2/(4*Math.PI*a.profile.radiusM**2);world.pressurePa=a.profile.atmospherePressurePa+world.pressureDeltaPa;

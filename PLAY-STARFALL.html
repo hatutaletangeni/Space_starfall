@@ -7927,6 +7927,7 @@ const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ids=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const KITS=Object.freeze({
+ plant_kit_atmospheric_capture:{type:'industrial_plant',station:'atmospheric_capture',tools:['air_intake','selective_separation','compressor','rated_collection_outlet'],massKg:740,volumeM3:2.4,workJ:1350000,radiusScene:8},
  plant_kit_tailings_stockpile:{type:'industrial_plant',station:'tailings_stockpile',
   tools:['ground_liner','retaining_mesh','surveyed_pile_boundary'],
   massKg:10,volumeM3:.04,workJ:120000,radiusScene:3},
@@ -8136,6 +8137,7 @@ const SPECS=Object.freeze({
  plant_kit_rocket_integration:[900,2.9,'rocket_integrator'],
  plant_kit_habitat_construction_pad:[1120,3.7,'habitat_builder'],
  plant_kit_air_fractionation:[740,2.4,'air_separator'],
+ plant_kit_atmospheric_capture:[740,2.4,'air_separator'],
  // A sealed dry-goods depot is first fabricated from actual certified 8F parts.
  // Packaged machinery mass remains 480 kg; initially contains ZERO cargo.
  plant_kit_cargo_depot:[480,1.8,'assembly_pad'],
@@ -14141,8 +14143,10 @@ function crew(h,dt,powered){const c=h.regenerative8i,g=h.greenhouse8i;if(!c||!g)
 function capture(a){
  const m=cp(a.materials),world=root.StarfallAtmosphereEmission8J.normalize(a.world,a.profile),v=a.physical.assets.find(x=>x.id===a.vesselId);
  requireThat(a.operationId?.startsWith('capture8j:')&&good(a.kg)&&a.kg>0&&a.kg<=10&&good(a.shipEnergyJ)&&a.shipEnergyJ>=a.kg*2e6,'Capture requires <=10 kg and 2 MJ/kg ship separation/compression work');
- requireThat(!a.protectedWorld&&a.landable&&a.timeS>=world.lastTimeS,'Protected world or regressed clock');
+ requireThat(!a.protectedWorld&&!a.nativeLife&&!a.archaeologicalProtection&&a.landable&&a.timeS>=world.lastTimeS,'Protected world or regressed clock');
  requireThat(!m.operations.some(o=>o.id===a.operationId)&&!world.receipts.some(r=>r.id===a.operationId),'Capture already committed');
+ const collector=a.physical.assets.find(x=>x.id===a.collectorId);
+ requireThat(collector?.type==='industrial_plant'&&collector.state?.station==='atmospheric_capture'&&collector.state.enabled&&collector.condition>=.8&&collector.massKg===740&&collector.location?.bodyId===a.profile.id&&a.physical.transfers?.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&t.assetId===collector.id&&t.massKg===740&&t.sourceLotId),'Actual manufactured atmospheric capture plant required');
  const gas=v?.state?.materialId,mw={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,carbon_monoxide:.02801,hydrogen:.002016,methane:.016043}[gas];
  requireThat(v?.type==='industrial_vessel'&&v.condition>=.8&&v.location?.bodyId===a.profile.id&&v.state.enabled&&mw&&v.state.ratedPressurePa>=5e6,'Actual same-world rated receiving vessel required');
  const available=(world.emittedSpeciesKg[gas]||0)-(world.capturedSpeciesKg?.[gas]||0);
@@ -14154,7 +14158,7 @@ function capture(a){
  const mass=ledger.used(bin.id).massKg+a.kg,volume=a.kg/mw*R*293.15/5e6;
  requireThat(mass/mw*R*293.15/bin.maxVolumeM3<=v.state.ratedPressurePa+EPS,'Capture would overpressure vessel');
  ledger.importLot({id:a.operationId+':gas',materialId:gas,massKg:a.kg,volumeM3:volume,containerId:bin.id,grade:1,provenance:'atmospheric-capture:'+a.operationId});
- const materials=ledger.snapshot(),receipt={id:a.operationId,kind:'ATMOSPHERIC_CAPTURE',status:'COMMITTED',gas,massKg:a.kg,energyJ:workJ,bodyId:a.profile.id};materials.operations.push(receipt);
+ const materials=ledger.snapshot(),receipt={id:a.operationId,kind:'ATMOSPHERIC_CAPTURE',status:'COMMITTED',gas,massKg:a.kg,energyJ:workJ,energySourceId:'ship-main:engineering-battery',collectorId:collector.id,sourceAtmosphereKgBefore:world.atmosphereKg,sourceSpeciesKgBefore:available,bodyId:a.profile.id};materials.operations.push(receipt);
  world.capturedSpeciesKg=world.capturedSpeciesKg||{};world.capturedSpeciesKg[gas]=(world.capturedSpeciesKg[gas]||0)+a.kg;
  world.netAddedKg=Math.max(0,world.netAddedKg-a.kg);world.atmosphereKg=world.baselineAtmosphereKg+world.netAddedKg;
  world.pressureDeltaPa=world.netAddedKg*a.profile.surfaceGravityMS2/(4*Math.PI*a.profile.radiusM**2);world.pressurePa=a.profile.atmospherePressurePa+world.pressureDeltaPa;
@@ -16284,7 +16288,7 @@ function industryCompletion8K(action,args={}){
    const vessel=physical8a.get(id);if(!within(vessel?.location?.local,24))throw Error('Both propellant vessels must be within operator hose reach');
   }
   if(!launch)throw Error('Native Rocket Lab unavailable');
-  q=StarfallIndustryCompletion8K.launch({...base,...args,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
+  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
    launchUp:V.rot(stage.location.local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0)});
   patch={materials8a:q.materials,physical8a:q.physical,launch7:q.launchStore};
  }else if(action==='loop8i'){
@@ -16295,9 +16299,11 @@ function industryCompletion8K(action,args={}){
   patch={materials8a:q.materials,physical8a:q.physical,outpost5:state};
  }else if(action==='capture8j'){
   if(c.nativeLife||c.archaeologicalProtection||c.protectedWorld)throw Error('Planetary protection lock');
-  const v=physical8a.get(args.vesselId);if(!within(v?.location?.local,24))throw Error('Approach receiving vessel within 24 units');
+  const v=physical8a.get(args.vesselId),collector=physical8a.get(args.collectorId);
+  if(!within(v?.location?.local,24)||!within(collector?.location?.local,24))throw Error('Approach the real capture plant and receiving vessel within 24 units');
+  if(!within(collector.location.local,24)||StarfallOutposts.arc(collector.location.local,shipLocal,nearest.radius)>65)throw Error('Capture plant outside powered ship umbilical range');
   const w=terraformWorlds8j[c.bodyId]||StarfallAtmosphereEmission8J.normalize(null,c.profile);
-  q=StarfallIndustryCompletion8K.capture({...base,...args,world:w,protectedWorld:c.protectedWorld,landable:nearest.landable});
+  q=StarfallIndustryCompletion8K.capture({...base,collectorId:args.collectorId,vesselId:args.vesselId,kg:args.kg,world:w,protectedWorld:c.protectedWorld,nativeLife:c.nativeLife,archaeologicalProtection:c.archaeologicalProtection,landable:nearest.landable});
   patch={materials8a:q.materials,terraformWorlds8j:{...terraformWorlds8j,[c.bodyId]:q.world}};
  }else throw Error('Unknown industrial operation');
  const vehicles=vehicleStore.serialize();vehicles.states.ship={...vehicles.states.ship,energyJ:q.shipEnergyJ};patch.engineeringVehicles=vehicles;
@@ -25862,19 +25868,19 @@ function el(tag,text){const n=document.createElement(tag);if(text)n.textContent=
 const title=el('div','INDUSTRIAL FLIGHT, REGENERATION & ATMOSPHERIC CAPTURE');title.className='section-title';section.append(title);
 const status=el('p');status.className='panel-note';status.setAttribute('role','status');
 const picker=label=>{const e=el('select');e.setAttribute('aria-label',label);e.style.cssText='max-width:100%;background:#111c26;color:#eaf0ef;padding:7px;margin:4px';return e;};
-const stage=picker('Manufactured rocket stage'),hydrogen=picker('Actual hydrogen vessel'),oxygen=picker('Actual oxygen vessel'),hab=picker('Greenhouse habitat'),capture=picker('Atmospheric capture receiving vessel');
+const stage=picker('Manufactured rocket stage'),hydrogen=picker('Actual hydrogen vessel'),oxygen=picker('Actual oxygen vessel'),hab=picker('Greenhouse habitat'),capture=picker('Atmospheric capture receiving vessel'),collector=picker('Manufactured atmospheric capture plant');
 const mass=el('input');mass.type='number';mass.min='.1';mass.max='8';mass.step='.1';mass.value='2';mass.style.width='70px';mass.setAttribute('aria-label','Rocket hydrogen kg');
 const captureMass=el('input');captureMass.type='number';captureMass.min='.01';captureMass.max='10';captureMass.step='.01';captureMass.value='1';captureMass.style.width='70px';captureMass.setAttribute('aria-label','Atmospheric capture kg');
 function action(label,fn){const b=el('button',label);b.className='science-action';b.onclick=()=>{try{fn();status.textContent='Committed: real materials and source power saved together';}catch(e){status.textContent=e.message;}refresh();};return b;}
 function group(name,note,children){const d=el('details'),summary=el('summary',name),p=el('p',note);p.className='panel-note';d.append(summary,p,...children);section.append(d);}
 group('Manufactured rocket flight','Gas-fed sounding prototype: the complete dry-stage BOM, original rig and real rated H2/O2 vessels are mandatory. Uses eight kg oxygen per kg hydrogen plus 2% hot-fire mixture; 3 MJ ship electrical work. Tank volume and liftoff thrust are checked. Prototype 12 kN / 180 s nameplate; no cryogenics, payload generation or guaranteed orbit. Stand within 24 units of stage and both vessels.',[stage,hydrogen,oxygen,mass,action('HOT-FIRE & LAUNCH MANUFACTURED STAGE',()=>root.StarfallRuntime.industryCompletion8K('rocket8g',{stageId:stage.value,hydrogenVesselId:hydrogen.value,oxygenVesselId:oxygen.value,hydrogenKg:Number(mass.value)}))]);
 group('Habitat regenerative loop','Manufacture HABITAT RECYCLER at the kit fixture, then install beside a commissioned greenhouse habitat. Consumes 40 kg hardware and 800 kJ ship work. Models carbohydrate biomass metabolism, CO2/O2, nutrient return and powered 98% wastewater recovery inside the served 680 W bus. Food, light and power shortages pause the loop; brine, leaks and resupply remain finite. This is a simplified biological model, not edible-food certification.',[hab,action('INSTALL MANUFACTURED RECYCLER',()=>root.StarfallRuntime.industryCompletion8K('loop8i',{habitatId:hab.value}))]);
-group('Atmospheric capture & climate','Capture only previously inventoried atmospheric additions into a real same-world matching rated vessel. Unmeasured baseline species are excluded. Maximum 10 kg per action; 2 MJ/kg compressor work plus the ideal trace-gas separation energy floor. Native-life and archaeological protection remain locked. Greybody climate responds to actual added/captured CO2 over simulated time; tiny changes are not magnified into green planets.',[capture,captureMass,action('CAPTURE SOURCE-INVENTORIED ATMOSPHERIC GAS',()=>root.StarfallRuntime.industryCompletion8K('capture8j',{vesselId:capture.value,kg:Number(captureMass.value)}))]);
+group('Atmospheric capture & climate','Fabricate and erect a 740 kg atmospheric capture plant. Capture only previously inventoried atmospheric additions into a real same-world matching rated vessel. Unmeasured baseline species are excluded. Maximum 10 kg per action; 2 MJ/kg compressor work plus the ideal trace-gas separation energy floor. Native-life and archaeological protection remain locked. Greybody climate responds to actual added/captured CO2 over simulated time; tiny changes are not magnified into green planets.',[collector,capture,captureMass,action('CAPTURE SOURCE-INVENTORIED ATMOSPHERIC GAS',()=>root.StarfallRuntime.industryCompletion8K('capture8j',{collectorId:collector.value,vesselId:capture.value,kg:Number(captureMass.value)}))]);
 const readout=el('pre');readout.style.cssText='white-space:pre-wrap;font-size:11px;max-height:240px;overflow:auto';section.append(status,readout);host.append(section);
 function fill(select,rows){const value=select.value;select.replaceChildren();for(const r of rows){const o=el('option',r.label||r.id);o.value=r.id;select.append(o);}if(rows.some(x=>x.id===value))select.value=value;}
 function refresh(){const r=root.StarfallRuntime;if(!r?.industryCompletion8K)return;
  const a=r.physical8a.list(),body=r.nearest?.id,v=a.filter(x=>x.type==='industrial_vessel'&&x.location?.bodyId===body),h=root.StarfallOutpostUI?.store.items.filter(x=>x.kind==='hab'&&x.bodyId===body)||[];
- fill(stage,a.filter(x=>x.type==='rocket_stage_dry'&&x.location?.bodyId===body));fill(hydrogen,v.filter(x=>x.state.materialId==='hydrogen'));fill(oxygen,v.filter(x=>x.state.materialId==='oxygen'));fill(capture,v.map(x=>({...x,label:x.id+' · '+x.state.materialId})));fill(hab,h);
+ fill(collector,a.filter(x=>x.state?.station==='atmospheric_capture'&&x.location?.bodyId===body));fill(stage,a.filter(x=>x.type==='rocket_stage_dry'&&x.location?.bodyId===body));fill(hydrogen,v.filter(x=>x.state.materialId==='hydrogen'));fill(oxygen,v.filter(x=>x.state.materialId==='oxygen'));fill(capture,v.map(x=>({...x,label:x.id+' · '+x.state.materialId})));fill(hab,h);
  const view=r.planetaryEngineeringView(body);
  readout.textContent='PLANET DELTA '+(view?view.pressureDeltaPa.toExponential(5)+' Pa · thermal anomaly '+view.anomalyK.toExponential(5)+' K · added-column optical opacity '+view.hazeOpacity.toExponential(5):'No recorded intervention')+'\n'+h.map(x=>{const c=x.habT09?.regenerative8i,g=x.habT09?.greenhouse8i;return x.id+' · '+(c?'REGENERATIVE · biomass '+g.cropBiomassKg.toFixed(5)+' kg · wastewater '+c.wasteWaterKg.toFixed(5)+' kg · brine '+c.brineKg.toFixed(5)+' kg · reclaimed '+c.recoveredWaterKg.toFixed(5)+' kg · latest food deficit '+(c.lastStarvedMol||0).toExponential(3)+' mol':'No manufactured recycler installed');}).join('\n');
 }

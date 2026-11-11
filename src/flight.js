@@ -2102,7 +2102,7 @@ function industryCompletion8K(action,args={}){
    const vessel=physical8a.get(id);if(!within(vessel?.location?.local,24))throw Error('Both propellant vessels must be within operator hose reach');
   }
   if(!launch)throw Error('Native Rocket Lab unavailable');
-  q=StarfallIndustryCompletion8K.launch({...base,...args,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
+  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
    launchUp:V.rot(stage.location.local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0)});
   patch={materials8a:q.materials,physical8a:q.physical,launch7:q.launchStore};
  }else if(action==='loop8i'){
@@ -2113,9 +2113,11 @@ function industryCompletion8K(action,args={}){
   patch={materials8a:q.materials,physical8a:q.physical,outpost5:state};
  }else if(action==='capture8j'){
   if(c.nativeLife||c.archaeologicalProtection||c.protectedWorld)throw Error('Planetary protection lock');
-  const v=physical8a.get(args.vesselId);if(!within(v?.location?.local,24))throw Error('Approach receiving vessel within 24 units');
+  const v=physical8a.get(args.vesselId),collector=physical8a.get(args.collectorId);
+  if(!within(v?.location?.local,24)||!within(collector?.location?.local,24))throw Error('Approach the real capture plant and receiving vessel within 24 units');
+  if(!within(collector.location.local,24)||StarfallOutposts.arc(collector.location.local,shipLocal,nearest.radius)>65)throw Error('Capture plant outside powered ship umbilical range');
   const w=terraformWorlds8j[c.bodyId]||StarfallAtmosphereEmission8J.normalize(null,c.profile);
-  q=StarfallIndustryCompletion8K.capture({...base,...args,world:w,protectedWorld:c.protectedWorld,landable:nearest.landable});
+  q=StarfallIndustryCompletion8K.capture({...base,collectorId:args.collectorId,vesselId:args.vesselId,kg:args.kg,world:w,protectedWorld:c.protectedWorld,nativeLife:c.nativeLife,archaeologicalProtection:c.archaeologicalProtection,landable:nearest.landable});
   patch={materials8a:q.materials,terraformWorlds8j:{...terraformWorlds8j,[c.bodyId]:q.world}};
  }else throw Error('Unknown industrial operation');
  const vehicles=vehicleStore.serialize();vehicles.states.ship={...vehicles.states.ship,energyJ:q.shipEnergyJ};patch.engineeringVehicles=vehicles;

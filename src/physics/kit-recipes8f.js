@@ -20,6 +20,7 @@ const SPECS=Object.freeze({
  plant_kit_rocket_integration:[900,2.9,'rocket_integrator'],
  plant_kit_habitat_construction_pad:[1120,3.7,'habitat_builder'],
  plant_kit_air_fractionation:[740,2.4,'air_separator'],
+ plant_kit_atmospheric_capture:[740,2.4,'air_separator'],
  // A sealed dry-goods depot is first fabricated from actual certified 8F parts.
  // Packaged machinery mass remains 480 kg; initially contains ZERO cargo.
  plant_kit_cargo_depot:[480,1.8,'assembly_pad'],
