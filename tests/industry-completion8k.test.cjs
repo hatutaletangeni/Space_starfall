@@ -89,9 +89,9 @@ test('runtime operation arguments cannot replace authoritative stock, physical o
   evaLocal:[0,1,0],shipLocal:[0,1,0],nearest:a.body,simTime:10,
   physical8a:{get:id=>a.physical.assets.find(x=>x.id===id),serialize:()=>a.physical},
   materials8a:{snapshot:()=>a.materials},vehicleAssembly8g:{snapshot:()=>a.assembly},
-  StarfallOutposts:{arc:()=>0},V:{rot:x=>x},
+  StarfallOutposts:{arc:()=>0},Starfall3D:{groundHeight:()=>25},V:{rot:x=>x},
   StarfallIndustryCompletion8K:{launch:input=>{assert.equal(input.shipEnergyJ,12345678);
-   assert.equal(input.materials,a.materials);assert.equal(input.physical,a.physical);assert.equal(input.body,a.body);throw Error('VALIDATED_NATIVE_OWNERS');}},
+   assert.equal(input.materials,a.materials);assert.equal(input.physical,a.physical);assert.equal(input.body,a.body);assert.equal(input.surfaceHeightM,25000);throw Error('VALIDATED_NATIVE_OWNERS');}},
   StarfallLaunchUI:{store:{serialize:()=>a.launchStore}}};
  context.window=context;vm.createContext(context);vm.runInContext(text,context);
  assert.throws(()=>context.industryCompletion8K('rocket8g',{stageId:'stage',hydrogenVesselId:'hydrogen',oxygenVesselId:'oxygen',
@@ -112,4 +112,11 @@ test('powered day/night biochemical loop sustains a modeled occupant beyond init
  assert.equal(h.regenerative8i.starvedMol,0);assert.ok(h.greenhouse8i.cropBiomassKg>.02);
  assert.ok(h.regenerative8i.recoveredWaterKg>2);assert.ok(h.regenerative8i.processingJ<=120*50000+1e-6);
  assert.ok(h.oxygenTankMol>0);assert.ok(h.regenerative8i.brineKg<1e-8,'reject water must be distilled with remaining work');
+});
+
+test('manufactured flight starts above actual terrain without changing planetary gravity or terrain',()=>{
+ const a=rocket(),q=C.launch({...a,surfaceHeightM:30000});
+ close(q.mission.flight.x,a.body.radius*1000+30000);
+ close(q.mission.profile.mu,a.body.gravity*9.80665*(a.body.radius*1000)**2);
+ F.advance(q.mission.flight,q.mission.profile,1);assert.ok(q.mission.flight.x>a.body.radius*1000+30000);
 });

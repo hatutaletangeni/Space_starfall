@@ -2102,7 +2102,7 @@ function industryCompletion8K(action,args={}){
    const vessel=physical8a.get(id);if(!within(vessel?.location?.local,24))throw Error('Both propellant vessels must be within operator hose reach');
   }
   if(!launch)throw Error('Native Rocket Lab unavailable');
-  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
+  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,surfaceHeightM:Starfall3D.groundHeight(stage.location.local,nearest)*1000,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
    launchUp:V.rot(stage.location.local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0)});
   patch={materials8a:q.materials,physical8a:q.physical,launch7:q.launchStore};
  }else if(action==='loop8i'){

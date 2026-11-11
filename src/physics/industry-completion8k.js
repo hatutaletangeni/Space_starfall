@@ -38,8 +38,10 @@ function launch(a){
   used.push(...take(m,bin.id,gas,kg*(1+hotFire)));
  }
  requireThat(a.shipEnergyJ>=workJ,'Battery lacks actual propellant compression work');
- const radiusM=body.radius*1000,g=body.gravity*9.80665,mu=g*radiusM**2,thrustN=12000,ispS=180,massKg=stage.massKg+fuel;
- requireThat(thrustN/(massKg*g)>=1.08,'Prototype has insufficient liftoff thrust on this world');
+ const geoidRadiusM=body.radius*1000,height=a.surfaceHeightM??0;
+ requireThat(Number.isFinite(height)&&Math.abs(height)<geoidRadiusM*.3,'Invalid actual launch terrain height');
+ const radiusM=geoidRadiusM+height,g=body.gravity*9.80665,mu=g*geoidRadiusM**2,thrustN=12000,ispS=180,massKg=stage.massKg+fuel;
+ requireThat(thrustN/(massKg*(mu/radiusM**2))>=1.08,'Prototype has insufficient liftoff thrust on this world');
  const profile={massKg,payloadKg:0,busMassKg:0,payload:'sounding-test',stages:1,boosterPropKg:0,boosterDryKg:0,boosterIspS:280,boosterThrustN:0,
   stageParts:[{dryKg:stage.massKg,propKg:fuel,thrustN,ispS,tanks:1,label:'Manufactured gas-fed H2/O2 sounding prototype'}],
   radiusM,mu,deltaVMS:ispS*9.80665*Math.log(massKg/stage.massKg),burnTimeS:fuel*ispS*9.80665/thrustN,

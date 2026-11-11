@@ -23,7 +23,9 @@ floor from each vessel’s actual pressure to 8 MPa (nRT ln(P_out/P_in)).
 
 The prototype nameplate is an illustrative 12 kN / 180 s, not a performance
 measurement or hardware certificate. Liftoff TWR must exceed 1.08. The native
-fixed-substep variable-mass gravity/drag solver advances the flight; impact,
+fixed-substep variable-mass gravity/drag solver advances the flight from the
+actual pad terrain height, preserving geoid gravity. The conservative spherical
+impact boundary is anchored at that launch height, without changing terrain; impact,
 propellant exhaustion and abort remain real outcomes. There is no guaranteed
 orbit, cryogenic loading or free satellite deployment. This adds a functional
 sounding-rocket path; a high-performance manufactured orbital launcher remains
