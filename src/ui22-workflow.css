@@ -37,10 +37,10 @@ body.sfmobile-edition .panel{display:none!important}
 
 /* Context decides which touch controls are relevant, not a permanently full keypad. */
 body.sfmobile-edition[data-mission-context="on-foot"] #sfmobile-hud .sfm-right :is(
- [data-control="ArrowUp"],[data-control="ArrowDown"],[data-mobile-key="KeyT"],
+ [data-control="ArrowUp"],[data-control="ArrowDown"],
  [data-mobile-key="KeyG"],[data-control="KeyC"]){display:none!important}
 body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-right :is(
- [data-control],[data-mobile-key="KeyB"],[data-mobile-key="KeyT"],
+ [data-control],[data-mobile-key="KeyB"],
  [data-mobile-key="KeyG"],[data-mobile-key="KeyL"]){display:none!important}
 body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-left [data-control="Space"]{display:none!important}
 body.sfmobile-edition #sfmobile-hud .sfm-top{max-width:none!important;left:50%!important;transform:translateX(-50%)!important;right:auto!important}

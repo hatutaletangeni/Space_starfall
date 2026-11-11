@@ -34,6 +34,10 @@ certify the complete no-debug two-world expedition or real hardware performance.
   elapsed time in at most two bounded 2 s steps per render frame. Energy and
   wear depend on the same simulated seconds. Completion holds for a durable
   retry if saving fails; stock/depletion/condition roll back together.
+- **Mobile time control:** the on-foot and ship-interior touch layouts hid
+  TIME even while the player needed it for industrial jobs. TIME is now visible
+  in those contexts, and the truck cockpit has the same native 1×/10×/100× action.
+  The mobile browser test taps actual TIME and MISSION buttons without a keyboard.
 - **Missing real mining evidence:** the 8K report expected `status=COMMITTED` in
   8C extraction records, whose actual persisted format has no status field.
   The report now joins the actual extraction ID, site, mass and hopper to a paid

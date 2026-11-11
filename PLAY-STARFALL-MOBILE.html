@@ -449,10 +449,10 @@ body.sfmobile-edition .panel{display:none!important}
 
 /* Context decides which touch controls are relevant, not a permanently full keypad. */
 body.sfmobile-edition[data-mission-context="on-foot"] #sfmobile-hud .sfm-right :is(
- [data-control="ArrowUp"],[data-control="ArrowDown"],[data-mobile-key="KeyT"],
+ [data-control="ArrowUp"],[data-control="ArrowDown"],
  [data-mobile-key="KeyG"],[data-control="KeyC"]){display:none!important}
 body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-right :is(
- [data-control],[data-mobile-key="KeyB"],[data-mobile-key="KeyT"],
+ [data-control],[data-mobile-key="KeyB"],
  [data-mobile-key="KeyG"],[data-mobile-key="KeyL"]){display:none!important}
 body.sfmobile-edition[data-mission-context="ship-interior"] #sfmobile-hud .sfm-left [data-control="Space"]{display:none!important}
 body.sfmobile-edition #sfmobile-hud .sfm-top{max-width:none!important;left:50%!important;transform:translateX(-50%)!important;right:auto!important}
@@ -14899,7 +14899,7 @@ addEventListener('keydown',ev=>{
  if(code==='KeyV'&&(!eva||truckOccupied)){camMode=(camMode+1)%2;camEye=null;showToast(camMode?(truckOccupied?'Truck cab camera':'Ship cockpit camera'):'Chase camera');}
  if(code==='KeyF'){orbitYaw=0;orbitPitch=0;showToast(truckOccupied?'Camera centred behind truck.':eva?'Camera centred behind astronaut.':'Camera centred behind spacecraft.');}
  if(code==='KeyG'&&!eva)pointTowardWaypoint();if(code==='KeyM')openChart();
- if(code==='KeyT'){timeScale=timeScale===1?10:timeScale===10?100:1;showToast('Orbital simulation speed '+timeScale+'×');}
+ if(code==='KeyT')cycleSimulationSpeed();
  if(code==='KeyH'){renderer.terrainDebugEnabled=!renderer.terrainDebugEnabled;showToast('Terrain diagnostics '+(renderer.terrainDebugEnabled?'ON':'OFF'));}
  if(code==='KeyL'){headlights=!headlights;if(truckOccupied)truckLights=headlights;showToast((truckOccupied?'Truck floodlights ':eva?'Suit / ship lights ':'Landing floodlights ')+(headlights?'ON':'OFF'));}
  if(code==='KeyR'&&ev.shiftKey&&!eva){pos=V.add(target.position,[0,320,-(target.radius+3550)]);forward=V.norm(V.sub(target.position,pos));up=[0,1,0];vel=[0,0,0];landed=false;groundLocal=null;warp=false;camEye=null;showToast('Reset to target orbital approach.');}
@@ -17535,6 +17535,10 @@ function logisticsOffworldApply8H(action,manifestId,lotId,depotId){
  return q.manifest;
 }
 // Shared original-truck operations: physical custody and mining ledgers remain authoritative.
+function cycleSimulationSpeed(){
+ timeScale=timeScale===1?10:timeScale===10?100:1;
+ showToast('Simulation speed '+timeScale+'×');return timeScale;
+}
 function truckHudInfo(){
  const hopper=materials8a.used(StarfallMining8D.TRUCK),hold=materials8a.used(StarfallMining8D.SHIP);
  const ctx=miningContext8D(),site=miningDeposit8D(),op=mining8d.active;
@@ -17546,7 +17550,7 @@ function truckHudInfo(){
  return {occupied:truckOccupied,cargoMode:cargo8b.mode,onRamp:cargo8b.mode==='ramp',
   world:nearest?.name||'Unknown',batteryJ:truckBatteryJ,batteryPct:Math.round(truckBatteryJ/44e6*100),
   hopperKg:hopper.massKg,hopperLimitKg:StarfallMining8D.LIMITS.truckMassKg,
-  shipHoldKg:hold.massKg,lights:truckLights,camera:camMode===1?'CAB':'CHASE',shoreCrawl:truckShoreCrawl8ER,
+  shipHoldKg:hold.massKg,lights:truckLights,camera:camMode===1?'CAB':'CHASE',shoreCrawl:truckShoreCrawl8ER,timeScale,
   drillConditionPct:Math.round(mining8d.toolCondition*100),
   deposit:site?.label||null,surveyed,oreRemainingKg:site?resources8c.remaining(site):0,
   cycle:op?.type||null,cyclePct:op?Math.min(100,Math.round(op.elapsedS/op.durationS*100)):0,
@@ -17568,6 +17572,7 @@ function truckHudAction(action,lotId){
  if(action==='EXIT')return exitTruck();
  if(action==='MAP'){openChart();return true;}
  if(action==='VIEW'){camMode=(camMode+1)%2;camEye=null;return true;}
+ if(action==='TIME')return cycleSimulationSpeed();
  if(action==='LIGHTS'){truckLights=!truckLights;headlights=truckLights;return true;}
  if(action==='SHORE'){truckShoreCrawl8ER=!truckShoreCrawl8ER;
   showToast('SHORE CRAWL '+(truckShoreCrawl8ER?'ON · VERY LOW SPEED · HIGH ENERGY':'OFF · NORMAL DRIVE'));
@@ -24165,6 +24170,7 @@ panel.innerHTML=`
   <div class="sft-tools">
    <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
    <button type="button" data-truck-action="SHORE">SHORE CRAWL</button>
+   <button type="button" data-truck-action="TIME">TIME 1×</button>
   </div>
   <small>W/S accelerate or reverse · A/D steer. Shore crawl consumes extra energy.</small>
  </details>
@@ -24223,6 +24229,7 @@ function refresh(force=false){
  buttons.MINE.disabled=!info.canDrill;
  buttons.LOAD.disabled=!info.canLoad;
  buttons.SERVICE.disabled=!info.canService;
+ buttons.TIME.textContent='TIME '+info.timeScale+'×';
  buttons.CANCEL.disabled=!info.cycle;
  buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
  buttons.SHORE.textContent=info.shoreCrawl?'SHORE CRAWL ON':'SHORE CRAWL';

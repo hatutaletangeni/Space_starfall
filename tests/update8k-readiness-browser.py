@@ -70,14 +70,24 @@ with sync_playwright() as p:
    before=page.evaluate("""()=>({ctx:StarfallRuntime.miningContext8D(),
      mass:StarfallRuntime.materials8a.inventory().reduce((n,l)=>n+l.massKg,0)})""")
    assert before['ctx']['truckNearShip'] and before['ctx']['operatorNear'],before
-   page.locator('#sf-mission-button').click()
+   if edition=='mobile':
+    time_button=page.locator('#sfmobile-hud [data-mobile-key="KeyT"]')
+    time_button.tap();time_button.tap()
+    assert page.evaluate('STARFALL_DEBUG.state.timeScale')==100
+    page.locator('#sfmobile-hud [data-mobile-action="mission"]').tap()
+   else:
+    page.locator('#sf-mission-button').click()
    page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
    page.locator('#sf-mission-flow .sf-flow-workspace').click()
    panel=page.locator('#mining8d-panel');button=panel.get_by_role('button',name='REPLACE DRILL HEAD / 60 S')
    assert button.is_enabled(),panel.inner_text()
+   button.scroll_into_view_if_needed()
    page.screenshot(path=str(OUT/(edition+'-drill-service.png')))
-   button.click()
-   page.keyboard.press('t');page.keyboard.press('t')
+   if edition=='mobile':
+    button.tap()
+   else:
+    button.click()
+    page.keyboard.press('t');page.keyboard.press('t')
    page.wait_for_function("""()=>StarfallRuntime.mining8d.snapshot().history.some(h=>
     h.type==='SERVICE'&&h.status==='COMMITTED')""",timeout=60000)
    after=page.evaluate("""()=>{
@@ -100,6 +110,6 @@ with sync_playwright() as p:
    assert page.evaluate("StarfallRuntime.materials8a.operations().filter(o=>o.kind==='DRILL_SERVICE_8D').length")==1
    assert not errors,errors
    assert not network,network
-   print('PASS '+edition+': finite source manifest, original truck, actual touch/click service, KeyT 100x, 120kJ, 2kg head->scrap, offline reload. Controlled navigation/wear fixture; software WebGL.')
+   print('PASS '+edition+': finite source manifest, original truck, actual touch/click service and 100x time control, 120kJ, 2kg head->scrap, offline reload. Controlled navigation/wear fixture; software WebGL.')
    context.close()
  finally:browser.close()

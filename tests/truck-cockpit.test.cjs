@@ -17,7 +17,7 @@ assert.match(flight,/function truckHudInfo\(\)/);
 assert.match(flight,/function truckHudAction\(action,lotId\)/);
 assert.match(flight,/truckHudInfo,truckHudAction,/);
 assert.match(cockpit,/data-truck-action="EXIT"/);
-for(const name of ['MAP','VIEW','LIGHTS','MINE','LOAD','CANCEL'])assert.match(cockpit,new RegExp('data-truck-action="'+name+'"'));
+for(const name of ['MAP','VIEW','LIGHTS','MINE','LOAD','SERVICE','TIME','CANCEL'])assert.match(cockpit,new RegExp('data-truck-action="'+name+'"'));
 assert.match(cockpit,/document\.body\.dataset\.truckDriving/);
 assert.match(css,/body\[data-truck-driving=true\].*\.panel/);
 assert.match(css,/body\.sfmobile-edition\[data-truck-driving=true\] #sfmobile-hud \.sfm-right/);

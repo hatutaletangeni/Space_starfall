@@ -24,6 +24,7 @@ panel.innerHTML=`
   <div class="sft-tools">
    <button type="button" data-truck-action="LIGHTS">LIGHTS</button>
    <button type="button" data-truck-action="SHORE">SHORE CRAWL</button>
+   <button type="button" data-truck-action="TIME">TIME 1×</button>
   </div>
   <small>W/S accelerate or reverse · A/D steer. Shore crawl consumes extra energy.</small>
  </details>
@@ -82,6 +83,7 @@ function refresh(force=false){
  buttons.MINE.disabled=!info.canDrill;
  buttons.LOAD.disabled=!info.canLoad;
  buttons.SERVICE.disabled=!info.canService;
+ buttons.TIME.textContent='TIME '+info.timeScale+'×';
  buttons.CANCEL.disabled=!info.cycle;
  buttons.LIGHTS.textContent=info.lights?'LIGHTS ON':'LIGHTS OFF';
  buttons.SHORE.textContent=info.shoreCrawl?'SHORE CRAWL ON':'SHORE CRAWL';
