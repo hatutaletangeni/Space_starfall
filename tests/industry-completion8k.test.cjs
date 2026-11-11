@@ -39,7 +39,7 @@ const cabinMass=h=>h.waterL+h.oxygenMol*.031998+h.carbonMol*.04401+h.greenhouse8
 test('paid manufactured recycler preserves mass through food respiration, nutrient return and wastewater recovery',()=>{
  const a=loop(),before=structuredClone(a),q=C.installLoop(a);assert.deepEqual(a,before);close(q.physical.assets[0].massKg,1025.4);assert.equal(q.materials.lots.length,0);
  const h=q.habitat.habT09,start=cabinMass(h);C.crew(h,60,true);close(cabinMass(h),start);
- assert.ok(h.regenerative8i.recoveredWaterKg>0&&h.regenerative8i.brineKg>0&&h.regenerative8i.processingJ>0);
+ assert.ok(h.regenerative8i.recoveredWaterKg>0&&h.regenerative8i.brineKg>=0&&h.regenerative8i.processingJ>0);
  assert.ok(h.greenhouse8i.nutrientKg>.2&&h.greenhouse8i.cropBiomassKg<.2);
  const stored=JSON.parse(JSON.stringify(q));assert.throws(()=>C.installLoop({...a,habitat:stored.habitat}),/already installed/);
  const r=h.regenerative8i.recoveredWaterKg;C.crew(h,60,false);assert.equal(h.regenerative8i.recoveredWaterKg,r);close(cabinMass(h),start);
@@ -55,7 +55,7 @@ test('native T09 preserves recycler on reload and does not double-charge old cre
 function world(){return{schema:1,bodyId:'a',radiusM:1000,gravityMS2:1,baselineAtmosphereKg:1000000,atmosphereKg:1000100,pressurePa:(1000100)/(4*Math.PI*1e6),netAddedKg:100,pressureDeltaPa:100/(4*Math.PI*1e6),emittedSpeciesKg:{oxygen:100},receipts:[],lastTimeS:0};}
 test('capture transfers finite inventoried atmosphere to pressure-bounded 8A vessel with source energy and no baseline fabrication',()=>{
  const w=world(),profile={id:'a',radiusM:1000,surfaceGravityMS2:1,atmospherePressurePa:1e6/(4*Math.PI*1e6),mu:1e6},a=rocket();
- a.physical.assets.push({id:'collector',type:'industrial_plant',massKg:740,condition:1,location:{kind:'surface',bodyId:'a'},state:{station:'atmospheric_capture',enabled:true}});a.physical.transfers.push({assetId:'collector',action:'INSTALL',status:'COMMITTED',massKg:740,sourceLotId:'manufactured-kit'});
+ a.physical.assets.push({id:'collector',type:'industrial_plant',massKg:740,condition:1,location:{kind:'surface',bodyId:'a'},state:{station:'atmospheric_capture',enabled:true}});a.physical.transfers.push({id:'plant8e:capture-install',assetId:'collector',action:'INSTALL',status:'COMMITTED',massKg:740,sourceLotId:'manufactured-kit'});
  const input={collectorId:'collector',operationId:'capture8j:1',world:w,profile,materials:a.materials,physical:a.physical,vesselId:'oxygen',kg:1,shipEnergyJ:20e6,timeS:10,protectedWorld:false,landable:true};
  const q=C.capture(input);close(q.world.netAddedKg,99);close(M.create(q.materials).used('tank:oxygen').massKg,31);
  close(q.world.netAddedKg+M.create(q.materials).inventory().reduce((s,l)=>s+l.massKg,0),100+a.materials.lots.reduce((s,l)=>s+l.massKg,0));
@@ -96,4 +96,20 @@ test('runtime operation arguments cannot replace authoritative stock, physical o
  context.window=context;vm.createContext(context);vm.runInContext(text,context);
  assert.throws(()=>context.industryCompletion8K('rocket8g',{stageId:'stage',hydrogenVesselId:'hydrogen',oxygenVesselId:'oxygen',
   hydrogenKg:2,materials:{lots:['invented']},physical:{assets:['invented']},shipEnergyJ:1e100,body:{id:'fake'}}),/VALIDATED_NATIVE_OWNERS/);
+});
+test('powered day/night biochemical loop sustains a modeled occupant beyond initial food while closing water, nutrients and oxygen storage',()=>{
+ const G=require('../src/physics/greenhouse8i.js'),q=C.installLoop(loop()),hab=q.habitat,h=hab.habT09;
+ hab.enabled=true;Object.assign(h,{tempK:293.15,seal:1,oxygenTankMol:0});
+ Object.assign(h.greenhouse8i,{lastS:0,condition:1,carbonConsumedMol:0,waterConsumedKg:0,oxygenProducedMol:0});
+ const mass=()=>cabinMass(h)+h.oxygenTankMol*.031998,start=mass();
+ for(let n=1;n<=5000;n++){
+  C.crew(h,10,true);
+  const topUp=Math.min(Math.max(0,100-h.oxygenMol),h.oxygenTankMol);h.oxygenMol+=topUp;h.oxygenTankMol-=topUp;
+  G.grow(hab,{seconds:10,powered:true,irradianceWm2:n%60<30?1000:0,nowS:n*10});
+ }
+ close(mass(),start,1e-6);
+ assert.ok(h.regenerative8i.foodConsumedKg>.2,'must operate beyond initial biomass');
+ assert.equal(h.regenerative8i.starvedMol,0);assert.ok(h.greenhouse8i.cropBiomassKg>.02);
+ assert.ok(h.regenerative8i.recoveredWaterKg>2);assert.ok(h.regenerative8i.processingJ<=120*50000+1e-6);
+ assert.ok(h.oxygenTankMol>0);assert.ok(h.regenerative8i.brineKg<1e-8,'reject water must be distilled with remaining work');
 });

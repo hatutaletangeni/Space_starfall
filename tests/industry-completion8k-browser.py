@@ -26,7 +26,7 @@ with sync_playwright() as p:
      {id:'protocol-stage',type:'rocket_stage_dry',condition:1,massKg:mass,volumeM3:3,location:loc,provenance:'structural-8g:protocol-stage',state:{assemblyFacilityId:'protocol-rig'}},
      {id:'protocol-collector',type:'industrial_plant',massKg:740,volumeM3:2.4,condition:1,location:loc,state:{station:'atmospheric_capture',enabled:true}},
      {id:'protocol-shell',type:'habitat_envelope',condition:1,massKg:985.4,volumeM3:25,location:loc,state:{}});
-    physical.transfers.push({assetId:'protocol-collector',action:'INSTALL',status:'COMMITTED',massKg:740,sourceLotId:'protocol-capture-kit'});
+    physical.transfers.push({id:'plant8e:protocol-capture-install',assetId:'protocol-collector',action:'INSTALL',status:'COMMITTED',massKg:740,sourceLotId:'protocol-capture-kit'});
     for(const [gas,kg,mw]of [['hydrogen',5,.002016],['oxygen',50,.031998]]){
      const id='protocol-'+gas,cid=id+':gas';m.registerContainer({id:cid,ownerId:id,kind:'rated gas vessel',maxMassKg:1000,maxVolumeM3:4});
      m.importLot({id:id+':source',materialId:gas,massKg:kg,volumeM3:kg/mw*8.314462618*293.15/5e6,grade:1,containerId:cid,provenance:'chemical:protocol-electrolysis'});
@@ -76,7 +76,10 @@ with sync_playwright() as p:
    section.get_by_label('Atmospheric capture receiving vessel',exact=True).select_option('protocol-oxygen')
    section.get_by_label('Atmospheric capture kg',exact=True).fill('0.5')
    activate(section.get_by_role('button',name='CAPTURE SOURCE-INVENTORIED ATMOSPHERIC GAS',exact=True))
-   page.wait_for_function("SF.load().materials8a.operations.some(o=>o.kind==='ATMOSPHERIC_CAPTURE')")
+   try:page.wait_for_function("SF.load().materials8a.operations.some(o=>o.kind==='ATMOSPHERIC_CAPTURE')",timeout=10000)
+   except Exception as e:
+    page.screenshot(path=str(OUT/(name+'-capture-failure.png')))
+    raise AssertionError({'status':section.get_by_role('status').inner_text(),'errors':errors}) from e
    conservation=page.evaluate("""(before)=>{
     const r=StarfallRuntime,c=r.atmosphericContext8J(),v=r.physical8a.get('protocol-oxygen'),
      receipt=SF.load().materials8a.operations.find(o=>o.kind==='ATMOSPHERIC_CAPTURE'),w=SF.load().terraformWorlds8j[c.bodyId];

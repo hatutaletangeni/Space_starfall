@@ -5,7 +5,7 @@
  */
 (function(root){'use strict';
 const RECIPES=Object.freeze({
- habitat_recycler:{category:'life_support',station:'assembly',tool:'kit-fixture',inputs:{steel:20,aluminum:8,copper:3,insulated_wire:2,control_board:1.2,glass:6,insulation_polymer:1},outputs:{habitat_recycler:40},powerW:1200,seconds:900,toleranceMm:1,engineeringNote:'Carbohydrate biomass processing, condensate purification and nutrient recovery prototype; finite brine and leaks remain accounted for.'},
+ habitat_recycler:{category:'life_support',station:'assembly',tool:'kit-fixture',inputs:{steel:20,aluminum:8,copper:3,insulated_wire:2,control_board:1.2,glass:6,insulation_polymer:1},outputs:{habitat_recycler:40},powerW:1200,seconds:900,toleranceMm:1,engineeringNote:'Carbohydrate biomass processing, 24 m² thin optical collector/distribution, condensate/reject distillation and nutrient recovery prototype. Collector structure and food safety are not engineering-certified; finite power, gas storage, leaks and reject reservoirs remain accounted for.'},
  drill_head:{category:'mining_service',station:'machine',tool:'cnc',
   inputs:{steel:2.2},outputs:{drill_head:2},powerW:1700,seconds:240,toleranceMm:.2,
   engineeringNote:'Replaceable steel cutting-head prototype with tracked swarf. Alloy selection, heat treatment and cutting life are simplified, not certified rock-drill performance.'},

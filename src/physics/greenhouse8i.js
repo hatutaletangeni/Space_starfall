@@ -101,19 +101,22 @@ function grow(item,{seconds,powered,irradianceWm2,nowS}){
   return{advanced:false,reason:'NO_POWER_LIGHT_SEAL_OR_THERMAL',co2Mol:0};
  if(!good(h.carbonMol)||!good(h.waterL)||!good(h.oxygenMol)||!good(g.nutrientKg)||
    !good(g.cropBiomassKg))throw Error('Corrupt greenhouse source mass');
- const byPhoton=irradianceWm2*APERTURE_M2*EFFICIENCY*dt/ENERGY_J_PER_MOL;
+ const aperture=h.regenerative8i?Math.min(24,g.regenerativeCollectorM2||APERTURE_M2):APERTURE_M2;
+ const byPhoton=irradianceWm2*aperture*EFFICIENCY*dt/ENERGY_J_PER_MOL;
  const byCarbon=Math.max(0,h.carbonMol),byWater=h.waterL/MOL_WATER_KG,
   byNutrients=g.nutrientKg/NUTRIENT_KG_MOL;
- const mol=Math.max(0,Math.min(byPhoton,byCarbon,byWater,byNutrients));
+ const oxygenBudget=h.regenerative8i?Math.min(Math.max(0,25000-h.oxygenTankMol),Math.max(0,h.regenerative8i.availableProcessingJ||0)/15000):Infinity;
+ const mol=Math.max(0,Math.min(byPhoton,byCarbon,byWater,byNutrients,oxygenBudget));
  if(mol<EPS)return{advanced:false,reason:'NO_CO2_WATER_OR_NUTRIENTS',co2Mol:0};
  const water=mol*MOL_WATER_KG,nutrient=mol*NUTRIENT_KG_MOL,
   biomass=mol*BIOMASS_KG_MOL+nutrient;
- h.carbonMol-=mol;h.waterL=Math.max(0,h.waterL-water);h.oxygenMol+=mol;
+ h.carbonMol-=mol;h.waterL=Math.max(0,h.waterL-water);
+ if(h.regenerative8i){h.oxygenTankMol+=mol;h.regenerative8i.availableProcessingJ-=mol*15000;h.regenerative8i.processingJ+=mol*15000;}else h.oxygenMol+=mol;
  g.nutrientKg=Math.max(0,g.nutrientKg-nutrient);
  g.cropBiomassKg+=biomass;g.carbonConsumedMol+=mol;
  g.waterConsumedKg+=water;g.oxygenProducedMol+=mol;
  return{advanced:true,co2Mol:mol,waterKg:water,nutrientKg:nutrient,
-  biomassKg:biomass,oxygenMol:mol,solarPhotonEnergyJ:irradianceWm2*APERTURE_M2*EFFICIENCY*dt};
+  biomassKg:biomass,oxygenMol:mol,solarPhotonEnergyJ:irradianceWm2*aperture*EFFICIENCY*dt};
 }
 function irradiance(body,star,luminosityW,local,unitM=1000,transmission=1){
  if(!body||!star||!Array.isArray(body.position)||!Array.isArray(star.position)||

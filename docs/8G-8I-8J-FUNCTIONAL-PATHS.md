@@ -43,13 +43,18 @@ Biomass is modeled as carbohydrate plus retained mineral nutrient. Crew
 metabolism consumes CH2O + O2 → CO2 + H2O by mass, records unmet food demand,
 and returns the consumed plant nutrient to the greenhouse reservoir. The
 native scrubber retains a 0.15 kPa CO2 plant-feed buffer instead of removing all
-CO2 before the greenhouse can grow. Native light, temperature, power and food
-limits still apply. Growth uses external stellar photons; no biomass appears
+CO2 before the greenhouse can grow. The purchased optical distribution hardware expands the modeled collector
+from 6 to 24 m². Native light, temperature, power and food limits still apply.
+Photosynthetic O2 goes into the existing finite oxygen reserve, using 15 kJ/mol
+of the remaining 120 W processing budget; it is not vented into an already
+full cabin. Saturated storage stops that portion of growth. Growth uses external stellar photons; no biomass appears
 without them.
 
 Drinking water and metabolic water enter a finite wastewater reservoir. A
 120 W allocation within the served 680 W bus processes at most W×s / 25 kJ/kg,
-returning 98% to clean water while the remaining mass stays in brine. Blackout
+returning 98% to clean water while the remaining water stays in a reject reservoir.
+Remaining 120 W work can distill that water-only reject at 2.6 MJ/kg; mineral
+nutrient remains separately accounted, not created by distillation. Blackout
 stops recovery. Food shortages produce a native NO_FOOD alarm. Leaks, brine,
 finite initial nutrient/seed inventory and resupply requirements mean this is
 NOT a promise of infinite autonomous survival or edible-food certification.
@@ -87,7 +92,7 @@ changes can affect optical opacity gradually; no visual exaggeration is used.
 ## Evidence
 
 `industry-completion8k.test.cjs` tests part/fuel ownership, native rocket ascent,
-water/food/nutrient mass, power interruptions, original T09 persistence, finite
+water/food/nutrient mass, sustained day/night operation beyond starting food, power interruptions, original T09 persistence, finite
 atmospheric capture, replay rejection, thermal relaxation and stored heat.
 
 `industry-completion8k-browser.py` is explicitly a controlled protocol fixture:

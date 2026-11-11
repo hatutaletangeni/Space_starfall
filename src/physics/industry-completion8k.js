@@ -58,6 +58,7 @@ function installLoop(a){
  requireThat(a.operationId?.startsWith('loop8i:')&&h?.greenhouse8i?.installed&&hab.physicalAssetId&&good(a.shipEnergyJ)&&a.shipEnergyJ>=8e5,'Real commissioned greenhouse and 800 kJ ship work required');
  requireThat(!h.regenerative8i&&!m.operations.some(o=>o.id===a.operationId),'Regenerative processor already installed');
  const consumed=[...take(m,a.containerId,'habitat_recycler',40)];
+ h.greenhouse8i.regenerativeCollectorM2=24;
  h.regenerative8i={schema:1,hardwareKg:40,wasteWaterKg:0,brineKg:0,foodConsumedKg:0,metabolicWaterKg:0,
   recoveredWaterKg:0,nutrientsRecoveredKg:0,starvedMol:0,processingJ:0};
  m.operations.push({id:a.operationId,kind:'REGENERATIVE_HABITAT',status:'COMMITTED',habitatId:hab.id,massKg:40,energyJ:8e5,consumedLots:consumed});
@@ -72,10 +73,17 @@ function crew(h,dt,powered){const c=h.regenerative8i,g=h.greenhouse8i;if(!c||!g)
  c.foodConsumedKg+=eaten;c.metabolicWaterKg+=mol*.01801528;c.wasteWaterKg+=mol*.01801528;
  c.nutrientsRecoveredKg+=mol*nutrient;g.nutrientKg+=mol*nutrient;c.starvedMol+=demand-mol;c.lastStarvedMol=demand-mol;
  const drink=Math.min(h.waterL,h.occupants*.00004*dt);h.waterL-=drink;c.wasteWaterKg+=drink;
+ c.availableProcessingJ=0;
  if(powered&&h.enabled&&h.airlock==='CLOSED'){
   // A 120 W allocation INSIDE the existing 680 W bus, 25 kJ/kg work.
-  const feed=Math.min(c.wasteWaterKg,120*dt/25000),returned=feed*.98;
-  c.wasteWaterKg-=feed;c.brineKg+=feed-returned;h.waterL+=returned;c.recoveredWaterKg+=returned;c.processingJ+=feed*25000;
+  let workAvailable=120*dt;
+  const feed=Math.min(c.wasteWaterKg,workAvailable/25000),returned=feed*.98;
+  c.wasteWaterKg-=feed;c.brineKg+=feed-returned;h.waterL+=returned;c.recoveredWaterKg+=returned;c.processingJ+=feed*25000;workAvailable-=feed*25000;
+  // Idealized distillation of water-only reject. Minerals remain separate.
+  const distilled=Math.min(c.brineKg,workAvailable/2600000);
+  c.brineKg-=distilled;h.waterL+=distilled;c.recoveredWaterKg+=distilled;
+  c.processingJ+=distilled*2600000;workAvailable-=distilled*2600000;
+  c.availableProcessingJ=Math.max(0,workAvailable);
  }
  return true;
 }
