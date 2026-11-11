@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080e16"><title>STARFALL ENGINE — Celestial Studio</title>
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<div id="app">
+<header class="topbar">
+  <div class="branding"><div class="emblem">✦</div><div><strong>STARFALL <span>ENGINE</span></strong><small>CELESTIAL STUDIO / ALPHA 0.1</small></div></div>
+  <div class="project-badge"><span class="tiny-led"></span><span id="scene-title">Haven System</span><span class="project-type">.sfscene</span></div>
+  <div class="top-actions">
+    <button id="new-scene" title="Create new scene">New</button><button id="open-scene" title="Import saved scene JSON">Open</button><button class="primary" id="save-scene" title="Save scene to JSON">Save Scene <span class="shortcut">Ctrl S</span></button>
+    <div class="vline"></div><button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Y)">↷</button>
+  </div>
+</header>
+<div class="workspace">
+ <aside class="sidebar left-pane">
+  <div class="pane-head"><span class="heading">SCENE HIERARCHY</span><button id="add-object" class="addbtn" aria-label="Add object">＋</button></div>
+  <div class="search"><span>⌕</span><input id="filter-objects" placeholder="Find objects..." aria-label="Filter scene objects"></div>
+  <div class="hierarchy" id="hierarchy" role="tree"></div>
+  <div class="sidebar-footer"><span>SCENE NODES</span><b id="node-count">0</b><div class="tiny-note">Objects are authored locally. No changes to your STARFALL save.</div></div>
+ </aside>
+ <main class="middle">
+   <section class="viewport-wrap">
+    <div class="view-toolbar">
+       <div class="view-left"><span class="view-tag"><span class="view-led"></span>SCENE</span><span class="vline"></span><button id="focus" title="Frame selection (F)">⊡ Frame</button><button id="toggle-grid" aria-pressed="true">Grid</button><button id="toggle-orbits" aria-pressed="true">Orbits</button></div>
+       <div class="view-right"><span class="engine-label">WEBGL 2</span><select id="quality" title="Graphics quality"><option>Performance</option><option selected>Balanced</option><option>Quality</option></select></div>
+    </div>
+    <canvas id="viewport" aria-label="Interactive 3D space scene viewport"></canvas>
+    <div class="viewport-overlay top-left"><div class="eyebrow">AUTHORING VIEW / SYSTEM 001</div><h1 id="viewport-title">HAVEN SYSTEM</h1><p>Orbit camera • Select objects • Edit properties</p></div>
+    <div id="no-webgl" class="webgl-error" hidden></div>
+    <div class="axis-widget" aria-hidden="true"><span class="axis y">Y</span><span class="axis x">X</span><span class="axis z">Z</span></div>
+    <div class="viewport-overlay viewport-help">Left drag <b>Orbit</b> <i>·</i> Right drag <b>Pan</b> <i>·</i> Wheel <b>Zoom</b> <i>·</i> Click <b>Select</b> <i>·</i> F <b>Frame</b></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+   </section>
+   <section class="bottom-panel">
+      <div class="bottom-head"><div class="mini-tabs"><button class="tab active" data-tab="assets">OBJECT LIBRARY</button><button class="tab" data-tab="timeline">SIMULATION</button><button class="tab" data-tab="output">OUTPUT</button></div><span class="bottom-desc">SPACE-OPTIMIZED AUTHORING TOOLS</span></div>
+      <div id="assets-tab" class="tab-body library"></div>
+      <div id="timeline-tab" class="tab-body simulation" hidden>
+       <div class="timeline-controls"><button id="play-sim" class="primary">▶ Play</button><button id="reset-sim">↺ Reset time</button><label>Speed <select id="time-speed"><option value="1">1×</option><option value="10">10×</option><option value="100">100×</option></select></label><label>Scene time <input type="number" id="sim-time" min="0" step="1" value="0"> s</label></div>
+       <p>Orbit previews use analytic circular motion. STARFALL’s real gameplay/rocket physics remains separate.</p>
+      </div>
+      <div id="output-tab" class="tab-body output" hidden>
+       <p>Export an authoring manifest for future STARFALL integration. This editor does not inject arbitrary objects into the running game.</p><button id="export-manifest">Export STARFALL authoring manifest</button><button id="copy-scene">Copy scene JSON</button>
+      </div>
+   </section>
+ </main>
+ <aside class="sidebar inspector-pane">
+   <div class="pane-head"><span class="heading">INSPECTOR</span><span class="inspector-icon">☷</span></div>
+   <div id="inspector-empty" class="inspector-empty"><div>◎</div><h3>No object selected</h3><p>Choose a scene object to edit its transform, appearance and orbit parameters.</p></div>
+   <div id="inspector" class="inspector" hidden></div>
+   <div class="right-footer"><span>LIVE EDITOR</span><span class="status-ok">● OFFLINE READY</span></div>
+ </aside>
+</div>
+<footer class="statusbar"><div><span class="tiny-led"></span><span id="engine-status">ENGINE READY</span><span class="bar-sep">/</span><span id="camera-status">Perspective</span></div><div><span id="fps">FPS —</span><span id="draw-calls">Draw calls —</span><span id="objects-status">0 objects</span><span class="bar-sep">/</span><span>1 UNIT = <b id="unit-scale">1,000</b> KM</span></div></footer>
+</div>
+<input id="file-input" type="file" accept=".json,.sfscene,application/json" hidden>
+<script src="src/core.js"></script>
+<script src="src/gl.js"></script>
+<script src="src/fallback.js"></script>
+<script src="src/editor.js"></script>
+</body></html>
