@@ -61,3 +61,19 @@ test('gas escape is finite and paid from XUV energy; baseline extraction cools a
  const b=environment();b.world=C.capture(b).world;const cool=tick(b,2);assert.ok(cool.anomalyK<0);
  const moon=environment('Ice');moon.body.kind='moon';moon.profile={...moon.profile,atmospherePressurePa:0};moon.world=E.normalize(null,moon.profile);const frozen=tick(moon,30);assert.equal(frozen.liquidWaterKg,0);
 });
+test('legacy thermal migration retains both temperature anomaly and stored heat',()=>{
+ const a=environment();a.world.climate8j={schema:1,lastS:0,anomalyK:2,storedHeatJ:4e8*4*Math.PI*a.profile.radiusM**2*2};
+ const before=a.world.climate8j.storedHeatJ;C.climate(a.world,a.profile,1360,0,{body:a.body,seed:742});
+ assert.equal(a.world.climate8j.anomalyK,2);assert.equal(a.world.climate8j.storedHeatJ,before);
+ C.climate(a.world,a.profile,1360,3600);assert.ok(Math.abs(a.world.climate8j.energyResidualJ)<before*1e-10);
+});
+test('weather and field sensors apply the same signed delta exactly once and retain their legacy baseline',()=>{
+ const fs=require('../src/physics/science-field.js'),met=require('../src/physics/meteorology-lw03.js'),a=environment('Ice'),dir=[0,1,0];
+ const original=global.StarfallRuntime;global.StarfallRuntime=undefined;
+ const before=met.cell(a.body,dir,500,742),truth=fs.localTruth(a.body,742,dir,500);
+ try{
+  global.StarfallRuntime={planetaryEngineeringView:()=>({pressureDeltaPa:-10,anomalyK:2,cloudDelta:.1})};
+  const after=met.cell(a.body,dir,500,742),reading=fs.localTruth(a.body,742,dir,500);
+  close(after.temperatureK-before.temperatureK,2);close(reading.temperatureK-truth.temperatureK,2);close(after.pressurePa-before.pressurePa,-10);close(reading.pressurePa-truth.pressurePa,-10);
+ }finally{global.StarfallRuntime=original;}
+});

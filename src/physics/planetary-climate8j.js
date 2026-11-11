@@ -24,7 +24,7 @@ function waterStep(w,T,dt,area,gravity,pressure){
  const target=Math.min(total,saturation*area/Math.max(.01,gravity)*.622);
  const vapor=(target-w.vaporKg)*(-Math.expm1(-dt/DAY));
  if(vapor>0){const q=Math.min(vapor,w.liquidKg);w.liquidKg-=q;w.vaporKg+=q;}
- else{w.vaporKg+=vapor;w.liquidKg-=vapor;}
+ else{w.vaporKg+=vapor;if(pressure<611)w.iceKg-=vapor;else w.liquidKg-=vapor;}
  // Below the water triple-point pressure, condensate is ice, never a new ocean.
  const fraction=pressure<611?1:clamp((278.15-T)/10,0,1),solid=w.liquidKg+w.iceKg,
  freeze=(solid*fraction-w.iceKg)*(-Math.expm1(-dt/(3*DAY)));
@@ -32,12 +32,13 @@ function waterStep(w,T,dt,area,gravity,pressure){
  return LV*w.vaporKg-LF*w.iceKg-before;
 }
 function initialize(world,i,timeS){
- const bands=Array.from({length:6},(_,n)=>{const lat=Math.asin(-1+(n+.5)/3),T=Math.max(30,i.baselineK+12*Math.cos(lat)-9),ice=T<273.15?i.waterKg/6:0;
+ const oldHeat=world.climate8j?.storedHeatJ;
+ const bands=Array.from({length:6},(_,n)=>{const lat=Math.asin(-1+(n+.5)/3),T=Math.max(30,i.baselineK+12*Math.cos(lat)-9),ice=T<273.15||i.profile.atmospherePressurePa<611?i.waterKg/6:0;
  const w={iceKg:ice,liquidKg:i.waterKg/6-ice,vaporKg:0};return{lat,anomalyK:0,deepAnomalyK:0,water:{...w},controlWater:{...w},cloudDelta:0};});
- world.climate8j={schema:2,lastS:timeS,bands,anomalyK:world.climate8j?.anomalyK||0,storedHeatJ:0,radiativeJ:0,latentJ:0,escapeWorkJ:0,escapedKg:0,steps:0,hazeOpacity:0,initialHeatJ:0};
+ world.climate8j={schema:2,lastS:timeS,bands,anomalyK:world.climate8j?.anomalyK||0,storedHeatJ:0,radiativeJ:0,latentJ:0,escapeWorkJ:0,escapedKg:0,steps:0,hazeOpacity:0,initialHeatJ:0,energyResidualJ:0,cloudDelta:0,iceCoverageDelta:0,deepAnomalyK:0};
  // Preserve the old thermal anomaly during migration rather than resetting it.
- for(const b of bands)b.anomalyK=world.climate8j.anomalyK;
- world.climate8j.storedHeatJ=CS*i.area*world.climate8j.anomalyK;world.climate8j.initialHeatJ=world.climate8j.storedHeatJ;
+ for(const b of bands){b.anomalyK=world.climate8j.anomalyK;if(Number.isFinite(oldHeat))b.deepAnomalyK=(oldHeat/i.area-CS*b.anomalyK)/CO;}
+ world.climate8j.storedHeatJ=Number.isFinite(oldHeat)?oldHeat:CS*i.area*world.climate8j.anomalyK;world.climate8j.initialHeatJ=world.climate8j.storedHeatJ;
 }
 function advance(world,profile,flux,timeS,context){
  if(!finite(timeS)||timeS<0||!finite(flux)||flux<0||flux>1e30)throw Error('Invalid coupled climate forcing/clock');

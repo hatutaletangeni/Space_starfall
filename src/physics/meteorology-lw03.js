@@ -45,7 +45,7 @@ function saturation(species,T){
 function cell(body,dir,timeS=0,seed=742){
  if(!Number.isFinite(timeS)||timeS<0||!Array.isArray(dir)||dir.length!==3)throw Error('Invalid weather sampling');
  const original=base(body,seed),intervention=root.StarfallRuntime?.planetaryEngineeringView?.(body.id,dir),
-  pressure=intervention?.pressurePa??original.pressurePa,temperature=original.temperatureK+(intervention?.anomalyK||0),
+  pressure=Math.max(0,original.pressurePa+(intervention?.pressureDeltaPa||0)),temperature=original.temperatureK+(intervention?.anomalyK||0),
   molar=intervention?.molarMassKgMol||original.molarMassKgMol||.029,
   climate=intervention?{...original,pressurePa:pressure,temperatureK:temperature,vacuum:pressure<200,densityKgM3:pressure*molar/(R*Math.max(3,temperature)),scaleHeightM:R*Math.max(3,temperature)/(molar*original.gravityMS2)}:original;
  if(climate.vacuum)return Object.freeze({bodyId:body.id,regime:'vacuum',vacuum:true,

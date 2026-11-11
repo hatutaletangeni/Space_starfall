@@ -3010,7 +3010,7 @@ function saturation(species,T){
 function cell(body,dir,timeS=0,seed=742){
  if(!Number.isFinite(timeS)||timeS<0||!Array.isArray(dir)||dir.length!==3)throw Error('Invalid weather sampling');
  const original=base(body,seed),intervention=root.StarfallRuntime?.planetaryEngineeringView?.(body.id,dir),
-  pressure=intervention?.pressurePa??original.pressurePa,temperature=original.temperatureK+(intervention?.anomalyK||0),
+  pressure=Math.max(0,original.pressurePa+(intervention?.pressureDeltaPa||0)),temperature=original.temperatureK+(intervention?.anomalyK||0),
   molar=intervention?.molarMassKgMol||original.molarMassKgMol||.029,
   climate=intervention?{...original,pressurePa:pressure,temperatureK:temperature,vacuum:pressure<200,densityKgM3:pressure*molar/(R*Math.max(3,temperature)),scaleHeightM:R*Math.max(3,temperature)/(molar*original.gravityMS2)}:original;
  if(climate.vacuum)return Object.freeze({bodyId:body.id,regime:'vacuum',vacuum:true,
@@ -3687,8 +3687,8 @@ function localTruth(body,seed,local,simTime=0){const p=profile(body,seed),vec=Ar
  const starWeather=sys&&root.StarfallSpaceWeatherLW06?.exposure(sys,body.position,simTime,seed);
  const magneticResponse=starWeather?
   starWeather.magneticDisturbanceNT*(1-Math.min(.85,Math.abs(p.magneticFieldNT)/35000)*.66)*Math.abs(.35+.65*lat):0;
- const intervention=root.StarfallRuntime?.planetaryEngineeringView?.(body.id);
- return{...p,pressurePa:Math.max(0,p.pressurePa+(intervention?.pressureDeltaPa||0)),temperatureK:ambientK+geothermalK+(intervention?.anomalyK||0),magneticFieldNT:p.magneticFieldNT+320*(patch-.5)+magneticResponse,silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
+ const intervention=root.StarfallRuntime?.planetaryEngineeringView?.(body.id,vec);
+ return{...p,pressurePa:Math.max(0,p.pressurePa+(intervention?.pressureDeltaPa||0)),temperatureK:ambientK+geothermalK+(weather&&!weather.vacuum?0:(intervention?.anomalyK||0)),magneticFieldNT:p.magneticFieldNT+320*(patch-.5)+magneticResponse,silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
 function sample({body,seed=742,local=[0,1,0],altitudeM=0,instrument,simTime=0,energyAvailableJ=Infinity,calibrated=true,nonce=0}){
  const spec=INSTRUMENTS[instrument];if(!spec)throw Error('Unknown instrument');if(!body?.landable)throw Error('Requires a solid planetary surface');if(!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite))throw Error('Invalid local position');
  if(!Number.isFinite(altitudeM)||altitudeM<0||altitudeM>spec.maxAltitudeM)throw Error(spec.name+' out of range: maximum '+spec.maxAltitudeM+' m');
@@ -14110,7 +14110,7 @@ function waterStep(w,T,dt,area,gravity,pressure){
  const target=Math.min(total,saturation*area/Math.max(.01,gravity)*.622);
  const vapor=(target-w.vaporKg)*(-Math.expm1(-dt/DAY));
  if(vapor>0){const q=Math.min(vapor,w.liquidKg);w.liquidKg-=q;w.vaporKg+=q;}
- else{w.vaporKg+=vapor;w.liquidKg-=vapor;}
+ else{w.vaporKg+=vapor;if(pressure<611)w.iceKg-=vapor;else w.liquidKg-=vapor;}
  // Below the water triple-point pressure, condensate is ice, never a new ocean.
  const fraction=pressure<611?1:clamp((278.15-T)/10,0,1),solid=w.liquidKg+w.iceKg,
  freeze=(solid*fraction-w.iceKg)*(-Math.expm1(-dt/(3*DAY)));
@@ -14118,12 +14118,13 @@ function waterStep(w,T,dt,area,gravity,pressure){
  return LV*w.vaporKg-LF*w.iceKg-before;
 }
 function initialize(world,i,timeS){
- const bands=Array.from({length:6},(_,n)=>{const lat=Math.asin(-1+(n+.5)/3),T=Math.max(30,i.baselineK+12*Math.cos(lat)-9),ice=T<273.15?i.waterKg/6:0;
+ const oldHeat=world.climate8j?.storedHeatJ;
+ const bands=Array.from({length:6},(_,n)=>{const lat=Math.asin(-1+(n+.5)/3),T=Math.max(30,i.baselineK+12*Math.cos(lat)-9),ice=T<273.15||i.profile.atmospherePressurePa<611?i.waterKg/6:0;
  const w={iceKg:ice,liquidKg:i.waterKg/6-ice,vaporKg:0};return{lat,anomalyK:0,deepAnomalyK:0,water:{...w},controlWater:{...w},cloudDelta:0};});
- world.climate8j={schema:2,lastS:timeS,bands,anomalyK:world.climate8j?.anomalyK||0,storedHeatJ:0,radiativeJ:0,latentJ:0,escapeWorkJ:0,escapedKg:0,steps:0,hazeOpacity:0,initialHeatJ:0};
+ world.climate8j={schema:2,lastS:timeS,bands,anomalyK:world.climate8j?.anomalyK||0,storedHeatJ:0,radiativeJ:0,latentJ:0,escapeWorkJ:0,escapedKg:0,steps:0,hazeOpacity:0,initialHeatJ:0,energyResidualJ:0,cloudDelta:0,iceCoverageDelta:0,deepAnomalyK:0};
  // Preserve the old thermal anomaly during migration rather than resetting it.
- for(const b of bands)b.anomalyK=world.climate8j.anomalyK;
- world.climate8j.storedHeatJ=CS*i.area*world.climate8j.anomalyK;world.climate8j.initialHeatJ=world.climate8j.storedHeatJ;
+ for(const b of bands){b.anomalyK=world.climate8j.anomalyK;if(Number.isFinite(oldHeat))b.deepAnomalyK=(oldHeat/i.area-CS*b.anomalyK)/CO;}
+ world.climate8j.storedHeatJ=Number.isFinite(oldHeat)?oldHeat:CS*i.area*world.climate8j.anomalyK;world.climate8j.initialHeatJ=world.climate8j.storedHeatJ;
 }
 function advance(world,profile,flux,timeS,context){
  if(!finite(timeS)||timeS<0||!finite(flux)||flux<0||flux>1e30)throw Error('Invalid coupled climate forcing/clock');
