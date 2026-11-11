@@ -132,3 +132,8 @@ atmospheric-gas recovery extend the earlier limitations above. Orbital launch,
 indefinite autonomous survival and unmeasured-baseline atmospheric capture are
 not claimed. Climate/sensor/optical feedback uses the documented reduced-order
 model and the same persisted gas mass.
+
+
+## Orbital, baseline extraction and coupled climate extension
+
+See [the current source/energy budgets, phase equations, approximations and acceptance scope](docs/ORBITAL-BASELINE-COUPLED-CLIMATE.md). This extends the earlier sounding-only and release-recovery paths. Coupled climate is a conservative coarse game simulation, not a validated GCM.

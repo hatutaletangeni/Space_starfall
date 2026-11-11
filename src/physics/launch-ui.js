@@ -188,7 +188,8 @@ function launch(){const ctx=RT.outpostContext();if(!ctx.landed||!ctx.body?.landa
   padContext:{outposts:root.StarfallOutpostUI?.store,powerReport:root.StarfallOutpostUI?.powerReports.get(ctx.bodyId),
    heightAt:v=>Starfall3D.groundHeight(v,ctx.body)}});persist();return m;}
 function worldPosition(body,local,extra){const u=V.norm(V.rot(local,body.spinAxis||[0,1,0],body.spinAngle||0));return{up:u,position:V.add(body.position,V.mul(u,body.radius+(Starfall3D.groundHeight(local,body)||0)+extra))};}
-function sceneRockets(){return store.launches.filter(x=>['ascent','coast'].includes(x.phase)&&x.flight).slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];
+function sceneRockets(){return store.launches.filter(x=>['ascent','coast','manufactured-orbit'].includes(x.phase)&&x.flight).slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];
+ if(m.phase==='manufactured-orbit'&&m.orbitalVehicle){const q=X.orbit(m.orbitalVehicle,body,RT.time,P.SCENE_METERS_PER_UNIT);return[{position:q.position,up:V.norm(V.sub(q.position,body.position)),stage:1}];}
  const d=worldPosition(body,m.local,0),u=m.launchUp||d.up,pole=Math.abs(u[1])>.95?[1,0,0]:[0,1,0],tang=V.norm(V.cross(u,pole)),f=m.flight,r=Math.hypot(f.x,f.y);
  const world=V.add(body.position,V.mul(V.add(V.mul(u,f.x),V.mul(tang,f.y)),1/P.SCENE_METERS_PER_UNIT));
  const direction=V.norm(V.add(V.mul(u,f.vx),V.mul(tang,f.vy)));

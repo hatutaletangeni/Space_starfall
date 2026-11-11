@@ -1628,7 +1628,7 @@ function evaluateLighting(body,sys,galaxy,position){
 const meshFS=`#version 300 es
 precision highp float;in vec3 vWorld;in vec3 vNormal;in vec3 vColor;
 uniform vec3 uCamera,uLight,uStarColor,uBounceDir,uBounceColor,uHeadlampPos,uHeadlampDir,uFogColor;
-uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip;
+uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip,uClimateIce;
 out vec4 frag;
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 void main(){
@@ -1645,7 +1645,8 @@ void main(){
  float beam=smoothstep(.58,.84,dot(fromLamp,normalize(uHeadlampDir)));
  illumination+=vec3(1.,.88,.69)*max(0.,dot(N,normalize(toLamp)))*beam*uHeadlampPower/(1.+distance*distance*.0009);
  // Vertex colors stay attached to the terrain; no camera-relative noise that swims.
- vec3 color=clamp(vColor*illumination,0.,1.);
+ vec3 groundColor=vColor;if(uShip<.5){groundColor=mix(groundColor,vec3(.78,.86,.90),clamp(uClimateIce,0.,1.));groundColor*=1.-clamp(-uClimateIce,0.,1.)*.3;}
+ vec3 color=clamp(groundColor*illumination,0.,1.);
  if(uShip>.5)color=max(color,vColor*.075);if(uShip>1.5)color=max(color,vColor*.93);
  float fog=1.-exp(-length(uCamera-vWorld)*uFogDensity);color=mix(color,uFogColor,clamp(fog,0.,.96));
  frag=vec4(color,1.);
@@ -2497,7 +2498,7 @@ class Renderer{
   const applyLight=(prog,body=near)=>{let l=lighting;
    if(body&&body!==near){const parentSystem=this.galaxy.byId.get(body.systemId);if(parentSystem)l=evaluateLighting(body,parentSystem,this.galaxy,origin);}
    this.setVec(prog,'uLight',l.sunDir);this.setVec(prog,'uStarColor',l.starColor);this.setFloat(prog,'uStarPower',l.starPower);
-   this.setFloat(prog,'uAmbient',l.ambient);this.setVec(prog,'uBounceDir',l.bounceDirection);
+   this.setFloat(prog,'uClimateIce',root.StarfallRuntime?.planetaryEngineeringView?.(body?.id)?.iceCoverageDelta||0);this.setFloat(prog,'uAmbient',l.ambient);this.setVec(prog,'uBounceDir',l.bounceDirection);
    this.setVec(prog,'uBounceColor',l.bounceColor);this.setFloat(prog,'uBouncePower',l.moonPower);
    this.setVec(prog,'uHeadlampPos',V.sub(lightPos,origin));this.setVec(prog,'uHeadlampDir',state.headlampForward||state.shipForward);
    this.setFloat(prog,'uHeadlampPower',state.headlights?2.2:0);
@@ -2587,7 +2588,7 @@ class Renderer{
   gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
   for(const obj of rendered){if(!obj.geometry.atmo||(root.StarfallMeteorologyLW03?.base(obj.body,this.galaxy.seed).vacuum&&(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.hazeOpacity||0)<=1e-8)||obj.dist<obj.body.radius+150||obj.dist>obj.body.radius+11000)continue;
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',(()=>{const base=root.StarfallMeteorologyLW03?.base(obj.body,this.galaxy.seed).vacuum?0:.9;return base+(1-base)*(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.hazeOpacity||0);})());this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
-   if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
+   if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):Math.max(0,Math.min(1,.45+(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.cloudDelta||0))));this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
   gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(state.shipWalkInterior){
@@ -3008,7 +3009,11 @@ function saturation(species,T){
 }
 function cell(body,dir,timeS=0,seed=742){
  if(!Number.isFinite(timeS)||timeS<0||!Array.isArray(dir)||dir.length!==3)throw Error('Invalid weather sampling');
- const climate=base(body,seed);if(climate.vacuum)return Object.freeze({bodyId:body.id,regime:'vacuum',vacuum:true,
+ const original=base(body,seed),intervention=root.StarfallRuntime?.planetaryEngineeringView?.(body.id,dir),
+  pressure=intervention?.pressurePa??original.pressurePa,temperature=original.temperatureK+(intervention?.anomalyK||0),
+  molar=intervention?.molarMassKgMol||original.molarMassKgMol||.029,
+  climate=intervention?{...original,pressurePa:pressure,temperatureK:temperature,vacuum:pressure<200,densityKgM3:pressure*molar/(R*Math.max(3,temperature)),scaleHeightM:R*Math.max(3,temperature)/(molar*original.gravityMS2)}:original;
+ if(climate.vacuum)return Object.freeze({bodyId:body.id,regime:'vacuum',vacuum:true,
   temperatureK:climate.temperatureK,pressurePa:0,densityKgM3:0,scaleHeightM:0,
   windMS:0,windDirection:Object.freeze([0,0,0]),cloudFraction:0,precipitationKgM2S:0,
   sourceSpecies:null,humidityFraction:0,visibility:1,solarFactor:1,charge:0,stormId:null});
@@ -3027,7 +3032,7 @@ function cell(body,dir,timeS=0,seed=742){
  const relativeHumidity=vapor?clamp(partial/Math.max(1,sat),0,2):0;
  const stormSeed=hash(seed+':'+body.id+':lw03:storm:'+Math.floor((u+PI)*2)+':'+Math.floor((lat+PI/2)*3));
  const moisture=clamp(inventory*12,0,1),lift=clamp(.35+.35*Math.cos(2*lat)+.3*stormSeed,0,1);
- const cloud=vapor?clamp((relativeHumidity-.58)*.7+moisture*.35+lift*.13,0,.94):0;
+ const baselineCloud=vapor?clamp((relativeHumidity-.58)*.7+moisture*.35+lift*.13,0,.94):0,cloud=clamp(baselineCloud+(intervention?.cloudDelta||0),0,.94);
  const condensableColumnKgM2=climate.pressurePa*inventory/climate.gravityMS2;
  const precip=vapor&&relativeHumidity>.75?Math.min(condensableColumnKgM2/STEP*.012,
   Math.max(0,relativeHumidity-.75)*cloud*.004):0;
@@ -3949,7 +3954,19 @@ function command(f,op,value){if(!f||f.phase==='failed'||f.phase==='orbit')throw 
  if(op==='stage')throw Error('Use the mission stage separator');
  if(op==='abort'){f.phase='failed';f.reason='Player aborted';f.engineOn=false;return;}
  throw Error('Unsupported flight command');}
-function guidance(f,p,el){const altitude=Math.max(0,el.altitudeM),r=el.radiusM,mu=p.mu;
+function guidance(f,p,el){
+ if(p.guidance==='manufactured-orbit'){
+  const speed=Math.sqrt(p.mu/el.radiusM),target=f.targetAltitudeM;
+  if(!f.insertionPhase)f.insertionPhase='raise-apoapsis';
+  if(f.insertionPhase==='raise-apoapsis'&&el.apoapsisM>=target){f.insertionPhase='coast-to-apoapsis';f.phase='coast';f.engineOn=false;}
+  if(f.insertionPhase==='coast-to-apoapsis'&&el.radialMS<6&&el.altitudeM>target*.75){f.insertionPhase='circularize';f.phase='powered';f.engineOn=true;}
+  if(f.insertionPhase==='coast-to-apoapsis')return{pitchDeg:90,throttle:0};
+  if(f.insertionPhase==='raise-apoapsis')return{pitchDeg:0,throttle:1};
+  const pitchDeg=clamp(90+Math.atan2(el.radialMS,Math.max(5,speed-el.tangentialMS))*180/Math.PI,65,105),
+   throttle=clamp((speed-el.tangentialMS)/80,.04,1);
+  return{pitchDeg,throttle};
+ }
+ const altitude=Math.max(0,el.altitudeM),r=el.radiusM,mu=p.mu;
  // Reduced-order gravity turn: mostly radial below 2 km, tangent by 70 km.
  let pitch=clamp((altitude-1800)/78000,0,1)*89.5;
  const orbitSpeed=Math.sqrt(mu/r);
@@ -4126,7 +4143,7 @@ class Store{
     if(available>0){const result=F.advance(m.flight,m.profile,available);m.lastUpdateS+=result.advancedS;m.elapsedS=m.flight.elapsedS;m.stage=m.flight.stageIndex;m.trajectoryAltitudeM=Math.max(0,result.orbit?.altitudeM||0);m.velocityMS=result.orbit?.speedMS||0;
      for(const item of result.events){if(item==='STAGE_SEPARATED')events.push({id:m.id,kind:'stage',message:'Stage separated under integrated flight'});}}
     if(m.flight.phase==='failed'){m.phase='failed';m.failure=m.flight.reason;events.push({id:m.id,kind:'failed',message:'Launch failed: '+m.failure});continue;}
-    if(m.flight.phase==='orbit'&&m.sourcePaid8g){m.phase='test-orbit';m.completedAtS=time;continue;}
+    if(m.flight.phase==='orbit'&&m.sourcePaid8g){m.phase=m.propulsion==='orbital'?'manufactured-orbit':'test-orbit';m.completedAtS=m.lastUpdateS;m.orbitalElements=F.elements(m.flight,m.profile.mu,m.profile.radiusM);m.orbitalVehicle={inertial2d:{x:m.flight.x,y:m.flight.y,vx:m.flight.vx,vy:m.flight.vy,mu:m.profile.mu,epochS:m.lastUpdateS,launchUp:m.launchUp},axis:m.launchUp,mu:m.profile.mu,epochS:m.lastUpdateS,altitudeM:m.orbitalElements.altitudeM};events.push({id:m.id,kind:'manufactured-orbit',message:'Manufactured stage established a bound orbit; original stage custody retained, no free payload'});continue;}
     if(m.flight.phase==='orbit'){
      const orbital=F.elements(m.flight,m.profile.mu,m.profile.radiusM);m.altitudeM=Math.max(25000,orbital?.semiMajorM-m.profile.radiusM||180000);
      m.phase='orbit';m.orbitalElements=orbital;
@@ -8196,6 +8213,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallKitRe
  */
 (function(root){'use strict';
 const RECIPES=Object.freeze({
+ orbital_propulsion_kit:{category:'rocket_propulsion',station:'assembly',tool:'kit-fixture',inputs:{steel:22,copper:12,aluminum:25,electric_motor:10.8,control_board:1.2,insulated_wire:3,insulation_polymer:9,glass:2},outputs:{orbital_propulsion_kit:80},powerW:2600,seconds:1800,toleranceMm:.1,engineeringNote:'Modeled cryogenic pump/injector, regenerative cooling channels, tank liner/insulation and orbital guidance. All input mass and scrap tracked; nameplate is a game approximation, not a certified engine. Liquefaction work paid separately at immediate ignition.'},
  habitat_recycler:{category:'life_support',station:'assembly',tool:'kit-fixture',inputs:{steel:20,aluminum:8,copper:3,insulated_wire:2,control_board:1.2,glass:6,insulation_polymer:1},outputs:{habitat_recycler:40},powerW:1200,seconds:900,toleranceMm:1,engineeringNote:'Carbohydrate biomass processing, 24 m² thin optical collector/distribution, condensate/reject distillation and nutrient recovery prototype. Collector structure and food safety are not engineering-certified; finite power, gas storage, leaks and reject reservoirs remain accounted for.'},
  drill_head:{category:'mining_service',station:'machine',tool:'cnc',
   inputs:{steel:2.2},outputs:{drill_head:2},powerW:1700,seconds:240,toleranceMm:.2,
@@ -13949,6 +13967,9 @@ const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const knownGas=x=>Object.prototype.hasOwnProperty.call(gas,x);
 const genuineOrigin=x=>id(x)&&!/TEST_FIXTURE|CREATIVE|DEBUG|CHEAT/i.test(x);
+const sum=x=>Object.values(x||{}).reduce((s,n)=>{if(!finite(n))throw Error('Corrupt atmospheric depletion');return s+n;},0);
+function massDelta(s){return s.netAddedKg-sum(s.baselineCapturedSpeciesKg)-sum(s.escapedSpeciesKg)+(s.waterVaporDeltaKg||0);}
+function balance(s,p){const delta=massDelta(s);if(!Number.isFinite(delta)||s.baselineAtmosphereKg+delta< -EPS)throw Error('Atmospheric reservoir exhausted');s.atmosphereKg=Math.max(0,s.baselineAtmosphereKg+delta);s.pressureDeltaPa=delta*p.surfaceGravityMS2/(4*Math.PI*p.radiusM**2);s.pressurePa=Math.max(0,p.atmospherePressurePa+s.pressureDeltaPa);return s;}
 function normalize(saved,profile){
  if(!profile||!id(profile.id)||!finite(profile.radiusM)||profile.radiusM<=0||
     !finite(profile.surfaceGravityMS2)||profile.surfaceGravityMS2<=0||
@@ -13964,7 +13985,7 @@ function normalize(saved,profile){
  const s=cp(saved);
  if(s.schema!==1||s.bodyId!==profile.id||!finite(s.atmosphereKg)||
    !finite(s.baselineAtmosphereKg)||!finite(s.pressurePa)||
-   !finite(s.netAddedKg)||!finite(s.pressureDeltaPa)||
+   !finite(s.netAddedKg)||!Number.isFinite(s.pressureDeltaPa)||
    !Array.isArray(s.receipts)||s.receipts.length>2000||
    !s.emittedSpeciesKg||typeof s.emittedSpeciesKg!=='object'||
    !finite(s.radiusM)||!finite(s.gravityMS2)||
@@ -13973,7 +13994,7 @@ function normalize(saved,profile){
    Math.abs(s.gravityMS2-profile.surfaceGravityMS2)>1e-6||
    new Set(s.receipts.map(r=>r.id)).size!==s.receipts.length)
   throw Error('8J persisted planetary intervention incompatible/corrupt');
- const expectedDelta=s.netAddedKg*profile.surfaceGravityMS2/(4*Math.PI*profile.radiusM**2);
+ const expectedDelta=massDelta(s)*profile.surfaceGravityMS2/(4*Math.PI*profile.radiusM**2);
  if(Math.abs(s.pressureDeltaPa-expectedDelta)>Math.max(1e-18,Math.abs(expectedDelta)*1e-9)||
     Math.abs(s.pressurePa-(profile.atmospherePressurePa+s.pressureDeltaPa))>1e-7)
   throw Error('8J atmospheric pressure delta not conserved by saved mass');
@@ -13997,6 +14018,7 @@ function emit(input){
   return{duplicate:true,world:state,materials:cp(a.materials),
    shipEnergyJ:a.shipEnergyJ,receipt:cp(old)};
  }
+ if(state.receipts.length>=2000)throw Error('Planetary operation archive full');
  if(a.timeS<state.lastTimeS)throw Error('8J cannot regress planetary operations time');
  if(a.protectedWorld||a.nativeLife||a.archaeologicalProtection)
   throw Error('8J planetary protection lock: native life or archaeological site');
@@ -14042,10 +14064,9 @@ function emit(input){
  if(src.massKg-a.kg<=EPS)next.lots.splice(next.lots.indexOf(src),1);
  else{src.massKg-=a.kg;src.volumeM3=Math.max(0,src.volumeM3-volumeDebit);}
  const w=cp(state);w.netAddedKg+=a.kg;
- w.atmosphereKg=w.baselineAtmosphereKg+w.netAddedKg;
+ balance(w,p);
  w.emittedSpeciesKg[materialId]=(w.emittedSpeciesKg[materialId]||0)+a.kg;
- w.pressureDeltaPa=w.netAddedKg*w.gravityMS2/(4*Math.PI*w.radiusM**2);
- w.pressurePa=p.atmospherePressurePa+w.pressureDeltaPa;
+ balance(w,p);
  w.lastTimeS=a.timeS;
  const receipt={id:a.receiptId,status:'COMMITTED',kind:'PLANET_ATMOSPHERE_EMISSION_8J',
   vesselId:vessel.id,lotId:l.id,gas:materialId,massKg:a.kg,
@@ -14057,12 +14078,116 @@ function emit(input){
  root.StarfallMaterials8A?.create(next);
  return{duplicate:false,materials:next,world:w,shipEnergyJ:a.shipEnergyJ-workJ,receipt};
 }
-const API=Object.freeze({normalize,emit,WORK_J_KG,MAX_BATCH_KG});
+const API=Object.freeze({normalize,emit,balance,massDelta,WORK_J_KG,MAX_BATCH_KG});
 root.StarfallAtmosphereEmission8J=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* Coupled six equal-area latitude-band perturbation climate, SI reservoirs.
+ * CW01 owns composition. Controls evolve beside interventions to preserve old
+ * world baselines exactly. No terrain, ecology or planetary IDs are rewritten.
+ */
+(function(root){'use strict';
+const R=8.314462618,SIGMA=5.670374419e-8,CS=2e7,CO=4e8,LF=334000,LV=2.5e6,DAY=86400;
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),sum=x=>Object.values(x||{}).reduce((s,n)=>s+n,0);
+const MW={H2:.002016,He:.004003,CH4:.016043,N2:.028014,O2:.031998,CO2:.04401,H2O:.01801528,Ar:.03995,SO2:.064066};
+const names={CO2:'carbon_dioxide',CH4:'methane',H2:'hydrogen',N2:'nitrogen',O2:'oxygen'};
+const finite=x=>typeof x==='number'&&Number.isFinite(x);
+function inputs(body,profile,seed,flux){
+ const composition=root.StarfallCompositionCW01.bodyFor(body,seed),mix=composition.atmosphereMoleFractions,
+ mean=Object.entries(mix).reduce((s,[k,v])=>s+v*MW[k],0),area=4*Math.PI*profile.radiusM**2;
+ const gases=Object.fromEntries(Object.entries(mix).map(([k,v])=>[names[k]||k,mean?profile.atmospherePressurePa*area/profile.surfaceGravityMS2*v*MW[k]/mean:0]));
+ const water=Math.min(Math.max(0,profile.massKg||0)*(composition.majorMaterialMassFractions.H2O||0),area*1000);
+ return{schema:2,bodyId:body.id,compositionVersion:composition.schema,gases,waterKg:water,area,
+ baselineK:root.StarfallFieldScience?.profile(body,seed)?.temperatureK||Math.max(30,Math.pow(Math.max(0,flux)*(1-profile.albedo)/(4*SIGMA),.25)),
+ albedo:profile.albedo,tilt:body.axialTilt||0,periodS:Math.max(DAY,body.orbitPeriod||365*DAY),flux,profile:JSON.parse(JSON.stringify(profile)),
+ provenance:'CW01 seeded composition, canonical R/g/pressure; accessible water layer capped at 1000 kg/m² and bulk H2O inventory; high uncertainty'};
+}
+function waterStep(w,T,dt,area,gravity,pressure){
+ const before=LV*w.vaporKg-LF*w.iceKg,total=w.liquidKg+w.iceKg+w.vaporKg;
+ const saturation=611.2*Math.exp(clamp(17.67*(T-273.15)/(T-29.65),-60,25));
+ const target=Math.min(total,saturation*area/Math.max(.01,gravity)*.622);
+ const vapor=(target-w.vaporKg)*(-Math.expm1(-dt/DAY));
+ if(vapor>0){const q=Math.min(vapor,w.liquidKg);w.liquidKg-=q;w.vaporKg+=q;}
+ else{w.vaporKg+=vapor;w.liquidKg-=vapor;}
+ // Below the water triple-point pressure, condensate is ice, never a new ocean.
+ const fraction=pressure<611?1:clamp((278.15-T)/10,0,1),solid=w.liquidKg+w.iceKg,
+ freeze=(solid*fraction-w.iceKg)*(-Math.expm1(-dt/(3*DAY)));
+ w.iceKg+=freeze;w.liquidKg-=freeze;
+ return LV*w.vaporKg-LF*w.iceKg-before;
+}
+function initialize(world,i,timeS){
+ const bands=Array.from({length:6},(_,n)=>{const lat=Math.asin(-1+(n+.5)/3),T=Math.max(30,i.baselineK+12*Math.cos(lat)-9),ice=T<273.15?i.waterKg/6:0;
+ const w={iceKg:ice,liquidKg:i.waterKg/6-ice,vaporKg:0};return{lat,anomalyK:0,deepAnomalyK:0,water:{...w},controlWater:{...w},cloudDelta:0};});
+ world.climate8j={schema:2,lastS:timeS,bands,anomalyK:world.climate8j?.anomalyK||0,storedHeatJ:0,radiativeJ:0,latentJ:0,escapeWorkJ:0,escapedKg:0,steps:0,hazeOpacity:0,initialHeatJ:0};
+ // Preserve the old thermal anomaly during migration rather than resetting it.
+ for(const b of bands)b.anomalyK=world.climate8j.anomalyK;
+ world.climate8j.storedHeatJ=CS*i.area*world.climate8j.anomalyK;world.climate8j.initialHeatJ=world.climate8j.storedHeatJ;
+}
+function advance(world,profile,flux,timeS,context){
+ if(!finite(timeS)||timeS<0||!finite(flux)||flux<0||flux>1e30)throw Error('Invalid coupled climate forcing/clock');
+ let i=world.climateInputs8j;
+ if(!i){if(!context?.body||context.body.id!==profile.id)throw Error('Canonical climate world required');i=world.climateInputs8j=inputs(context.body,profile,context.seed??742,flux);}
+ if(i.bodyId!==profile.id||i.schema!==2||!(i.area>0))throw Error('Incompatible climate input snapshot');
+ if(world.climate8j?.schema!==2)initialize(world,i,timeS);
+ const c=world.climate8j,seconds=timeS-c.lastS;
+ if(seconds<=0)return c;if(seconds>DAY)throw Error('Climate must advance in bounded daily substeps');
+ if(c.bands.length!==6||!c.bands.every(b=>finite(b.anomalyK)&&finite(b.deepAnomalyK)&&[b.water,b.controlWater].every(w=>Object.values(w).every(v=>finite(v)&&v>=0))))throw Error('Corrupt coupled climate reservoirs');
+ const a=i.area/6,delta=gas=>(world.emittedSpeciesKg?.[gas]||0)-(world.capturedSpeciesKg?.[gas]||0)-(world.baselineCapturedSpeciesKg?.[gas]||0)-(world.escapedSpeciesKg?.[gas]||0);
+ let remaining=seconds;
+ while(remaining>1e-8){const dt=Math.min(3600,remaining),now=c.lastS+dt,co2=delta('carbon_dioxide')/i.area,ch4=delta('methane')/i.area,
+ co2base=Math.max(.01,(i.gases.carbon_dioxide||0)/i.area),ch4base=Math.max(.001,(i.gases.methane||0)/i.area),
+ greenhouse=5.35*Math.log1p(Math.max(-.999999999,co2/co2base))+1.5*Math.log1p(Math.max(-.999999999,ch4/ch4base));
+ const old=c.bands.map(b=>b.anomalyK),season=2*Math.PI*now/i.periodS;
+ for(let n=0;n<6;n++){
+  const b=c.bands[n],baseT=Math.max(30,i.baselineK+12*Math.cos(b.lat)-9+8*Math.sin(b.lat)*Math.sin(season)*Math.sin(i.tilt)),T=Math.max(3,baseT+b.anomalyK),
+   priorLatent=(LV*(b.water.vaporKg-b.controlWater.vaporKg)-LF*(b.water.iceKg-b.controlWater.iceKg)),
+   controlLatent=waterStep(b.controlWater,baseT,dt,a,profile.surfaceGravityMS2,profile.atmospherePressurePa),
+   forcedLatent=waterStep(b.water,T,dt,a,profile.surfaceGravityMS2,world.pressurePa),latent=forcedLatent-controlLatent,
+   iceDelta=(b.water.iceKg-b.controlWater.iceKg)/Math.max(1,i.waterKg/6),vaporDelta=(b.water.vaporKg-b.controlWater.vaporKg)/a,
+   cloud=clamp(vaporDelta/20,-.8,.8),albedo=clamp(i.albedo+.3*iceDelta+.15*cloud,.02,.95),
+   insolation=flux/4*Math.max(.15,1+.4*Math.cos(b.lat)+.2*Math.sin(b.lat)*Math.sin(season)*Math.sin(i.tilt)),
+   vaporForcing=2*Math.log1p(Math.max(-.999999,vaporDelta/Math.max(.01,b.controlWater.vaporKg/a))),
+   radiation=insolation*(i.albedo-albedo)+greenhouse+vaporForcing-4*SIGMA*Math.pow(Math.max(30,baseT),3)*b.anomalyK,
+   ocean=1.2*(b.anomalyK-b.deepAnomalyK),transport=.6*((n>0?old[n-1]-old[n]:0)+(n<5?old[n+1]-old[n]:0));
+  b.anomalyK+=(dt*(radiation-ocean+transport)-latent/a)/CS;b.deepAnomalyK+=dt*ocean/CO;b.cloudDelta=cloud;
+  c.radiativeJ+=radiation*a*dt;c.latentJ+=latent;
+  // Accounting check uses the change in phase energy, not fictional biomass.
+  if(!finite(priorLatent)||!finite(b.anomalyK)||Math.abs(b.anomalyK)>1e5)throw Error('Climate outside numerical model envelope');
+ }
+ // Only introduced atmospheric gas can escape: baseline evolution is paired out.
+ // Jeans tail with a separate finite stellar-XUV work budget; never creates gas.
+ let escapeBudget=flux*1e-5*i.area/4*.15*dt;
+ world.escapedSpeciesKg=world.escapedSpeciesKg||{};
+ for(const [gas,mw]of [['hydrogen',.002016],['methane',.016043],['nitrogen',.028014],['oxygen',.031998],['carbon_dioxide',.04401],['carbon_monoxide',.02801]]){
+  const available=Math.max(0,(world.emittedSpeciesKg?.[gas]||0)-(world.capturedSpeciesKg?.[gas]||0)-(world.escapedSpeciesKg[gas]||0)),temperature=Math.max(30,i.baselineK+c.bands.reduce((s,b)=>s+b.anomalyK,0)/6),
+   binding=profile.mu/profile.radiusM,lambda=binding*mw/(R*temperature),rate=Math.min(1,(1+lambda)*Math.exp(-Math.min(700,lambda)))*1e-6,
+   lost=Math.min(available*(-Math.expm1(-rate*dt)),escapeBudget/Math.max(1,binding));
+  world.escapedSpeciesKg[gas]=(world.escapedSpeciesKg[gas]||0)+lost;escapeBudget-=lost*binding;c.escapeWorkJ+=lost*binding;c.escapedKg+=lost;
+ }
+ c.lastS=now;c.steps++;remaining-=dt;
+ }
+ const waterDelta=c.bands.reduce((s,b)=>s+b.water.vaporKg-b.controlWater.vaporKg,0);
+ world.waterVaporDeltaKg=waterDelta;
+ root.StarfallAtmosphereEmission8J.balance(world,profile);
+ c.anomalyK=c.bands.reduce((s,b)=>s+b.anomalyK,0)/6;c.deepAnomalyK=c.bands.reduce((s,b)=>s+b.deepAnomalyK,0)/6;
+ c.storedHeatJ=c.bands.reduce((s,b)=>s+a*(CS*b.anomalyK+CO*b.deepAnomalyK)+LV*(b.water.vaporKg-b.controlWater.vaporKg)-LF*(b.water.iceKg-b.controlWater.iceKg),0);
+ c.energyResidualJ=c.storedHeatJ-c.radiativeJ-c.initialHeatJ;
+ c.cloudDelta=c.bands.reduce((s,b)=>s+b.cloudDelta,0)/6;
+ c.iceCoverageDelta=c.bands.reduce((s,b)=>s+(b.water.iceKg-b.controlWater.iceKg)/Math.max(1,i.waterKg/6),0)/6;
+ c.liquidWaterKg=c.bands.reduce((s,b)=>s+b.water.liquidKg,0);c.surfaceK=i.baselineK+c.anomalyK;
+ c.hazeOpacity=-Math.expm1(-1e-5*Math.max(0,root.StarfallAtmosphereEmission8J.massDelta(world))/i.area);
+ c.model='Six equal-area latitude bands, paired baseline, finite surface/deep heat, CO2/CH4 opacity, water vapor/cloud/ice albedo, latent heat and XUV-limited Jeans-tail escape; coarse game climate, not a validated GCM';
+ return c;
+}
+function sample(world,dir){const c=world?.climate8j;if(c?.schema!==2)return null;const n=Array.isArray(dir)?clamp(Math.floor((dir[1]/(Math.hypot(...dir)||1)+1)*3),0,5):-1,b=c.bands[n];return{anomalyK:b?.anomalyK??c.anomalyK,cloudDelta:b?.cloudDelta??c.cloudDelta,iceCoverageDelta:c.iceCoverageDelta};}
+root.StarfallCoupledClimate8J=Object.freeze({advance,inputs,sample,CS,CO,LF,LV});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallCoupledClimate8J;
+})(globalThis);
+
+</script>
+<script>
 /* Source-owned prototype flight, regenerative cabin and incremental climate.
  * These reduced-order engineering models do not certify real hardware,
  * food safety or planetary habitability. No ambient species are invented.
@@ -14077,47 +14202,69 @@ function take(m,cid,id,kg){let left=kg;const used=[];
   if(n>EPS){const old=l.massKg;l.massKg-=n;l.volumeM3*=l.massKg/old;used.push({lotId:l.id,materialId:id,massKg:n,provenance:l.provenance});left-=n;}if(left<EPS)break;
  }requireThat(left<EPS,'Missing unreserved source-owned '+id);m.lots=m.lots.filter(l=>l.massKg>EPS);return used;
 }
+function ageStage(stage,timeS){
+ const c=stage.state?.orbital8g;if(!c)return;
+ requireThat(good(c.hydrogenKg)&&good(c.lastS)&&good(c.ventedKg)&&timeS>=c.lastS,'Corrupt/regressed cryogenic tank ledger');
+ const lostH=Math.min(c.hydrogenKg,20*(timeS-c.lastS)/(445000+8*213000));
+ c.hydrogenKg-=lostH;c.ventedKg+=9*lostH;c.lastS=timeS;stage.massKg-=9*lostH;
+}
+function ageTanks(physical,timeS){const p=cp(physical);for(const stage of p.assets)ageStage(stage,timeS);return p;}
 function launch(a){
- const m=cp(a.materials),p=cp(a.physical),store=cp(a.launchStore),body=a.body;
- requireThat(a.operationId?.startsWith('rocket8g:')&&good(a.timeS)&&good(a.shipEnergyJ)&&a.shipEnergyJ>=3e6,'Rocket ignition needs unique ID, clock and 3 MJ ship work');
+ const m=cp(a.materials),p=ageTanks(a.physical,a.timeS),store=cp(a.launchStore),body=a.body,preparing=a.prepareOnly===true,orbital=a.propulsion==='orbital'||preparing;
+ requireThat((a.operationId?.startsWith('rocket8g:')||a.operationId?.startsWith('condition8g:'))&&good(a.timeS)&&good(a.shipEnergyJ)&&a.shipEnergyJ>=3e6,'Rocket operation needs unique ID, clock and 3 MJ ship work');
  requireThat(!m.operations.some(o=>o.id===a.operationId)&&!store.launches.some(o=>o.id===a.operationId),'Rocket already committed');
  requireThat(body?.landable&&good(body.radius)&&body.radius>0&&good(body.gravity)&&body.gravity>0&&store.launches.length<240&&Array.isArray(a.launchUp)&&a.launchUp.length===3&&a.launchUp.every(Number.isFinite)&&Math.abs(Math.hypot(...a.launchUp)-1)<1e-4,'Valid solid world, radial launch axis and free launch archive slot required');
- const stage=p.assets.find(x=>x.id===a.stageId),receipt=a.assembly?.receipts?.find(x=>x.assetId===a.stageId&&x.blueprintId==='rocket_stage'),bill=root.StarfallAssembly8G.DEFINITIONS.rocket_stage.parts;
- requireThat(stage?.type==='rocket_stage_dry'&&stage.condition>=.95&&stage.location?.bodyId===body.id&&stage.provenance==='structural-8g:'+stage.id&&receipt?.status==='ASSEMBLED_NOT_OPERATIONAL'&&Math.abs(stage.massKg-receipt.massKg)<EPS,'An intact, genuinely manufactured dry rocket stage is required');
+ const stage=p.assets.find(x=>x.id===a.stageId),receipt=a.assembly?.receipts?.find(x=>x.assetId===a.stageId&&x.blueprintId==='rocket_stage'),bill=root.StarfallAssembly8G.DEFINITIONS.rocket_stage.parts,c=stage?.state?.orbital8g,
+  storedMass=c?80+9*c.hydrogenKg:0;
+ requireThat(stage?.type==='rocket_stage_dry'&&stage.condition>=.95&&stage.location?.bodyId===body.id&&stage.provenance==='structural-8g:'+stage.id&&receipt?.status==='ASSEMBLED_NOT_OPERATIONAL'&&Math.abs(stage.massKg-storedMass-receipt.massKg)<EPS,'An intact, genuinely manufactured dry rocket stage is required');
  for(const [id,kg]of Object.entries(bill))requireThat(Math.abs(receipt.consumedLots.filter(l=>l.materialId===id).reduce((s,l)=>s+l.massKg,0)-kg)<EPS,'Rocket missing manufactured '+id);
  const pad=p.assets.find(x=>x.id===stage.state.assemblyFacilityId);
  requireThat(pad?.state?.station==='rocket_integration'&&pad.location?.bodyId===body.id&&pad.condition>=.8,'Original installed rocket integration rig required');
- const h=a.hydrogenKg;requireThat(good(h)&&h>=.1&&h<=8,'Hydrogen load must be 0.1–8 kg');
- const fuel=9*h,hotFire=.02,temperatureK=293.15,pressurePa=8e6;
- const volume=(h/.002016+8*h/.031998)*R*temperatureK/pressurePa;
- requireThat(volume<=stage.volumeM3,'Compressed propellant exceeds manufactured tank volume');
- const vessels=[['hydrogen',a.hydrogenVesselId,h],['oxygen',a.oxygenVesselId,8*h]],used=[];let workJ=3e6;
- for(const [gas,id,kg]of vessels){const v=p.assets.find(x=>x.id===id),bin=m.containers.find(c=>c.id===v?.state?.containerId&&c.ownerId===id);
-  requireThat(v?.type==='industrial_vessel'&&v.condition>=.8&&v.state.enabled&&v.state.materialId===gas&&v.state.ratedPressurePa>=5e6&&v.location?.bodyId===body.id&&bin?.kind.includes('gas'),'Real same-world rated '+gas+' vessel required');
-  requireThat(!m.lots.some(l=>l.containerId===bin.id&&l.materialId!==gas),'Mixed propellant vessel');
-  const stock=m.lots.filter(l=>l.containerId===bin.id),kgStored=stock.reduce((s,l)=>s+l.massKg,0);
-  const mw=gas==='hydrogen'?.002016:.031998;
-  const sourcePressurePa=kgStored/mw*R*temperatureK/bin.maxVolumeM3;
-  requireThat(sourcePressurePa<=v.state.ratedPressurePa+EPS,'Propellant vessel overpressure');
-  workJ+=kg*(1+hotFire)/mw*R*temperatureK*Math.max(0,Math.log(pressurePa)-Math.log(Math.max(Number.MIN_VALUE,sourcePressurePa)));
-  used.push(...take(m,bin.id,gas,kg*(1+hotFire)));
+ requireThat(orbital||!c,'Conditioned orbital stage must use orbital ignition');
+ let h=orbital&&!preparing?c?.hydrogenKg:a.hydrogenKg;
+ requireThat(good(h)&&h>=.1&&h<=(orbital&&!preparing?140:8),'Hydrogen load outside selected envelope; condition orbital propellant in <=8 kg H2 batches first');
+ let workJ=3e6,used=[],hardware=[];
+ if(preparing&&!c){
+  requireThat(m.lots.some(l=>l.containerId===a.partsContainerId&&l.materialId==='orbital_propulsion_kit'&&a.factory?.receipts?.some(r=>r.status==='COMMITTED'&&r.recipeId==='orbital_propulsion_kit'&&l.provenance==='process:'+r.id)),'Manufacture an orbital propulsion kit before cryogenic conditioning');
+  hardware=take(m,a.partsContainerId,'orbital_propulsion_kit',80);
  }
- requireThat(a.shipEnergyJ>=workJ,'Battery lacks actual propellant compression work');
- const geoidRadiusM=body.radius*1000,height=a.surfaceHeightM??0;
+ const liquidH=preparing?h+(c?.hydrogenKg||0):h,volume=orbital?liquidH/70.8+8*liquidH/1141:(h/.002016+8*h/.031998)*R*293.15/8e6;
+ requireThat(volume<=stage.volumeM3,'Propellant exceeds manufactured tank volume');
+ if(preparing||!orbital){
+  if(preparing)workJ+=h*1.02*(15e6+8*.8e6);
+  for(const [gas,id,kg,mw]of [['hydrogen',a.hydrogenVesselId,h,.002016],['oxygen',a.oxygenVesselId,8*h,.031998]]){
+   const v=p.assets.find(x=>x.id===id),bin=m.containers.find(x=>x.id===v?.state?.containerId&&x.ownerId===id);
+   requireThat(v?.type==='industrial_vessel'&&v.condition>=.8&&v.state.enabled&&v.state.materialId===gas&&v.state.ratedPressurePa>=5e6&&v.location?.bodyId===body.id&&bin?.kind.includes('gas'),'Real same-world rated '+gas+' vessel required');
+   requireThat(!m.lots.some(l=>l.containerId===bin.id&&l.materialId!==gas),'Mixed propellant vessel');
+   const stock=m.lots.filter(l=>l.containerId===bin.id),pressure=stock.reduce((n,l)=>n+l.massKg,0)/mw*R*293.15/bin.maxVolumeM3;
+   requireThat(pressure<=v.state.ratedPressurePa+EPS,'Propellant vessel overpressure');
+   workJ+=kg*1.02/mw*R*293.15*Math.max(0,Math.log(8e6)-Math.log(Math.max(Number.MIN_VALUE,pressure)));
+   used.push(...take(m,bin.id,gas,kg*1.02));
+  }
+ }
+ requireThat(a.shipEnergyJ>=workJ,'Battery lacks actual conditioning/compression work; use smaller conditioning batches');
+ if(preparing){
+  const tank=c||{schema:1,hydrogenKg:0,ventedKg:0,lastS:a.timeS,sourceLots:[],conditioningJ:0,hardwareLots:hardware};
+  tank.hydrogenKg+=h;tank.ventedKg+=9*h*.02;tank.conditioningJ+=workJ;tank.sourceLots.push(...used);tank.lastS=a.timeS;
+  stage.state.orbital8g=tank;stage.massKg=receipt.massKg+80+9*tank.hydrogenKg;
+  m.operations.push({id:a.operationId,kind:'ORBITAL_PROPELLANT_CONDITIONING',status:'COMMITTED',stageId:stage.id,energyJ:workJ,massKg:9*h*1.02,conditionedKg:9*h,ventedKg:9*h*.02,consumedLots:used,hardwareLots:hardware});
+  return{materials:m,physical:p,shipEnergyJ:a.shipEnergyJ-workJ};
+ }
+ const fuel=9*h,dryKg=receipt.massKg+(orbital?80:0),geoidRadiusM=body.radius*1000,height=a.surfaceHeightM??0;
  requireThat(Number.isFinite(height)&&Math.abs(height)<geoidRadiusM*.3,'Invalid actual launch terrain height');
- const radiusM=geoidRadiusM+height,g=body.gravity*9.80665,mu=g*geoidRadiusM**2,thrustN=12000,ispS=180,massKg=stage.massKg+fuel;
- requireThat(thrustN/(massKg*(mu/radiusM**2))>=1.08,'Prototype has insufficient liftoff thrust on this world');
+ const radiusM=geoidRadiusM+height,g=body.gravity*9.80665,mu=g*geoidRadiusM**2,thrustN=orbital?40000:12000,ispS=orbital?350:180,massKg=dryKg+fuel;
+ requireThat(thrustN/(massKg*(mu/radiusM**2))>=1.08,'Insufficient liftoff thrust on this world');
  const profile={massKg,payloadKg:0,busMassKg:0,payload:'sounding-test',stages:1,boosterPropKg:0,boosterDryKg:0,boosterIspS:280,boosterThrustN:0,
-  stageParts:[{dryKg:stage.massKg,propKg:fuel,thrustN,ispS,tanks:1,label:'Manufactured gas-fed H2/O2 sounding prototype'}],
-  radiusM,mu,deltaVMS:ispS*9.80665*Math.log(massKg/stage.massKg),burnTimeS:fuel*ispS*9.80665/thrustN,
-  model:'Gas-fed sounding prototype: 8 MPa tank-volume bound, illustrative 12 kN / 180 s nameplate. No cryogenic storage, orbital guarantee or real-world qualification.'};
- const flight=root.StarfallRocketFlight7B.init(profile,{radiusM,mu,rho0:good(a.profile?.atmospherePressurePa)?a.profile.atmospherePressurePa*.02897/(R*293.15):(body.atmosphere?1.05:0),areaM2:1},{mode:'manual'});
- const mission={id:a.operationId,bodyId:body.id,systemId:body.systemId,padId:pad.id,local:cp(stage.location.local),launchUp:cp(a.launchUp),
-  startS:a.timeS,lastUpdateS:a.timeS,phase:'ascent',elapsedS:0,profile,flight,payload:'sounding-test',sourcePaid8g:true,
-  sourceStage:cp(stage),propellantLots:used,hotFireExhaustKg:fuel*hotFire,altitudeM:50000,trajectoryAltitudeM:0,velocityMS:0};
- store.launches.push(mission);p.assets=p.assets.filter(x=>x.id!==stage.id);
- p.transfers=p.transfers||[];p.transfers.push({id:a.operationId,assetId:stage.id,action:'LAUNCH',status:'COMMITTED',destinationOwner:'launch7:'+mission.id,massKg:stage.massKg});
- m.operations.push({id:a.operationId,kind:'MANUFACTURED_ROCKET_IGNITION',status:'COMMITTED',stageId:stage.id,massKg:fuel*(1+hotFire),energyJ:workJ,consumedLots:used});
+  stageParts:[{dryKg,propKg:fuel,thrustN,ispS,tanks:1,label:orbital?'Manufactured conditioned LOX/LH2 orbital stage':'Manufactured gas-fed H2/O2 sounding prototype'}],radiusM,mu,
+  deltaVMS:ispS*9.80665*Math.log(massKg/dryKg),burnTimeS:fuel*ispS*9.80665/thrustN,
+  model:orbital?'Manufactured 80 kg cryogenic pump/injector, cooling, tank insulation and guidance: modeled 40 kN / 350 s. H2/O2 densities 70.8/1141 kg/m³, paid staged conditioning and 20 W heat-leak boiloff. Not real hardware certification.':'Gas-fed sounding prototype: 8 MPa tank-volume bound, illustrative 12 kN / 180 s nameplate.'};
+ if(orbital){profile.guidance='manufactured-orbit';profile.requiredDeltaVMS=Math.sqrt(mu/(radiusM+180000))+(mu/radiusM**2)*135+380;requireThat(profile.deltaVMS>=profile.requiredDeltaVMS,'Orbital delta-v budget insufficient on this world: condition more propellant or use a lower-gravity launch site');}
+ const flight=root.StarfallRocketFlight7B.init(profile,{radiusM,mu,rho0:good(a.profile?.atmospherePressurePa)?a.profile.atmospherePressurePa*.02897/(R*293.15):(body.atmosphere?1.05:0),areaM2:1},{mode:orbital?'assisted':'manual',targetAltitudeM:a.profile?.atmospherePressurePa>0?180000:60000});
+ const mission={id:a.operationId,bodyId:body.id,systemId:body.systemId,padId:pad.id,local:cp(stage.location.local),launchUp:cp(a.launchUp),startS:a.timeS,lastUpdateS:a.timeS,phase:'ascent',elapsedS:0,profile,flight,payload:'sounding-test',sourcePaid8g:true,
+  sourceStage:{...cp(stage),massKg:dryKg},propulsion:orbital?'orbital':'sounding',propellantLots:orbital?cp(c.sourceLots):used,hotFireExhaustKg:orbital?0:fuel*.02,altitudeM:180000,trajectoryAltitudeM:0,velocityMS:0};
+ store.launches.push(mission);p.assets=p.assets.filter(x=>x.id!==stage.id);p.transfers=p.transfers||[];
+ p.transfers.push({id:a.operationId,assetId:stage.id,action:'LAUNCH',status:'COMMITTED',destinationOwner:'launch7:'+mission.id,massKg:dryKg+fuel});
+ m.operations.push({id:a.operationId,kind:'MANUFACTURED_ROCKET_IGNITION',status:'COMMITTED',stageId:stage.id,massKg:orbital?0:fuel*1.02,energyJ:workJ,consumedLots:used,transferredConditionedKg:orbital?fuel:0});
  return{materials:m,physical:p,launchStore:store,shipEnergyJ:a.shipEnergyJ-workJ,mission};
 }
 function installLoop(a){
@@ -14161,14 +14308,28 @@ function capture(a){
  const m=cp(a.materials),world=root.StarfallAtmosphereEmission8J.normalize(a.world,a.profile),v=a.physical.assets.find(x=>x.id===a.vesselId);
  requireThat(a.operationId?.startsWith('capture8j:')&&good(a.kg)&&a.kg>0&&a.kg<=10&&good(a.shipEnergyJ)&&a.shipEnergyJ>=a.kg*2e6,'Capture requires <=10 kg and 2 MJ/kg ship separation/compression work');
  requireThat(!a.protectedWorld&&!a.nativeLife&&!a.archaeologicalProtection&&a.landable&&a.timeS>=world.lastTimeS,'Protected world or regressed clock');
- requireThat(!m.operations.some(o=>o.id===a.operationId)&&!world.receipts.some(r=>r.id===a.operationId),'Capture already committed');
+ requireThat(!m.operations.some(o=>o.id===a.operationId)&&!world.receipts.some(r=>r.id===a.operationId),'Capture already committed');requireThat(world.receipts.length<2000,'Planetary operation archive full; export/archive receipts first');
  const collector=a.physical.assets.find(x=>x.id===a.collectorId);
  requireThat(collector?.type==='industrial_plant'&&collector.state?.station==='atmospheric_capture'&&collector.state.enabled&&collector.condition>=.8&&collector.massKg===740&&collector.location?.bodyId===a.profile.id&&a.physical.transfers?.some(t=>t.action==='INSTALL'&&t.status==='COMMITTED'&&t.assetId===collector.id&&t.massKg===740&&t.sourceLotId),'Actual manufactured atmospheric capture plant required');
  const gas=v?.state?.materialId,mw={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,carbon_monoxide:.02801,hydrogen:.002016,methane:.016043}[gas];
  requireThat(v?.type==='industrial_vessel'&&v.condition>=.8&&v.location?.bodyId===a.profile.id&&v.state.enabled&&mw&&v.state.ratedPressurePa>=5e6,'Actual same-world rated receiving vessel required');
- const available=(world.emittedSpeciesKg[gas]||0)-(world.capturedSpeciesKg?.[gas]||0);
- requireThat(available+EPS>=a.kg,'No inventoried atmospheric '+gas+' available; unmeasured baseline species cannot be invented');
- const dilution=Math.log(Math.max(1,(world.baselineAtmosphereKg+world.netAddedKg)/Math.max(EPS,available))),
+ const baseline=a.sourceMode==='baseline';let available,sourceFraction;
+ if(baseline){
+  requireThat(a.body?.id===a.profile.id&&a.body?.kind&&root.StarfallCompositionCW01,'Canonical world composition required for baseline extraction');
+  const mix=root.StarfallCompositionCW01.bodyFor(a.body,a.seed??742).atmosphereMoleFractions;
+  const masses={H2:.002016,He:.004003,CH4:.016043,N2:.028014,O2:.031998,CO2:.04401,CO:.02801,H2O:.01801528,Ar:.03995,SO2:.064066},key={oxygen:'O2',nitrogen:'N2',carbon_dioxide:'CO2',carbon_monoxide:'CO',hydrogen:'H2',methane:'CH4'}[gas];
+  const mean=Object.entries(mix).reduce((n,[k,v])=>n+v*masses[k],0);
+  sourceFraction=mean>0?(mix[key]||0)*mw/mean:0;
+  available=world.baselineAtmosphereKg*sourceFraction-(world.baselineCapturedSpeciesKg?.[gas]||0);
+  requireThat(sourceFraction>0&&available>=a.kg,'Canonical baseline has no available '+gas+'; survey a compatible atmosphere');
+  const last=world.receipts.filter(r=>r.collectorId===collector.id&&r.sourceMode==='baseline').at(-1)?.timeS??Math.max(0,a.timeS-60);
+  const density=world.pressurePa*mean/(R*293.15),intake=400/3600*density*sourceFraction*Math.max(0,a.timeS-last);
+  requireThat(a.kg<=intake+EPS,'Capture intake limited to 400 m³/hour: wait for sufficient atmospheric throughput');
+ }else{
+  available=(world.emittedSpeciesKg[gas]||0)-(world.capturedSpeciesKg?.[gas]||0)-(world.escapedSpeciesKg?.[gas]||0);
+  requireThat(available+EPS>=a.kg,'No inventoried atmospheric '+gas+' available; select canonical baseline extraction if present');
+ }
+ const dilution=Math.log(baseline?1/sourceFraction:Math.max(1,world.atmosphereKg/Math.max(EPS,available))),
   pressureLift=Math.max(0,Math.log(5e6)-Math.log(Math.max(Number.MIN_VALUE,world.pressurePa))),
   workJ=a.kg*2e6+a.kg/mw*R*293.15*(dilution+pressureLift);
  requireThat(a.shipEnergyJ>=workJ,'Battery lacks separation/compression work at actual trace-gas dilution');
@@ -14177,14 +14338,15 @@ function capture(a){
  const mass=ledger.used(bin.id).massKg+a.kg,volume=a.kg/mw*R*293.15/5e6;
  requireThat(mass/mw*R*293.15/bin.maxVolumeM3<=v.state.ratedPressurePa+EPS,'Capture would overpressure vessel');
  ledger.importLot({id:a.operationId+':gas',materialId:gas,massKg:a.kg,volumeM3:volume,containerId:bin.id,grade:1,provenance:'atmospheric-capture:'+a.operationId});
- const materials=ledger.snapshot(),receipt={id:a.operationId,kind:'ATMOSPHERIC_CAPTURE',status:'COMMITTED',gas,massKg:a.kg,energyJ:workJ,energySourceId:'ship-main:engineering-battery',collectorId:collector.id,sourceAtmosphereKgBefore:world.atmosphereKg,sourceSpeciesKgBefore:available,bodyId:a.profile.id};materials.operations.push(receipt);
- world.capturedSpeciesKg=world.capturedSpeciesKg||{};world.capturedSpeciesKg[gas]=(world.capturedSpeciesKg[gas]||0)+a.kg;
- world.netAddedKg=Math.max(0,world.netAddedKg-a.kg);world.atmosphereKg=world.baselineAtmosphereKg+world.netAddedKg;
- world.pressureDeltaPa=world.netAddedKg*a.profile.surfaceGravityMS2/(4*Math.PI*a.profile.radiusM**2);world.pressurePa=a.profile.atmospherePressurePa+world.pressureDeltaPa;
+ const materials=ledger.snapshot(),receipt={id:a.operationId,kind:'ATMOSPHERIC_CAPTURE',status:'COMMITTED',gas,massKg:a.kg,energyJ:workJ,energySourceId:'ship-main:engineering-battery',collectorId:collector.id,sourceAtmosphereKgBefore:world.atmosphereKg,sourceSpeciesKgBefore:available,sourceMode:baseline?'baseline':'recovery',timeS:a.timeS,compositionVersion:baseline?1:null,bodyId:a.profile.id};materials.operations.push(receipt);
+ if(baseline){world.baselineCapturedSpeciesKg=world.baselineCapturedSpeciesKg||{};world.baselineCapturedSpeciesKg[gas]=(world.baselineCapturedSpeciesKg[gas]||0)+a.kg;}
+ else{world.capturedSpeciesKg=world.capturedSpeciesKg||{};world.capturedSpeciesKg[gas]=(world.capturedSpeciesKg[gas]||0)+a.kg;world.netAddedKg=Math.max(0,world.netAddedKg-a.kg);}
+ root.StarfallAtmosphereEmission8J.balance(world,a.profile);
  world.lastTimeS=a.timeS;world.receipts.push(receipt);
  return{materials,world,shipEnergyJ:a.shipEnergyJ-receipt.energyJ};
 }
-function climate(world,profile,flux,timeS){
+function climate(world,profile,flux,timeS,context){
+ if(context?.body||world.climateInputs8j)return root.StarfallCoupledClimate8J.advance(world,profile,flux,timeS,context);
  requireThat(good(profile.albedo)&&profile.albedo<=1&&good(flux)&&flux<=1e30&&good(timeS),'Invalid stellar flux/clock');
  requireThat(good(world.netAddedKg)&&Object.values(world.emittedSpeciesKg||{}).every(good)&&Object.values(world.capturedSpeciesKg||{}).every(good),'Corrupt atmospheric species ledger');
  const s=world,area=4*Math.PI*profile.radiusM**2,c=s.climate8j||(s.climate8j={schema:1,lastS:timeS,anomalyK:0,storedHeatJ:0}),dt=timeS-c.lastS;
@@ -14198,7 +14360,7 @@ function climate(world,profile,flux,timeS){
  c.storedHeatJ+=capacity*area*(c.anomalyK-previous);c.lastS=timeS;c.surfaceK=base+c.anomalyK;c.infraredOpticalDepth=tau;
  c.hazeOpacity=-Math.expm1(-1e-5*Math.max(0,s.netAddedKg)/area);c.model='Illustrative grey CO2 opacity 0.01 m²/kg, 4e8 J/m²/K heat capacity, stellar/albedo greybody equilibrium; not a validated planetary climate forecast';return c;
 }
-root.StarfallIndustryCompletion8K=Object.freeze({launch,installLoop,crew,capture,climate});
+root.StarfallIndustryCompletion8K=Object.freeze({launch,ageTanks,installLoop,crew,capture,climate});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndustryCompletion8K;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
@@ -16276,19 +16438,22 @@ function atmosphericContext8J(){
   landed:landed&&shipBody===body,eva:c.eva&&!!evaLocal&&!truckOccupied&&!shipWalking8e,
   powered:!!vehicleStore.get('ship')?.state.powerEnabled};
 }
-function planetaryEngineeringView(bodyId){
- const w=terraformWorlds8j[bodyId];return w?{pressureDeltaPa:w.pressureDeltaPa,
-  anomalyK:w.climate8j?.anomalyK||0,hazeOpacity:w.climate8j?.hazeOpacity||0,
+function planetaryEngineeringView(bodyId,dir){
+ const w=terraformWorlds8j[bodyId];return w?{pressureDeltaPa:w.pressureDeltaPa,pressurePa:w.pressurePa,
+  anomalyK:StarfallCoupledClimate8J.sample(w,dir)?.anomalyK??w.climate8j?.anomalyK??0,cloudDelta:StarfallCoupledClimate8J.sample(w,dir)?.cloudDelta||0,iceCoverageDelta:w.climate8j?.iceCoverageDelta||0,hazeOpacity:w.climate8j?.hazeOpacity||0,
   climate:w.climate8j?JSON.parse(JSON.stringify(w.climate8j)):null}:null;
 }
+let cryoLast8g=0;
 function planetaryClimateTick8J(){
+ if(simTime-cryoLast8g>=30){cryoLast8g=simTime;if(physical8a.list().some(a=>a.state.orbital8g))physical8a=StarfallPhysical8A.create(StarfallIndustryCompletion8K.ageTanks(physical8a.serialize(),simTime));}
  for(const [id,w]of Object.entries(terraformWorlds8j)){
-  const body=galaxy.byId.get(id),system=body&&galaxy.byId.get(body.systemId);if(!body||!system?.star)continue;
+  const body=galaxy.byId.get(id),system=body&&galaxy.byId.get(body.systemId);
+  if(!body||!system?.star){const inputs=w.climateInputs8j;if(inputs){let t=w.climate8j?.lastS??simTime;for(let n=0;n<4&&t<simTime;n++){t=Math.min(simTime,t+86400);StarfallIndustryCompletion8K.climate(w,inputs.profile,inputs.flux,t);}}continue;}
   const star=StarfallPhysics.starProfile(system.star),profile=StarfallPhysics.bodyProfile(body,star),
    d=V.len(V.sub(body.position,system.position))*1000,flux=star.luminosityW/(4*Math.PI*Math.max(1,d*d));
   let t=w.climate8j?.lastS??simTime;
-  if(!w.climate8j)StarfallIndustryCompletion8K.climate(w,profile,flux,simTime);
-  for(let n=0;n<4&&t<simTime;n++){t=Math.min(simTime,t+86400);StarfallIndustryCompletion8K.climate(w,profile,flux,t);}
+  if(!w.climate8j)StarfallIndustryCompletion8K.climate(w,profile,flux,simTime,{body,seed:galaxy.seed});
+  for(let n=0;n<4&&t<simTime;n++){t=Math.min(simTime,t+86400);StarfallIndustryCompletion8K.climate(w,profile,flux,t,{body,seed:galaxy.seed});}
  }
 }
 function industryCompletion8K(action,args={}){
@@ -16301,15 +16466,15 @@ function industryCompletion8K(action,args={}){
  const base={operationId:action+':'+c.bodyId+':'+Date.now(),materials:materials8a.snapshot(),physical:physical8a.serialize(),
   shipEnergyJ:ship.state.energyJ,timeS:simTime,profile:c.profile,body:nearest};
  let q,patch;
- if(action==='rocket8g'){
+ if(action==='rocket8g'||action==='condition8g'){
   const stage=physical8a.get(args.stageId);if(!within(stage?.location?.local,24))throw Error('Approach manufactured stage within 24 units');
-  for(const id of [args.hydrogenVesselId,args.oxygenVesselId]){
+  for(const id of (action==='condition8g'||args.propulsion!=='orbital'?[args.hydrogenVesselId,args.oxygenVesselId]:[])){
    const vessel=physical8a.get(id);if(!within(vessel?.location?.local,24))throw Error('Both propellant vessels must be within operator hose reach');
   }
   if(!launch)throw Error('Native Rocket Lab unavailable');
-  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,surfaceHeightM:Starfall3D.groundHeight(stage.location.local,nearest)*1000,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
+  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,propulsion:args.propulsion,prepareOnly:action==='condition8g',factory:factory8f.snapshot(),partsContainerId:StarfallMining8D.SHIP,surfaceHeightM:Starfall3D.groundHeight(stage.location.local,nearest)*1000,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
    launchUp:V.rot(stage.location.local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0)});
-  patch={materials8a:q.materials,physical8a:q.physical,launch7:q.launchStore};
+  patch={materials8a:q.materials,physical8a:q.physical};if(q.launchStore)patch.launch7=q.launchStore;
  }else if(action==='loop8i'){
   const hab=out?.store.items.find(h=>h.id===args.habitatId&&h.bodyId===c.bodyId);
   if(!hab||!within(hab.local,24))throw Error('Approach actual greenhouse habitat within 24 units');
@@ -16322,7 +16487,7 @@ function industryCompletion8K(action,args={}){
   if(!within(v?.location?.local,24)||!within(collector?.location?.local,24))throw Error('Approach the real capture plant and receiving vessel within 24 units');
   if(!within(collector.location.local,24)||StarfallOutposts.arc(collector.location.local,shipLocal,nearest.radius)>65)throw Error('Capture plant outside powered ship umbilical range');
   const w=terraformWorlds8j[c.bodyId]||StarfallAtmosphereEmission8J.normalize(null,c.profile);
-  q=StarfallIndustryCompletion8K.capture({...base,collectorId:args.collectorId,vesselId:args.vesselId,kg:args.kg,world:w,protectedWorld:c.protectedWorld,nativeLife:c.nativeLife,archaeologicalProtection:c.archaeologicalProtection,landable:nearest.landable});
+  q=StarfallIndustryCompletion8K.capture({...base,collectorId:args.collectorId,vesselId:args.vesselId,kg:args.kg,sourceMode:args.sourceMode,seed:galaxy.seed,world:w,protectedWorld:c.protectedWorld,nativeLife:c.nativeLife,archaeologicalProtection:c.archaeologicalProtection,landable:nearest.landable});
   patch={materials8a:q.materials,terraformWorlds8j:{...terraformWorlds8j,[c.bodyId]:q.world}};
  }else throw Error('Unknown industrial operation');
  const vehicles=vehicleStore.serialize();vehicles.states.ship={...vehicles.states.ship,energyJ:q.shipEnergyJ};patch.engineeringVehicles=vehicles;
@@ -20025,7 +20190,8 @@ function launch(){const ctx=RT.outpostContext();if(!ctx.landed||!ctx.body?.landa
   padContext:{outposts:root.StarfallOutpostUI?.store,powerReport:root.StarfallOutpostUI?.powerReports.get(ctx.bodyId),
    heightAt:v=>Starfall3D.groundHeight(v,ctx.body)}});persist();return m;}
 function worldPosition(body,local,extra){const u=V.norm(V.rot(local,body.spinAxis||[0,1,0],body.spinAngle||0));return{up:u,position:V.add(body.position,V.mul(u,body.radius+(Starfall3D.groundHeight(local,body)||0)+extra))};}
-function sceneRockets(){return store.launches.filter(x=>['ascent','coast'].includes(x.phase)&&x.flight).slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];
+function sceneRockets(){return store.launches.filter(x=>['ascent','coast','manufactured-orbit'].includes(x.phase)&&x.flight).slice(-3).flatMap(m=>{const body=RT.galaxy.byId.get(m.bodyId);if(!body)return[];
+ if(m.phase==='manufactured-orbit'&&m.orbitalVehicle){const q=X.orbit(m.orbitalVehicle,body,RT.time,P.SCENE_METERS_PER_UNIT);return[{position:q.position,up:V.norm(V.sub(q.position,body.position)),stage:1}];}
  const d=worldPosition(body,m.local,0),u=m.launchUp||d.up,pole=Math.abs(u[1])>.95?[1,0,0]:[0,1,0],tang=V.norm(V.cross(u,pole)),f=m.flight,r=Math.hypot(f.x,f.y);
  const world=V.add(body.position,V.mul(V.add(V.mul(u,f.x),V.mul(tang,f.y)),1/P.SCENE_METERS_PER_UNIT));
  const direction=V.norm(V.add(V.mul(u,f.vx),V.mul(tang,f.vy)));
@@ -25889,19 +26055,22 @@ const status=el('p');status.className='panel-note';status.setAttribute('role','s
 const picker=label=>{const e=el('select');e.setAttribute('aria-label',label);e.style.cssText='max-width:100%;background:#111c26;color:#eaf0ef;padding:7px;margin:4px';return e;};
 const stage=picker('Manufactured rocket stage'),hydrogen=picker('Actual hydrogen vessel'),oxygen=picker('Actual oxygen vessel'),hab=picker('Greenhouse habitat'),capture=picker('Atmospheric capture receiving vessel'),collector=picker('Manufactured atmospheric capture plant');
 const mass=el('input');mass.type='number';mass.min='.1';mass.max='8';mass.step='.1';mass.value='2';mass.style.width='70px';mass.setAttribute('aria-label','Rocket hydrogen kg');
+const propulsion=picker('Manufactured propulsion mode'),sourceMode=picker('Atmospheric source');
+for(const [v,t]of [['sounding','Gas-fed sounding'],['orbital','Manufactured cryogenic orbital']]){const o=el('option',t);o.value=v;propulsion.append(o);}
+for(const [v,t]of [['recovery','Recover recorded additions'],['baseline','Extract canonical baseline']]){const o=el('option',t);o.value=v;sourceMode.append(o);}
 const captureMass=el('input');captureMass.type='number';captureMass.min='.01';captureMass.max='10';captureMass.step='.01';captureMass.value='1';captureMass.style.width='70px';captureMass.setAttribute('aria-label','Atmospheric capture kg');
 function action(label,fn){const b=el('button',label);b.className='science-action';b.onclick=()=>{try{fn();status.textContent='Committed: real materials and source power saved together';}catch(e){status.textContent=e.message;}refresh();};return b;}
 function group(name,note,children){const d=el('details'),summary=el('summary',name),p=el('p',note);p.className='panel-note';d.append(summary,p,...children);section.append(d);}
-group('Manufactured rocket flight','Gas-fed sounding prototype: the complete dry-stage BOM, original rig and real rated H2/O2 vessels are mandatory. Uses eight kg oxygen per kg hydrogen plus 2% hot-fire mixture; 3 MJ base ship work plus the actual pressure-ratio compression energy floor. Tank volume and liftoff thrust are checked. Prototype 12 kN / 180 s nameplate; no cryogenics, payload generation or guaranteed orbit. Stand within 24 units of stage and both vessels.',[stage,hydrogen,oxygen,mass,action('HOT-FIRE & LAUNCH MANUFACTURED STAGE',()=>root.StarfallRuntime.industryCompletion8K('rocket8g',{stageId:stage.value,hydrogenVesselId:hydrogen.value,oxygenVesselId:oxygen.value,hydrogenKg:Number(mass.value)}))]);
+group('Manufactured rocket flight','Choose sounding or cryogenic orbital propulsion. Orbital mode consumes a manufactured 80 kg orbital propulsion kit from ship stock; 40 kN / 350 s modeled engine, real H2/O2 (8:1), 2% hot-fire loss and paid staged liquefaction (15 MJ/kg H2 + 0.8 MJ/kg O2) plus compression work. Liquid volume must fit the actual stage. Launch budget rejects unsuitable worlds. Condition <=8 kg H2 batches while recharging the ship; stored propellant loses mass through a 20 W modeled heat leak. Orbital ignition uses all loaded propellant. Native force integration and guidance must establish a bound orbit; no free payload or orbit snap.',[stage,hydrogen,oxygen,propulsion,mass,action('CONDITION ORBITAL PROPELLANT BATCH',()=>root.StarfallRuntime.industryCompletion8K('condition8g',{stageId:stage.value,hydrogenVesselId:hydrogen.value,oxygenVesselId:oxygen.value,hydrogenKg:Number(mass.value)})),action('HOT-FIRE & LAUNCH MANUFACTURED STAGE',()=>root.StarfallRuntime.industryCompletion8K('rocket8g',{stageId:stage.value,hydrogenVesselId:hydrogen.value,oxygenVesselId:oxygen.value,hydrogenKg:Number(mass.value),propulsion:propulsion.value}))]);
 group('Habitat regenerative loop','Manufacture HABITAT RECYCLER at the kit fixture, then install beside a commissioned greenhouse habitat. Consumes 40 kg hardware and 800 kJ ship work. Models carbohydrate biomass metabolism, CO2/O2, nutrient return and powered 98% first-pass wastewater recovery plus energy-limited reject-water distillation inside the served 680 W bus. The manufactured optical hardware expands the collector to 24 m²; oxygen is compressed into the finite existing reserve. Food, light and power shortages pause the loop; brine, leaks and resupply remain finite. This is a simplified biological model, not edible-food certification.',[hab,action('INSTALL MANUFACTURED RECYCLER',()=>root.StarfallRuntime.industryCompletion8K('loop8i',{habitatId:hab.value}))]);
-group('Atmospheric capture & climate','Fabricate and erect a 740 kg atmospheric capture plant. Capture only previously inventoried atmospheric additions into a real same-world matching rated vessel. Unmeasured baseline species are excluded. Maximum 10 kg per action; 2 MJ/kg equipment work plus the ideal dilution and pressure-ratio separation/compression energy floors. Native-life and archaeological protection remain locked. Greybody climate responds to actual added/captured CO2 over simulated time; tiny changes are not magnified into green planets.',[collector,capture,captureMass,action('CAPTURE SOURCE-INVENTORIED ATMOSPHERIC GAS',()=>root.StarfallRuntime.industryCompletion8K('capture8j',{collectorId:collector.value,vesselId:capture.value,kg:Number(captureMass.value)}))]);
+group('Atmospheric capture & climate','Manufacture and erect a 740 kg capture plant. Recover recorded releases or extract gases present in the canonical CW01 atmosphere, with finite persistent depletion and 400 m³/hour baseline intake. Empty/vacuum and absent species are rejected. Receipts retain the seeded, unmeasured composition provenance. Pay actual separation/compression work into a rated vessel. Coupled latitude-band heat, clouds, ice/water, pressure and escape evolve over simulation time. Protected worlds stay locked.',[collector,capture,sourceMode,captureMass,action('CAPTURE SOURCE-INVENTORIED ATMOSPHERIC GAS',()=>root.StarfallRuntime.industryCompletion8K('capture8j',{collectorId:collector.value,vesselId:capture.value,kg:Number(captureMass.value),sourceMode:sourceMode.value}))]);
 const readout=el('pre');readout.style.cssText='white-space:pre-wrap;font-size:11px;max-height:240px;overflow:auto';section.append(status,readout);host.append(section);
 function fill(select,rows){const value=select.value;select.replaceChildren();for(const r of rows){const o=el('option',r.label||r.id);o.value=r.id;select.append(o);}if(rows.some(x=>x.id===value))select.value=value;}
 function refresh(){const r=root.StarfallRuntime;if(!r?.industryCompletion8K)return;
  const a=r.physical8a.list(),body=r.nearest?.id,v=a.filter(x=>x.type==='industrial_vessel'&&x.location?.bodyId===body),h=root.StarfallOutpostUI?.store.items.filter(x=>x.kind==='hab'&&x.bodyId===body)||[];
  fill(collector,a.filter(x=>x.state?.station==='atmospheric_capture'&&x.location?.bodyId===body));fill(stage,a.filter(x=>x.type==='rocket_stage_dry'&&x.location?.bodyId===body));fill(hydrogen,v.filter(x=>x.state.materialId==='hydrogen'));fill(oxygen,v.filter(x=>x.state.materialId==='oxygen'));fill(capture,v.map(x=>({...x,label:x.id+' · '+x.state.materialId})));fill(hab,h);
  const view=r.planetaryEngineeringView(body);
- readout.textContent='PLANET DELTA '+(view?view.pressureDeltaPa.toExponential(5)+' Pa · thermal anomaly '+view.anomalyK.toExponential(5)+' K · added-column optical opacity '+view.hazeOpacity.toExponential(5):'No recorded intervention')+'\n'+h.map(x=>{const c=x.habT09?.regenerative8i,g=x.habT09?.greenhouse8i;return x.id+' · '+(c?'REGENERATIVE · biomass '+g.cropBiomassKg.toFixed(5)+' kg · wastewater '+c.wasteWaterKg.toFixed(5)+' kg · brine '+c.brineKg.toFixed(5)+' kg · reclaimed '+c.recoveredWaterKg.toFixed(5)+' kg · latest food deficit '+(c.lastStarvedMol||0).toExponential(3)+' mol':'No manufactured recycler installed');}).join('\n');
+ readout.textContent='PLANET DELTA '+(view?view.pressureDeltaPa.toExponential(5)+' Pa · thermal anomaly '+view.anomalyK.toExponential(5)+' K · added-column optical opacity '+view.hazeOpacity.toExponential(5):'No recorded intervention')+(view?.climate?.schema===2?' · clouds Δ '+view.cloudDelta.toExponential(3)+' · ice Δ '+view.iceCoverageDelta.toExponential(3)+' · escaped '+view.climate.escapedKg.toExponential(3)+' kg · energy residual '+view.climate.energyResidualJ.toExponential(3)+' J':'')+'\n'+a.filter(x=>x.state.orbital8g).map(x=>x.id+' · conditioned H2 '+x.state.orbital8g.hydrogenKg.toFixed(3)+' kg · vented '+x.state.orbital8g.ventedKg.toFixed(3)+' kg').join('\n')+'\n'+h.map(x=>{const c=x.habT09?.regenerative8i,g=x.habT09?.greenhouse8i;return x.id+' · '+(c?'REGENERATIVE · biomass '+g.cropBiomassKg.toFixed(5)+' kg · wastewater '+c.wasteWaterKg.toFixed(5)+' kg · brine '+c.brineKg.toFixed(5)+' kg · reclaimed '+c.recoveredWaterKg.toFixed(5)+' kg · latest food deficit '+(c.lastStarvedMol||0).toExponential(3)+' mol':'No manufactured recycler installed');}).join('\n');
 }
 let last=0;function tick(t){if(t-last>1000){last=t;if(!section.closest('[hidden]'))refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 root.StarfallIndustryCompletionUI8K={refresh};

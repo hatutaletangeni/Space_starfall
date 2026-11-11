@@ -13,6 +13,9 @@ const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const knownGas=x=>Object.prototype.hasOwnProperty.call(gas,x);
 const genuineOrigin=x=>id(x)&&!/TEST_FIXTURE|CREATIVE|DEBUG|CHEAT/i.test(x);
+const sum=x=>Object.values(x||{}).reduce((s,n)=>{if(!finite(n))throw Error('Corrupt atmospheric depletion');return s+n;},0);
+function massDelta(s){return s.netAddedKg-sum(s.baselineCapturedSpeciesKg)-sum(s.escapedSpeciesKg)+(s.waterVaporDeltaKg||0);}
+function balance(s,p){const delta=massDelta(s);if(!Number.isFinite(delta)||s.baselineAtmosphereKg+delta< -EPS)throw Error('Atmospheric reservoir exhausted');s.atmosphereKg=Math.max(0,s.baselineAtmosphereKg+delta);s.pressureDeltaPa=delta*p.surfaceGravityMS2/(4*Math.PI*p.radiusM**2);s.pressurePa=Math.max(0,p.atmospherePressurePa+s.pressureDeltaPa);return s;}
 function normalize(saved,profile){
  if(!profile||!id(profile.id)||!finite(profile.radiusM)||profile.radiusM<=0||
     !finite(profile.surfaceGravityMS2)||profile.surfaceGravityMS2<=0||
@@ -28,7 +31,7 @@ function normalize(saved,profile){
  const s=cp(saved);
  if(s.schema!==1||s.bodyId!==profile.id||!finite(s.atmosphereKg)||
    !finite(s.baselineAtmosphereKg)||!finite(s.pressurePa)||
-   !finite(s.netAddedKg)||!finite(s.pressureDeltaPa)||
+   !finite(s.netAddedKg)||!Number.isFinite(s.pressureDeltaPa)||
    !Array.isArray(s.receipts)||s.receipts.length>2000||
    !s.emittedSpeciesKg||typeof s.emittedSpeciesKg!=='object'||
    !finite(s.radiusM)||!finite(s.gravityMS2)||
@@ -37,7 +40,7 @@ function normalize(saved,profile){
    Math.abs(s.gravityMS2-profile.surfaceGravityMS2)>1e-6||
    new Set(s.receipts.map(r=>r.id)).size!==s.receipts.length)
   throw Error('8J persisted planetary intervention incompatible/corrupt');
- const expectedDelta=s.netAddedKg*profile.surfaceGravityMS2/(4*Math.PI*profile.radiusM**2);
+ const expectedDelta=massDelta(s)*profile.surfaceGravityMS2/(4*Math.PI*profile.radiusM**2);
  if(Math.abs(s.pressureDeltaPa-expectedDelta)>Math.max(1e-18,Math.abs(expectedDelta)*1e-9)||
     Math.abs(s.pressurePa-(profile.atmospherePressurePa+s.pressureDeltaPa))>1e-7)
   throw Error('8J atmospheric pressure delta not conserved by saved mass');
@@ -61,6 +64,7 @@ function emit(input){
   return{duplicate:true,world:state,materials:cp(a.materials),
    shipEnergyJ:a.shipEnergyJ,receipt:cp(old)};
  }
+ if(state.receipts.length>=2000)throw Error('Planetary operation archive full');
  if(a.timeS<state.lastTimeS)throw Error('8J cannot regress planetary operations time');
  if(a.protectedWorld||a.nativeLife||a.archaeologicalProtection)
   throw Error('8J planetary protection lock: native life or archaeological site');
@@ -106,10 +110,9 @@ function emit(input){
  if(src.massKg-a.kg<=EPS)next.lots.splice(next.lots.indexOf(src),1);
  else{src.massKg-=a.kg;src.volumeM3=Math.max(0,src.volumeM3-volumeDebit);}
  const w=cp(state);w.netAddedKg+=a.kg;
- w.atmosphereKg=w.baselineAtmosphereKg+w.netAddedKg;
+ balance(w,p);
  w.emittedSpeciesKg[materialId]=(w.emittedSpeciesKg[materialId]||0)+a.kg;
- w.pressureDeltaPa=w.netAddedKg*w.gravityMS2/(4*Math.PI*w.radiusM**2);
- w.pressurePa=p.atmospherePressurePa+w.pressureDeltaPa;
+ balance(w,p);
  w.lastTimeS=a.timeS;
  const receipt={id:a.receiptId,status:'COMMITTED',kind:'PLANET_ATMOSPHERE_EMISSION_8J',
   vesselId:vessel.id,lotId:l.id,gas:materialId,massKg:a.kg,
@@ -121,7 +124,7 @@ function emit(input){
  root.StarfallMaterials8A?.create(next);
  return{duplicate:false,materials:next,world:w,shipEnergyJ:a.shipEnergyJ-workJ,receipt};
 }
-const API=Object.freeze({normalize,emit,WORK_J_KG,MAX_BATCH_KG});
+const API=Object.freeze({normalize,emit,balance,massDelta,WORK_J_KG,MAX_BATCH_KG});
 root.StarfallAtmosphereEmission8J=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);

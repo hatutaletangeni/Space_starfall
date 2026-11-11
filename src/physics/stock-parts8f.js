@@ -5,6 +5,7 @@
  */
 (function(root){'use strict';
 const RECIPES=Object.freeze({
+ orbital_propulsion_kit:{category:'rocket_propulsion',station:'assembly',tool:'kit-fixture',inputs:{steel:22,copper:12,aluminum:25,electric_motor:10.8,control_board:1.2,insulated_wire:3,insulation_polymer:9,glass:2},outputs:{orbital_propulsion_kit:80},powerW:2600,seconds:1800,toleranceMm:.1,engineeringNote:'Modeled cryogenic pump/injector, regenerative cooling channels, tank liner/insulation and orbital guidance. All input mass and scrap tracked; nameplate is a game approximation, not a certified engine. Liquefaction work paid separately at immediate ignition.'},
  habitat_recycler:{category:'life_support',station:'assembly',tool:'kit-fixture',inputs:{steel:20,aluminum:8,copper:3,insulated_wire:2,control_board:1.2,glass:6,insulation_polymer:1},outputs:{habitat_recycler:40},powerW:1200,seconds:900,toleranceMm:1,engineeringNote:'Carbohydrate biomass processing, 24 m² thin optical collector/distribution, condensate/reject distillation and nutrient recovery prototype. Collector structure and food safety are not engineering-certified; finite power, gas storage, leaks and reject reservoirs remain accounted for.'},
  drill_head:{category:'mining_service',station:'machine',tool:'cnc',
   inputs:{steel:2.2},outputs:{drill_head:2},powerW:1700,seconds:240,toleranceMm:.2,

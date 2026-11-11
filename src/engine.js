@@ -75,7 +75,7 @@ function evaluateLighting(body,sys,galaxy,position){
 const meshFS=`#version 300 es
 precision highp float;in vec3 vWorld;in vec3 vNormal;in vec3 vColor;
 uniform vec3 uCamera,uLight,uStarColor,uBounceDir,uBounceColor,uHeadlampPos,uHeadlampDir,uFogColor;
-uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip;
+uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip,uClimateIce;
 out vec4 frag;
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 void main(){
@@ -92,7 +92,8 @@ void main(){
  float beam=smoothstep(.58,.84,dot(fromLamp,normalize(uHeadlampDir)));
  illumination+=vec3(1.,.88,.69)*max(0.,dot(N,normalize(toLamp)))*beam*uHeadlampPower/(1.+distance*distance*.0009);
  // Vertex colors stay attached to the terrain; no camera-relative noise that swims.
- vec3 color=clamp(vColor*illumination,0.,1.);
+ vec3 groundColor=vColor;if(uShip<.5){groundColor=mix(groundColor,vec3(.78,.86,.90),clamp(uClimateIce,0.,1.));groundColor*=1.-clamp(-uClimateIce,0.,1.)*.3;}
+ vec3 color=clamp(groundColor*illumination,0.,1.);
  if(uShip>.5)color=max(color,vColor*.075);if(uShip>1.5)color=max(color,vColor*.93);
  float fog=1.-exp(-length(uCamera-vWorld)*uFogDensity);color=mix(color,uFogColor,clamp(fog,0.,.96));
  frag=vec4(color,1.);
@@ -944,7 +945,7 @@ class Renderer{
   const applyLight=(prog,body=near)=>{let l=lighting;
    if(body&&body!==near){const parentSystem=this.galaxy.byId.get(body.systemId);if(parentSystem)l=evaluateLighting(body,parentSystem,this.galaxy,origin);}
    this.setVec(prog,'uLight',l.sunDir);this.setVec(prog,'uStarColor',l.starColor);this.setFloat(prog,'uStarPower',l.starPower);
-   this.setFloat(prog,'uAmbient',l.ambient);this.setVec(prog,'uBounceDir',l.bounceDirection);
+   this.setFloat(prog,'uClimateIce',root.StarfallRuntime?.planetaryEngineeringView?.(body?.id)?.iceCoverageDelta||0);this.setFloat(prog,'uAmbient',l.ambient);this.setVec(prog,'uBounceDir',l.bounceDirection);
    this.setVec(prog,'uBounceColor',l.bounceColor);this.setFloat(prog,'uBouncePower',l.moonPower);
    this.setVec(prog,'uHeadlampPos',V.sub(lightPos,origin));this.setVec(prog,'uHeadlampDir',state.headlampForward||state.shipForward);
    this.setFloat(prog,'uHeadlampPower',state.headlights?2.2:0);
@@ -1034,7 +1035,7 @@ class Renderer{
   gl.depthMask(false);for(const obj of rings){p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,obj.body);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',0);this.renderMesh(p,this.ringMesh(obj.body),M.translate(obj.rel));}
   for(const obj of rendered){if(!obj.geometry.atmo||(root.StarfallMeteorologyLW03?.base(obj.body,this.galaxy.seed).vacuum&&(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.hazeOpacity||0)<=1e-8)||obj.dist<obj.body.radius+150||obj.dist>obj.body.radius+11000)continue;
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',(()=>{const base=root.StarfallMeteorologyLW03?.base(obj.body,this.galaxy.seed).vacuum?0:.9;return base+(1-base)*(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.hazeOpacity||0);})());this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
-   if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):.45);this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
+   if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):Math.max(0,Math.min(1,.45+(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.cloudDelta||0))));this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
   gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(state.shipWalkInterior){

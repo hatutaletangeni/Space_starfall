@@ -1,5 +1,7 @@
 # Manufactured flight, regenerative habitat and atmospheric recovery
 
+**Follow-up:** [Orbital propulsion, baseline extraction and coupled climate](ORBITAL-BASELINE-COUPLED-CLIMATE.md) supersedes the sounding-only/baseline-excluded/single-reservoir limits below. These sections document the earlier prototype path; the regenerative habitat details still apply.
+
 These are playable reduced-order engineering models, not certified real-world
 rocket, food-processing or planetary-climate designs. Use Engineer → Industrial
 flight, regeneration & atmospheric capture. The three groups are collapsed

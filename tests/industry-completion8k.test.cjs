@@ -5,17 +5,7 @@ const M=require('../src/physics/material-ledger8a.js'),A=require('../src/physics
 const F=require('../src/physics/rocket-flight7b.js');require('../src/physics/atmosphere-emission8j.js');
 const C=require('../src/physics/industry-completion8k.js'),H=require('../src/physics/habitat-t09.js');
 const close=(a,b,eps=1e-7)=>assert.ok(Math.abs(a-b)<=eps,`${a} != ${b}`);
-function rocket(){const ledger=M.create(),assets=[];
- for(const [id,kg,mw]of [['hydrogen',3,.002016],['oxygen',30,.031998]]){
-  ledger.registerContainer({id:'tank:'+id,ownerId:id,kind:'gas vessel',maxMassKg:1000,maxVolumeM3:4});
-  ledger.importLot({id:'source:'+id,materialId:id,massKg:kg,volumeM3:kg/mw*8.314462618*293.15/5e6,grade:1,containerId:'tank:'+id,provenance:'chemical:electrolysis:1'});
-  assets.push({id,type:'industrial_vessel',condition:1,massKg:195,volumeM3:4,location:{kind:'surface',bodyId:'a',local:[0,1,0]},state:{materialId:id,containerId:'tank:'+id,ratedPressurePa:8e6,enabled:true}});
- }
- const parts=Object.entries(A.DEFINITIONS.rocket_stage.parts).map(([materialId,massKg])=>({materialId,massKg,lotId:'produced:'+materialId})),massKg=parts.reduce((s,l)=>s+l.massKg,0);
- assets.push({id:'rig',type:'industrial_plant',massKg:900,condition:1,location:{kind:'surface',bodyId:'a',local:[0,1,0]},state:{station:'rocket_integration'}},
-  {id:'stage',type:'rocket_stage_dry',provenance:'structural-8g:stage',massKg,volumeM3:3,condition:1,location:{kind:'surface',bodyId:'a',local:[0,1,0]},state:{assemblyFacilityId:'rig'}});
- return{operationId:'rocket8g:1',materials:ledger.snapshot(),physical:{schema:1,assets,transfers:[]},shipEnergyJ:50e6,timeS:1,body:{id:'a',systemId:'s',landable:true,radius:1000,gravity:.04,atmosphere:null},launchUp:[0,1,0],stageId:'stage',hydrogenVesselId:'hydrogen',oxygenVesselId:'oxygen',hydrogenKg:2,assembly:{schema:1,receipts:[{assetId:'stage',blueprintId:'rocket_stage',status:'ASSEMBLED_NOT_OPERATIONAL',massKg,consumedLots:parts}]},launchStore:{schema:1,seed:742,serial:0,launches:[],satellites:[],rovers:[]}};
-}
+const {rocket}=require('./helpers/industry-fixtures.cjs');
 test('manufactured prototype transfers dry ownership and real propellant into native variable-mass flight',()=>{
  const a=rocket(),before=structuredClone(a),q=C.launch(a),mission=q.mission;
  assert.deepEqual(a,before);assert.ok(q.shipEnergyJ<a.shipEnergyJ-3e6);close(a.shipEnergyJ-q.shipEnergyJ,q.materials.operations.at(-1).energyJ);assert.ok(!q.physical.assets.some(x=>x.id==='stage'));
@@ -88,7 +78,7 @@ test('runtime operation arguments cannot replace authoritative stock, physical o
   vehicleStore:{get:()=>({state:{energyJ:12345678}})},SF:{storageStatus:()=>({durable:true})},
   evaLocal:[0,1,0],shipLocal:[0,1,0],nearest:a.body,simTime:10,
   physical8a:{get:id=>a.physical.assets.find(x=>x.id===id),serialize:()=>a.physical},
-  materials8a:{snapshot:()=>a.materials},vehicleAssembly8g:{snapshot:()=>a.assembly},
+  factory8f:{snapshot:()=>({receipts:[]})},StarfallMining8D:{SHIP:'ship'},materials8a:{snapshot:()=>a.materials},vehicleAssembly8g:{snapshot:()=>a.assembly},
   StarfallOutposts:{arc:()=>0},Starfall3D:{groundHeight:()=>25},V:{rot:x=>x},
   StarfallIndustryCompletion8K:{launch:input=>{assert.equal(input.shipEnergyJ,12345678);
    assert.equal(input.materials,a.materials);assert.equal(input.physical,a.physical);assert.equal(input.body,a.body);assert.equal(input.surfaceHeightM,25000);throw Error('VALIDATED_NATIVE_OWNERS');}},

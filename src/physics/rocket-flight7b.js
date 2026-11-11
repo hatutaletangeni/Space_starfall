@@ -27,7 +27,19 @@ function command(f,op,value){if(!f||f.phase==='failed'||f.phase==='orbit')throw 
  if(op==='stage')throw Error('Use the mission stage separator');
  if(op==='abort'){f.phase='failed';f.reason='Player aborted';f.engineOn=false;return;}
  throw Error('Unsupported flight command');}
-function guidance(f,p,el){const altitude=Math.max(0,el.altitudeM),r=el.radiusM,mu=p.mu;
+function guidance(f,p,el){
+ if(p.guidance==='manufactured-orbit'){
+  const speed=Math.sqrt(p.mu/el.radiusM),target=f.targetAltitudeM;
+  if(!f.insertionPhase)f.insertionPhase='raise-apoapsis';
+  if(f.insertionPhase==='raise-apoapsis'&&el.apoapsisM>=target){f.insertionPhase='coast-to-apoapsis';f.phase='coast';f.engineOn=false;}
+  if(f.insertionPhase==='coast-to-apoapsis'&&el.radialMS<6&&el.altitudeM>target*.75){f.insertionPhase='circularize';f.phase='powered';f.engineOn=true;}
+  if(f.insertionPhase==='coast-to-apoapsis')return{pitchDeg:90,throttle:0};
+  if(f.insertionPhase==='raise-apoapsis')return{pitchDeg:0,throttle:1};
+  const pitchDeg=clamp(90+Math.atan2(el.radialMS,Math.max(5,speed-el.tangentialMS))*180/Math.PI,65,105),
+   throttle=clamp((speed-el.tangentialMS)/80,.04,1);
+  return{pitchDeg,throttle};
+ }
+ const altitude=Math.max(0,el.altitudeM),r=el.radiusM,mu=p.mu;
  // Reduced-order gravity turn: mostly radial below 2 km, tangent by 70 km.
  let pitch=clamp((altitude-1800)/78000,0,1)*89.5;
  const orbitSpeed=Math.sqrt(mu/r);

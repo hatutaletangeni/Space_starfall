@@ -44,7 +44,11 @@ function saturation(species,T){
 }
 function cell(body,dir,timeS=0,seed=742){
  if(!Number.isFinite(timeS)||timeS<0||!Array.isArray(dir)||dir.length!==3)throw Error('Invalid weather sampling');
- const climate=base(body,seed);if(climate.vacuum)return Object.freeze({bodyId:body.id,regime:'vacuum',vacuum:true,
+ const original=base(body,seed),intervention=root.StarfallRuntime?.planetaryEngineeringView?.(body.id,dir),
+  pressure=intervention?.pressurePa??original.pressurePa,temperature=original.temperatureK+(intervention?.anomalyK||0),
+  molar=intervention?.molarMassKgMol||original.molarMassKgMol||.029,
+  climate=intervention?{...original,pressurePa:pressure,temperatureK:temperature,vacuum:pressure<200,densityKgM3:pressure*molar/(R*Math.max(3,temperature)),scaleHeightM:R*Math.max(3,temperature)/(molar*original.gravityMS2)}:original;
+ if(climate.vacuum)return Object.freeze({bodyId:body.id,regime:'vacuum',vacuum:true,
   temperatureK:climate.temperatureK,pressurePa:0,densityKgM3:0,scaleHeightM:0,
   windMS:0,windDirection:Object.freeze([0,0,0]),cloudFraction:0,precipitationKgM2S:0,
   sourceSpecies:null,humidityFraction:0,visibility:1,solarFactor:1,charge:0,stormId:null});
@@ -63,7 +67,7 @@ function cell(body,dir,timeS=0,seed=742){
  const relativeHumidity=vapor?clamp(partial/Math.max(1,sat),0,2):0;
  const stormSeed=hash(seed+':'+body.id+':lw03:storm:'+Math.floor((u+PI)*2)+':'+Math.floor((lat+PI/2)*3));
  const moisture=clamp(inventory*12,0,1),lift=clamp(.35+.35*Math.cos(2*lat)+.3*stormSeed,0,1);
- const cloud=vapor?clamp((relativeHumidity-.58)*.7+moisture*.35+lift*.13,0,.94):0;
+ const baselineCloud=vapor?clamp((relativeHumidity-.58)*.7+moisture*.35+lift*.13,0,.94):0,cloud=clamp(baselineCloud+(intervention?.cloudDelta||0),0,.94);
  const condensableColumnKgM2=climate.pressurePa*inventory/climate.gravityMS2;
  const precip=vapor&&relativeHumidity>.75?Math.min(condensableColumnKgM2/STEP*.012,
   Math.max(0,relativeHumidity-.75)*cloud*.004):0;

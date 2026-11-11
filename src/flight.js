@@ -2071,19 +2071,22 @@ function atmosphericContext8J(){
   landed:landed&&shipBody===body,eva:c.eva&&!!evaLocal&&!truckOccupied&&!shipWalking8e,
   powered:!!vehicleStore.get('ship')?.state.powerEnabled};
 }
-function planetaryEngineeringView(bodyId){
- const w=terraformWorlds8j[bodyId];return w?{pressureDeltaPa:w.pressureDeltaPa,
-  anomalyK:w.climate8j?.anomalyK||0,hazeOpacity:w.climate8j?.hazeOpacity||0,
+function planetaryEngineeringView(bodyId,dir){
+ const w=terraformWorlds8j[bodyId];return w?{pressureDeltaPa:w.pressureDeltaPa,pressurePa:w.pressurePa,
+  anomalyK:StarfallCoupledClimate8J.sample(w,dir)?.anomalyK??w.climate8j?.anomalyK??0,cloudDelta:StarfallCoupledClimate8J.sample(w,dir)?.cloudDelta||0,iceCoverageDelta:w.climate8j?.iceCoverageDelta||0,hazeOpacity:w.climate8j?.hazeOpacity||0,
   climate:w.climate8j?JSON.parse(JSON.stringify(w.climate8j)):null}:null;
 }
+let cryoLast8g=0;
 function planetaryClimateTick8J(){
+ if(simTime-cryoLast8g>=30){cryoLast8g=simTime;if(physical8a.list().some(a=>a.state.orbital8g))physical8a=StarfallPhysical8A.create(StarfallIndustryCompletion8K.ageTanks(physical8a.serialize(),simTime));}
  for(const [id,w]of Object.entries(terraformWorlds8j)){
-  const body=galaxy.byId.get(id),system=body&&galaxy.byId.get(body.systemId);if(!body||!system?.star)continue;
+  const body=galaxy.byId.get(id),system=body&&galaxy.byId.get(body.systemId);
+  if(!body||!system?.star){const inputs=w.climateInputs8j;if(inputs){let t=w.climate8j?.lastS??simTime;for(let n=0;n<4&&t<simTime;n++){t=Math.min(simTime,t+86400);StarfallIndustryCompletion8K.climate(w,inputs.profile,inputs.flux,t);}}continue;}
   const star=StarfallPhysics.starProfile(system.star),profile=StarfallPhysics.bodyProfile(body,star),
    d=V.len(V.sub(body.position,system.position))*1000,flux=star.luminosityW/(4*Math.PI*Math.max(1,d*d));
   let t=w.climate8j?.lastS??simTime;
-  if(!w.climate8j)StarfallIndustryCompletion8K.climate(w,profile,flux,simTime);
-  for(let n=0;n<4&&t<simTime;n++){t=Math.min(simTime,t+86400);StarfallIndustryCompletion8K.climate(w,profile,flux,t);}
+  if(!w.climate8j)StarfallIndustryCompletion8K.climate(w,profile,flux,simTime,{body,seed:galaxy.seed});
+  for(let n=0;n<4&&t<simTime;n++){t=Math.min(simTime,t+86400);StarfallIndustryCompletion8K.climate(w,profile,flux,t,{body,seed:galaxy.seed});}
  }
 }
 function industryCompletion8K(action,args={}){
@@ -2096,15 +2099,15 @@ function industryCompletion8K(action,args={}){
  const base={operationId:action+':'+c.bodyId+':'+Date.now(),materials:materials8a.snapshot(),physical:physical8a.serialize(),
   shipEnergyJ:ship.state.energyJ,timeS:simTime,profile:c.profile,body:nearest};
  let q,patch;
- if(action==='rocket8g'){
+ if(action==='rocket8g'||action==='condition8g'){
   const stage=physical8a.get(args.stageId);if(!within(stage?.location?.local,24))throw Error('Approach manufactured stage within 24 units');
-  for(const id of [args.hydrogenVesselId,args.oxygenVesselId]){
+  for(const id of (action==='condition8g'||args.propulsion!=='orbital'?[args.hydrogenVesselId,args.oxygenVesselId]:[])){
    const vessel=physical8a.get(id);if(!within(vessel?.location?.local,24))throw Error('Both propellant vessels must be within operator hose reach');
   }
   if(!launch)throw Error('Native Rocket Lab unavailable');
-  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,surfaceHeightM:Starfall3D.groundHeight(stage.location.local,nearest)*1000,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
+  q=StarfallIndustryCompletion8K.launch({...base,stageId:args.stageId,hydrogenVesselId:args.hydrogenVesselId,oxygenVesselId:args.oxygenVesselId,hydrogenKg:args.hydrogenKg,propulsion:args.propulsion,prepareOnly:action==='condition8g',factory:factory8f.snapshot(),partsContainerId:StarfallMining8D.SHIP,surfaceHeightM:Starfall3D.groundHeight(stage.location.local,nearest)*1000,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
    launchUp:V.rot(stage.location.local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0)});
-  patch={materials8a:q.materials,physical8a:q.physical,launch7:q.launchStore};
+  patch={materials8a:q.materials,physical8a:q.physical};if(q.launchStore)patch.launch7=q.launchStore;
  }else if(action==='loop8i'){
   const hab=out?.store.items.find(h=>h.id===args.habitatId&&h.bodyId===c.bodyId);
   if(!hab||!within(hab.local,24))throw Error('Approach actual greenhouse habitat within 24 units');
@@ -2117,7 +2120,7 @@ function industryCompletion8K(action,args={}){
   if(!within(v?.location?.local,24)||!within(collector?.location?.local,24))throw Error('Approach the real capture plant and receiving vessel within 24 units');
   if(!within(collector.location.local,24)||StarfallOutposts.arc(collector.location.local,shipLocal,nearest.radius)>65)throw Error('Capture plant outside powered ship umbilical range');
   const w=terraformWorlds8j[c.bodyId]||StarfallAtmosphereEmission8J.normalize(null,c.profile);
-  q=StarfallIndustryCompletion8K.capture({...base,collectorId:args.collectorId,vesselId:args.vesselId,kg:args.kg,world:w,protectedWorld:c.protectedWorld,nativeLife:c.nativeLife,archaeologicalProtection:c.archaeologicalProtection,landable:nearest.landable});
+  q=StarfallIndustryCompletion8K.capture({...base,collectorId:args.collectorId,vesselId:args.vesselId,kg:args.kg,sourceMode:args.sourceMode,seed:galaxy.seed,world:w,protectedWorld:c.protectedWorld,nativeLife:c.nativeLife,archaeologicalProtection:c.archaeologicalProtection,landable:nearest.landable});
   patch={materials8a:q.materials,terraformWorlds8j:{...terraformWorlds8j,[c.bodyId]:q.world}};
  }else throw Error('Unknown industrial operation');
  const vehicles=vehicleStore.serialize();vehicles.states.ship={...vehicles.states.ship,energyJ:q.shipEnergyJ};patch.engineeringVehicles=vehicles;

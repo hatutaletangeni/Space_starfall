@@ -122,7 +122,7 @@ class Store{
     if(available>0){const result=F.advance(m.flight,m.profile,available);m.lastUpdateS+=result.advancedS;m.elapsedS=m.flight.elapsedS;m.stage=m.flight.stageIndex;m.trajectoryAltitudeM=Math.max(0,result.orbit?.altitudeM||0);m.velocityMS=result.orbit?.speedMS||0;
      for(const item of result.events){if(item==='STAGE_SEPARATED')events.push({id:m.id,kind:'stage',message:'Stage separated under integrated flight'});}}
     if(m.flight.phase==='failed'){m.phase='failed';m.failure=m.flight.reason;events.push({id:m.id,kind:'failed',message:'Launch failed: '+m.failure});continue;}
-    if(m.flight.phase==='orbit'&&m.sourcePaid8g){m.phase='test-orbit';m.completedAtS=time;continue;}
+    if(m.flight.phase==='orbit'&&m.sourcePaid8g){m.phase=m.propulsion==='orbital'?'manufactured-orbit':'test-orbit';m.completedAtS=m.lastUpdateS;m.orbitalElements=F.elements(m.flight,m.profile.mu,m.profile.radiusM);m.orbitalVehicle={inertial2d:{x:m.flight.x,y:m.flight.y,vx:m.flight.vx,vy:m.flight.vy,mu:m.profile.mu,epochS:m.lastUpdateS,launchUp:m.launchUp},axis:m.launchUp,mu:m.profile.mu,epochS:m.lastUpdateS,altitudeM:m.orbitalElements.altitudeM};events.push({id:m.id,kind:'manufactured-orbit',message:'Manufactured stage established a bound orbit; original stage custody retained, no free payload'});continue;}
     if(m.flight.phase==='orbit'){
      const orbital=F.elements(m.flight,m.profile.mu,m.profile.radiusM);m.altitudeM=Math.max(25000,orbital?.semiMajorM-m.profile.radiusM||180000);
      m.phase='orbit';m.orbitalElements=orbital;
