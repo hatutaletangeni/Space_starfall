@@ -32,7 +32,7 @@ with sync_playwright() as p:
    try:page.wait_for_function("StarfallLaunchUI.store.launches.some(m=>m.sourcePaid8g&&m.propulsion==='orbital')",timeout=10000)
    except Exception as e:raise AssertionError(section.get_by_role('status').inner_text()) from e
    # Advance the ORIGINAL mission integrator in bounded 100x-equivalent chunks.
-   result=page.evaluate("""()=>{const U=StarfallLaunchUI,r=StarfallRuntime,m=U.store.launches.find(x=>x.propulsion==='orbital');for(let n=0;n<80&&!['failed','test-orbit','manufactured-orbit'].includes(m.phase);n++)U.store.tick(m.lastUpdateS+100,id=>r.galaxy.byId.get(id));return{phase:m.phase,flight:m.flight,profile:m.profile,orbit:StarfallRocketFlight7B.elements(m.flight,m.profile.mu,m.profile.radiusM),satellites:U.store.satellites.length,sourceGone:!r.physical8a.get('protocol-stage')};}""")
+   result=page.evaluate("""()=>{const U=StarfallLaunchUI,r=StarfallRuntime,m=U.store.launches.find(x=>x.propulsion==='orbital');for(let n=0;n<80&&!['failed','test-orbit','manufactured-orbit'].includes(m.phase);n++)U.store.update(m.lastUpdateS+100,id=>r.galaxy.byId.get(id));return{phase:m.phase,flight:m.flight,profile:m.profile,orbit:StarfallRocketFlight7B.elements(m.flight,m.profile.mu,m.profile.radiusM),satellites:U.store.satellites.length,sourceGone:!r.physical8a.get('protocol-stage')};}""")
    assert result['phase'] in ['test-orbit','manufactured-orbit'],result
    assert result['orbit']['energyJkg']<0 and result['orbit']['periapsisM']>=25000 and result['sourceGone'] and result['satellites']==0,result
    page.screenshot(path=str(OUT/(name+'-orbital.png')));page.evaluate("window.dispatchEvent(new Event('pagehide'))");page.reload(wait_until='domcontentloaded');page.wait_for_function('!!window.StarfallLaunchUI?.store')

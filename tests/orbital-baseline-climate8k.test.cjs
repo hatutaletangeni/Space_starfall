@@ -2,6 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),{rocket}=require('./helpers/industry-fixtures.cjs');
 const M=require('../src/physics/material-ledger8a.js'),P=require('../src/physics/foundation.js');
 require('../src/physics/assembly8g.js');const F=require('../src/physics/rocket-flight7b.js');
+require('../src/physics/launch-systems.js');
 const E=require('../src/physics/atmosphere-emission8j.js');require('../src/physics/celestial-composition-cw01.js');
 const CC=require('../src/physics/planetary-climate8j.js'),C=require('../src/physics/industry-completion8k.js');
 const close=(a,b,e=1e-6)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -17,6 +18,10 @@ test('paid conditioning fits a real battery, retains source mass, and native int
  const el=F.elements(f,p.mu,p.radiusM);assert.ok(el.energyJkg<0&&el.periapsisM>=25000);assert.equal(q.launchStore.satellites.length,0);
  assert.ok(!q.physical.assets.some(x=>x.id==='stage'));close(F.totalMass(f,p),p.stageParts[0].dryKg+f.stageFuelKg[0]);
  assert.ok(q.mission.sourceStage.state.orbital8g.conditioningJ>180e6,'conditioning must span actual recharge cycles');
+ const X=global.StarfallLaunch,store=new X.Store(742,q.launchStore);store.update(a.timeS+100,id=>id===a.body.id?a.body:null);
+ const vehicle=store.launches[0];assert.equal(vehicle.phase,'manufactured-orbit');assert.ok(vehicle.orbitalVehicle);assert.equal(store.satellites.length,0);
+ const body={...a.body,position:[0,0,0]},start=X.orbit(vehicle.orbitalVehicle,body,vehicle.completedAtS,1000),later=X.orbit(vehicle.orbitalVehicle,body,vehicle.completedAtS+60,1000);
+ assert.ok(Math.hypot(...start.position.map((v,i)=>v-later.position[i]))>1);
 });
 test('orbital kit, battery, load capacity, source provenance, rollback and heat-leak losses are enforced',()=>{
  let a=orbital();a.prepareOnly=true;a.operationId='condition8g:0';a.factory.receipts=[];assert.throws(()=>C.launch(a),/Manufacture/);
