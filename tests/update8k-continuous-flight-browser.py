@@ -28,19 +28,28 @@ with sync_playwright() as p:
   }""")
   # Plotting an existing waypoint only changes the target. G is the original
   # alignment control; W/Shift are integrated by the actual gameplay loop.
-  trace=[];deadline=time.monotonic()+360
+  trace=[];deadline=time.monotonic()+240;descending=False
   page.keyboard.down('w');page.keyboard.down('Shift')
   try:
    while time.monotonic()<deadline:
-    page.keyboard.press('g');page.wait_for_timeout(750)
+    if not descending:page.keyboard.press('g')
+    page.wait_for_timeout(500)
     state=page.evaluate("""()=>({body:StarfallRuntime.nearest.id,landed:StarfallRuntime.landed,
-     eva:StarfallRuntime.eva,pos:[...StarfallRuntime.scenePosition],timeS:StarfallRuntime.time,
+     eva:StarfallRuntime.eva,altitude:Math.hypot(...StarfallRuntime.scenePosition.map((x,i)=>x-StarfallRuntime.nearest.position[i]))-StarfallRuntime.nearest.radius,pos:[...StarfallRuntime.scenePosition],timeS:StarfallRuntime.time,
      target:StarfallRuntime.target.id,truck:StarfallRuntime.physical8a.get('truck-expedition-001').location})""")
     trace.append(state)
+    if state['body']==destination['id'] and state['altitude']<600 and not descending:
+     # G aligns with the normal 180-unit approach marker. Use the actual
+     # radial descent control for touchdown instead of orbiting that marker.
+     page.keyboard.up('w');page.keyboard.up('Shift');page.keyboard.down('c');descending=True
+    if len(trace)%20==0:
+     (OUT/'flight-progress.json').write_text(json.dumps(trace,indent=2))
     if state['landed'] and state['body']==destination['id']:break
-   else:raise AssertionError({'reason':'Actual piloted flight did not land within 360 s','last':trace[-5:]})
+   else:
+    page.screenshot(path=str(OUT/'failed-approach.png'))
+    raise AssertionError({'reason':'Actual piloted flight did not land within 240 s','last':trace[-5:]})
   finally:
-   page.keyboard.up('w');page.keyboard.up('Shift')
+   page.keyboard.up('w');page.keyboard.up('Shift');page.keyboard.up('c')
   assert original['body']!=destination['id']
   assert len(trace)>4 and len({tuple(x['pos']) for x in trace})>4,'Continuous motion evidence required'
   assert all(x['truck']['kind']=='ship' for x in trace),'Original cargo must remain source-owned during flight'
@@ -56,7 +65,7 @@ with sync_playwright() as p:
   assert page.evaluate("StarfallRuntime.physical8a.list().filter(x=>x.type==='truck').length")==1
   assert not errors,errors
   (OUT/'continuous-flight.json').write_text(json.dumps({'result':'PASS','origin':original['body'],
-   'destination':destination,'trace':trace,'controls':['native waypoint','G','W','Shift'],
+   'destination':destination,'trace':trace,'controls':['native waypoint','G','W','Shift','C'],
    'limitations':'Actual original-cargo flight; full industrial chain is a separate source integration.'},indent=2))
   print('PASS continuously piloted original Flight.js cargo journey and actual second-world landing/reload',destination,flush=True)
  finally:browser.close()
