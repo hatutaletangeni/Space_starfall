@@ -71,15 +71,14 @@ with sync_playwright() as p:
      mass:StarfallRuntime.materials8a.inventory().reduce((n,l)=>n+l.massKg,0)})""")
    assert before['ctx']['truckNearShip'] and before['ctx']['operatorNear'],before
    if edition=='mobile':
-    time_button=page.locator('#sfmobile-hud [data-mobile-key="KeyT"]')
-    time_button.tap();time_button.tap()
-    assert page.evaluate('STARFALL_DEBUG.state.timeScale')==100
     page.locator('#sfmobile-hud [data-mobile-action="mission"]').tap()
    else:
     page.locator('#sf-mission-button').click()
    page.locator('#sf-mission-flow .sf-flow-step').filter(has_text='Operate').click()
    page.locator('#sf-mission-flow .sf-flow-workspace').click()
    panel=page.locator('#mining8d-panel');button=panel.get_by_role('button',name='REPLACE DRILL HEAD / 60 S')
+   service_ctx=page.evaluate('StarfallRuntime.miningContext8D()')
+   assert service_ctx['operatorNear'] and service_ctx['truckNearShip'],{'before':before['ctx'],'atService':service_ctx,'panel':panel.inner_text()}
    assert button.is_enabled(),panel.inner_text()
    assert panel.get_by_text('Tailings storage · free ship cargo space',exact=True).count()==1
    assert page.evaluate("typeof StarfallRuntime.tailingsTransfer8H==='function'&&!!StarfallManufacturing8F.RECIPES?.plant_kit_tailings_stockpile")
@@ -87,6 +86,11 @@ with sync_playwright() as p:
    page.screenshot(path=str(OUT/(edition+'-drill-service.png')))
    if edition=='mobile':
     button.tap()
+    # Accelerate the *running* service, not the walk-up. At 100x a
+    # body-fixed surface operator can leave service range while opening UI.
+    time_button=page.locator('#sfmobile-hud [data-mobile-key="KeyT"]')
+    time_button.tap();time_button.tap()
+    assert page.evaluate('STARFALL_DEBUG.state.timeScale')==100
    else:
     button.click()
     page.keyboard.press('t');page.keyboard.press('t')
