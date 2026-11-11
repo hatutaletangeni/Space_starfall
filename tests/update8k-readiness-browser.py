@@ -41,23 +41,31 @@ with sync_playwright() as p:
    assert manifest['version']==2 and manifest['mass']<9000 and manifest['volume']<16,manifest
    assert manifest['heads']==4,manifest
    page.evaluate("""()=>{
-    const r=StarfallRuntime,s=SF.load(),b=r.galaxy.byId.get('star-0-p0'),p=b.position,
-      physical=r.physical8a.serialize(),truck=physical.assets.find(a=>a.id==='truck-expedition-001'),
-      local=[Math.sin(40/b.radius),Math.cos(40/b.radius),0],mining=r.mining8d.snapshot();
+    const r=StarfallRuntime,s=SF.load(),b=r.galaxy.byId.get('star-0-p0');
+    r.galaxy.update(0); // Controlled navigation snapshot and spin share one epoch.
+    const p=b.position,physical=r.physical8a.serialize(),
+      truck=physical.assets.find(a=>a.id==='truck-expedition-001'),
+      local=[Math.sin(40/b.radius),Math.cos(40/b.radius),0],mining=r.mining8d.snapshot(),
+      dir=StarfallOutposts.rotate([0,1,0],b.spinAxis||[0,1,0],b.spinAngle||0),
+      forward=StarfallOutposts.rotate([1,0,0],b.spinAxis||[0,1,0],b.spinAngle||0);
     if(!b.landable)throw Error('Controlled real world is not landable');
     truck.location={kind:'surface',bodyId:b.id,local};
     mining.toolCondition=.05; // Explicit wear fixture; never manufacture resources.
-    SF.save({physical8a:physical,mining8d:mining,
+    const saved=SF.save({physical8a:physical,mining8d:mining,
      assistedTruckRecovery8b:{id:'TEST_FIXTURE_SKIP_MOBILE_ASSISTED_RECOVERY'},
      flightGalaxy:{...s.flightGalaxy,seed:r.galaxy.seed,time:0,
-      position:[p[0],p[1]+b.radius+8,p[2]],attached:b.id,target:b.id,
-      groundDirection:[0,1,0],up:[0,1,0],forward:[1,0,0],landed:true,
-      shipCargo8b:{schema:1,mode:'ground',counter:0},
+      position:p.map((v,i)=>v+dir[i]*(b.radius+8)),attached:b.id,target:b.id,
+      groundDirection:dir,up:dir,forward,landed:true,
+      shipCargo8b:{...r.cargo8b,mode:'ground'},
       truckPose:{bodyId:b.id,local,forward:[1,0,0],batteryJ:truck.state.batteryJ,cargo:0}}});
+    if(saved!==true)throw Error('Controlled navigation/wear snapshot did not persist');
     window.__STARFALL_IMPORT_PENDING=true;
    }""")
    page.reload(wait_until='domcontentloaded',timeout=90000)
-   page.wait_for_function('!!(window.StarfallRuntime?.landed&&window.StarfallRuntime?.eva)',timeout=60000)
+   try:
+    page.wait_for_function('!!(window.StarfallRuntime?.landed&&window.StarfallRuntime?.eva)',timeout=30000)
+   except Exception as error:
+    raise AssertionError({'errors':errors,'boot':page.evaluate("({runtime:!!window.StarfallRuntime,landed:window.StarfallRuntime?.landed,eva:window.StarfallRuntime?.eva,saved:window.SF?.load()?.flightGalaxy,fatal:document.getElementById('fatal')?.innerText})")}) from error
    page.evaluate('STARFALL_DEBUG.placeEvaNearTruck()')
    before=page.evaluate("""()=>({ctx:StarfallRuntime.miningContext8D(),
      mass:StarfallRuntime.materials8a.inventory().reduce((n,l)=>n+l.massKg,0)})""")
