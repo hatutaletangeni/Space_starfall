@@ -186,7 +186,7 @@ class Viewport{
  constructor(canvas){this.canvas=canvas;this.gl=canvas.getContext('webgl2',{antialias:true,alpha:false,depth:true,powerPreference:'high-performance'});if(!this.gl)throw Error('WebGL2 unavailable. Enable hardware acceleration in Chrome or Edge.');const gl=this.gl;
   this.surface=prog(gl,VS,FS);this.lines=prog(gl,LINE_VS,LINE_FS);this.sphere=sphere(gl);this.box=box(gl);this.cam={targetKm:[0,0,0],azimuth:.61,elevation:.34,distanceKm:700000};this.drawCalls=0;this.gridVisible=true;this.orbitsVisible=true;this.quality='Balanced';this.lastVP=null;this.lastCamera=null;this.positions=new Map();this.lastScene=null;this.selectedId=null;
   this.cachedOrbits={serial:-1};this.circle=lineBuffer(gl,Array.from({length:161},(_,k)=>{const a=k*Math.PI*2/160;return [Math.cos(a),0,Math.sin(a)];}).flat());
-  const grid=[];for(let i=-30;i<=30;i++){grid.push(-400,i*12,0,400,i*12,0,i*12,-400,0,i*12,400,0);}this.grid=lineBuffer(gl,grid);
+  const grid=[];for(let i=-30;i<=30;i++){grid.push(-400,0,i*12,400,0,i*12,i*12,0,-400,i*12,0,400);}this.grid=lineBuffer(gl,grid);
   gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);gl.clearColor(.014,.024,.04,1);
  }
  resize(){const ratio=Math.min(window.devicePixelRatio||1,this.quality==='Performance'?1:this.quality==='Quality'?2:1.5);const w=Math.max(1,Math.round(this.canvas.clientWidth*ratio)),h=Math.max(1,Math.round(this.canvas.clientHeight*ratio));if(w!==this.canvas.width||h!==this.canvas.height){this.canvas.width=w;this.canvas.height=h;}this.gl.viewport(0,0,w,h);}
@@ -203,7 +203,7 @@ class Viewport{
  if(this.gridVisible){gl.uniformMatrix4fv(gl.getUniformLocation(this.lines,'uModel'),false,M.model(V.mul(focus,-1/scale),[1,1,1]));gl.uniform4f(gl.getUniformLocation(this.lines,'uColor'),.11,.24,.33,.35);gl.drawArrays(gl.LINES,0,this.grid.count);this.drawCalls++;}
  if(this.orbitsVisible){for(const node of scene.nodes){if(!node.visible||!node.orbit||!node.parentId)continue;const parent=this.positions.get(node.parentId),center=V.add(parent,node.positionKm),o=node.orbit;
     const inclination=o.inclinationDeg*Math.PI/180;const co=Math.cos(inclination),si=Math.sin(inclination);const r=o.semiMajorAxisKm/scale;
-    const transform=M.model(V.mul(V.sub(center,focus),1/scale),[r,r,r],[inclination*180/Math.PI,0,0]); // basis matches x-z orbital incline
+    const transform=M.model(V.mul(V.sub(center,focus),1/scale),[r,r,r],[-inclination*180/Math.PI,0,0]); // basis matches x-z orbital incline
     gl.uniformMatrix4fv(gl.getUniformLocation(this.lines,'uModel'),false,transform);gl.uniform4f(gl.getUniformLocation(this.lines,'uColor'),.36,.49,.59,.45);gl.bindVertexArray(this.circle.vao);gl.drawArrays(gl.LINE_STRIP,0,this.circle.count);this.drawCalls++;
   }}
  gl.useProgram(this.surface);gl.uniformMatrix4fv(gl.getUniformLocation(this.surface,'uVP'),false,vp);gl.uniform1f(gl.getUniformLocation(this.surface,'uTime'),t);
