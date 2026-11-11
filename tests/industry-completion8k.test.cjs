@@ -72,3 +72,10 @@ test('greybody climate responds slowly to source CO2, conserves stored heat, and
  assert.ok(w.climate8j.anomalyK<old.climate8j.anomalyK);assert.equal(w.climate8j.hazeOpacity,0);
  assert.throws(()=>C.climate(w,profile,1000,1e9),/bounded/);
 });
+
+test('a single kilogram retains sub-ULP thermal and optical changes without magnification',()=>{
+ const w={netAddedKg:1,emittedSpeciesKg:{carbon_dioxide:1}},p={radiusM:6e6,albedo:.3};
+ C.climate(w,p,1360,0);C.climate(w,p,1360,1);
+ assert.ok(w.climate8j.anomalyK>0&&w.climate8j.anomalyK<1e-15);
+ assert.ok(w.climate8j.hazeOpacity>0&&w.climate8j.hazeOpacity<1e-15);
+});

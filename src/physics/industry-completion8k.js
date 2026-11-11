@@ -103,17 +103,18 @@ function capture(a){
  return{materials,world,shipEnergyJ:a.shipEnergyJ-receipt.energyJ};
 }
 function climate(world,profile,flux,timeS){
- requireThat(good(profile.albedo)&&profile.albedo<=1&&good(flux)&&flux<=1e7&&good(timeS),'Invalid stellar flux/clock');
+ requireThat(good(profile.albedo)&&profile.albedo<=1&&good(flux)&&flux<=1e30&&good(timeS),'Invalid stellar flux/clock');
+ requireThat(good(world.netAddedKg)&&Object.values(world.emittedSpeciesKg||{}).every(good)&&Object.values(world.capturedSpeciesKg||{}).every(good),'Corrupt atmospheric species ledger');
  const s=world,area=4*Math.PI*profile.radiusM**2,c=s.climate8j||(s.climate8j={schema:1,lastS:timeS,anomalyK:0,storedHeatJ:0}),dt=timeS-c.lastS;
  requireThat(good(c.lastS)&&Number.isFinite(c.anomalyK)&&Number.isFinite(c.storedHeatJ),'Corrupt climate ledger');
  if(dt<=0)return c;requireThat(dt<=86400,'Climate must advance in bounded daily substeps');
  const albedo=Math.max(0,Math.min(.95,profile.albedo)),base=Math.max(3,Math.pow(flux*(1-albedo)/(4*SIGMA),.25));
  const co2=Math.max(0,(s.emittedSpeciesKg.carbon_dioxide||0)-(s.capturedSpeciesKg?.carbon_dioxide||0));
- const tau=.01*co2/area,target=base*Math.pow(1+.75*tau,.25),capacity=4e8;
+ const tau=.01*co2/area,targetAnomaly=base*Math.expm1(.25*Math.log1p(.75*tau)),capacity=4e8;
  const k=4*SIGMA*Math.pow(Math.max(3,base+c.anomalyK),3)/capacity;
- const previous=c.anomalyK;c.anomalyK=(target-base)+(previous-(target-base))*Math.exp(-k*dt);
+ const previous=c.anomalyK;c.anomalyK=previous+(targetAnomaly-previous)*(-Math.expm1(-k*dt));
  c.storedHeatJ+=capacity*area*(c.anomalyK-previous);c.lastS=timeS;c.surfaceK=base+c.anomalyK;c.infraredOpticalDepth=tau;
- c.hazeOpacity=1-Math.exp(-1e-5*Math.max(0,s.netAddedKg)/area);c.model='Illustrative grey CO2 opacity 0.01 m²/kg, 4e8 J/m²/K heat capacity, stellar/albedo greybody equilibrium; not a validated planetary climate forecast';return c;
+ c.hazeOpacity=-Math.expm1(-1e-5*Math.max(0,s.netAddedKg)/area);c.model='Illustrative grey CO2 opacity 0.01 m²/kg, 4e8 J/m²/K heat capacity, stellar/albedo greybody equilibrium; not a validated planetary climate forecast';return c;
 }
 root.StarfallIndustryCompletion8K=Object.freeze({launch,installLoop,crew,capture,climate});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndustryCompletion8K;
