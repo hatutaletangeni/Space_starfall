@@ -41,11 +41,11 @@ function evaluate(saved){
     h.id===x.id&&h.source===x.siteId&&h.destination===x.destinationContainerId&&
     Math.abs(h.massKg-x.massKg)<1e-8&&h.energyJ>0)),
   'Original surveyed 8C deposit physically depleted by 8D');
- const refined=refinery.filter(owned);
- const rawModes=refined.map(x=>(x.product||'')+' '+(x.mode||''));
+ const refined=refinery.filter(owned),chemistry=arr(obj(s.industrialPlant8e).operations).filter(owned);
  push('refine','Copper, iron and water processed',
-  ['copper','iron','water'].every(q=>rawModes.some(x=>x.includes(q))),
-  'All three outputs in source-paid refinery receipts');
+  ['copper','iron'].every(q=>chemistry.some(x=>x.outputs?.[q]>0&&x.energyJ>0&&valid(x.stationAssetId)))&&
+   refined.some(x=>x.product==='water'&&x.productKg>0&&x.energyJ>0),
+  'Actual copper/iron chemical products and recovered water; ore concentrates alone are insufficient');
  const outputs=factory.filter(owned).map(x=>x.recipeId);
  push('electrical','Electrical subassembly physically fabricated',
   outputs.includes('copper_wire')&&
@@ -55,9 +55,19 @@ function evaluate(saved){
   outputs.some(x=>['solar_module','battery_cell'].includes(x)),
   'Original 8F solar module or battery cell with actual part and power receipts');
  push('vehicle','Replacement vehicle commissioned',
-  assembly.some(x=>owned(x)&&['truck','science_rover'].includes(x.blueprintId))&&
-  assets.some(x=>['truck','rover'].includes(x.type)&&x.id!=='truck-expedition-001'&&
-   x.id!=='rover-science-001'&&!artifact(x.provenance)),
+  assets.some(a=>{
+   if(a.type!=='vehicle_frame'||a.state?.operational!==true||a.state?.commissioned!==true||
+      a.provenance!=='physical-8g-assembly:'+a.id)return false;
+   const rs=assembly.filter(r=>r.id===a.id||r.assetId===a.id),r=rs[0],v=a.state.activationReceipt;
+   const bill=root.StarfallAssembly8G?.DEFINITIONS?.[r?.blueprintId]?.parts;
+   if(!bill||Object.entries(bill).some(([id,kg])=>Math.abs(arr(r?.consumedLots)
+     .filter(l=>l.materialId===id).reduce((s,l)=>s+l.massKg,0)-kg)>1e-7))return false;
+   return rs.length===1&&r.id===a.id&&r.assetId===a.id&&
+    ['truck','science_rover'].includes(r.blueprintId)&&r.status==='ASSEMBLED_NOT_OPERATIONAL'&&
+    valid(r.bodyId)&&['surface','ship'].includes(a.location?.kind)&&r.energyJ>=200000&&r.massKg===a.massKg&&
+    arr(r.consumedLots).length>0&&v?.assetId===a.id&&v.receiptId===r.id&&
+    v.sourceId==='ship-main:engineering-battery'&&v.energyJ>=2500000&&v.chargeJ===2000000;
+  }),
   'Another unique physical vehicle from full 8G BOM; original remains accounted for');
  push('interplanetary','Physical off-world delivery',
   offworld.some(x=>x?.status==='DELIVERED'&&

@@ -15,10 +15,11 @@ certify the complete no-debug two-world expedition or real hardware performance.
   uninstalled kits breaks that second circular dependency.
 - **Finite specialty supply shortfall:** the game currently has no local polymer,
   refractory-brick, laminate or chip production chain. New expeditions carry
-  explicitly finite prelaunch stock for the downstream plant BOMs. Two PV modules
-  and one eight-cell battery remain the semiconductor/electrode energy bootstrap;
-  no free solar installation or charged battery is added. The version-2 manifest
-  is **5,376.85 kg / 12.3161 m³**, within the original 9,000 kg / 16 m³ hold.
+  explicitly finite prelaunch stock for the downstream plant BOMs. Four PV modules
+  and forty finite cells cover the habitat shell, native T02 grid, replacement
+  vehicle and additional structural work;
+  no free solar installation or charged battery is added. The version-3 manifest
+  is **5,461.65 kg / 12.3785 m³**, within the original 9,000 kg / 16 m³ hold.
 - **Permanent drill exhaustion:** previously the drill crossed its 10% limit
   after about 188 bores (3.76 tonnes) and requested nonexistent service. A 60 s,
   120 kJ service operation now exchanges a ship-held certified 2 kg head for the
@@ -43,6 +44,30 @@ certify the complete no-debug two-world expedition or real hardware performance.
   The report now joins the actual extraction ID, site, mass and hopper to a paid
   committed 8D drill and matching persistent depletion. Unmatched or unpaid
   records do not count.
+
+- **Replacement vehicle blocked by unavailable bearing alloy:** version 3 ships
+  32 kg of finite qualified bearing steel. The game has no local bearing-alloy
+  qualification process; generic steel cannot silently replace it. Real bearings
+  still require the installed grinder, work time, input debit and scrap.
+- **Whole-expedition dependency closure:** the actual integer-batch 8F recipes,
+  installed tool requirements and full 8G bills now reconcile for a rover,
+  pressure habitat, dry rocket structure, two depots, conveyor, required chemical
+  plants, vessels and native T02 power. This requires 340 real populated-board
+  batches and substantial local Fe/Cu/Al/carbon/silica processing. Shipped specialty
+  inputs are sufficient, not unlimited. Planning is not a completed playthrough.
+- **Manufactured vehicle evidence:** the report now accepts the native commissioned
+  `vehicle_frame`, full consumed mechanical bill and actual 2.5 MJ activation.
+  It preserves evidence when the built vehicle travels to another world or ship
+  cargo. An unrelated generic vehicle receipt is insufficient.
+- **Metal evidence:** sorted ore concentrate no longer counts as refined copper
+  or iron. Both must appear as actual paid chemical outputs, alongside recovered
+  water.
+- **Free legacy rocket bypass:** Industrial expeditions cannot ignite the older
+  launcher that synthesizes stage fuel and a payload from a design. The original
+  force-integrated launcher remains available in genuine legacy saves. Industrial
+  Rocket Lab explicitly shows DESIGN PREVIEW; manufactured 8G dry stages remain
+  unqualified, unfueled structural prototypes. No positive manufactured rocket
+  launch is claimed.
 
 ## Compatibility
 
@@ -72,6 +97,21 @@ new one. Legacy saves and original truck IDs are retained.
   source head debit, scrap, actual truck battery and reload. Navigation and drill
   wear are explicitly controlled fixtures. No stock or energy is injected.
   Screenshots are CI artifacts; software WebGL is not real phone/GPU evidence.
+- `node tests/update8k-expedition-bom-closure.test.cjs`: whole-plan finite
+  stock/tool dependency closure with real integer recipe batches; catches the
+  prior PV/electrode/bearing shortages without inventing new cleanroom inputs.
+- `node tests/industrial-launch-no-free-rocket8k.test.cjs`: rejects the old free
+  launcher on Industrial saves before owner mutation; retains legacy ascent.
+- `python tests/update8k-historical-saves-browser.py`: boots authentic historical
+  standalone git blobs (9536bc4, f6fa832, 1d2b9a4), obtains their own lifecycle
+  saves and imports through the current archive UI. It checks retained cargo,
+  discoveries, credits and original truck through reload. These are actual old
+  game versions, not copies of a user's private save.
+- `python tests/update8k-continuous-flight-browser.py`: plots an ordinary surface
+  waypoint and pilots with G/W/Shift through the actual Flight.js loop to another
+  world. No saved-position injection, teleport or simulated-time setter. Records
+  continuous positions, source cargo identity and actual landing/reload. This
+  proves native flight separately from industrial source integration.
 - Required 8K CI includes these checks and the original fresh-manifest browser
   regression. Desktop/mobile standalones are rebuilt from the same source.
 

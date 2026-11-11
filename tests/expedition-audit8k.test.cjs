@@ -1,6 +1,9 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const A=require('../src/physics/expedition-audit8k.js');
+const V=require('../src/physics/assembly8g.js'),parts=V.DEFINITIONS.truck.parts;
+const vehicleLots=Object.entries(parts).map(([materialId,massKg])=>({lotId:'paid:'+materialId,materialId,massKg}));
+const vehicleMass=vehicleLots.reduce((s,x)=>s+x.massKg,0);
 const blank=()=>({physical8a:{schema:1,assets:[]},materials8a:{schema:1,lots:[],containers:[],operations:[]}});
 const get=(r,id)=>r.stages.find(x=>x.id===id);
 test('8K fresh incomplete save cannot be represented as a completed expedition',()=>{
@@ -36,18 +39,19 @@ test('8K real provenance only advances inspected phases; cannot assert unassiste
     transactions:[{id:'extract-1',siteId:'d1',massKg:20,destinationContainerId:'truck-hopper'}]},
   mining8d:{history:[{id:'extract-1',type:'DRILL',status:'COMMITTED',source:'d1',
     destination:'truck-hopper',massKg:20,energyJ:57600}]},
-  refinery8e:{receipts:['copper','iron','water'].map((x,i)=>({
-   id:'refine-'+i,mode:x+'_separation',product:x,status:'COMMITTED'}))},
+  refinery8e:{receipts:[{id:'refine-water',product:'water',productKg:8,energyJ:840000,status:'COMMITTED'}]},
+  industrialPlant8e:{operations:['copper','iron'].map((x,i)=>({id:'chemical-'+i,
+   outputs:{[x]:2},stationAssetId:'actual-furnace',energyJ:1e6,status:'COMMITTED'}))},
   factory8f:{receipts:['copper_wire','populated_board','solar_module'].map((x,i)=>({
    id:'factory-'+i,recipeId:x,status:'COMMITTED'}))},
-  vehicleAssembly8g:{receipts:[{id:'assemble-1',blueprintId:'truck',status:'COMMITTED'}]},
+  vehicleAssembly8g:{receipts:[{id:'assemble-1',assetId:'assemble-1',blueprintId:'truck',status:'ASSEMBLED_NOT_OPERATIONAL',bodyId:'world-b',energyJ:200000,massKg:vehicleMass,consumedLots:vehicleLots}]},
   logisticsOffworldManifests8h:{manifests:[{id:'ship-1',status:'DELIVERED',
    sourceWorldId:'world-a',destinationWorldId:'world-b'}]},
   terraformWorlds8j:{'world-b':{receipts:[{id:'world-gas-1',
     status:'COMMITTED',kind:'PLANET_ATMOSPHERE_EMISSION_8J',massKg:1,
     sourceBatteryJBefore:100000,sourceBatteryJAfter:0}]}}});
  s.physical8a.assets.push({id:'truck-expedition-001',location:{kind:'ship'}},
-  {id:'manufactured-truck-002',type:'truck',provenance:'assembly:assemble-1',location:{kind:'surface'}});
+  {id:'assemble-1',type:'vehicle_frame',massKg:vehicleMass,provenance:'physical-8g-assembly:assemble-1',location:{kind:'surface',bodyId:'world-b'},state:{operational:true,commissioned:true,activationReceipt:{assetId:'assemble-1',receiptId:'assemble-1',sourceId:'ship-main:engineering-battery',energyJ:2500000,chargeJ:2000000}}});
  s.physical8a.assets.push({id:'hab-build-1',type:'habitat_envelope',massKg:985.4,
   provenance:'structural-8g:hab-build-1',
   location:{kind:'surface',bodyId:'world-b'}});
@@ -100,4 +104,26 @@ test('8K rejects a fabricated or mismatched structural habitat job',()=>{
  assert.equal(get(A.evaluate(s),'habitat').status,'NOT_PROVEN');
  receipt.status='ASSEMBLED_NOT_OPERATIONAL';receipt.consumedLots=[];
  assert.equal(get(A.evaluate(s),'habitat').status,'NOT_PROVEN');
+});
+
+// Manufacturing on A and carrying/using a commissioned vehicle on B does not
+// invalidate its immutable assembly receipt on A.
+test('8K matches the full manufactured vehicle bill and preserves evidence after physical transport',()=>{
+ const s=blank(),id='real-vehicle';
+ s.vehicleAssembly8g={receipts:[{id,assetId:id,blueprintId:'truck',bodyId:'world-a',
+  status:'ASSEMBLED_NOT_OPERATIONAL',massKg:vehicleMass,energyJ:200000,consumedLots:vehicleLots}]};
+ const a={id,type:'vehicle_frame',massKg:vehicleMass,provenance:'physical-8g-assembly:'+id,
+  location:{kind:'surface',bodyId:'world-b'},state:{operational:true,commissioned:true,
+   activationReceipt:{assetId:id,receiptId:id,sourceId:'ship-main:engineering-battery',energyJ:2500000,chargeJ:2000000}}};
+ s.physical8a.assets.push(a);
+ assert.equal(get(A.evaluate(s),'vehicle').status,'EVIDENCE');
+ a.location={kind:'ship',parentId:'ship-main'};
+ assert.equal(get(A.evaluate(s),'vehicle').status,'EVIDENCE');
+ s.vehicleAssembly8g.receipts[0].consumedLots=vehicleLots.slice(1);
+ assert.equal(get(A.evaluate(s),'vehicle').status,'NOT_PROVEN');
+});
+test('8K cannot mistake sorted ore concentrate for chemically refined metal',()=>{
+ const s=blank();s.refinery8e={receipts:['copper','iron','water'].map(x=>({
+  id:'sort-'+x,status:'COMMITTED',product:x+'_concentrate',energyJ:1000,productKg:1}))};
+ assert.equal(get(A.evaluate(s),'refine').status,'NOT_PROVEN');
 });

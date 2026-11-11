@@ -38,7 +38,7 @@ with sync_playwright() as p:
      version:s.initialIndustrialManifest8k.manifestVersion,
      heads:lots.filter(l=>l.materialId==='drill_head').reduce((n,l)=>n+l.massKg,0)};
    }""")
-   assert manifest['version']==2 and manifest['mass']<9000 and manifest['volume']<16,manifest
+   assert manifest['version']==3 and manifest['mass']<9000 and manifest['volume']<16,manifest
    assert manifest['heads']==4,manifest
    page.evaluate("""()=>{
     const r=StarfallRuntime,s=SF.load(),b=r.galaxy.byId.get('star-0-p0');

@@ -41,6 +41,8 @@ jobs:
           node tests/pre8k-real8f-to-t02-chain.test.cjs
           node tests/update8k-natural-copper-to-wire.test.cjs
           node tests/update8k-fresh-progression.test.cjs
+          node tests/update8k-expedition-bom-closure.test.cjs
+          node tests/industrial-launch-no-free-rocket8k.test.cjs
           node tests/mining-service8d.test.cjs
           node tests/update8k-powered-habitat-chain.test.cjs
           node tests/update8k-electrolysis-atmosphere-chain.test.cjs
@@ -79,6 +81,34 @@ jobs:
         with:
           name: update8k-readiness-browser
           path: artifacts/8k-readiness-browser/
+          if-no-files-found: ignore
+          retention-days: 14
+  authentic-history-and-flight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install real browser
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Import saves written by authentic historical game versions
+        run: python tests/update8k-historical-saves-browser.py
+      - name: Pilot the original ship continuously to a second world
+        run: python tests/update8k-continuous-flight-browser.py
+      - name: Upload actual save and continuous flight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: update8k-authentic-history-and-flight
+          path: |
+            artifacts/8k-historical-saves/
+            artifacts/8k-continuous-flight/
           if-no-files-found: ignore
           retention-days: 14
 

@@ -79,6 +79,12 @@ class Store{
  restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;this.serial=clamp(Number(saved.serial)||0,0,1e8);this.launches=(Array.isArray(saved.launches)?saved.launches:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.startS));this.satellites=(Array.isArray(saved.satellites)?saved.satellites:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.altitudeM)&&x.altitudeM>0&&Number.isFinite(x.mu)&&x.mu>0&&Array.isArray(x.axis));this.rovers=(Array.isArray(saved.rovers)?saved.rovers:[]).filter(x=>x?.id&&x.bodyId&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)).map(x=>({...x,local:norm(x.local),commands:Array.isArray(x.commands)?x.commands.slice(0,24):[],heading:Number.isFinite(x.heading)?x.heading:0}));}
  serialize(){return safe({schema:1,seed:this.seed,serial:this.serial,launches:this.launches,satellites:this.satellites,rovers:this.rovers});}
  launch({body,foundation,design,time,destinationBody=null,destinationSystem=null,landingLocal=null,unit=1000,padContext=null}){
+  // Legacy designs synthesize stage propellant and a satellite/rover payload.
+  // They remain available in legacy saves, never as a free Industrial path.
+  // 8G dry structures explicitly have no pressure/hot-fire certification or
+  // propellant: their presence alone cannot authorize this legacy launcher.
+  if(root.SF?.load?.()?.freshExpedition?.schema===1)
+   throw Error('Industrial ignition requires qualified manufactured stages, payload and source-owned propellant. The legacy Rocket Lab is design-preview only; an 8G dry shell is not launch-ready.');
   if(!body?.id||!body.landable||foundation?.kind!=='foundation'||foundation.bodyId!==body.id)throw Error('Select an actual surface foundation as launch pad');
   if(!Number.isFinite(time)||time<0)throw Error('Invalid mission time');
   if(this.launches.length>=MAX_INVENTORY.launches)throw Error('Launch archive full: export/backup your save before removing completed missions; no records were deleted');

@@ -27,7 +27,7 @@ test('a new finite expedition can make its first mined iron, hand-wound motor an
  assert.ok(deposit,'original seed-742 enriched iron occurrence required');
  let m=D.prepareContainers(M.create()),p=P.create().serialize(),resources=R.create(),mining=D.create(null,M,R);
  const seeded=S.prepare(m.snapshot(),{schema:1,seed:742,startedAt:1},null,D.SHIP);
- m=M.create(seeded.materials);assert.equal(seeded.receipt.manifestVersion,2);
+ m=M.create(seeded.materials);assert.equal(seeded.receipt.manifestVersion,3);
  const initialMass=total(m,p),vehicles=V.createStore(),initialJ=vehicles.get('ship').state.energyJ;
  let usedJ=0,truckJ=p.assets.find(a=>a.id==='truck-expedition-001').state.batteryJ,truckUsedJ=0;
  function pay(j){const ship=vehicles.get('ship');assert.ok(j>0&&ship.state.energyJ>=j);

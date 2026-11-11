@@ -4230,6 +4230,12 @@ class Store{
  restore(saved){if(saved?.schema!==1||saved.seed!==this.seed)return;this.serial=clamp(Number(saved.serial)||0,0,1e8);this.launches=(Array.isArray(saved.launches)?saved.launches:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.startS));this.satellites=(Array.isArray(saved.satellites)?saved.satellites:[]).filter(x=>x?.id&&x.bodyId&&Number.isFinite(x.altitudeM)&&x.altitudeM>0&&Number.isFinite(x.mu)&&x.mu>0&&Array.isArray(x.axis));this.rovers=(Array.isArray(saved.rovers)?saved.rovers:[]).filter(x=>x?.id&&x.bodyId&&Array.isArray(x.local)&&x.local.length===3&&x.local.every(Number.isFinite)).map(x=>({...x,local:norm(x.local),commands:Array.isArray(x.commands)?x.commands.slice(0,24):[],heading:Number.isFinite(x.heading)?x.heading:0}));}
  serialize(){return safe({schema:1,seed:this.seed,serial:this.serial,launches:this.launches,satellites:this.satellites,rovers:this.rovers});}
  launch({body,foundation,design,time,destinationBody=null,destinationSystem=null,landingLocal=null,unit=1000,padContext=null}){
+  // Legacy designs synthesize stage propellant and a satellite/rover payload.
+  // They remain available in legacy saves, never as a free Industrial path.
+  // 8G dry structures explicitly have no pressure/hot-fire certification or
+  // propellant: their presence alone cannot authorize this legacy launcher.
+  if(root.SF?.load?.()?.freshExpedition?.schema===1)
+   throw Error('Industrial ignition requires qualified manufactured stages, payload and source-owned propellant. The legacy Rocket Lab is design-preview only; an 8G dry shell is not launch-ready.');
   if(!body?.id||!body.landable||foundation?.kind!=='foundation'||foundation.bodyId!==body.id)throw Error('Select an actual surface foundation as launch pad');
   if(!Number.isFinite(time)||time<0)throw Error('Invalid mission time');
   if(this.launches.length>=MAX_INVENTORY.launches)throw Error('Launch archive full: export/backup your save before removing completed missions; no records were deleted');
@@ -12952,7 +12958,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=api;
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-8;
 const CONTENT=Object.freeze([
  ['stocked_chips',8,.008,'prelaunch_finite_imported_semiconductors_400_boards_maximum'],
- ['pv_cells',4,.02,'prelaunch_certified_photovoltaics_for_two_finite_modules'],
+ ['pv_cells',8,.04,'prelaunch_certified_photovoltaics_four_modules_grid_and_habitat'],
  ['discrete_components',40,.08,'prelaunch_finite_electronic_components'],
  ['solder',20,.02,'prelaunch_finite_solder_supply'],
  ['copper',280,.106,'prelaunch_refined_copper_for_first_refineries'],
@@ -12964,10 +12970,11 @@ const CONTENT=Object.freeze([
  ['fertilizer',2,.002,'prelaunch_finite_plant_nutrients'],
  ['zeolite',5,.005,'prelaunch_sorbent_mineral'],
  ['magnets',1,.001,'prelaunch_motor_magnets'],
- ['electrolyte',3,.003,'prelaunch_electrochemical_supply'],
- ['electrode_active',9.6,.006,'prelaunch_certified_cell_electrode_mix_single_pack_only'],
- ['encapsulant',1.2,.002,'prelaunch_certified_photovoltaic_uv_encapsulant_two_modules_only'],
- ['separator',1,.002,'prelaunch_battery_separator'],
+ ['electrolyte',10,.01,'prelaunch_finite_electrolyte_forty_cells'],
+ ['electrode_active',48,.03,'prelaunch_certified_cell_electrode_mix_forty_cells'],
+ ['encapsulant',2.4,.004,'prelaunch_certified_photovoltaic_uv_encapsulant_four_modules'],
+ ['separator',3.2,.0064,'prelaunch_finite_separator_forty_cells'],
+ ['bearing_steel',32,.005,'prelaunch_finite_qualified_bearing_alloy_no_local_heat_treatment_claim'],
  ['refractory_block',1400,.70,'prelaunch_finite_firebrick_no_local_ceramic_process'],
  ['laminate',160,.32,'prelaunch_finite_electrical_laminate_400_boards_maximum'],
  ['etchant',30,.03,'prelaunch_finite_reaction_consumable'],
@@ -13019,7 +13026,7 @@ function prepare(saved,expedition,oldReceipt,shipContainerId){
   materials.importLot({id:'8k:manifest:'+materialId,materialId,containerId:shipContainerId,
    massKg,volumeM3,grade:1,provenance:origin+':'+source});
  }
- const receipt={schema:1,manifestVersion:2,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
+ const receipt={schema:1,manifestVersion:3,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
   seed:expedition.seed,startedAt:expedition.startedAt,status:'COMMITTED',source:origin,
   sourceStatement:'Pre-manufactured finite ship-owned cargo before expedition launch, NOT in-situ manufacture',
   destinationContainerId:shipContainerId,massKg:SUM.massKg,volumeM3:SUM.volumeM3,
@@ -13902,11 +13909,11 @@ function evaluate(saved){
     h.id===x.id&&h.source===x.siteId&&h.destination===x.destinationContainerId&&
     Math.abs(h.massKg-x.massKg)<1e-8&&h.energyJ>0)),
   'Original surveyed 8C deposit physically depleted by 8D');
- const refined=refinery.filter(owned);
- const rawModes=refined.map(x=>(x.product||'')+' '+(x.mode||''));
+ const refined=refinery.filter(owned),chemistry=arr(obj(s.industrialPlant8e).operations).filter(owned);
  push('refine','Copper, iron and water processed',
-  ['copper','iron','water'].every(q=>rawModes.some(x=>x.includes(q))),
-  'All three outputs in source-paid refinery receipts');
+  ['copper','iron'].every(q=>chemistry.some(x=>x.outputs?.[q]>0&&x.energyJ>0&&valid(x.stationAssetId)))&&
+   refined.some(x=>x.product==='water'&&x.productKg>0&&x.energyJ>0),
+  'Actual copper/iron chemical products and recovered water; ore concentrates alone are insufficient');
  const outputs=factory.filter(owned).map(x=>x.recipeId);
  push('electrical','Electrical subassembly physically fabricated',
   outputs.includes('copper_wire')&&
@@ -13916,9 +13923,19 @@ function evaluate(saved){
   outputs.some(x=>['solar_module','battery_cell'].includes(x)),
   'Original 8F solar module or battery cell with actual part and power receipts');
  push('vehicle','Replacement vehicle commissioned',
-  assembly.some(x=>owned(x)&&['truck','science_rover'].includes(x.blueprintId))&&
-  assets.some(x=>['truck','rover'].includes(x.type)&&x.id!=='truck-expedition-001'&&
-   x.id!=='rover-science-001'&&!artifact(x.provenance)),
+  assets.some(a=>{
+   if(a.type!=='vehicle_frame'||a.state?.operational!==true||a.state?.commissioned!==true||
+      a.provenance!=='physical-8g-assembly:'+a.id)return false;
+   const rs=assembly.filter(r=>r.id===a.id||r.assetId===a.id),r=rs[0],v=a.state.activationReceipt;
+   const bill=root.StarfallAssembly8G?.DEFINITIONS?.[r?.blueprintId]?.parts;
+   if(!bill||Object.entries(bill).some(([id,kg])=>Math.abs(arr(r?.consumedLots)
+     .filter(l=>l.materialId===id).reduce((s,l)=>s+l.massKg,0)-kg)>1e-7))return false;
+   return rs.length===1&&r.id===a.id&&r.assetId===a.id&&
+    ['truck','science_rover'].includes(r.blueprintId)&&r.status==='ASSEMBLED_NOT_OPERATIONAL'&&
+    valid(r.bodyId)&&['surface','ship'].includes(a.location?.kind)&&r.energyJ>=200000&&r.massKg===a.massKg&&
+    arr(r.consumedLots).length>0&&v?.assetId===a.id&&v.receiptId===r.id&&
+    v.sourceId==='ship-main:engineering-battery'&&v.energyJ>=2500000&&v.chargeJ===2000000;
+  }),
   'Another unique physical vehicle from full 8G BOM; original remains accounted for');
  push('interplanetary','Physical off-world delivery',
   offworld.some(x=>x?.status==='DELIVERED'&&
@@ -19691,7 +19708,9 @@ function preflight(){try{const pr=profile();$('launch-calculations').textContent
   'Estimated engine-on time '+format(pr.burnTimeS,0)+' s   Stages '+pr.stages+'\n'+
   pr.stageParts.map((s,i)=>'Stage '+(i+1)+': '+s.tanks+' tanks · '+s.label+' / fuel '+format(s.propKg/1000,1)+' t / thrust '+format(s.thrustN/1e6,2)+' MN').join('\n')+'\n'+
   (pr.valid?'DESIGN CHECK · '+pr.problem:'WARNING · '+pr.problem)+'\nReal launch may fail. Acceleration, drag, fuel exhaustion, trajectory and stable orbit are force-integrated.';
- $('launch-ignite').disabled=!pr||!$('launch-pad').value;
+ const industrial=root.SF?.load?.()?.freshExpedition?.schema===1;
+ $('launch-ignite').disabled=industrial||!pr||!$('launch-pad').value;
+ if(industrial)$('launch-calculations').textContent+='\nINDUSTRIAL DESIGN PREVIEW: ignition requires qualified manufactured propulsion, payload and source-owned propellant. An 8G dry structure cannot launch.';
  }catch(e){$('launch-calculations').textContent='PRE-FLIGHT: '+e.message;$('launch-ignite').disabled=true;}}
 function padReadinessT11(){
  const T=root.StarfallPadT11,os=root.StarfallOutpostUI?.store,ctx=RT.outpostContext();

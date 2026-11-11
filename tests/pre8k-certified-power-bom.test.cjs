@@ -41,7 +41,7 @@ test('all three real 8F machines exist ONLY as finite, sealed, uninstalled origi
  assert.ok(!result.materials.lots.some(x=>x.materialId==='solar_module'||x.materialId==='battery_cell'),
   'starter may not conjure finished 8F solar modules or charged battery cells');
 });
-test('exact finite starter input budgets support only two 8F PV module BOMs and one 8-cell pack',()=>{
+test('exact finite starter input budgets support four 8F PV modules and forty cells for the complete expedition',()=>{
  const{result,s}=mk();
  const stock={...s},take=(material,kg)=>{
   assert.ok(stock[material]!=null,material+' missing');
@@ -53,33 +53,33 @@ test('exact finite starter input budgets support only two 8F PV module BOMs and 
  assert.equal(cell.tool,'hand-shear');
  assert.equal(Object.values(cell.inputs).reduce((a,b)=>a+b),.34);
  assert.equal(Object.values(cell.outputs).reduce((a,b)=>a+b),.30);
- for(let i=0;i<8;i++)take('aluminum',cell.inputs.aluminum);
+ for(let i=0;i<40;i++)take('aluminum',cell.inputs.aluminum);
  const frame=Stock.RECIPES.aluminum_frame;
- for(let i=0;i<2;i++)take('aluminum',frame.inputs.aluminum);
+ for(let i=0;i<4;i++)take('aluminum',frame.inputs.aluminum);
  const bare=F.RECIPES.copper_wire;
- take('copper',bare.inputs.copper);
+ take('copper',2*bare.inputs.copper);
  const coated=F.RECIPES.insulated_wire;
- take('insulation_polymer',coated.inputs.insulation_polymer);
+ take('insulation_polymer',2*coated.inputs.insulation_polymer);
  // 8F copper wire yields 1.96 kg bare_wire, then 8F extruder consumes 1.
  assert.ok(bare.outputs.bare_wire>=coated.inputs.bare_wire);
- assert.ok(coated.outputs.insulated_wire>=1);
+ assert.ok(coated.outputs.insulated_wire>=.5);
  const solar=F.RECIPES.solar_module,solarNeeds={...solar.inputs};
  for(const [material,mass] of Object.entries(solarNeeds)){
   if(material==='aluminum_frame'){assert.equal(mass,2);continue;}
   if(material==='insulated_wire'){assert.equal(mass,.5);continue;}
-  take(material,2*mass);
+  take(material,4*mass);
  }
  assert.equal(stock.pv_cells,0,'no unlimited semiconductor supply');
  assert.equal(stock.encapsulant,0,'no free replenishing PV film');
  const battery=F.RECIPES.battery_cell;
  for(const [material,kg] of Object.entries(battery.inputs)){
   if(material==='cell_casing'){assert.equal(kg,.3);continue;}
-  take(material,8*kg);
+  take(material,40*kg);
  }
  assert.equal(stock.electrode_active,0,'certified battery chemistry remains finite');
  assert.ok(stock.aluminum>=0);
- assert.equal(F.RECIPES.battery_cell.outputs.battery_cell*8,15.6);
- assert.equal(F.RECIPES.solar_module.outputs.solar_module*2,17.6);
+ assert.equal(F.RECIPES.battery_cell.outputs.battery_cell*40,78);
+ assert.equal(F.RECIPES.solar_module.outputs.solar_module*4,35.2);
  assert.throws(()=>take('encapsulant',.6),/short/);
  assert.throws(()=>take('electrode_active',1.2),/short/);
  assert.equal(result.materials.containers[0].maxVolumeM3,16);

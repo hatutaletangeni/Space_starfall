@@ -8,7 +8,7 @@
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-8;
 const CONTENT=Object.freeze([
  ['stocked_chips',8,.008,'prelaunch_finite_imported_semiconductors_400_boards_maximum'],
- ['pv_cells',4,.02,'prelaunch_certified_photovoltaics_for_two_finite_modules'],
+ ['pv_cells',8,.04,'prelaunch_certified_photovoltaics_four_modules_grid_and_habitat'],
  ['discrete_components',40,.08,'prelaunch_finite_electronic_components'],
  ['solder',20,.02,'prelaunch_finite_solder_supply'],
  ['copper',280,.106,'prelaunch_refined_copper_for_first_refineries'],
@@ -20,10 +20,11 @@ const CONTENT=Object.freeze([
  ['fertilizer',2,.002,'prelaunch_finite_plant_nutrients'],
  ['zeolite',5,.005,'prelaunch_sorbent_mineral'],
  ['magnets',1,.001,'prelaunch_motor_magnets'],
- ['electrolyte',3,.003,'prelaunch_electrochemical_supply'],
- ['electrode_active',9.6,.006,'prelaunch_certified_cell_electrode_mix_single_pack_only'],
- ['encapsulant',1.2,.002,'prelaunch_certified_photovoltaic_uv_encapsulant_two_modules_only'],
- ['separator',1,.002,'prelaunch_battery_separator'],
+ ['electrolyte',10,.01,'prelaunch_finite_electrolyte_forty_cells'],
+ ['electrode_active',48,.03,'prelaunch_certified_cell_electrode_mix_forty_cells'],
+ ['encapsulant',2.4,.004,'prelaunch_certified_photovoltaic_uv_encapsulant_four_modules'],
+ ['separator',3.2,.0064,'prelaunch_finite_separator_forty_cells'],
+ ['bearing_steel',32,.005,'prelaunch_finite_qualified_bearing_alloy_no_local_heat_treatment_claim'],
  ['refractory_block',1400,.70,'prelaunch_finite_firebrick_no_local_ceramic_process'],
  ['laminate',160,.32,'prelaunch_finite_electrical_laminate_400_boards_maximum'],
  ['etchant',30,.03,'prelaunch_finite_reaction_consumable'],
@@ -75,7 +76,7 @@ function prepare(saved,expedition,oldReceipt,shipContainerId){
   materials.importLot({id:'8k:manifest:'+materialId,materialId,containerId:shipContainerId,
    massKg,volumeM3,grade:1,provenance:origin+':'+source});
  }
- const receipt={schema:1,manifestVersion:2,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
+ const receipt={schema:1,manifestVersion:3,id:'8k:starter:'+expedition.seed+':'+expedition.startedAt,
   seed:expedition.seed,startedAt:expedition.startedAt,status:'COMMITTED',source:origin,
   sourceStatement:'Pre-manufactured finite ship-owned cargo before expedition launch, NOT in-situ manufacture',
   destinationContainerId:shipContainerId,massKg:SUM.massKg,volumeM3:SUM.volumeM3,
