@@ -1,4 +1,8 @@
-# STARFALL — Industrial chemistry, manufacturing, and scientific integrity
+# STARFALL — Historical early industrial integration note
+
+For current source-derived models, budgets, limitations and 8K evidence, see
+[SCIENCE-INDUSTRY-MODELS.md](../SCIENCE-INDUSTRY-MODELS.md). The dated status below
+records the early 2026-11-03 implementation; it does not describe current main.
 
 Status as of 2026-11-03: **8E incomplete integration; 8F partially playable in editable source**. Never present this as an audited physical chemistry or engineering design.
 

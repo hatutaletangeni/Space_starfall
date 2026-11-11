@@ -3,6 +3,9 @@
  * No standalone kit acquisition from raw rock, and no imaginary starter chips. */
 (function(root){'use strict';
 const SPECS=Object.freeze({
+ // Stakes, ground liner and retaining mesh for an OPEN mineral-waste pile.
+ // The 20 m³ surface footprint is not a sealed container or a pressure vessel.
+ plant_kit_tailings_stockpile:[10,.04,'tailings_stockpile'],
  machine_kit_hand_winder:[32,.16,'hand_winder'],
  machine_kit_cnc:[220,.42,'machine'],machine_kit_manual_press:[50,.22,'manual_press'],machine_kit_grinder:[85,.18,'machine'],
  machine_kit_caster:[260,.68,'foundry'],machine_kit_extruder:[160,.30,'machine'],
@@ -33,6 +36,7 @@ const SPECS=Object.freeze({
  vessel_kit_methane:[195,4,'vessel']
 });
 const FRACTIONS=Object.freeze({
+ tailings_stockpile:{steel:.8,insulation_polymer:.2},
  assembly_pad:{steel:.60,copper:.12,aluminum:.08,glass:.05,refractory_block:.05,insulated_wire:.04,electric_motor:.04,control_board:.02},
  rocket_integrator:{steel:.54,copper:.1,aluminum:.06,glass:.04,refractory_block:.11,insulated_wire:.05,electric_motor:.07,control_board:.03},
  habitat_builder:{steel:.55,copper:.12,aluminum:.07,glass:.05,refractory_block:.06,insulated_wire:.06,electric_motor:.06,control_board:.03},

@@ -81,6 +81,8 @@ with sync_playwright() as p:
    page.locator('#sf-mission-flow .sf-flow-workspace').click()
    panel=page.locator('#mining8d-panel');button=panel.get_by_role('button',name='REPLACE DRILL HEAD / 60 S')
    assert button.is_enabled(),panel.inner_text()
+   assert panel.get_by_text('Tailings storage · free ship cargo space',exact=True).count()==1
+   assert page.evaluate("typeof StarfallRuntime.tailingsTransfer8H==='function'&&!!StarfallManufacturing8F.RECIPES?.plant_kit_tailings_stockpile")
    button.scroll_into_view_if_needed()
    page.screenshot(path=str(OUT/(edition+'-drill-service.png')))
    if edition=='mobile':

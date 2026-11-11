@@ -11,7 +11,7 @@ const section=document.createElement('section');section.id='atmosphere-emission8
 const heading=document.createElement('div');heading.className='section-title';
 heading.textContent='8J · SOURCE-PAID PLANET ATMOSPHERE EMISSION';
 const description=document.createElement('p');description.className='panel-note';
-description.textContent='Release up to 10 kg of actual rated gas to an unprotected planet with a landed powered ship and EVA operator. Original vessel stock and ship battery are debited, the tiny physical mean-pressure change is persisted. All worlds with native life or archaeological sites are locked. This is measured emission—not instant planetary terraforming.';
+description.textContent='Release up to 10 kg of actual rated gas to an unprotected planet with a landed powered ship and EVA operator. Original vessel stock and ship battery are debited, the tiny physical mean-pressure change is persisted. All worlds with native life or archaeological sites are locked. Smelter carbon monoxide is TOXIC; discharge does not make the air breathable. Only added mass and mean pressure are modeled.';
 const vessel=document.createElement('select');vessel.setAttribute('aria-label','Actual planet atmospheric emission vessel');
 const lot=document.createElement('select');lot.setAttribute('aria-label','Gas lot for planetary emission');
 const qty=document.createElement('input');qty.type='number';qty.min='0.01';qty.max='10';qty.step='0.01';qty.value='1';qty.setAttribute('aria-label','Gas to release in kg');

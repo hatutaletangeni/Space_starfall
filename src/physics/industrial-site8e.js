@@ -7,6 +7,9 @@ const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ids=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const KITS=Object.freeze({
+ plant_kit_tailings_stockpile:{type:'industrial_plant',station:'tailings_stockpile',
+  tools:['ground_liner','retaining_mesh','surveyed_pile_boundary'],
+  massKg:10,volumeM3:.04,workJ:120000,radiusScene:3},
  plant_kit_electrolyzer:{type:'industrial_plant',station:'electrolyzer',tools:['electrolyzer','gas_separator','hydrogen_tank','oxygen_tank'],massKg:450,volumeM3:1.2,workJ:7e5,radiusScene:5},
  plant_kit_reduction_furnace:{type:'industrial_plant',station:'reduction_furnace',tools:['reduction_furnace','gas_capture','alloy_crucible','sulfide_roaster','calcination_tray'],massKg:1100,volumeM3:3.4,workJ:1.5e6,radiusScene:7},
  plant_kit_glass_furnace:{type:'industrial_plant',station:'glass_furnace',tools:['glass_furnace','mold'],massKg:520,volumeM3:1.8,workJ:9e5,radiusScene:5},
@@ -89,10 +92,11 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
  if(physical.assets.some(a=>a.id===assetId))throw Error('Duplicate facility asset ID');
  const m=copy(materials);m.lots=m.lots.filter(x=>x.id!==kitLotId);
  const k=q.spec,isVessel=k.type==='industrial_vessel',
+  isTailings=k.station==='tailings_stockpile',
   isCargoDock=k.station==='cargo_depot',
   isDryConveyor=k.station==='conveyor_drive',
   isPressureLine=k.station==='pressure_pipeline',
-  containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
+  containerId=isTailings?'tailings8h:'+assetId:isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
     isDryConveyor?'conveyor8h:'+assetId:
     isPressureLine?'pressurepipe8h:'+assetId:
     // Every FULL paid 8E chemical station installation includes an EMPTY
@@ -101,15 +105,15 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
      ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
       .includes(k.station))?'plantfeed8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
-  kind:isCargoDock?'sealed dry-solid cargo dock':
+  kind:isTailings?'open lined mineral-tailings stockpile':isCargoDock?'sealed dry-solid cargo dock':
     isDryConveyor?'guarded dry-solid conveyor tray':
     isPressureLine?'sealed 8MPa gas pipe hold-up':
     isVessel?'gas pressure vessel':'integrated 8E dry-reactant feed hopper',
   // Machine hopper is a small EMPTY fixture included in the already paid
   // original complete 8F factory kit, never an inventory grant or a tank.
-  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:
+  maxMassKg:isTailings?40000:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:
     isVessel?1000:120,
-  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:
+  maxVolumeM3:isTailings?20:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:
     isVessel?k.volumeM3:.20});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,

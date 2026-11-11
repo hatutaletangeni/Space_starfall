@@ -3491,6 +3491,38 @@ function logisticsOffworldCancel8H(id){return logisticsOffworldApply8H('CANCEL',
 function logisticsOffworldDepart8H(id){return logisticsOffworldApply8H('DEPART',id);}
 function logisticsOffworldArrive8H(id){return logisticsOffworldApply8H('ARRIVE',id);}
 function logisticsOffworldDeliver8H(id){return logisticsOffworldApply8H('DELIVER',id);}
+// Paid bounded ground storage prevents large ore campaigns filling the ship
+// with mineral residues. Stocks remain on their original world indefinitely.
+function tailingsContext8H(){
+ const ship=vehicleStore.get('ship');return {bodyId:nearest?.id,shipEnergyJ:ship.state.energyJ,
+  shipPowered:ship.state.powerEnabled&&ship.state.loads?.avionics!==false,
+  ready:landed&&eva&&!truckOccupied&&!manufacturedOccupied8G&&!shipWalking8e&&!interiorState&&shipBody===nearest,
+  piles:physical8a.list().filter(a=>a.location?.kind==='surface'&&a.location.bodyId===nearest?.id&&
+   a.state?.station==='tailings_stockpile').map(a=>({id:a.id,used:materials8a.used(a.state.containerId)})),
+  lots:materials8a.inventory(StarfallMining8D.SHIP).filter(l=>StarfallTailingsStorage8H.eligible(l,refinery8e.snapshot()))};
+}
+function tailingsTransfer8H(stockpileId){
+ const c=tailingsContext8H();if(!c.ready||!c.shipPowered)throw Error('Surface EVA beside a landed powered ship required');
+ if(saveFlight()!==true||SF.storageStatus().durable!==true)throw Error('Tailings storage needs a durable save; nothing moved');
+ const ship=vehicleStore.get('ship');let materials=materials8a.snapshot(),energyJ=ship.state.energyJ,moved=0;
+ let serial=materials.operations.filter(o=>o.id.startsWith('8h-tailings:')).length+1;
+ for(const lot of c.lots){if(moved>=500-1e-7)break;
+  const massKg=Math.min(lot.massKg,500-moved),jobId='8h-tailings:'+serial++;
+  const q=StarfallTailingsStorage8H.transfer({jobId,materials,physical:physical8a.serialize(),refinery:refinery8e.snapshot(),
+   stockpileId,lotId:lot.id,massKg,bodyId:nearest.id,bodyRadius:nearest.radius,shipLocal,evaLocal,
+   shipLanded:landed,operatorEVA:eva,shipPowered:c.shipPowered,shipEnergyJ:energyJ});
+  materials=q.materials;energyJ=q.shipEnergyJ;moved+=massKg;
+ }
+ if(!moved)throw Error('No original refinery tailings in ship hold');
+ const vehicles=vehicleStore.serialize();vehicles.states.ship={...vehicles.states.ship,energyJ};
+ const patch={materials8a:materials,engineeringVehicles:vehicles};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)throw Error('Tailings transfer was not durably saved');
+ const saved=SF.load();if(JSON.stringify(saved.materials8a)!==JSON.stringify(materials)||saved.engineeringVehicles.states.ship.energyJ!==energyJ)
+  throw Error('Tailings durable readback mismatch; reload saved owners before continuing');
+ materials8a=StarfallMaterials8A.create(materials);vehicleStore.update('ship',{...ship.state,energyJ});
+ showToast('8H · '+moved.toFixed(1)+' kg tailings stored on '+nearest.name+' · '+Math.round(ship.state.energyJ-energyJ)+' J crane work');
+ return{massKg:moved,usedJ:ship.state.energyJ-energyJ};
+}
 function miningContext8D(){
  const onWorld=landed&&!!nearest?.landable&&!!truckBody&&truckBody===nearest&&!!truckLocal&&cargo8b.mode==='ground';
  const truck=onWorld?truckWorldState():null,ship=shipBody===nearest?shipWorldState():null;
@@ -3823,7 +3855,7 @@ function truckLocator8ER(){
  return {status:'SURFACE',distanceScene:distance,bearingRad:bearing,
   label:'EXPEDITION TRUCK',bodyId:body.id,atWater:!!window.StarfallHydrosphereLW04?.sample(body,actualLocal,groundHeight(actualLocal,body),simTime,GALAXY_SEED)?.hasWater};
 }
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
+window.StarfallRuntime={galaxy,vehicleStore,tailingsContext8H,tailingsTransfer8H,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
  get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,t02PaidContext8I,t02PaidInstallQuote8I,t02PaidInstallStart8I,t02PaidInstallCancel8I,t02PaidInstallTick8I,habitatCommissionContext8I,habitatCommission8I,habitatSupplyContext8I,habitatSupplyWater8I,habitatScrubberContext8I,habitatSupplyScrubber8I,greenhouseContext8I,greenhouseInstall8I,greenhouseHarvest8I,habitatOxygenContext8I,habitatSupplyOxygen8I,atmosphericContext8J,atmosphericRelease8J,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,miningService8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:false,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){

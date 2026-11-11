@@ -16,6 +16,18 @@ Tracker: https://github.com/hatutaletangeni/Space_starfall/issues/86
 
 These are source-module integration checks, not evidence that a single user played the entire expedition.
 
+## Additional reproducible 2026-11-11 evidence
+
+PR #152 adds whole-expedition specialty/tool and seven gas-service bill closure,
+actual source-owned fresh mining-to-commissioned-rover/cargo acceptance, bounded
+paid mineral-waste storage, captured-CO metering, full-BOM vehicle and real metal
+evidence, and Industrial free-rocket rejection. Genuine historical game saves
+from 9536bc4, f6fa832 and 1d2b9a4 pass the real current archive import/reload.
+Native Flight.js is continuously piloted with G/W/Shift/C to a second world,
+with original source cargo and real touchdown/reload. The independent source
+campaign and flight checks are not one uninterrupted industrial playthrough.
+Physical phone/GPU and that complete coupled expedition remain unverified.
+
 ## Progression repair
 
 The 2026-11-11 repair fixes the first-smelter/specialty-stock deadlock, permanent
@@ -29,9 +41,9 @@ never replenished. Full expedition and hardware acceptance remain separate.
 Use actual playable PLAY-STARFALL.html and PLAY-STARFALL-MOBILE.html rebuilt from the same editable source commit. Never inject test assets, cheat through local save editing, teleport flight, or replace actual Joules.
 
 1. START: new seed 742 Industrial save; one genuine original truck and finite 8K manifest. Truck physically starts in original ship cargo; drive down ramp, disembark and re-board without duplication.
-2. MINE: land on real solid world as EVA. Mission > Explore > Survey geological deposit > Survey current surface sector. Select true copper or iron. Park the original truck with power and operator near surveyed occurrence. Mission > Operate > Mine, Manufacture & Store Gas > START 20 KG BORE / 24 S; check 8C depletion, battery and hopper. LOAD 50 KG INTO SHIP / 16 S while parked close to landed ship; verify the original truck decreases and ship 8A hold increases identically.
+2. MINE: choose actual surveyed resources. For sustained CO discharge, establish the smelter on a genuinely unprotected world (seed-742 Kepler-742 c is an Ice-world candidate); protection locks still apply. Land as EVA. Mission > Explore > Survey geological deposit > Survey current surface sector. Select true copper or iron. Park the original truck with power and operator near surveyed occurrence. Mission > Operate > Mine, Manufacture & Store Gas > START 20 KG BORE / 24 S; check 8C depletion, battery and hopper. LOAD 50 KG INTO SHIP / 16 S while parked close to landed ship; verify the original truck decreases and ship 8A hold increases identically.
 3. REFINE/BUILD: Engineer > actual 8E refinery and true certified plant machinery. Process assayed ore into required chemicals, real copper wire, electrical parts, solar modules, cells, pipes, machine kits. Require actual source lots and power/time receipts; no substituted pure copper.
-4. INDUSTRIAL LOGISTICS: build paid depots and one real 180kg conveyor drive; install original 250W T02 motor port and wire to true generation/battery. Source container, 40kg tray, destination container and unique source receipt must follow actual native powered ticks; disconnection must pause. Test paid 8E surface solids output -> plant bounded hopper -> true 250W powered belt -> receiving depot. Verify storage-full and 1x/10x/100x.
+4. INDUSTRIAL LOGISTICS: keep original refinery residues in a paid, bounded tailings stockpile; never silently discard them.  build paid depots and one real 180kg conveyor drive; install original 250W T02 motor port and wire to true generation/battery. Source container, 40kg tray, destination container and unique source receipt must follow actual native powered ticks; disconnection must pause. Test paid 8E surface solids output -> plant bounded hopper -> true 250W powered belt -> receiving depot. Verify storage-full and 1x/10x/100x.
 5. ELECTRICITY: original manufactured/paid 400W solar and 9.6MJ empty battery wired to actual loads. No free old 4kW or 72MJ source on a fresh Industrial save; battery cannot power the habitat at night before actual charging.
 6. HABITAT: manufacture 8G paid structural pressure shell, fill from real compressed atmosphere and water, unique 8I T09 commissioning. Transfer actually stored oxygen/water/manufactured sorbent. Operate 680W T09 using actual native T02; verify thermal, pressure, O2, CO2, occupants, day/night, blackouts, airlock and leak safety, no free repairs.
 7. 8J: on eligible unprotected world, fill actual rated 8A vessel by real chemistry/collection. Mission > Build > VENT SOURCE-PAID GAS TO PLANET. Check 8A gas debit, installed regulator energy charge, unique 8J receipt, persist world pressure: delta P in Pa = emitted kg * gravity m/s² / (4 * pi * radius m squared). Protected world MUST reject. Do not claim instant climate or terrain visual change.

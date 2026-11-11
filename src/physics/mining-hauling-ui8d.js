@@ -23,9 +23,22 @@ service.title='Uses one certified 2 kg ship-held head and 120 kJ truck battery; 
 const lotPicker=document.createElement('select');lotPicker.setAttribute('aria-label','Truck cargo lot for physical loader');
 lotPicker.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
 controls.append(drill,lotPicker,load,service,cancel);
+const waste=document.createElement('details'),wasteTitle=document.createElement('summary');wasteTitle.textContent='Tailings storage · free ship cargo space';
+const wasteNote=document.createElement('p');wasteNote.className='panel-note';
+wasteNote.textContent='Fabricate a 10 kg TAILINGS STOCKPILE KIT (8 kg steel + 2 kg polymer), then erect it with the plant controls. Its open lined footprint holds at most 40,000 kg / 20 m³ of mineral residues on this world. Walk within 20 units; the powered ship must be within 65. Crane transfers use actual battery energy. Waste persists; gases, water and finished goods are excluded.';
+const wastePicker=document.createElement('select');wastePicker.setAttribute('aria-label','Constructed tailings stockpile');
+wastePicker.style.cssText='max-width:100%;background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px';
+const wasteButton=document.createElement('button');wasteButton.className='science-action';wasteButton.textContent='STORE UP TO 500 KG TAILINGS';
+wasteButton.onclick=()=>{try{const q=rt().tailingsTransfer8H(wastePicker.value);status.textContent=q.massKg.toFixed(1)+' kg stored · '+q.usedJ.toFixed(0)+' J paid';}catch(e){status.textContent=e.message;}refresh();};
+waste.append(wasteTitle,wasteNote,wastePicker,wasteButton);
 let lastLots='';
 function refresh(){
  const r=rt();if(!r?.mining8d||!r.materials8a){readout.textContent='Waiting for authoritative 8D runtime';return;}
+ const w=r.tailingsContext8H(),prior=wastePicker.value;wastePicker.replaceChildren();
+ for(const p of w.piles){const option=document.createElement('option');option.value=p.id;
+  option.textContent=p.id+' · '+p.used.massKg.toFixed(0)+' / 40000 kg · '+p.used.volumeM3.toFixed(2)+' / 20 m³';wastePicker.append(option);}
+ if(w.piles.some(p=>p.id===prior))wastePicker.value=prior;
+ wasteButton.disabled=!w.ready||!w.shipPowered||!w.lots.length||!w.piles.length;
  const ctx=r.miningContext8D(),site=r.miningDeposit8D(),op=r.mining8d.active,
   lots=r.materials8a.inventory(StarfallMining8D.TRUCK),
   shipped=r.materials8a.inventory(StarfallMining8D.SHIP),survey=site&&r.resources8c.observations().some(x=>x.siteId===site.id);
@@ -72,7 +85,7 @@ load.addEventListener('click',()=>action(()=>{
 }));
 cancel.addEventListener('click',()=>action(()=>rt().miningCancel8D()));
 service.addEventListener('click',()=>action(()=>rt().miningService8D(service.dataset.lotId)));
-panel.append(title,status,controls,readout);host.append(panel);
+panel.append(title,status,controls,waste,readout);host.append(panel);
 let last=0;const check=()=>{const t=performance.now();if(t-last>500){last=t;refresh();}requestAnimationFrame(check);};check();
 root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Operate');panel.scrollIntoView({block:'nearest'});refresh();}};
 })(globalThis);

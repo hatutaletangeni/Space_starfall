@@ -4,7 +4,10 @@
  */
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x));
-const gas={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,hydrogen:.002016,methane:.016043};
+// Captured smelter CO needs an explicit finite outlet. It may only use the
+// same metered, energy-paid, protected-world-locked intervention path.
+// Discharge does not make toxic CO breathable or simulate oxidation/climate.
+const gas={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,carbon_monoxide:.028010,hydrogen:.002016,methane:.016043};
 const EPS=1e-8,WORK_J_KG=100000,MAX_BATCH_KG=10;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;

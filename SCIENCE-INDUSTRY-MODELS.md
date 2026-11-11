@@ -56,7 +56,38 @@ The canonical world profile supplies `R` in meters, surface gravity `g` in m/s²
 
 ## 5. 8K one-time prelaunch industrial manifest
 
-`src/physics/starter-manifest8k.js` loads only after explicit `SF.startNewExpedition(seed)`, and never on an existing/older world. It documents 20 finite material lots and fixed maximum aggregate **128.55 kg / 0.1106 m³**, fitting the real ship hold (**9,000 kg / 16 m³**). Included are a small amount of imported semiconductor and photovoltaic components, manual repair materials, 50 kg bottled water, seals/polymers, crop seeds, nutrients, and finite sorbent precursors. The starter inventory carries source provenance `preexisting_ship_manifest8k:<seed>:<startedAt>:<source>`. It does NOT include bulk ready-made rockets, an extra truck, a self-sustaining factory or unlimited ore.
+`src/physics/starter-manifest8k.js` version 3 loads only after explicit
+`SF.startNewExpedition(seed)`, once per expedition identity. Its **33 finite lots,
+5,513.65 kg / 12.4805 m³** fit the original 9,000 kg / 16 m³ hold. This includes
+sealed, uninstalled first-smelter/CO/pipe/CNC/electronics and energy-tool kits,
+finite refined bootstrap metal, 1,400 kg firebrick, finite polymers and bearing
+alloy, imported chips for at most 500 boards, four photovoltaic modules' active
+stock and forty cells' certified electrode/chemical inputs. Neither a finished
+module/cell nor an installed plant, generated local ore or replacement vehicle is
+awarded. Actual 8F and 8E installers consume the precise bills and energy. Older
+manifest versions and legacy saves are never replenished.
+
+Waste storage is explicit: 8 kg steel + 2 kg polymer become a 10 kg open lined
+stockpile kit; 72 kJ fabrication and 120 kJ erection are paid. A real same-world
+footprint holds at most 40,000 kg / 20 m³ of existing mineral residues, with
+actual lot volume still enforced. Near-field crane handling (ship <=65, EVA
+<=20 scene units) moves <=500 kg per action at 5 kJ per source lot + 500 J/kg.
+Original refinery provenance, reservations, dry mineral identity, ship energy
+and joint durable custody are required. This is discrete handling with stored
+waste, not detoxification, climate cleanup or a continuous crane solver.
+
+Captured furnace CO (molar mass 0.028010 kg/mol) may use the same 8J rated-vessel
+outlet as the other supported gases: <=10 kg, 100 kJ/kg, exact source debit and
+planet-specific mass/pressure receipt. Native-life/archaeology worlds remain
+locked. CO is toxic; neither oxidation to CO2 nor breathable air is modeled.
+The outlet prevents mandatory infinite CO-tank construction on an eligible
+sterile industrial world, without deleting a gram of the gas.
+
+The 8K report requires actual Cu/Fe chemical outputs and recovered water,
+full paid vehicle mechanical parts plus 2.5 MJ commissioning/charge, and source
+receipts. The legacy Rocket Lab is design-preview only on Industrial saves:
+it cannot create fuel or payloads. 8G dry rocket structures remain unqualified;
+no positive manufactured rocket ignition is claimed.
 
 The player must extract finite local resources and pay machine and processing budgets for bulk equipment; no structure or replacement vehicle may be produced from the manifest alone. The original one-truck rule persists on a fresh start. Legacy saves retain their own cargo and are not silently topped up.
 
@@ -67,7 +98,28 @@ The following is **not a PASS declaration**:
 - Complete unassisted continuous browser expedition: first-truck ramp → finite ore/ice → actual hauling/refining/metallurgy → semiconductor-limited electronics → manufacturing facilities and finished vehicle → authentic off-world manifest transit to second body → installed powered T09 full closed-loop safe habitat → greenhouse harvest → sustained planetary mass/heat/climate change, then revisit old planet and restore original truck.
 - Complete carbon/oxygen/water lifecycle output to proper actual waste/crop storage and powered disposal; thermal, habitat hull and agricultural leak failures.
 - Materially resolved planet-wide climate feedback, source-paid atmospheric capture, non-free persistent thermal changes and renderer/sensor agreement.
-- All existing 27 CI workflows retested green on the **final** integration commit; older green results do not certify newer code.
+- All triggered CI workflows retested green on the **final** integration commit; older green results do not certify newer code.
 - Native GPU FPS, sustained frame times, dense outpost performance and unrelated galaxy/ramp/science/rocket/old-save regressions, when these checks have not been executed after new features.
 
 **Release policy:** Mark full 8K only after actual evidence supports every critical requirement. If evidence or original source material is insufficient, keep this as an explicitly incomplete release candidate rather than silently inventing a passing expedition.
+
+## 7. Reproduced source and browser evidence (2026-11-11)
+
+- The complete finite specialty/tool plan includes seven original 8H gas services
+  and needs 436 board batches; integer leftovers and unproducible imported
+  materials are checked explicitly. Raw local Fe/Cu/Al/carbon/glass production is
+  still essential. A bill closure calculation is not a completed expedition.
+- A fresh source campaign on actual seed-742 Ice geology manufactures and
+  commissions a new 298.69 kg rover through 311 actual factory batches, mines
+  4,500 kg, pays native rated generation/ship/truck energy, stores residues,
+  meters captured CO to the atmosphere and loads the new unique vehicle while
+  leaving the original truck on its planet. It does not supply actual native
+  gas-pump ticks or player locomotion; source snapshots are CI artifacts.
+- The real Chromium flight test uses only an ordinary waypoint and G/W/Shift/C
+  controls. It records continuous native flight, actual second-world touchdown
+  and original-cargo persistence/reload. No position/time setter or debug
+  navigation is used. Full industrial gameplay is a separate acceptance gate.
+- Saves written by authentic 9536bc4, f6fa832 and 1d2b9a4 standalone versions are
+  imported through the present archive UI and reloaded with source cargo,
+  discoveries, credits and original truck retained. Private user saves and real
+  Android/GPU hardware are not covered by those reproducible checks.

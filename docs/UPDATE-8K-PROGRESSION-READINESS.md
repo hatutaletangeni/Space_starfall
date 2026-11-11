@@ -19,7 +19,7 @@ certify the complete no-debug two-world expedition or real hardware performance.
   and forty finite cells cover the habitat shell, native T02 grid, replacement
   vehicle and additional structural work;
   no free solar installation or charged battery is added. The version-3 manifest
-  is **5,461.65 kg / 12.3785 m³**, within the original 9,000 kg / 16 m³ hold.
+  is **5,513.65 kg / 12.4805 m³**, within the original 9,000 kg / 16 m³ hold.
 - **Permanent drill exhaustion:** previously the drill crossed its 10% limit
   after about 188 bores (3.76 tonnes) and requested nonexistent service. A 60 s,
   120 kJ service operation now exchanges a ship-held certified 2 kg head for the
@@ -52,7 +52,7 @@ certify the complete no-debug two-world expedition or real hardware performance.
 - **Whole-expedition dependency closure:** the actual integer-batch 8F recipes,
   installed tool requirements and full 8G bills now reconcile for a rover,
   pressure habitat, dry rocket structure, two depots, conveyor, required chemical
-  plants, vessels and native T02 power. This requires 340 real populated-board
+  plants, vessels and native T02 power. This requires 436 real populated-board
   batches and substantial local Fe/Cu/Al/carbon/silica processing. Shipped specialty
   inputs are sufficient, not unlimited. Planning is not a completed playthrough.
 - **Manufactured vehicle evidence:** the report now accepts the native commissioned
@@ -68,6 +68,29 @@ certify the complete no-debug two-world expedition or real hardware performance.
   Rocket Lab explicitly shows DESIGN PREVIEW; manufactured 8G dry stages remain
   unqualified, unfueled structural prototypes. No positive manufactured rocket
   launch is claimed.
+
+- **Native gas-line electronics budget:** the whole-plan test now includes seven
+  separate real gas services (CO output, electrolysis H2/O2 outputs, roaster O2
+  input/SO2 output, Cu CO2 output and Al CO2 output), plus a second SO2 vessel.
+  The full plan needs 436 populated boards. Finite imported chips, laminate and
+  discrete components now cover at most 500 boards; there is no local chip fab.
+- **Mineral-waste cargo deadlock:** fabricate a 10 kg tailings-stockpile kit from
+  8 kg steel + 2 kg polymer (2,400 W × 30 s), then use the original paid physical
+  site installer (120 kJ). Its open lined ground footprint is bounded at
+  40,000 kg / 20 m³; actual lot volume may fill it first. Mission → Operate →
+  Tailings storage moves at most 500 kg per action through the landed ship's
+  modeled crane, with 5 kJ per lot + 500 J/kg. Ship and EVA proximity, real prior
+  refinery provenance, reservations, capacity, source energy and durable joint
+  save are enforced. No gases, finished goods or arbitrary imported waste are
+  accepted. Waste is retained on that world; no recycling or detoxification is
+  claimed. The crane operation is a discrete paid near-field handling model,
+  not a continuous articulated-crane simulation.
+- **Captured-CO bottleneck:** a real furnace fills its finite CO vessel after a
+  substantial iron campaign. Actual captured CO can now use the existing 8J
+  metered outlet (max 10 kg, 100 kJ/kg). It remains forbidden on native-life or
+  archaeological worlds. Plan first heavy smelting on a genuinely unprotected
+  world; imported or mined carbon availability must be checked. Toxic CO does
+  not become breathable, and no climate chemistry is silently added.
 
 ## Compatibility
 
@@ -112,6 +135,16 @@ new one. Legacy saves and original truck IDs are retained.
   world. No saved-position injection, teleport or simulated-time setter. Records
   continuous positions, source cargo identity and actual landing/reload. This
   proves native flight separately from industrial source integration.
+- `node tests/tailings-storage8h.test.cjs`: actual finite starter steel/polymer →
+  fabricated/installed pile → genuine mined/refined residue; tests source energy,
+  reservations, wrong world/range, replay and actual Flight.js durable code.
+- `node tests/update8k-fresh-vehicle-chain.test.cjs`: one continuous source-owned
+  seed-742 Ice-world campaign, 4,500 kg genuine mining, 311 fabrication batches,
+  rated native ship generation, fully manufactured/activated 298.69 kg rover,
+  source-paid captured-CO discharge and cargo loading while the unique original
+  truck remains on A. It records all final source receipts as CI artifacts.
+  Source contracts supply placement/movement prerequisites; real player walking,
+  native gas-pump ticks and coupled interplanetary transport are separate checks.
 - Required 8K CI includes these checks and the original fresh-manifest browser
   regression. Desktop/mobile standalones are rebuilt from the same source.
 

@@ -7,9 +7,9 @@
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-8;
 const CONTENT=Object.freeze([
- ['stocked_chips',8,.008,'prelaunch_finite_imported_semiconductors_400_boards_maximum'],
+ ['stocked_chips',10,.010,'prelaunch_finite_imported_semiconductors_500_boards_maximum'],
  ['pv_cells',8,.04,'prelaunch_certified_photovoltaics_four_modules_grid_and_habitat'],
- ['discrete_components',40,.08,'prelaunch_finite_electronic_components'],
+ ['discrete_components',50,.10,'prelaunch_finite_electronic_components'],
  ['solder',20,.02,'prelaunch_finite_solder_supply'],
  ['copper',280,.106,'prelaunch_refined_copper_for_first_refineries'],
  ['aluminum',200,.08,'prelaunch_refined_aluminum_for_first_electrolysis_plant'],
@@ -26,7 +26,7 @@ const CONTENT=Object.freeze([
  ['separator',3.2,.0064,'prelaunch_finite_separator_forty_cells'],
  ['bearing_steel',32,.005,'prelaunch_finite_qualified_bearing_alloy_no_local_heat_treatment_claim'],
  ['refractory_block',1400,.70,'prelaunch_finite_firebrick_no_local_ceramic_process'],
- ['laminate',160,.32,'prelaunch_finite_electrical_laminate_400_boards_maximum'],
+ ['laminate',200,.40,'prelaunch_finite_electrical_laminate_500_boards_maximum'],
  ['etchant',30,.03,'prelaunch_finite_reaction_consumable'],
  ['carbon',3,.002,'prelaunch_reductant'],
  ['water',50,.05,'prelaunch_sealed_water_stock'],

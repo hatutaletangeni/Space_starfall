@@ -94,3 +94,15 @@ test('8J refuses corrupt canonical SI base and persisted geometry',()=>{
  world.radiusM=NaN;
  assert.throws(()=>T.normalize(world,profile()),/incompatible\/corrupt/);
 });
+
+test('captured smelter carbon monoxide has a metered outlet only on unprotected worlds',()=>{
+ const a=args(),gas=a.materials.lots[0];gas.materialId='carbon_monoxide';gas.provenance='chemical:real-hematite-reduction';
+ a.physical.assets[0].state.materialId='carbon_monoxide';
+ const r=T.emit(a);assert.equal(r.receipt.gas,'carbon_monoxide');
+ assert.equal(r.world.emittedSpeciesKg.carbon_monoxide,1);
+ assert.equal(r.materials.lots[0].massKg,3);assert.equal(r.shipEnergyJ,900000);
+ assert.throws(()=>T.emit({...a,nativeLife:true}),/protection lock/);
+ assert.throws(()=>T.emit({...a,archaeologicalProtection:true}),/protection lock/);
+ assert.throws(()=>T.emit({...a,protectedWorld:true}),/protection lock/);
+ assert.equal(a.materials.lots[0].massKg,4,'failed protection checks preserve captured toxic gas');
+});

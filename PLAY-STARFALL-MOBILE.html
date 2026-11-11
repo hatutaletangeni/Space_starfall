@@ -8070,6 +8070,9 @@ const copy=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const ids=x=>typeof x==='string'&&x.length>0&&x.length<=128;
 const KITS=Object.freeze({
+ plant_kit_tailings_stockpile:{type:'industrial_plant',station:'tailings_stockpile',
+  tools:['ground_liner','retaining_mesh','surveyed_pile_boundary'],
+  massKg:10,volumeM3:.04,workJ:120000,radiusScene:3},
  plant_kit_electrolyzer:{type:'industrial_plant',station:'electrolyzer',tools:['electrolyzer','gas_separator','hydrogen_tank','oxygen_tank'],massKg:450,volumeM3:1.2,workJ:7e5,radiusScene:5},
  plant_kit_reduction_furnace:{type:'industrial_plant',station:'reduction_furnace',tools:['reduction_furnace','gas_capture','alloy_crucible','sulfide_roaster','calcination_tray'],massKg:1100,volumeM3:3.4,workJ:1.5e6,radiusScene:7},
  plant_kit_glass_furnace:{type:'industrial_plant',station:'glass_furnace',tools:['glass_furnace','mold'],massKg:520,volumeM3:1.8,workJ:9e5,radiusScene:5},
@@ -8152,10 +8155,11 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
  if(physical.assets.some(a=>a.id===assetId))throw Error('Duplicate facility asset ID');
  const m=copy(materials);m.lots=m.lots.filter(x=>x.id!==kitLotId);
  const k=q.spec,isVessel=k.type==='industrial_vessel',
+  isTailings=k.station==='tailings_stockpile',
   isCargoDock=k.station==='cargo_depot',
   isDryConveyor=k.station==='conveyor_drive',
   isPressureLine=k.station==='pressure_pipeline',
-  containerId=isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
+  containerId=isTailings?'tailings8h:'+assetId:isVessel?'vessel8e:'+assetId:isCargoDock?'depot8h:'+assetId:
     isDryConveyor?'conveyor8h:'+assetId:
     isPressureLine?'pressurepipe8h:'+assetId:
     // Every FULL paid 8E chemical station installation includes an EMPTY
@@ -8164,15 +8168,15 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
      ['reduction_furnace','glass_furnace','high_temp_cell','electrolyzer','catalytic_reactor']
       .includes(k.station))?'plantfeed8h:'+assetId:null;
  if(containerId)m.containers.push({id:containerId,ownerId:assetId,
-  kind:isCargoDock?'sealed dry-solid cargo dock':
+  kind:isTailings?'open lined mineral-tailings stockpile':isCargoDock?'sealed dry-solid cargo dock':
     isDryConveyor?'guarded dry-solid conveyor tray':
     isPressureLine?'sealed 8MPa gas pipe hold-up':
     isVessel?'gas pressure vessel':'integrated 8E dry-reactant feed hopper',
   // Machine hopper is a small EMPTY fixture included in the already paid
   // original complete 8F factory kit, never an inventory grant or a tank.
-  maxMassKg:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:
+  maxMassKg:isTailings?40000:isCargoDock?1200:isDryConveyor?40:isPressureLine?25:
     isVessel?1000:120,
-  maxVolumeM3:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:
+  maxVolumeM3:isTailings?20:isCargoDock?1.6:isDryConveyor?.05:isPressureLine?.08:
     isVessel?k.volumeM3:.20});
  const machine={id:assetId,type:k.type,massKg:k.massKg,volumeM3:k.volumeM3,
   condition:1,location:{kind:'surface',bodyId,local:copy(local)},provenance:'8E physical kit:'+kitLotId,
@@ -8193,12 +8197,74 @@ function install({jobId,assetId,materials,physical,shipContainerId,kitLotId,body
 root.StarfallIndustrialSite8E=Object.freeze({KITS,quote,install});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallIndustrialSite8E;
 })(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* Bounded, source-owned storage for original 8E mineral residues. An open
+ * lined pile does not delete waste, supply factory feed, contain gases or
+ * silently replace paid depots. Native ship crane work moves one <=500 kg
+ * lot between the landed ship and a nearby actually constructed footprint.
+ */
+(function(root){'use strict';
+const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-7;
+const ALLOWED=new Set(['iron_tailings','iron_mineralogy_tailings','spent_iron_tailings',
+ 'copper_tailings','sulfide_mineralogy_tailings','spent_copper_tailings',
+ 'carbon_ash_tailings','aluminum_tailings','aluminosilicate_mineralogy_tailings',
+ 'silicate_tailings','silica_polishing_tailings','hydrated_residue']);
+const finite=x=>typeof x==='number'&&Number.isFinite(x),radial=x=>Array.isArray(x)&&x.length===3&&x.every(finite)&&Math.abs(Math.hypot(...x)-1)<1e-4;
+const distance=(a,b,r)=>Math.acos(Math.max(-1,Math.min(1,a.reduce((s,x,i)=>s+x*b[i],0))))*r;
+function eligible(lot,refinery){
+ if(!lot||!ALLOWED.has(lot.materialId)||!finite(lot.massKg)||lot.massKg<=0)return false;
+ const r=refinery?.receipts?.find(r=>r.status==='COMMITTED'&&lot.provenance==='process:'+r.id);
+ return !!r&&root.StarfallRefinery8E?.MODES?.[r.mode]?.residue===lot.materialId;
+}
+function transfer(a){
+ const {jobId,materials,physical,refinery,stockpileId,lotId,massKg,bodyId,bodyRadius,
+  shipLocal,evaLocal,shipLanded,operatorEVA,shipPowered,shipEnergyJ}=a;
+ if(typeof jobId!=='string'||!/^8h-tailings:[\w:-]+$/.test(jobId)||jobId.length>128||
+  !finite(massKg)||massKg<=0||massKg>500||!finite(shipEnergyJ)||shipEnergyJ<0)
+  throw Error('Tailings crane needs a unique operation, <=500 kg and actual ship battery');
+ const pile=physical?.assets?.find(x=>x.id===stockpileId),cid=pile?.state?.containerId,
+  bin=materials?.containers?.find(x=>x.id===cid&&x.ownerId===stockpileId);
+ if(!shipLanded||!operatorEVA||!shipPowered||!finite(bodyRadius)||bodyRadius<=0||
+  !radial(shipLocal)||!radial(evaLocal)||pile?.location?.kind!=='surface'||pile.location.bodyId!==bodyId||
+  !radial(pile.location.local)||pile.type!=='industrial_plant'||pile.condition<.5||
+  pile.state?.enabled===false||pile.state?.kitMaterialId!=='plant_kit_tailings_stockpile'||pile.state.station!=='tailings_stockpile'||
+  pile.massKg!==10||!physical.transfers?.some(t=>t.assetId===stockpileId&&t.status==='COMMITTED'&&
+   t.action==='INSTALL'&&t.massKg===10&&t.sourceLotId)||
+  !bin||bin.maxMassKg!==40000||bin.maxVolumeM3!==20||!bin.kind.includes('mineral-tailings'))
+  throw Error('Actual paid same-world lined stockpile, landed powered ship and surface EVA required');
+ if(distance(shipLocal,pile.location.local,bodyRadius)>65+EPS||distance(evaLocal,pile.location.local,bodyRadius)>20+EPS)
+  throw Error('Walk within 20 units of stockpile and park ship within 65 units for crane reach');
+ const ledger=root.StarfallMaterials8A.create(materials),old=ledger.operations().find(x=>x.id===jobId);
+ if(old){if(old.status!=='COMMITTED'||old.kind!=='8H_TAILINGS_STORAGE'||old.lotId!==lotId||
+   old.destinationId!==cid||Math.abs(old.massKg-massKg)>EPS)throw Error('Tailings operation replay conflicts');
+  return{duplicate:true,materials:cp(materials),shipEnergyJ,receipt:cp(old),usedJ:0};}
+ const lot=ledger.inventory('8d:ship-main:materials').find(l=>l.id===lotId);
+ if(!eligible(lot,refinery)||lot.massKg+EPS<massKg)
+  throw Error('Only actual original 8E mineral residue in ship hold can enter this waste pile');
+ const usedJ=5000+massKg*500;
+ if(shipEnergyJ+EPS<usedJ)throw Error('Ship battery lacks tailings crane work energy');
+ const before=ledger.inventory().reduce((s,l)=>s+l.massKg,0);
+ ledger.reserve(jobId,lotId,cid,massKg);ledger.commit(jobId);
+ const next=ledger.snapshot(),r=next.operations.find(x=>x.id===jobId);
+ Object.assign(r,{kind:'8H_TAILINGS_STORAGE',bodyId,stockpileId,energyJ:usedJ,
+  energySourceId:'ship-main:engineering-battery',sourceProvenance:lot.provenance});
+ if(Math.abs(next.lots.reduce((s,l)=>s+l.massKg,0)-before)>EPS)throw Error('Tailings mass changed');
+ return{duplicate:false,materials:next,shipEnergyJ:shipEnergyJ-usedJ,receipt:cp(r),usedJ};
+}
+root.StarfallTailingsStorage8H=Object.freeze({eligible,transfer});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallTailingsStorage8H;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
 </script><script>
 /* STARFALL 8F installation-kit fabrication: certified hardware from actual
  * finished manufactured parts. Every bill is finite, mass-balanced and paid.
  * No standalone kit acquisition from raw rock, and no imaginary starter chips. */
 (function(root){'use strict';
 const SPECS=Object.freeze({
+ // Stakes, ground liner and retaining mesh for an OPEN mineral-waste pile.
+ // The 20 m³ surface footprint is not a sealed container or a pressure vessel.
+ plant_kit_tailings_stockpile:[10,.04,'tailings_stockpile'],
  machine_kit_hand_winder:[32,.16,'hand_winder'],
  machine_kit_cnc:[220,.42,'machine'],machine_kit_manual_press:[50,.22,'manual_press'],machine_kit_grinder:[85,.18,'machine'],
  machine_kit_caster:[260,.68,'foundry'],machine_kit_extruder:[160,.30,'machine'],
@@ -8229,6 +8295,7 @@ const SPECS=Object.freeze({
  vessel_kit_methane:[195,4,'vessel']
 });
 const FRACTIONS=Object.freeze({
+ tailings_stockpile:{steel:.8,insulation_polymer:.2},
  assembly_pad:{steel:.60,copper:.12,aluminum:.08,glass:.05,refractory_block:.05,insulated_wire:.04,electric_motor:.04,control_board:.02},
  rocket_integrator:{steel:.54,copper:.1,aluminum:.06,glass:.04,refractory_block:.11,insulated_wire:.05,electric_motor:.07,control_board:.03},
  habitat_builder:{steel:.55,copper:.12,aluminum:.07,glass:.05,refractory_block:.06,insulated_wire:.06,electric_motor:.06,control_board:.03},
@@ -12957,9 +13024,9 @@ if(typeof module!=='undefined'&&module.exports)module.exports=api;
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x)),EPS=1e-8;
 const CONTENT=Object.freeze([
- ['stocked_chips',8,.008,'prelaunch_finite_imported_semiconductors_400_boards_maximum'],
+ ['stocked_chips',10,.010,'prelaunch_finite_imported_semiconductors_500_boards_maximum'],
  ['pv_cells',8,.04,'prelaunch_certified_photovoltaics_four_modules_grid_and_habitat'],
- ['discrete_components',40,.08,'prelaunch_finite_electronic_components'],
+ ['discrete_components',50,.10,'prelaunch_finite_electronic_components'],
  ['solder',20,.02,'prelaunch_finite_solder_supply'],
  ['copper',280,.106,'prelaunch_refined_copper_for_first_refineries'],
  ['aluminum',200,.08,'prelaunch_refined_aluminum_for_first_electrolysis_plant'],
@@ -12976,7 +13043,7 @@ const CONTENT=Object.freeze([
  ['separator',3.2,.0064,'prelaunch_finite_separator_forty_cells'],
  ['bearing_steel',32,.005,'prelaunch_finite_qualified_bearing_alloy_no_local_heat_treatment_claim'],
  ['refractory_block',1400,.70,'prelaunch_finite_firebrick_no_local_ceramic_process'],
- ['laminate',160,.32,'prelaunch_finite_electrical_laminate_400_boards_maximum'],
+ ['laminate',200,.40,'prelaunch_finite_electrical_laminate_500_boards_maximum'],
  ['etchant',30,.03,'prelaunch_finite_reaction_consumable'],
  ['carbon',3,.002,'prelaunch_reductant'],
  ['water',50,.05,'prelaunch_sealed_water_stock'],
@@ -14009,7 +14076,10 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
  */
 (function(root){'use strict';
 const cp=x=>JSON.parse(JSON.stringify(x));
-const gas={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,hydrogen:.002016,methane:.016043};
+// Captured smelter CO needs an explicit finite outlet. It may only use the
+// same metered, energy-paid, protected-world-locked intervention path.
+// Discharge does not make toxic CO breathable or simulate oxidation/climate.
+const gas={oxygen:.031998,nitrogen:.028014,carbon_dioxide:.04401,carbon_monoxide:.028010,hydrogen:.002016,methane:.016043};
 const EPS=1e-8,WORK_J_KG=100000,MAX_BATCH_KG=10;
 const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
 const id=x=>typeof x==='string'&&x.length>0&&x.length<=128;
@@ -17622,6 +17692,38 @@ function logisticsOffworldCancel8H(id){return logisticsOffworldApply8H('CANCEL',
 function logisticsOffworldDepart8H(id){return logisticsOffworldApply8H('DEPART',id);}
 function logisticsOffworldArrive8H(id){return logisticsOffworldApply8H('ARRIVE',id);}
 function logisticsOffworldDeliver8H(id){return logisticsOffworldApply8H('DELIVER',id);}
+// Paid bounded ground storage prevents large ore campaigns filling the ship
+// with mineral residues. Stocks remain on their original world indefinitely.
+function tailingsContext8H(){
+ const ship=vehicleStore.get('ship');return {bodyId:nearest?.id,shipEnergyJ:ship.state.energyJ,
+  shipPowered:ship.state.powerEnabled&&ship.state.loads?.avionics!==false,
+  ready:landed&&eva&&!truckOccupied&&!manufacturedOccupied8G&&!shipWalking8e&&!interiorState&&shipBody===nearest,
+  piles:physical8a.list().filter(a=>a.location?.kind==='surface'&&a.location.bodyId===nearest?.id&&
+   a.state?.station==='tailings_stockpile').map(a=>({id:a.id,used:materials8a.used(a.state.containerId)})),
+  lots:materials8a.inventory(StarfallMining8D.SHIP).filter(l=>StarfallTailingsStorage8H.eligible(l,refinery8e.snapshot()))};
+}
+function tailingsTransfer8H(stockpileId){
+ const c=tailingsContext8H();if(!c.ready||!c.shipPowered)throw Error('Surface EVA beside a landed powered ship required');
+ if(saveFlight()!==true||SF.storageStatus().durable!==true)throw Error('Tailings storage needs a durable save; nothing moved');
+ const ship=vehicleStore.get('ship');let materials=materials8a.snapshot(),energyJ=ship.state.energyJ,moved=0;
+ let serial=materials.operations.filter(o=>o.id.startsWith('8h-tailings:')).length+1;
+ for(const lot of c.lots){if(moved>=500-1e-7)break;
+  const massKg=Math.min(lot.massKg,500-moved),jobId='8h-tailings:'+serial++;
+  const q=StarfallTailingsStorage8H.transfer({jobId,materials,physical:physical8a.serialize(),refinery:refinery8e.snapshot(),
+   stockpileId,lotId:lot.id,massKg,bodyId:nearest.id,bodyRadius:nearest.radius,shipLocal,evaLocal,
+   shipLanded:landed,operatorEVA:eva,shipPowered:c.shipPowered,shipEnergyJ:energyJ});
+  materials=q.materials;energyJ=q.shipEnergyJ;moved+=massKg;
+ }
+ if(!moved)throw Error('No original refinery tailings in ship hold');
+ const vehicles=vehicleStore.serialize();vehicles.states.ship={...vehicles.states.ship,energyJ};
+ const patch={materials8a:materials,engineeringVehicles:vehicles};
+ if(SF.save(patch)!==true||SF.storageStatus().durable!==true)throw Error('Tailings transfer was not durably saved');
+ const saved=SF.load();if(JSON.stringify(saved.materials8a)!==JSON.stringify(materials)||saved.engineeringVehicles.states.ship.energyJ!==energyJ)
+  throw Error('Tailings durable readback mismatch; reload saved owners before continuing');
+ materials8a=StarfallMaterials8A.create(materials);vehicleStore.update('ship',{...ship.state,energyJ});
+ showToast('8H · '+moved.toFixed(1)+' kg tailings stored on '+nearest.name+' · '+Math.round(ship.state.energyJ-energyJ)+' J crane work');
+ return{massKg:moved,usedJ:ship.state.energyJ-energyJ};
+}
 function miningContext8D(){
  const onWorld=landed&&!!nearest?.landable&&!!truckBody&&truckBody===nearest&&!!truckLocal&&cargo8b.mode==='ground';
  const truck=onWorld?truckWorldState():null,ship=shipBody===nearest?shipWorldState():null;
@@ -17954,7 +18056,7 @@ function truckLocator8ER(){
  return {status:'SURFACE',distanceScene:distance,bearingRad:bearing,
   label:'EXPEDITION TRUCK',bodyId:body.id,atWater:!!window.StarfallHydrosphereLW04?.sample(body,actualLocal,groundHeight(actualLocal,body),simTime,GALAXY_SEED)?.hasWater};
 }
-window.StarfallRuntime={galaxy,vehicleStore,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
+window.StarfallRuntime={galaxy,vehicleStore,tailingsContext8H,tailingsTransfer8H,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
  get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,t02PaidContext8I,t02PaidInstallQuote8I,t02PaidInstallStart8I,t02PaidInstallCancel8I,t02PaidInstallTick8I,habitatCommissionContext8I,habitatCommission8I,habitatSupplyContext8I,habitatSupplyWater8I,habitatScrubberContext8I,habitatSupplyScrubber8I,greenhouseContext8I,greenhouseInstall8I,greenhouseHarvest8I,habitatOxygenContext8I,habitatSupplyOxygen8I,atmosphericContext8J,atmosphericRelease8J,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,miningService8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:false,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
@@ -23705,7 +23807,7 @@ const section=document.createElement('section');section.id='atmosphere-emission8
 const heading=document.createElement('div');heading.className='section-title';
 heading.textContent='8J · SOURCE-PAID PLANET ATMOSPHERE EMISSION';
 const description=document.createElement('p');description.className='panel-note';
-description.textContent='Release up to 10 kg of actual rated gas to an unprotected planet with a landed powered ship and EVA operator. Original vessel stock and ship battery are debited, the tiny physical mean-pressure change is persisted. All worlds with native life or archaeological sites are locked. This is measured emission—not instant planetary terraforming.';
+description.textContent='Release up to 10 kg of actual rated gas to an unprotected planet with a landed powered ship and EVA operator. Original vessel stock and ship battery are debited, the tiny physical mean-pressure change is persisted. All worlds with native life or archaeological sites are locked. Smelter carbon monoxide is TOXIC; discharge does not make the air breathable. Only added mass and mean pressure are modeled.';
 const vessel=document.createElement('select');vessel.setAttribute('aria-label','Actual planet atmospheric emission vessel');
 const lot=document.createElement('select');lot.setAttribute('aria-label','Gas lot for planetary emission');
 const qty=document.createElement('input');qty.type='number';qty.min='0.01';qty.max='10';qty.step='0.01';qty.value='1';qty.setAttribute('aria-label','Gas to release in kg');
@@ -24108,9 +24210,22 @@ service.title='Uses one certified 2 kg ship-held head and 120 kJ truck battery; 
 const lotPicker=document.createElement('select');lotPicker.setAttribute('aria-label','Truck cargo lot for physical loader');
 lotPicker.style.cssText='background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px;max-width:100%';
 controls.append(drill,lotPicker,load,service,cancel);
+const waste=document.createElement('details'),wasteTitle=document.createElement('summary');wasteTitle.textContent='Tailings storage · free ship cargo space';
+const wasteNote=document.createElement('p');wasteNote.className='panel-note';
+wasteNote.textContent='Fabricate a 10 kg TAILINGS STOCKPILE KIT (8 kg steel + 2 kg polymer), then erect it with the plant controls. Its open lined footprint holds at most 40,000 kg / 20 m³ of mineral residues on this world. Walk within 20 units; the powered ship must be within 65. Crane transfers use actual battery energy. Waste persists; gases, water and finished goods are excluded.';
+const wastePicker=document.createElement('select');wastePicker.setAttribute('aria-label','Constructed tailings stockpile');
+wastePicker.style.cssText='max-width:100%;background:#111c26;color:#eaf0ef;border:1px solid #78868b;padding:7px';
+const wasteButton=document.createElement('button');wasteButton.className='science-action';wasteButton.textContent='STORE UP TO 500 KG TAILINGS';
+wasteButton.onclick=()=>{try{const q=rt().tailingsTransfer8H(wastePicker.value);status.textContent=q.massKg.toFixed(1)+' kg stored · '+q.usedJ.toFixed(0)+' J paid';}catch(e){status.textContent=e.message;}refresh();};
+waste.append(wasteTitle,wasteNote,wastePicker,wasteButton);
 let lastLots='';
 function refresh(){
  const r=rt();if(!r?.mining8d||!r.materials8a){readout.textContent='Waiting for authoritative 8D runtime';return;}
+ const w=r.tailingsContext8H(),prior=wastePicker.value;wastePicker.replaceChildren();
+ for(const p of w.piles){const option=document.createElement('option');option.value=p.id;
+  option.textContent=p.id+' · '+p.used.massKg.toFixed(0)+' / 40000 kg · '+p.used.volumeM3.toFixed(2)+' / 20 m³';wastePicker.append(option);}
+ if(w.piles.some(p=>p.id===prior))wastePicker.value=prior;
+ wasteButton.disabled=!w.ready||!w.shipPowered||!w.lots.length||!w.piles.length;
  const ctx=r.miningContext8D(),site=r.miningDeposit8D(),op=r.mining8d.active,
   lots=r.materials8a.inventory(StarfallMining8D.TRUCK),
   shipped=r.materials8a.inventory(StarfallMining8D.SHIP),survey=site&&r.resources8c.observations().some(x=>x.siteId===site.id);
@@ -24157,7 +24272,7 @@ load.addEventListener('click',()=>action(()=>{
 }));
 cancel.addEventListener('click',()=>action(()=>rt().miningCancel8D()));
 service.addEventListener('click',()=>action(()=>rt().miningService8D(service.dataset.lotId)));
-panel.append(title,status,controls,readout);host.append(panel);
+panel.append(title,status,controls,waste,readout);host.append(panel);
 let last=0;const check=()=>{const t=performance.now();if(t-last>500){last=t;refresh();}requestAnimationFrame(check);};check();
 root.StarfallMiningUI8D={refresh,open:()=>{root.StarfallUI21?.openRoute?.('Operate');panel.scrollIntoView({block:'nearest'});refresh();}};
 })(globalThis);

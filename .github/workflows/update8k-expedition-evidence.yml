@@ -43,6 +43,8 @@ jobs:
           node tests/update8k-fresh-progression.test.cjs
           node tests/update8k-expedition-bom-closure.test.cjs
           node tests/industrial-launch-no-free-rocket8k.test.cjs
+          node tests/tailings-storage8h.test.cjs
+          node tests/update8k-fresh-vehicle-chain.test.cjs
           node tests/mining-service8d.test.cjs
           node tests/update8k-powered-habitat-chain.test.cjs
           node tests/update8k-electrolysis-atmosphere-chain.test.cjs
@@ -80,7 +82,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: update8k-readiness-browser
-          path: artifacts/8k-readiness-browser/
+          path: |
+            artifacts/8k-readiness-browser/
+            artifacts/8k-fresh-vehicle/
           if-no-files-found: ignore
           retention-days: 14
   authentic-history-and-flight:
