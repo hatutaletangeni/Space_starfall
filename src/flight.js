@@ -876,7 +876,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  simTime=physicsClock.advance(dt,timeScale);
  let attached=landed?nearest:(nearest&&V.len(V.sub(pos,nearest.position))<nearest.radius+75000?nearest:null);
  const previousCenter=attached?[...attached.position]:null,oldSpin=attached?.spinAngle||0;
- galaxy.update(simTime);galaxy.hydrateNear(pos,galaxy.byId.get(target.systemId));
+ galaxy.update(simTime);planetaryClimateTick8J();galaxy.hydrateNear(pos,galaxy.byId.get(target.systemId));
  if(attached){
   if(landed){
    const axis=attached.spinAxis||[0,1,0],turn=(attached.spinAngle||0)-oldSpin;
@@ -2070,6 +2070,63 @@ function atmosphericContext8J(){
   atmosphereMassKg:site.atmosphereKg,energyJ:vehicleStore.get('ship')?.state.energyJ||0,
   landed:landed&&shipBody===body,eva:c.eva&&!!evaLocal&&!truckOccupied&&!shipWalking8e,
   powered:!!vehicleStore.get('ship')?.state.powerEnabled};
+}
+function planetaryEngineeringView(bodyId){
+ const w=terraformWorlds8j[bodyId];return w?{pressureDeltaPa:w.pressureDeltaPa,
+  anomalyK:w.climate8j?.anomalyK||0,hazeOpacity:w.climate8j?.hazeOpacity||0,
+  climate:w.climate8j?JSON.parse(JSON.stringify(w.climate8j)):null}:null;
+}
+function planetaryClimateTick8J(){
+ for(const [id,w]of Object.entries(terraformWorlds8j)){
+  const body=galaxy.byId.get(id),system=body&&galaxy.byId.get(body.systemId);if(!body||!system?.star)continue;
+  const star=StarfallPhysics.starProfile(system.star),profile=StarfallPhysics.bodyProfile(body,star),
+   d=V.len(V.sub(body.position,system.position))*1000,flux=star.luminosityW/(4*Math.PI*Math.max(1,d*d));
+  let t=w.climate8j?.lastS??simTime;
+  if(!w.climate8j)StarfallIndustryCompletion8K.climate(w,profile,flux,simTime);
+  for(let n=0;n<4&&t<simTime;n++){t=Math.min(simTime,t+86400);StarfallIndustryCompletion8K.climate(w,profile,flux,t);}
+ }
+}
+function industryCompletion8K(action,args={}){
+ const c=atmosphericContext8J(),ship=vehicleStore.get('ship'),out=window.StarfallOutpostUI,
+  launch=window.StarfallLaunchUI;
+ if(!c.landed||!c.eva||!c.powered||!evaLocal||!shipLocal||!SF.storageStatus().durable)
+  throw Error('Landed powered ship, surface EVA and durable storage required');
+ const within=(local,r)=>Array.isArray(local)&&StarfallOutposts.arc(evaLocal,local,nearest.radius)<=r;
+ if(!within(shipLocal,95))throw Error('Return within 95 units of the landed ship');
+ const base={operationId:action+':'+c.bodyId+':'+Date.now(),materials:materials8a.snapshot(),physical:physical8a.serialize(),
+  shipEnergyJ:ship.state.energyJ,timeS:simTime,profile:c.profile,body:nearest};
+ let q,patch;
+ if(action==='rocket8g'){
+  const stage=physical8a.get(args.stageId);if(!within(stage?.location?.local,24))throw Error('Approach manufactured stage within 24 units');
+  for(const id of [args.hydrogenVesselId,args.oxygenVesselId]){
+   const vessel=physical8a.get(id);if(!within(vessel?.location?.local,24))throw Error('Both propellant vessels must be within operator hose reach');
+  }
+  if(!launch)throw Error('Native Rocket Lab unavailable');
+  q=StarfallIndustryCompletion8K.launch({...base,...args,assembly:vehicleAssembly8g.snapshot(),launchStore:launch.store.serialize(),
+   launchUp:V.rot(stage.location.local,nearest.spinAxis||[0,1,0],nearest.spinAngle||0)});
+  patch={materials8a:q.materials,physical8a:q.physical,launch7:q.launchStore};
+ }else if(action==='loop8i'){
+  const hab=out?.store.items.find(h=>h.id===args.habitatId&&h.bodyId===c.bodyId);
+  if(!hab||!within(hab.local,24))throw Error('Approach actual greenhouse habitat within 24 units');
+  q=StarfallIndustryCompletion8K.installLoop({...base,habitat:hab,factory:factory8f.snapshot(),containerId:StarfallMining8D.SHIP});
+  const state=out.store.serialize();state.items=state.items.map(h=>h.id===hab.id?q.habitat:h);
+  patch={materials8a:q.materials,physical8a:q.physical,outpost5:state};
+ }else if(action==='capture8j'){
+  if(c.nativeLife||c.archaeologicalProtection||c.protectedWorld)throw Error('Planetary protection lock');
+  const v=physical8a.get(args.vesselId);if(!within(v?.location?.local,24))throw Error('Approach receiving vessel within 24 units');
+  const w=terraformWorlds8j[c.bodyId]||StarfallAtmosphereEmission8J.normalize(null,c.profile);
+  q=StarfallIndustryCompletion8K.capture({...base,...args,world:w,protectedWorld:c.protectedWorld,landable:nearest.landable});
+  patch={materials8a:q.materials,terraformWorlds8j:{...terraformWorlds8j,[c.bodyId]:q.world}};
+ }else throw Error('Unknown industrial operation');
+ const vehicles=vehicleStore.serialize();vehicles.states.ship={...vehicles.states.ship,energyJ:q.shipEnergyJ};patch.engineeringVehicles=vehicles;
+ if(SF.save(patch)!==true||!SF.storageStatus().durable)throw Error('Operation could not be saved; no live owners changed');
+ const saved=SF.load();for(const key of Object.keys(patch))if(JSON.stringify(saved[key])!==JSON.stringify(patch[key]))throw Error('Saved transaction mismatch; reload saved owners');
+ materials8a=StarfallMaterials8A.create(q.materials);vehicleStore.update('ship',{...ship.state,energyJ:q.shipEnergyJ});
+ if(q.physical)physical8a=StarfallPhysical8A.create(q.physical);
+ if(q.launchStore){launch.store.restore(q.launchStore);launch.refresh();}
+ if(q.habitat){out.store.items=patch.outpost5.items;}
+ if(q.world)terraformWorlds8j[c.bodyId]=q.world;
+ return q;
 }
 function atmosphericRelease8J(vesselId,lotId,kg){
  const c=atmosphericContext8J(),ship=vehicleStore.get('ship');
@@ -3855,7 +3912,7 @@ function truckLocator8ER(){
  return {status:'SURFACE',distanceScene:distance,bearingRad:bearing,
   label:'EXPEDITION TRUCK',bodyId:body.id,atWater:!!window.StarfallHydrosphereLW04?.sample(body,actualLocal,groundHeight(actualLocal,body),simTime,GALAXY_SEED)?.hasWater};
 }
-window.StarfallRuntime={galaxy,vehicleStore,tailingsContext8H,tailingsTransfer8H,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
+window.StarfallRuntime={galaxy,vehicleStore,industryCompletion8K,planetaryEngineeringView,tailingsContext8H,tailingsTransfer8H,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
  get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,t02PaidContext8I,t02PaidInstallQuote8I,t02PaidInstallStart8I,t02PaidInstallCancel8I,t02PaidInstallTick8I,habitatCommissionContext8I,habitatCommission8I,habitatSupplyContext8I,habitatSupplyWater8I,habitatScrubberContext8I,habitatSupplyScrubber8I,greenhouseContext8I,greenhouseInstall8I,greenhouseHarvest8I,habitatOxygenContext8I,habitatSupplyOxygen8I,atmosphericContext8J,atmosphericRelease8J,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,miningService8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:false,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){

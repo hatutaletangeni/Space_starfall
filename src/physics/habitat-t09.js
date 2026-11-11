@@ -23,7 +23,7 @@ function defaults(now=0){
  const n=gasMoles(C.pressureKPa,C.referenceK),o2=gasMoles(C.oxygenTargetKPa,C.referenceK);
  return{schema:SCHEMA,enabled:false,mode:'STANDBY',lastS:now,seal:1,volumeM3:C.volumeM3,
   oxygenMol:o2,inertMol:n-o2,carbonMol:0.0003*n,oxygenTankMol:1050,
-  inertTankMol:3500,scrubberCapacityMol:350,filteredAirMol:0,scrubberMediaInstalledKg:0,greenhouse8i:null,waterL:200,
+  inertTankMol:3500,scrubberCapacityMol:350,filteredAirMol:0,scrubberMediaInstalledKg:0,greenhouse8i:null,regenerative8i:null,waterL:200,
   tempK:C.referenceK,occupants:0,airlock:'CLOSED',airlockUntilS:null,
   airlockRequested:'',backupJ:0,heatLossW:0,thermalLoadW:0,
   powerW:0,integratedSupplyW:0,leakRateS:C.normalLeakS,
@@ -80,11 +80,12 @@ function derive(item,h,powered,now=0,body=null){
  if(co>C.carbonAlarmKPa)warnings.push('CO2_HIGH');
  if(h.tempK<C.tempMinK||h.tempK>C.tempMaxK)warnings.push('TEMPERATURE_UNSAFE');
  if(h.waterL<=0&&h.occupants>0)warnings.push('NO_WATER');
+ if(h.regenerative8i?.lastStarvedMol>1e-8)warnings.push('NO_FOOD');
  if(h.scrubberCapacityMol<=.01&&h.occupants>0)warnings.push('SCRUBBER_EXHAUSTED');
  if(h.enabled&&!powered)warnings.push('UNPOWERED');
  if(h.awaitingReview)warnings.push('AWAITING_REVIEW');
  h.alarms=warnings;
- const safe=!warnings.some(x=>['LEAK','PRESSURE_UNSAFE','OXYGEN_UNSAFE','CO2_HIGH','TEMPERATURE_UNSAFE','NO_WATER','AWAITING_REVIEW'].includes(x));
+ const safe=!warnings.some(x=>['LEAK','PRESSURE_UNSAFE','OXYGEN_UNSAFE','CO2_HIGH','TEMPERATURE_UNSAFE','NO_WATER','NO_FOOD','AWAITING_REVIEW'].includes(x));
  if(!h.enabled)h.mode='STANDBY';
  else if(h.airlock==='OPEN_OUT')h.mode='VENTING';
  else if(h.seal<.75)h.mode='LEAK';
@@ -120,11 +121,13 @@ function step(item,body,simS,actualPowered){
  h.oxygenMol*=leakFactor;h.inertMol*=leakFactor;h.carbonMol*=leakFactor;
  h.leakRateS=f;
  const occupants=h.occupants;
+ if(!root.StarfallIndustryCompletion8K?.crew(h,dt,powered)){
  const neededO2=occupants*C.crewO2MolS*dt,
   breath=Math.min(h.oxygenMol,neededO2);
  h.oxygenMol-=breath;
  h.carbonMol+=breath*clamp(C.crewCO2MolS/C.crewO2MolS,0,1);
  h.waterL=Math.max(0,h.waterL-occupants*C.crewWaterLS*dt);
+ }
  const running=powered&&h.enabled&&h.airlock!=='OPEN_OUT'&&!h.awaitingReview;
  if(running){
   const targetO2=gasMoles(C.oxygenTargetKPa,h.tempK,h.volumeM3);
@@ -136,7 +139,7 @@ function step(item,body,simS,actualPowered){
   const injectInert=Math.min(Math.max(0,targetTotal-h.oxygenMol-h.inertMol-h.carbonMol),
    h.inertTankMol,C.maxInertMolS*dt);
   h.inertMol+=injectInert;h.inertTankMol-=injectInert;
-  const removal=Math.min(h.carbonMol,h.scrubberCapacityMol,C.maxScrubMolS*dt);
+  const removal=Math.min(Math.max(0,h.carbonMol-(h.regenerative8i?gasMoles(.15,h.tempK,h.volumeM3):0)),h.scrubberCapacityMol,C.maxScrubMolS*dt);
   h.carbonMol-=removal;h.scrubberCapacityMol-=removal;h.filteredAirMol+=removal;
  }
  // Lumped heat capacity. HVAC heating/cooling only exists with actual served

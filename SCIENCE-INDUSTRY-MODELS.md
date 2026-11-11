@@ -123,3 +123,12 @@ The following is **not a PASS declaration**:
   imported through the present archive UI and reloaded with source cargo,
   discoveries, credits and original truck retained. Private user saves and real
   Android/GPU hardware are not covered by those reproducible checks.
+
+## Functional extension: manufactured flight, regeneration and capture
+
+See [the current model and operation details](docs/8G-8I-8J-FUNCTIONAL-PATHS.md).
+The source-paid gas-fed sounding path, manufactured recycler and inventoried
+atmospheric-gas recovery extend the earlier limitations above. Orbital launch,
+indefinite autonomous survival and unmeasured-baseline atmospheric capture are
+not claimed. Climate/sensor/optical feedback uses the documented reduced-order
+model and the same persisted gas mass.

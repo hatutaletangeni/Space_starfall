@@ -38,7 +38,7 @@ function preflight(){try{const pr=profile();$('launch-calculations').textContent
   (pr.valid?'DESIGN CHECK · '+pr.problem:'WARNING · '+pr.problem)+'\nReal launch may fail. Acceleration, drag, fuel exhaustion, trajectory and stable orbit are force-integrated.';
  const industrial=root.SF?.load?.()?.freshExpedition?.schema===1;
  $('launch-ignite').disabled=industrial||!pr||!$('launch-pad').value;
- if(industrial)$('launch-calculations').textContent+='\nINDUSTRIAL DESIGN PREVIEW: ignition requires qualified manufactured propulsion, payload and source-owned propellant. An 8G dry structure cannot launch.';
+ if(industrial)$('launch-calculations').textContent+='\nINDUSTRIAL DESIGN PREVIEW: ignition requires qualified manufactured propulsion, payload and source-owned propellant. Use Engineer → Industrial flight for the source-paid gas-fed sounding prototype.';
  }catch(e){$('launch-calculations').textContent='PRE-FLIGHT: '+e.message;$('launch-ignite').disabled=true;}}
 function padReadinessT11(){
  const T=root.StarfallPadT11,os=root.StarfallOutpostUI?.store,ctx=RT.outpostContext();

@@ -26,7 +26,8 @@ function localTruth(body,seed,local,simTime=0){const p=profile(body,seed),vec=Ar
  const starWeather=sys&&root.StarfallSpaceWeatherLW06?.exposure(sys,body.position,simTime,seed);
  const magneticResponse=starWeather?
   starWeather.magneticDisturbanceNT*(1-Math.min(.85,Math.abs(p.magneticFieldNT)/35000)*.66)*Math.abs(.35+.65*lat):0;
- return{...p,temperatureK:ambientK+geothermalK,magneticFieldNT:p.magneticFieldNT+320*(patch-.5)+magneticResponse,silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
+ const intervention=root.StarfallRuntime?.planetaryEngineeringView(body.id);
+ return{...p,pressurePa:Math.max(0,p.pressurePa+(intervention?.pressureDeltaPa||0)),temperatureK:ambientK+geothermalK+(intervention?.anomalyK||0),magneticFieldNT:p.magneticFieldNT+320*(patch-.5)+magneticResponse,silicateFraction:clamp(p.silicateFraction+(.12*(patch-.5)),0,1),ironFraction:clamp(p.ironFraction+.09*(patch-.5),0,1),seismicLevelMMs:Math.max(0,p.seismicLevelMMs*(.5+patch)+geothermalSeismic),iceDepthM:p.iceDepthM*(.7+.6*patch),biosignatureIndex:clamp(p.biosignatureIndex+(.16*(patch-.5)),0,1)};}
 function sample({body,seed=742,local=[0,1,0],altitudeM=0,instrument,simTime=0,energyAvailableJ=Infinity,calibrated=true,nonce=0}){
  const spec=INSTRUMENTS[instrument];if(!spec)throw Error('Unknown instrument');if(!body?.landable)throw Error('Requires a solid planetary surface');if(!Array.isArray(local)||local.length!==3||!local.every(Number.isFinite))throw Error('Invalid local position');
  if(!Number.isFinite(altitudeM)||altitudeM<0||altitudeM>spec.maxAltitudeM)throw Error(spec.name+' out of range: maximum '+spec.maxAltitudeM+' m');
