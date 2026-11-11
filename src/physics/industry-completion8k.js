@@ -26,15 +26,18 @@ function launch(a){
  const fuel=9*h,hotFire=.02,temperatureK=293.15,pressurePa=8e6;
  const volume=(h/.002016+8*h/.031998)*R*temperatureK/pressurePa;
  requireThat(volume<=stage.volumeM3,'Compressed propellant exceeds manufactured tank volume');
- const vessels=[['hydrogen',a.hydrogenVesselId,h],['oxygen',a.oxygenVesselId,8*h]],used=[];
+ const vessels=[['hydrogen',a.hydrogenVesselId,h],['oxygen',a.oxygenVesselId,8*h]],used=[];let workJ=3e6;
  for(const [gas,id,kg]of vessels){const v=p.assets.find(x=>x.id===id),bin=m.containers.find(c=>c.id===v?.state?.containerId&&c.ownerId===id);
   requireThat(v?.type==='industrial_vessel'&&v.condition>=.8&&v.state.enabled&&v.state.materialId===gas&&v.state.ratedPressurePa>=5e6&&v.location?.bodyId===body.id&&bin?.kind.includes('gas'),'Real same-world rated '+gas+' vessel required');
   requireThat(!m.lots.some(l=>l.containerId===bin.id&&l.materialId!==gas),'Mixed propellant vessel');
   const stock=m.lots.filter(l=>l.containerId===bin.id),kgStored=stock.reduce((s,l)=>s+l.massKg,0);
   const mw=gas==='hydrogen'?.002016:.031998;
-  requireThat(kgStored/mw*R*temperatureK/bin.maxVolumeM3<=v.state.ratedPressurePa+EPS,'Propellant vessel overpressure');
+  const sourcePressurePa=kgStored/mw*R*temperatureK/bin.maxVolumeM3;
+  requireThat(sourcePressurePa<=v.state.ratedPressurePa+EPS,'Propellant vessel overpressure');
+  workJ+=kg*(1+hotFire)/mw*R*temperatureK*Math.max(0,Math.log(pressurePa)-Math.log(Math.max(Number.MIN_VALUE,sourcePressurePa)));
   used.push(...take(m,bin.id,gas,kg*(1+hotFire)));
  }
+ requireThat(a.shipEnergyJ>=workJ,'Battery lacks actual propellant compression work');
  const radiusM=body.radius*1000,g=body.gravity*9.80665,mu=g*radiusM**2,thrustN=12000,ispS=180,massKg=stage.massKg+fuel;
  requireThat(thrustN/(massKg*g)>=1.08,'Prototype has insufficient liftoff thrust on this world');
  const profile={massKg,payloadKg:0,busMassKg:0,payload:'sounding-test',stages:1,boosterPropKg:0,boosterDryKg:0,boosterIspS:280,boosterThrustN:0,
@@ -47,8 +50,8 @@ function launch(a){
   sourceStage:cp(stage),propellantLots:used,hotFireExhaustKg:fuel*hotFire,altitudeM:50000,trajectoryAltitudeM:0,velocityMS:0};
  store.launches.push(mission);p.assets=p.assets.filter(x=>x.id!==stage.id);
  p.transfers=p.transfers||[];p.transfers.push({id:a.operationId,assetId:stage.id,action:'LAUNCH',status:'COMMITTED',destinationOwner:'launch7:'+mission.id,massKg:stage.massKg});
- m.operations.push({id:a.operationId,kind:'MANUFACTURED_ROCKET_IGNITION',status:'COMMITTED',stageId:stage.id,massKg:fuel*(1+hotFire),energyJ:3e6,consumedLots:used});
- return{materials:m,physical:p,launchStore:store,shipEnergyJ:a.shipEnergyJ-3e6,mission};
+ m.operations.push({id:a.operationId,kind:'MANUFACTURED_ROCKET_IGNITION',status:'COMMITTED',stageId:stage.id,massKg:fuel*(1+hotFire),energyJ:workJ,consumedLots:used});
+ return{materials:m,physical:p,launchStore:store,shipEnergyJ:a.shipEnergyJ-workJ,mission};
 }
 function installLoop(a){
  const m=cp(a.materials),hab=cp(a.habitat),h=hab.habT09,physical=cp(a.physical);
@@ -98,7 +101,9 @@ function capture(a){
  requireThat(v?.type==='industrial_vessel'&&v.condition>=.8&&v.location?.bodyId===a.profile.id&&v.state.enabled&&mw&&v.state.ratedPressurePa>=5e6,'Actual same-world rated receiving vessel required');
  const available=(world.emittedSpeciesKg[gas]||0)-(world.capturedSpeciesKg?.[gas]||0);
  requireThat(available+EPS>=a.kg,'No inventoried atmospheric '+gas+' available; unmeasured baseline species cannot be invented');
- const workJ=a.kg*2e6+a.kg/mw*R*293.15*Math.log(Math.max(1,(world.baselineAtmosphereKg+world.netAddedKg)/Math.max(EPS,available)));
+ const dilution=Math.log(Math.max(1,(world.baselineAtmosphereKg+world.netAddedKg)/Math.max(EPS,available))),
+  pressureLift=Math.max(0,Math.log(5e6)-Math.log(Math.max(Number.MIN_VALUE,world.pressurePa))),
+  workJ=a.kg*2e6+a.kg/mw*R*293.15*(dilution+pressureLift);
  requireThat(a.shipEnergyJ>=workJ,'Battery lacks separation/compression work at actual trace-gas dilution');
  const ledger=root.StarfallMaterials8A.create(m),bin=m.containers.find(x=>x.id===v.state.containerId&&x.ownerId===v.id);
  requireThat(bin&&bin.kind.includes('gas')&&!m.lots.some(l=>l.containerId===bin.id&&l.materialId!==gas),'Receiving vessel is missing or mixed');

@@ -14,11 +14,11 @@ function rocket(){const ledger=M.create(),assets=[];
  const parts=Object.entries(A.DEFINITIONS.rocket_stage.parts).map(([materialId,massKg])=>({materialId,massKg,lotId:'produced:'+materialId})),massKg=parts.reduce((s,l)=>s+l.massKg,0);
  assets.push({id:'rig',type:'industrial_plant',massKg:900,condition:1,location:{kind:'surface',bodyId:'a',local:[0,1,0]},state:{station:'rocket_integration'}},
   {id:'stage',type:'rocket_stage_dry',provenance:'structural-8g:stage',massKg,volumeM3:3,condition:1,location:{kind:'surface',bodyId:'a',local:[0,1,0]},state:{assemblyFacilityId:'rig'}});
- return{operationId:'rocket8g:1',materials:ledger.snapshot(),physical:{schema:1,assets,transfers:[]},shipEnergyJ:10e6,timeS:1,body:{id:'a',systemId:'s',landable:true,radius:1000,gravity:.04,atmosphere:null},launchUp:[0,1,0],stageId:'stage',hydrogenVesselId:'hydrogen',oxygenVesselId:'oxygen',hydrogenKg:2,assembly:{schema:1,receipts:[{assetId:'stage',blueprintId:'rocket_stage',status:'ASSEMBLED_NOT_OPERATIONAL',massKg,consumedLots:parts}]},launchStore:{schema:1,seed:742,serial:0,launches:[],satellites:[],rovers:[]}};
+ return{operationId:'rocket8g:1',materials:ledger.snapshot(),physical:{schema:1,assets,transfers:[]},shipEnergyJ:50e6,timeS:1,body:{id:'a',systemId:'s',landable:true,radius:1000,gravity:.04,atmosphere:null},launchUp:[0,1,0],stageId:'stage',hydrogenVesselId:'hydrogen',oxygenVesselId:'oxygen',hydrogenKg:2,assembly:{schema:1,receipts:[{assetId:'stage',blueprintId:'rocket_stage',status:'ASSEMBLED_NOT_OPERATIONAL',massKg,consumedLots:parts}]},launchStore:{schema:1,seed:742,serial:0,launches:[],satellites:[],rovers:[]}};
 }
 test('manufactured prototype transfers dry ownership and real propellant into native variable-mass flight',()=>{
  const a=rocket(),before=structuredClone(a),q=C.launch(a),mission=q.mission;
- assert.deepEqual(a,before);assert.equal(q.shipEnergyJ,7e6);assert.ok(!q.physical.assets.some(x=>x.id==='stage'));
+ assert.deepEqual(a,before);assert.ok(q.shipEnergyJ<a.shipEnergyJ-3e6);close(a.shipEnergyJ-q.shipEnergyJ,q.materials.operations.at(-1).energyJ);assert.ok(!q.physical.assets.some(x=>x.id==='stage'));
  close(F.totalMass(mission.flight,mission.profile),mission.sourceStage.massKg+18);
  close(a.materials.lots.reduce((s,l)=>s+l.massKg,0)-q.materials.lots.reduce((s,l)=>s+l.massKg,0),18.36);
  assert.equal(q.launchStore.satellites.length,0);F.advance(mission.flight,mission.profile,5);

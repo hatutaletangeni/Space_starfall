@@ -18,7 +18,8 @@ Load 0.1–8 kg H2 and eight times its mass of O2, plus a separately debited 2%
 mixture for hot-fire exhaust. The 293.15 K, 8 MPa ideal-gas volume must fit the
 actual stage envelope; this further restricts the selectable load. Intake
 vessels must be pure, pressure bounded, unreserved, same-world and within EVA
-hose range. The ship pays 3 MJ for modeled preparation and compression.
+hose range. The ship pays 3 MJ for modeled preparation plus the ideal isothermal compression
+floor from each vessel’s actual pressure to 8 MPa (nRT ln(P_out/P_in)).
 
 The prototype nameplate is an illustrative 12 kN / 180 s, not a performance
 measurement or hardware certificate. Liftoff TWR must exceed 1.08. The native
@@ -70,7 +71,9 @@ not converted into pure material. A matching real receiving pressure vessel,
 free capacity, same-world EVA, landed powered ship and planetary protection
 clearance are required. <=10 kg is debited from that finite planetary species
 reservoir and becomes one provenance-tracked 8A lot. Work is 2 MJ/kg plus the
-ideal 293.15 K trace-dilution separation energy floor nRT ln(M_atmos/M_species).
+approximate ideal 293.15 K trace-dilution separation floor
+nRT ln(M_atmos/M_species) and the actual ambient-to-vessel pressure-ratio
+compression floor nRT ln(5 MPa / P_ambient).
 This is an explicitly ideal separator/collector model, not a hardware-resolved
 intake flow or a validated trace-gas production rate. Unknown baseline capture
 and large-scale carbon sequestration infrastructure remain outside this path.
