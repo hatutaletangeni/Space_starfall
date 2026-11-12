@@ -454,6 +454,18 @@ body[data-truck-driving=true] #sf-truck-locator8er{display:none!important}
   -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 }
 
+/* A mobile standalone remains a mobile UI even when tested on a laptop with
+   a fine pointer or shown at 920px landscape width. Do not infer device type
+   only from CSS pointer media queries. */
+body.sfmobile-edition #multitool9g-dismiss:not([hidden]){display:block;position:fixed;top:8px;right:8px;z-index:90;
+ background:#073140;color:#b7fcff;border:1px solid #71dce8;border-radius:5px;padding:11px 14px;
+ min-height:44px;font:700 12px Consolas,monospace;cursor:pointer;
+ touch-action:manipulation;-webkit-user-select:none;user-select:none}
+body.sfmobile-edition #multitool9g-close{display:none}
+body.sfmobile-edition #multitool9g-open{right:10px;bottom:16px;padding:13px 14px;z-index:31}
+body.sfmobile-edition #multitool9g-panel{right:7px;bottom:63px;width:min(340px,calc(100vw - 14px));
+ max-height:calc(100dvh - 78px);z-index:46;padding:12px}
+
 </style>
 <style>
 /* 8E-R single chronological control hierarchy; no simulations or button IDs changed. */
