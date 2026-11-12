@@ -81,7 +81,7 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
   if(patch){
    if(patch.plantKg>.05){
     const type=site.kind==='spores'?'spores':'microbial';
-    addObject(site,type,site.local,0,site.id+':producers',Math.max(.3,Math.min(1.8,Math.sqrt(patch.plantKg/12))),'growing',{alive:true});
+    addObject(site,type,site.local,0,site.id+':producers',Math.max(.3,Math.min(1.8,Math.sqrt(patch.plantKg/12))),'photosynthesizing',{alive:true,bodyPulse:Math.max(.0001,RT.time*(type==='spores'?2.2:1.1)+root.StarfallFieldScience.rand(site.id+':pulse')*6.28)});
    }
    for(const animal of patch.agents){
     if(objects.length>=18)break;
