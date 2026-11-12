@@ -63,6 +63,7 @@ jobs:
           python tests/research7e-browser.py
           python tests/imaging7f-browser.py
           python tests/expedition-hardening-browser.py
+          python tests/ecology9b-browser.py
           python tests/mission-operations-t01-browser.py
           python tests/power-ledger-t02-browser.py
           python tests/mission-transport-t03-browser.py

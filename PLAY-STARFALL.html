@@ -1598,8 +1598,8 @@ function program(gl,vs,fs){const p=gl.createProgram();gl.attachShader(p,compile(
 const meshVS=`#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;layout(location=1) in vec3 aNormal;layout(location=2) in vec3 aColor;
-uniform mat4 uViewProj;uniform mat4 uModel;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
-void main(){vec4 world=uModel*vec4(aPos,1.);vWorld=world.xyz;vNormal=normalize(mat3(uModel)*aNormal);vColor=aColor;gl_Position=uViewProj*world;}`;
+uniform mat4 uViewProj;uniform mat4 uModel;uniform float uEcologyWingPhase;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
+void main(){vec3 pos=aPos;if(uEcologyWingPhase>0.){float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);pos.y+=sin(uEcologyWingPhase)*tip*2.0;}vec4 world=uModel*vec4(pos,1.);vWorld=world.xyz;vNormal=normalize(mat3(uModel)*aNormal);vColor=aColor;gl_Position=uViewProj*world;}`;
 // A moon/planet only reflects light from its own star-lit hemisphere.
 function evaluateLighting(body,sys,galaxy,position){
  const sun=V.sub(sys.position,body.position),dist=Math.max(V.len(sun),sys.star.radius*1.001),sunDir=V.norm(sun);
@@ -1628,7 +1628,7 @@ function evaluateLighting(body,sys,galaxy,position){
 const meshFS=`#version 300 es
 precision highp float;in vec3 vWorld;in vec3 vNormal;in vec3 vColor;
 uniform vec3 uCamera,uLight,uStarColor,uBounceDir,uBounceColor,uHeadlampPos,uHeadlampDir,uFogColor;
-uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip,uClimateIce;
+uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip,uClimateIce,uEcologyAlpha;
 out vec4 frag;
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 void main(){
@@ -1649,7 +1649,7 @@ void main(){
  vec3 color=clamp(groundColor*illumination,0.,1.);
  if(uShip>.5)color=max(color,vColor*.075);if(uShip>1.5)color=max(color,vColor*.93);
  float fog=1.-exp(-length(uCamera-vWorld)*uFogDensity);color=mix(color,uFogColor,clamp(fog,0.,.96));
- frag=vec4(color,1.);
+ frag=vec4(color,uEcologyAlpha);
 }`;
 // LW04: animated sea normals and wave displacement live in the same 3D scene.
 const waterVS=`#version 300 es
@@ -2065,6 +2065,33 @@ function makeEcologyMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
  else if(kind==='fossil'){for(let j=0;j<5;j++){const z=j*1.2-2.5;box(-2.1,.07,z-.13,2.1,.24,z+.13,bone);}box(-.23,.12,-3.4,.23,.35,3.5,bone);}
  return makeMesh(gl,pp,nn,cc,ix);
 }
+
+ // 9B: shared heart and stomach meshes, never allocated per individual.
+ function makeEcologyOrganMesh(gl,organ){const pp=[],nn=[],cc=[],ix=[];
+  function tri(a,b,c,col){
+   const normal=V.norm(V.cross(V.sub(b,a),V.sub(c,a))),i=pp.length/3;
+   for(const p of [a,b,c]){pp.push(...p);nn.push(...normal);cc.push(...col);}
+   ix.push(i,i+1,i+2);
+  }
+  function ellipsoid(cx,cy,cz,rx,ry,rz,col){
+   const lat=6,lon=10;
+   function point(phi,theta){return[cx+rx*Math.sin(phi)*Math.cos(theta),cy+ry*Math.cos(phi),cz+rz*Math.sin(phi)*Math.sin(theta)];}
+   for(let i=0;i<lat;i++)for(let j=0;j<lon;j++){
+    const a=point(i*Math.PI/lat,j*2*Math.PI/lon),b=point((i+1)*Math.PI/lat,j*2*Math.PI/lon),
+     c=point((i+1)*Math.PI/lat,(j+1)*2*Math.PI/lon),d=point(i*Math.PI/lat,(j+1)*2*Math.PI/lon);
+    tri(a,b,c,col);tri(a,c,d,col);
+   }
+  }
+  if(organ==='heart'){
+   ellipsoid(-.18,.14,0,.33,.36,.32,[.98,.13,.23]);
+   ellipsoid(.18,.14,0,.33,.36,.32,[.94,.19,.32]);
+   ellipsoid(0,-.24,0,.36,.45,.29,[1,.27,.28]);
+  }else{
+   ellipsoid(0,0,0,.56,.39,.46,[.96,.57,.25]);
+   ellipsoid(.19,-.16,.18,.29,.24,.32,[.95,.77,.35]);
+  }
+  return makeMesh(gl,pp,nn,cc,ix);
+ }
 /* Explorer avatar: original, lightweight 3D mesh assembled once per session.
  * Lit by the same star/moon/headlamp shader as the ships and terrain.
  * Local model axes: +Y up, -Z forward. Feet y=0; eyes at y=5.25.
@@ -2178,8 +2205,10 @@ class Renderer{
   this.gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:true,powerPreference:'high-performance'});
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
+  // All non-biological meshes remain opaque across every render pass.
+  gl.useProgram(this.p.mesh);this.setFloat(this.p.mesh,'uEcologyAlpha',1);this.setFloat(this.p.mesh,'uEcologyWingPhase',0);
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.ecologyOrgans={heart:makeEcologyOrganMesh(gl,'heart'),stomach:makeEcologyOrganMesh(gl,'stomach')};this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -2651,13 +2680,38 @@ class Renderer{
     if(V.len(front)<.01)continue;const right=V.norm(V.cross(front,worldUp));this.renderMesh(p,mesh,M.basis(right,worldUp,front,V.sub(item.position,origin)));
    }
   }
-  // Ecology near-field: strict draw cap, shared meshes and normal depth testing.
-  // Animated poses are recomputed in BODY-FIXED coordinates, never camera grids.
+  // 9B: translucent organisms, shared internal organs, and shader wing flaps.
+  // All real ecological meshes stay in the body-fixed scene, capped at 18 actors.
   if(Array.isArray(state.ecology)&&state.ecology.length){
    p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
-   let count=0;for(const item of state.ecology){if(count++>=18)break;const mesh=this.ecologyMeshes.get(item.kind);if(!mesh||!item.position||V.len(V.sub(item.position,origin))>240)continue;
-    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;const r=V.norm(V.cross(f,u)),scale=Number.isFinite(item.scale)?Math.max(.2,Math.min(2.5,item.scale)):1;this.renderMesh(p,mesh,M.basis(V.mul(r,scale),V.mul(u,scale),V.mul(f,scale),V.sub(item.position,origin)));
+   let count=0;for(const item of state.ecology){if(count++>=18)break;
+    const mesh=this.ecologyMeshes.get(item.kind);if(!mesh||!item.position)continue;
+    const distance=V.len(V.sub(item.position,origin));if(distance>240)continue;
+    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;
+    const r=V.norm(V.cross(f,u)),scale=Number.isFinite(item.scale)?Math.max(.2,Math.min(2.5,item.scale)):1,
+     model=M.basis(V.mul(r,scale),V.mul(u,scale),V.mul(f,scale),V.sub(item.position,origin)),
+     creature=!!item.alive&&['grazer','crawler','flier'].includes(item.kind);
+    if(creature&&distance<115){
+     const anatomy=item.kind==='grazer'?{heart:[0,1.8,-.8],stomach:[0,1.5,.8],size:.65}:
+      item.kind==='crawler'?{heart:[0,1.1,-.5],stomach:[0,.77,.45],size:.47}:
+       {heart:[0,.08,-.65],stomach:[0,-.05,.42],size:.31};
+     const phase=Number.isFinite(item.heartPhase)?item.heartPhase:0,
+      beat=Math.pow(Math.max(0,Math.sin(phase)),10)+.65*Math.pow(Math.max(0,Math.sin(phase-1.18)),12),
+      fill=Number.isFinite(item.digestion)?V.clamp(item.digestion,0,1):.2;
+     this.setFloat(p,'uEcologyAlpha',1);this.setFloat(p,'uShip',2.1);this.setFloat(p,'uEcologyWingPhase',0);
+     const heartSize=anatomy.size*(1+.22*beat),gutSize=anatomy.size*(1+.16*fill+.035*Math.sin(phase*.21));
+     const heart=M.mul(model,M.mul(M.translate(anatomy.heart),M.scaleTranslate([0,0,0],heartSize))),
+      gut=M.mul(model,M.mul(M.translate(anatomy.stomach),M.scaleTranslate([0,0,0],gutSize)));
+     this.renderMesh(p,this.ecologyOrgans.heart,heart);this.renderMesh(p,this.ecologyOrgans.stomach,gut);
+    }
+    if(item.alive){
+     this.setFloat(p,'uShip',1.8);this.setFloat(p,'uEcologyAlpha',creature ? .24 : .37);
+     if(item.kind==='flier')this.setFloat(p,'uEcologyWingPhase',Math.max(.0001,Number.isFinite(item.wingPhase)?item.wingPhase:0));
+     gl.depthMask(false);this.renderMesh(p,mesh,model);gl.depthMask(true);
+     this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uEcologyAlpha',1);
+    }else{this.setFloat(p,'uShip',1);this.renderMesh(p,mesh,model);}
    }
+   gl.depthMask(true);this.setFloat(p,'uEcologyAlpha',1);this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uShip',1);
   }
   // Draw the active ruin interior in the same 3D scene. The camera, avatar and
   // corridor layout are all site-local; no extra rendering surface or scene load.
@@ -2732,7 +2786,7 @@ class Renderer{
   }
  }
 
- dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
+ dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();this.freeMesh(this.ecologyOrgans.heart);this.freeMesh(this.ecologyOrgans.stomach);for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
 }
 root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:(planet,localDirection)=>ST.sample(planet,localDirection,groundHeight,field,shade,(body,d)=>Renderer.prototype.terrainNormal.call(null,body,d))};
 })(globalThis);
@@ -6717,9 +6771,9 @@ function world(body,seed=742,galaxy){
   reason:life?'Biochemistry/temperature/water threshold passed':'Unavailable water, temperature, pressure or inherited life potential'});
 }
 function agent(site,i,role,timeS,seed,traits){
- const h=site.id+':'+role+':'+i+':'+seed,adult=role==='predator'?(3+14*rand(h+':size')):(.4+5*rand(h+':size'));
+ const h=site.id+':'+role+':'+i+':'+seed,adult=role==='predator'?(3+14*rand(h+':size')):role==='flier'?(.25+1.8*rand(h+':size')):(.4+5*rand(h+':size'));
  return {id:'bio-'+hash(h).toString(36),role,ageS:DAY*(.5+rand(h+':age')*10),
-  lifeS:DAY*(role==='predator'?25:17)*(0.7+rand(h+':life')*.7),
+  lifeS:DAY*(role==='predator'?25:role==='flier'?12:17)*(0.7+rand(h+':life')*.7),
   massKg:adult*(.5+.5*rand(h+':mass')),sizeM:Math.pow(adult,1/3)*(.5+rand(h+':shape')*.8),
   energy:.5+.35*rand(h+':energy'),generation:0,lastEvent:'forage'};
 }
@@ -6730,6 +6784,12 @@ function seedPatch(site,body,seed=742,galaxy=null,atS=0){
  const floraKg=info.level>=2?(6+18*richness):(.4+3*richness);
  const agents=[];if(info.level>=3){
   for(let i=0;i<Math.min(4,2+Math.floor(rand(h+':herd')*3));i++)agents.push(agent(site,i,'grazer',atS,seed));
+  // Winged nectar-feeders are independent population members, not just a cosmetic grazer mesh.
+  // Dense enough air and high-tier biospheres allow occasional cross-site aerial visitors.
+  if(info.pressurePa>=22000&&(site.kind==='flier'||rand(h+':winged')>.72)){
+   const flyers=site.kind==='flier'?2:1;
+   for(let i=0;i<flyers;i++)agents.push(agent(site,i,'flier',atS,seed));
+  }
   if(info.level>=4&&rand(h+':hunter')>.3)agents.push(agent(site,0,'predator',atS,seed));
  }
  return {schema:SCHEMA,id:site.id,bodyId:body.id,seed,level:info.level,lastS:Math.max(0,Math.floor(atS/STEP_S)*STEP_S),
@@ -6777,12 +6837,14 @@ function tick(s,e){const dt=STEP_S/DAY;
  // Grazers consume vegetation; predators can capture a real individual.
  const survivors=[];
  for(const a of s.agents){
-  a.ageS+=STEP_S;const hunger=a.massKg*(a.role==='predator'?.025:.13)*dt;
+  // A prey eaten earlier this tick must not feed or metabolize after it died.
+  if(a.killed)continue;
+  a.ageS+=STEP_S;const hunger=a.massKg*(a.role==='predator'?.025:a.role==='flier'?.18:.13)*dt;
   let food=0;
-  if(a.role==='grazer'){
-   food=Math.min(s.plantKg,hunger*2.4);s.plantKg-=food;s.consumedPlantsKg+=food;
+  if(a.role==='grazer'||a.role==='flier'){
+   food=Math.min(s.plantKg,hunger*(a.role==='flier'?1.9:2.4));s.plantKg-=food;s.consumedPlantsKg+=food;
   }else{
-   const prey=s.agents.filter(x=>x.role==='grazer'&&x.ageS>DAY && x.energy<.75);
+   const prey=s.agents.filter(x=>(x.role==='grazer'||x.role==='flier')&&!x.killed&&x.ageS>DAY&&x.energy<.75);
    const chance=clamp((.1+.8*(1-a.energy))*(prey.length/4)*dt);
    if(prey.length&&rand(a.id+':hunt:'+s.stepNo)<chance){
     const victim=prey[Math.floor(rand(a.id+':target:'+s.stepNo)*prey.length)];
@@ -6797,7 +6859,7 @@ function tick(s,e){const dt=STEP_S/DAY;
   a.energy=clamp(a.energy+(food/Math.max(EPS,hunger)-1)*.11*dt,0,1);
   a.lastEvent=food>0?(a.role==='predator'?'hunting':'grazing'):'hungry';
   // Resting metabolism burns stored mass (not created mass).
-  const basal=Math.min(a.massKg,a.massKg*(a.role==='predator'?.008:.014)*dt);
+  const basal=Math.min(a.massKg,a.massKg*(a.role==='predator'?.008:a.role==='flier'?.024:.014)*dt);
   a.massKg-=basal;const basalOx=respire(s,basal);s.detritusKg+=basal-basalOx;
   if(a.killed||a.ageS>=a.lifeS||a.massKg<.035||a.energy<=.005){
     if(!a.killed)s.deaths++;
@@ -6810,8 +6872,8 @@ function tick(s,e){const dt=STEP_S/DAY;
  // Reproduction is paid for by parent mass/energy; a new unique individual is born.
  for(const a of s.agents.slice()){
   if(s.agents.length>=MAX_AGENTS)break;
-  const maturity=DAY*(a.role==='predator'?7:4);
-  if(a.ageS<maturity||a.energy<.79||a.massKg<(a.role==='predator'?3:1))continue;
+  const maturity=DAY*(a.role==='predator'?7:a.role==='flier'?3:4);
+  if(a.ageS<maturity||a.energy<.79||a.massKg<(a.role==='predator'?3:a.role==='flier'?.24:1))continue;
   if(rand(a.id+':birth:'+s.stepNo)>.030*dt)continue;
   const childMass=a.massKg*.25;a.massKg-=childMass;a.energy-=.23;
   const id='bio-'+hash(s.id+':offspring:'+s.serial+':'+s.seed).toString(36);
@@ -6844,7 +6906,7 @@ function sanitize(input){if(!Array.isArray(input))return [];
    !Number.isInteger(s.stepNo)||s.stepNo<0||!Number.isInteger(s.serial)||s.serial<0||
    !['plantKg','detritusKg','waterKg','carbonDioxideKg','oxygenKg','fertility'].every(k=>finite(s[k])&&s[k]>=0)||
    !Array.isArray(s.agents)||s.agents.length>MAX_AGENTS||seen.has(s.bodyId+':'+s.id))continue;
-  const agents=s.agents.filter(a=>a&&typeof a.id==='string'&&['grazer','predator'].includes(a.role)&&
+  const agents=s.agents.filter(a=>a&&typeof a.id==='string'&&['grazer','flier','predator'].includes(a.role)&&
     ['ageS','lifeS','massKg','sizeM','energy'].every(k=>finite(a[k])&&a[k]>=0)).slice(0,MAX_AGENTS);
   if(agents.length!==s.agents.length)continue;
   seen.add(s.bodyId+':'+s.id);out.push({...s,agents});if(out.length>=MAX_PATCHES)break;
@@ -20042,13 +20104,15 @@ function detail(){const site=current(),ctx=context(),element=$('ecology-detail')
  element.textContent='SITE '+site.id+'\n'+(stage>=2?kind.label:'Unclassified ecological anomaly')+'\n'+site.biome+' · '+site.distance.toFixed(1)+' scene units\nStatus: '+['UNSURVEYED','REMOTE SURVEY','CLOSE OBSERVATION','INSTRUMENT-CORROBORATED'][stage]+'\n'+(stage>=1?'Signal: '+kind.signal+'\n':'')+(stage>=2?'Morphology model: '+site.kind+' · '+site.speciesId+'\n':'')+(site.kind==='fossil'?'Mineral evidence nearby: ':'Bioassay readings nearby: ')+available.length+'\n'+(available.length?'Newest index: '+available.at(-1).value.toFixed(2)+' ± '+available.at(-1).uncertainty.toFixed(2)+'\n':'')+'This is a fictional seeded hypothesis, NOT confirmed biology.'+
  (()=>{const p=living(site,ctx);return !p?'\nNo active local food web.':
  '\n\nLIVING PATCH (100m² model)\nProducers: '+p.plantKg.toFixed(2)+' kg   ·  grazers: '+p.agents.filter(a=>a.role==='grazer').length+
- '   ·  predators: '+p.agents.filter(a=>a.role==='predator').length+
+ '   ·  flyers: '+p.agents.filter(a=>a.role==='flier').length+
+  '   ·  predators: '+p.agents.filter(a=>a.role==='predator').length+
  '\nWater: '+p.waterKg.toFixed(2)+' kg   ·  fertility: '+Math.round(p.fertility*100)+'%'+
  '\nCO₂: '+p.carbonDioxideKg.toFixed(2)+' kg   ·  O₂: '+p.oxygenKg.toFixed(2)+' kg'+
  '\nDetritus: '+p.detritusKg.toFixed(2)+' kg   ·  born: '+p.births+'   ·  died: '+p.deaths+
  '\nConsumed plants: '+p.consumedPlantsKg.toFixed(2)+' kg   ·  predation: '+p.kills+
  '\nSpecies diversity estimate: '+p.speciesCount+'   ·  intelligence tier: '+p.intelligenceTier+
- '\nModel clock: '+Math.round(p.lastS)+' s (may be catching up)';})() ;
+ '\nTranslucent creature anatomy: pulsing red heart, amber digestive sac; winged foragers flap and glide.'+
+  '\nModel clock: '+Math.round(p.lastS)+' s (may be catching up)';})() ;
  $('ecology-notes').value=r?.note||'';
 }
 function render(){const ctx=region(true),listing=$('ecology-sites');listing.replaceChildren();if(!ctx){$('ecology-context').textContent='Land on a solid world and explore its surface.';$('ecology-detail').textContent='No accessible surface.';return;}
@@ -20064,12 +20128,12 @@ function operate(stage){try{const ctx=region(true),s=current();if(!ctx||!s)throw
  }catch(err){status(err.message,true);}}
 function exportData(){const blob=new Blob([JSON.stringify({schema:1,seed:RT.galaxy.seed,model:'fictional seeded local biospheres, NOT a planetary gas ledger',records,biospheres},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='starfall-ecology-journal.json';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)return[];
- const objects=[],addObject=(site,kind,local,altitude=0,id=site.id,size=1,behavior='idle')=>{
+ const objects=[],addObject=(site,kind,local,altitude=0,id=site.id,size=1,behavior='idle',anatomy=null)=>{
   if(objects.length>=18)return;
   const surface=sample(ctx.body,local),worldDir=V.rot(local,ctx.body.spinAxis||[0,1,0],ctx.body.spinAngle||0),
   position=V.add(ctx.body.position,V.mul(worldDir,ctx.body.radius+surface.height+altitude+.1)),
   frame=E.basis(local),fw=V.rot(frame.north,ctx.body.spinAxis||[0,1,0],ctx.body.spinAngle||0);
-  objects.push({id,kind,position,up:worldDir,forward:fw,scale:Math.max(.22,Math.min(2.5,size)),behavior});
+  objects.push({id,kind,position,up:worldDir,forward:fw,scale:Math.max(.22,Math.min(2.5,size)),behavior,...(anatomy||{})});
  };
  for(const site of candidates){
   if(objects.length>=18)break;if(site.distance>230)continue;
@@ -20081,18 +20145,25 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
   if(patch){
    if(patch.plantKg>.05){
     const type=site.kind==='spores'?'spores':'microbial';
-    addObject(site,type,site.local,0,site.id+':producers',Math.max(.3,Math.min(1.8,Math.sqrt(patch.plantKg/12))),'growing');
+    addObject(site,type,site.local,0,site.id+':producers',Math.max(.3,Math.min(1.8,Math.sqrt(patch.plantKg/12))),'growing',{alive:true});
    }
    for(const animal of patch.agents){
     if(objects.length>=18)break;
-    const phase=(animal.id.length*1.754+(animal.generation||0)*.7);
-    const x=Math.cos(RT.time/(300+animal.sizeM*150)+phase)*Math.min(8,2+animal.sizeM*3);
-    const z=Math.sin(RT.time/(380+animal.sizeM*150)+phase)*Math.min(8,2+animal.sizeM*3);
+    // Each organism uses a stable phase; air foragers occupy a true flying volume.
+    const phase=root.StarfallFieldScience.rand(animal.id+':flight')*Math.PI*2;
+    const flying=animal.role==='flier',speed=flying?24+animal.sizeM*7:300+animal.sizeM*150;
+    const span=flying?Math.min(18,8+animal.sizeM*4):Math.min(8,2+animal.sizeM*3);
+    const x=Math.cos(RT.time/speed+phase)*span;
+    const z=Math.sin(RT.time/(speed*1.16)+phase)*span*.83;
     const local=E.offset(site.local,x,z,ctx.body.radius);
-    const kind=animal.role==='predator'?(site.kind==='flier'?'flier':'crawler'):
-      site.kind==='flier'?'flier':site.kind==='crawler'?'crawler':'grazer';
-    addObject(site,kind,local,kind==='flier'?2:0,animal.id,
-      Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent);
+    const kind=flying?'flier':animal.role==='predator'?'crawler':site.kind==='crawler'?'crawler':'grazer';
+    const altitude=flying?7+2.8*Math.sin(RT.time/9+phase)+1.2*Math.cos(RT.time/17+phase):0;
+    addObject(site,kind,local,altitude,animal.id,
+      Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent,{
+       alive:true,heartPhase:RT.time*(animal.role==='predator'?5.2:flying?9.2:6.4)+phase,
+       digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
+       wingPhase:flying?((RT.time*8.3+phase)%(Math.PI*2)+.0001):0
+      });
    }
   }else if(site.kind==='microbial'||site.kind==='spores'){
    // A local candidate is not a guaranteed living population.

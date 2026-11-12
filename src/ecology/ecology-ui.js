@@ -33,13 +33,15 @@ function detail(){const site=current(),ctx=context(),element=$('ecology-detail')
  element.textContent='SITE '+site.id+'\n'+(stage>=2?kind.label:'Unclassified ecological anomaly')+'\n'+site.biome+' · '+site.distance.toFixed(1)+' scene units\nStatus: '+['UNSURVEYED','REMOTE SURVEY','CLOSE OBSERVATION','INSTRUMENT-CORROBORATED'][stage]+'\n'+(stage>=1?'Signal: '+kind.signal+'\n':'')+(stage>=2?'Morphology model: '+site.kind+' · '+site.speciesId+'\n':'')+(site.kind==='fossil'?'Mineral evidence nearby: ':'Bioassay readings nearby: ')+available.length+'\n'+(available.length?'Newest index: '+available.at(-1).value.toFixed(2)+' ± '+available.at(-1).uncertainty.toFixed(2)+'\n':'')+'This is a fictional seeded hypothesis, NOT confirmed biology.'+
  (()=>{const p=living(site,ctx);return !p?'\nNo active local food web.':
  '\n\nLIVING PATCH (100m² model)\nProducers: '+p.plantKg.toFixed(2)+' kg   ·  grazers: '+p.agents.filter(a=>a.role==='grazer').length+
- '   ·  predators: '+p.agents.filter(a=>a.role==='predator').length+
+ '   ·  flyers: '+p.agents.filter(a=>a.role==='flier').length+
+  '   ·  predators: '+p.agents.filter(a=>a.role==='predator').length+
  '\nWater: '+p.waterKg.toFixed(2)+' kg   ·  fertility: '+Math.round(p.fertility*100)+'%'+
  '\nCO₂: '+p.carbonDioxideKg.toFixed(2)+' kg   ·  O₂: '+p.oxygenKg.toFixed(2)+' kg'+
  '\nDetritus: '+p.detritusKg.toFixed(2)+' kg   ·  born: '+p.births+'   ·  died: '+p.deaths+
  '\nConsumed plants: '+p.consumedPlantsKg.toFixed(2)+' kg   ·  predation: '+p.kills+
  '\nSpecies diversity estimate: '+p.speciesCount+'   ·  intelligence tier: '+p.intelligenceTier+
- '\nModel clock: '+Math.round(p.lastS)+' s (may be catching up)';})() ;
+ '\nTranslucent creature anatomy: pulsing red heart, amber digestive sac; winged foragers flap and glide.'+
+  '\nModel clock: '+Math.round(p.lastS)+' s (may be catching up)';})() ;
  $('ecology-notes').value=r?.note||'';
 }
 function render(){const ctx=region(true),listing=$('ecology-sites');listing.replaceChildren();if(!ctx){$('ecology-context').textContent='Land on a solid world and explore its surface.';$('ecology-detail').textContent='No accessible surface.';return;}
@@ -55,12 +57,12 @@ function operate(stage){try{const ctx=region(true),s=current();if(!ctx||!s)throw
  }catch(err){status(err.message,true);}}
 function exportData(){const blob=new Blob([JSON.stringify({schema:1,seed:RT.galaxy.seed,model:'fictional seeded local biospheres, NOT a planetary gas ledger',records,biospheres},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='starfall-ecology-journal.json';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)return[];
- const objects=[],addObject=(site,kind,local,altitude=0,id=site.id,size=1,behavior='idle')=>{
+ const objects=[],addObject=(site,kind,local,altitude=0,id=site.id,size=1,behavior='idle',anatomy=null)=>{
   if(objects.length>=18)return;
   const surface=sample(ctx.body,local),worldDir=V.rot(local,ctx.body.spinAxis||[0,1,0],ctx.body.spinAngle||0),
   position=V.add(ctx.body.position,V.mul(worldDir,ctx.body.radius+surface.height+altitude+.1)),
   frame=E.basis(local),fw=V.rot(frame.north,ctx.body.spinAxis||[0,1,0],ctx.body.spinAngle||0);
-  objects.push({id,kind,position,up:worldDir,forward:fw,scale:Math.max(.22,Math.min(2.5,size)),behavior});
+  objects.push({id,kind,position,up:worldDir,forward:fw,scale:Math.max(.22,Math.min(2.5,size)),behavior,...(anatomy||{})});
  };
  for(const site of candidates){
   if(objects.length>=18)break;if(site.distance>230)continue;
@@ -72,18 +74,25 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
   if(patch){
    if(patch.plantKg>.05){
     const type=site.kind==='spores'?'spores':'microbial';
-    addObject(site,type,site.local,0,site.id+':producers',Math.max(.3,Math.min(1.8,Math.sqrt(patch.plantKg/12))),'growing');
+    addObject(site,type,site.local,0,site.id+':producers',Math.max(.3,Math.min(1.8,Math.sqrt(patch.plantKg/12))),'growing',{alive:true});
    }
    for(const animal of patch.agents){
     if(objects.length>=18)break;
-    const phase=(animal.id.length*1.754+(animal.generation||0)*.7);
-    const x=Math.cos(RT.time/(300+animal.sizeM*150)+phase)*Math.min(8,2+animal.sizeM*3);
-    const z=Math.sin(RT.time/(380+animal.sizeM*150)+phase)*Math.min(8,2+animal.sizeM*3);
+    // Each organism uses a stable phase; air foragers occupy a true flying volume.
+    const phase=root.StarfallFieldScience.rand(animal.id+':flight')*Math.PI*2;
+    const flying=animal.role==='flier',speed=flying?24+animal.sizeM*7:300+animal.sizeM*150;
+    const span=flying?Math.min(18,8+animal.sizeM*4):Math.min(8,2+animal.sizeM*3);
+    const x=Math.cos(RT.time/speed+phase)*span;
+    const z=Math.sin(RT.time/(speed*1.16)+phase)*span*.83;
     const local=E.offset(site.local,x,z,ctx.body.radius);
-    const kind=animal.role==='predator'?(site.kind==='flier'?'flier':'crawler'):
-      site.kind==='flier'?'flier':site.kind==='crawler'?'crawler':'grazer';
-    addObject(site,kind,local,kind==='flier'?2:0,animal.id,
-      Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent);
+    const kind=flying?'flier':animal.role==='predator'?'crawler':site.kind==='crawler'?'crawler':'grazer';
+    const altitude=flying?7+2.8*Math.sin(RT.time/9+phase)+1.2*Math.cos(RT.time/17+phase):0;
+    addObject(site,kind,local,altitude,animal.id,
+      Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent,{
+       alive:true,heartPhase:RT.time*(animal.role==='predator'?5.2:flying?9.2:6.4)+phase,
+       digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
+       wingPhase:flying?((RT.time*8.3+phase)%(Math.PI*2)+.0001):0
+      });
    }
   }else if(site.kind==='microbial'||site.kind==='spores'){
    // A local candidate is not a guaranteed living population.
