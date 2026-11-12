@@ -76,16 +76,47 @@ function step(original,agent,peers=[],env={},dt=DT){
  s.v[0]+=(dx/d*targetSpeed-s.v[0])*steer;
  s.v[1]+=(dz/d*targetSpeed-s.v[1])*steer;
  let next=[s.p[0]+s.v[0]*dt,s.p[1]+s.v[1]*dt];
- // No crossing cliffs, lakes, ridges or the local model patch edge.
- if(len(...next)>MAX_RANGE){const scale=MAX_RANGE/len(...next);next=next.map(x=>x*scale);s.v[0]*=-.45;s.v[1]*=-.45;}
- if(typeof env.traversable==='function'&&!env.traversable(next[0],next[1],agent.role)){
-  s.v=[-s.v[1]*.8,s.v[0]*.8];next=[s.p[0]+s.v[0]*dt,s.p[1]+s.v[1]*dt];
-  if(!env.traversable(next[0],next[1],agent.role)){next=s.p.slice();s.v=[0,0];}
-  s.behavior='avoiding terrain';
- }else s.behavior=intent.action;
+ // Probe a full local fan of possible surface headings instead of returning
+ // zero velocity when two orthogonal collision attempts both fail.
+ const allowed=(x,z)=>len(x,z)<=MAX_RANGE+1e-9&&
+  (typeof env.traversable!=='function'||env.traversable(x,z,agent.role));
+ let clear=allowed(next[0],next[1]);
+ if(!clear){
+  // Try short step-sized sweeps first, then tangential/anti-obstacle motion.
+  // Terrain probing is deterministic per agent; no random frame-to-frame jitter.
+  const speed=Math.max(.22,Math.min(6.5,len(...s.v),intent.pace));
+  const preferred=Math.atan2(s.v[1],s.v[0]);
+  const offsets=[PI/6,-PI/6,PI/3,-PI/3,PI/2,-PI/2,
+                 2*PI/3,-2*PI/3,5*PI/6,-5*PI/6,PI];
+  const spin=seed(agent.id+':obstacle')>.5?1:-1;
+  const probes=[preferred,...offsets.map(o=>preferred+spin*o)];
+  for(const head of probes){
+   for(const stepLength of [speed*dt,.5*speed*dt,.25*speed*dt]){
+    if(stepLength<.001)continue;
+    const trial=[s.p[0]+Math.cos(head)*stepLength,s.p[1]+Math.sin(head)*stepLength];
+    if(!allowed(...trial))continue;
+    next=trial;s.v=[Math.cos(head)*stepLength/dt,Math.sin(head)*stepLength/dt];
+    clear=true;break;
+   }
+   if(clear)break;
+  }
+  if(clear){
+   s.behavior='navigating terrain';s.stuck=0;
+  }else{
+   next=s.p.slice();s.v=[0,0];
+   s.stuck=Math.min(250,(s.stuck||0)+1);
+   s.behavior='blocked by impassable terrain';
+  }
+ }else{
+  s.behavior=intent.action;s.stuck=0;
+ }
+
  s.p=next;s.t+=dt;
  const speed=len(...s.v);
  if(speed>.06)s.heading=Math.atan2(s.v[1],s.v[0]);
+ // Alert animals also have clearly visible weight shifts/head motions when
+ // feeding or when immobilized by a genuinely enclosed obstacle.
+ if(speed<=.06)s.heading+=dt*.26*Math.sin(s.t*.81+TAU*seed(agent.id+':look'));
  s.gait=(s.gait+dt*(agent.role==='grazer'?3.9:agent.role==='detritivore'?6.5:agent.role==='predator'?5.9:4.7)*Math.max(.30,speed))%TAU;
  s.pulse=(s.pulse+dt*(agent.role==='filterer'?4.6:3.2))%TAU;
  if(agent.role==='filterer'||agent.role==='aquatic_predator'){
