@@ -40,7 +40,7 @@ assert.equal(initialHistory.history[0].target,'wild-first');
 assert.equal(initialHistory.history[0].model,'procedural estimate');
 assert.deepEqual(journal.list()[0],obs,'4A observation is never fabricated by multitool');
 assert.throws(()=>Tool.record(original,{...obs,bodyId:'another'},job),/mismatched/);
-assert.equal(Tool.applyCharge(initialHistory,1000).batteryJ,initialHistory.batteryJ+1000);
+assert.equal(Tool.applyCharge(initialHistory,300).batteryJ,initialHistory.batteryJ+300);
 assert.equal(Tool.applyCharge(original,800).batteryJ,Tool.CAPACITY_J,'battery cannot exceed cap');
 assert.throws(()=>Tool.applyCharge(original,-1),/Invalid/);
 const pos=[0,0,0],f=[0,0,-1],items=[
