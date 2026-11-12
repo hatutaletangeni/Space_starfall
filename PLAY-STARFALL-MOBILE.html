@@ -497,6 +497,38 @@ body.sfmobile-edition #sf-resource-tests8er button{padding:6px;font-size:9px}
 
 </style>
 <style>
+/* STARFALL 9G — compact accessible in-EVA instrument screen.
+ * No drag selection on touch, safe-area aware, does not alter old HUD DOM.
+ */
+#multitool9g[hidden]{display:none!important}
+#multitool9g{box-sizing:border-box;position:fixed;z-index:84;right:max(14px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));width:min(300px,calc(100vw - 28px));color:#d7f8ff;background:rgba(5,19,29,.91);border:1px solid rgba(97,222,235,.38);box-shadow:0 14px 34px rgba(0,0,0,.47),inset 0 1px 0 rgba(136,246,255,.12);border-radius:14px;padding:11px 13px 12px;font:500 12px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif;user-select:none;-webkit-user-select:none;touch-action:manipulation;backdrop-filter:blur(12px)}
+#multitool9g *{box-sizing:border-box}
+#multitool9g .mt9g-heading{display:flex;align-items:center;justify-content:space-between;gap:7px;font-weight:750;letter-spacing:.12em;color:#7cecff}
+#multitool9g .mt9g-sub{color:#8eaab5;font-size:10px;font-weight:550;letter-spacing:.04em}
+#multitool9g .mt9g-bar{height:5px;border-radius:12px;overflow:hidden;background:#1d3844;margin:8px 0}
+#multitool9g .mt9g-energy{height:100%;background:linear-gradient(90deg,#4ba7ff,#4aeee0);transition:width .18s linear}
+#multitool9g .mt9g-field{display:flex;align-items:center;gap:8px;margin:9px 0}
+#multitool9g label{font-size:10px;color:#9ed2e0;white-space:nowrap}
+#multitool9g select{flex:1;min-width:0;appearance:auto;background:#102e3e;color:#e9fbff;border:1px solid #376477;border-radius:8px;padding:8px 6px;font:700 12px system-ui}
+#multitool9g .mt9g-actions{display:flex;gap:7px}
+#multitool9g button{min-height:35px;border-radius:8px;border:1px solid #447588;background:#183441;color:#d5f7fa;font:750 11px system-ui;letter-spacing:.035em;cursor:pointer;padding:6px 10px;touch-action:manipulation}
+#multitool9g button:focus-visible,#multitool9g select:focus-visible{outline:2px solid #74edff;outline-offset:2px}
+#multitool9g button:disabled{opacity:.43;cursor:not-allowed}
+#multitool9g .mt9g-scan{flex:1;border-color:#2ba8b9;background:linear-gradient(120deg,#10495e,#186a72);color:#e2ffff;font-size:12px}
+#multitool9g .mt9g-charge{width:92px}
+#multitool9g .mt9g-target{font-size:10px;min-height:17px;color:#96c8d0;margin:8px 0 3px;overflow-wrap:anywhere}
+#multitool9g .mt9g-readout{font:600 11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;min-height:30px;white-space:pre-wrap;overflow-wrap:anywhere;color:#d7f7de}
+#multitool9g .mt9g-progress{height:4px;border-radius:8px;background:#223a47;margin-top:7px;overflow:hidden}
+#multitool9g .mt9g-progress > span{height:100%;width:0;background:#e1c66c;display:block;transition:width .1s linear}
+#multitool9g .mt9g-actions button:active{transform:translateY(1px)}
+#multitool9g .mt9g-shortcuts{font-size:9px;color:#7797a4;margin-top:5px}
+body.sfmobile-edition #multitool9g{right:max(9px,env(safe-area-inset-right));bottom:clamp(110px,29dvh,164px);width:min(262px,37vw);max-height:calc(100dvh - clamp(110px,29dvh,164px) - 8px);overflow:auto;padding:9px 10px}
+body.sfmobile-edition #multitool9g .mt9g-shortcuts{display:none}
+@media(max-height:560px){#multitool9g{bottom:max(8px,env(safe-area-inset-bottom));padding:8px 10px}#multitool9g .mt9g-bar{margin:5px 0}#multitool9g .mt9g-field{margin:6px 0}#multitool9g .mt9g-target{margin:5px 0 2px}}
+@media(max-width:700px) and (orientation:portrait){#multitool9g{right:7px;bottom:7px;width:min(280px,calc(100vw - 14px))}}
+
+</style>
+<style>
 /* STARFALL standalone mobile edition: landscape touch UI, no font selection on taps. */
 html,body.sfmobile-edition{overscroll-behavior:none}
 .sfmobile-edition :is(button,a,[role="button"]),.sfmobile-edition :is(button,a,[role="button"]) *{
@@ -2448,11 +2480,32 @@ function createExplorerMesh(gl){
  const cape=sculpt();cape.box(-.35,2.03,.50,.35,2.46,.57,C.dark);cape.tube([-.25,2.43,.47],[.25,2.43,.47],.055,.055,C.trim,8);
  const legs=[];for(const side of [-1,1]){const b=sculpt();b.tube([0,-.02,0],[0,-.52,0],.202,.17,C.suit,9);b.oval([0,-.56,-.03],.19,.16,.20,C.dark);b.tube([0,-.61,0],[0,-1.16,0],.17,.145,C.light,9);b.box(-.20,-1.39,-.30,.20,-1.12,.20,C.rubber);b.box(-.19,-1.28,-.36,.19,-1.17,-.24,C.steel);b.box(-.185,-.68,-.21,.185,-.51,-.165,side===-1?C.trim:C.dark);legs.push(b.finish());}
  const arms=[];for(const side of [-1,1]){const a=sculpt();a.oval([0,-.1,0],.245,.20,.25,C.steel);a.tube([0,-.15,0],[side*.10,-.54,0],.194,.16,C.suit,9);a.tube([side*.10,-.56,0],[side*.10,-.86,0],.165,.17,C.undersuit,9);a.box(side*.10-.18,-.83,-.19,side*.10+.18,-.66,.17,C.dark);a.oval([side*.10,-1.02,0],.142,.17,.15,C.rubber);a.box(side*.10-.10,-.79,-.205,side*.10+.10,-.69,-.18,C.trim);arms.push(a.finish());}
- const staff=sculpt(); // folded sampling tool, compact rather than an oversized staff
- staff.box(-.68,.94,-.10,-.58,1.88,-.04,C.steel);staff.box(-.73,1.84,-.14,-.53,2.01,.06,C.light);staff.box(-.68,1.92,-.16,-.58,1.98,-.14,C.visor);
- const glow=sculpt();glow.box(-.10,1.87,-.44,.10,1.93,-.42,C.glow);glow.box(-.15,2.90,-.37,.15,2.94,-.34,C.glow2);
- const staffGlow=sculpt();staffGlow.box(-.67,1.92,-.18,-.59,1.97,-.15,C.glow);
- return{body:body.finish(),cape:cape.finish(),legs,arms,staff:staff.finish(),glow:glow.finish(),staffGlow:staffGlow.finish()};
+ const staff=sculpt(); // 9G: actual calibrated sensor housing held at the glove
+ // A handgrip, shielded battery, readout, and five-collar sensor aperture.
+ staff.box(-.70,.95,-.13,-.57,1.64,.00,C.rubber);
+ staff.box(-.735,1.25,-.16,-.535,1.56,.03,C.steel);
+ staff.box(-.765,1.48,-.205,-.505,1.83,.045,C.light);
+ staff.box(-.747,1.54,-.216,-.52,1.76,-.203,C.visor);
+ staff.box(-.715,1.83,-.17,-.55,2.03,.06,C.steel);
+ staff.box(-.754,1.94,-.235,-.515,2.015,-.165,C.trim);
+ for(const y of [1.12,1.23,1.34])staff.box(-.72,y,-.15,-.55,y+.022,.025,C.dark);
+ // Lens points in front of the player's hand, aligned with -Z camera-forward.
+ staff.box(-.700,1.83,-.37,-.572,1.99,-.20,C.dark);
+ staff.box(-.688,1.854,-.399,-.585,1.960,-.365,C.visor);
+ const glow=sculpt();glow.box(-.10,1.87,-.44,.10,1.93,-.42,C.glow);
+ glow.box(-.15,2.90,-.37,.15,2.94,-.34,C.glow2);
+ const staffGlow=sculpt();staffGlow.box(-.713,1.59,-.222,-.551,1.73,-.217,C.glow);
+ staffGlow.box(-.685,1.875,-.418,-.589,1.948,-.408,C.glow2);
+ const scanBeam=sculpt();
+ // A bounded, emissive triangulated scan fan. This geometry is created ONCE
+ // and only drawn during an actual 4A instrument acquisition.
+ for(const x of [-.14,0,.14]){
+   scanBeam.tube([-.637,1.91,-.43],[-.637+x,1.91+Math.abs(x)*.4,-12.8],
+     .018,.008,C.glow,5);
+ }
+ scanBeam.tube([-.637,1.91,-.44],[-.637,1.91,-15.0],.025,.010,C.glow2,6);
+ return{body:body.finish(),cape:cape.finish(),legs,arms,
+  staff:staff.finish(),glow:glow.finish(),staffGlow:staffGlow.finish(),scanBeam:scanBeam.finish()};
 }
 
 function rand(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
@@ -2918,7 +2971,8 @@ class Renderer{
    this.setFloat(p,'uShip',2); // Only the cyan devices are emissive at night.
    this.renderMesh(p,parts.glow,basis);
    this.renderMesh(p,parts.staffGlow,M.mul(basis,M.spin([0,0,0],[1,0,0],-.018*Math.sin(phase))));
-   this.avatarDrawCalls=9;
+   if(state.avatarToolScanning)this.renderMesh(p,parts.scanBeam,basis);
+   this.avatarDrawCalls=state.avatarToolScanning?10:9;
   }else this.avatarDrawCalls=0;
   // Infrastructure uses fixed meshes, scene-relative transforms and normal depth testing.
   // No geometry allocation or global structure traversal occurs in render().
@@ -3050,7 +3104,7 @@ class Renderer{
   }
  }
 
- dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();this.freeMesh(this.ecologyOrgans.heart);this.freeMesh(this.ecologyOrgans.stomach);for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
+ dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();this.freeMesh(this.ecologyOrgans.heart);this.freeMesh(this.ecologyOrgans.stomach);for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow,this.avatarParts.scanBeam])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
 }
 root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:(planet,localDirection)=>ST.sample(planet,localDirection,groundHeight,field,shade,(body,d)=>Renderer.prototype.terrainNormal.call(null,body,d))};
 })(globalThis);
@@ -4021,6 +4075,100 @@ function journal(saved){const entries=Array.isArray(saved?.entries)?saved.entrie
 function csv(entries){const headers=['id','bodyId','instrument','parameter','value','unit','uncertainty','timeS','model','biome','location'];const encode=v=>'"'+String(v??'').replace(/"/g,'""')+'"';return headers.join(',')+'\n'+entries.map(e=>headers.map(h=>encode(h==='location'?e.location?.join(' / '):e[h])).join(',')).join('\n')+'\n';}
 root.StarfallFieldScience={hash,rand,profile,localTruth,sample,journal,csv,INSTRUMENTS};if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallFieldScience;
 })(globalThis);
+
+</script><script>
+/* STARFALL 9G — suit-handheld sensor model.
+ * The scanner reuses original 4A/T14 readings and 4A science journal. The
+ * battery is finite; only RT's real ship power transfer can refill it.
+ * This state machine never creates natural resources or fictional evidence.
+ */
+(function(root){'use strict';
+const CAPACITY_J=18000,MAX_LOG=36;
+const MODES=Object.freeze([
+ Object.freeze({key:'geology',instrument:'spectrometer',label:'GEO',purpose:'Local silicate content'}),
+ Object.freeze({key:'life',instrument:'bioassay',label:'LIFE',purpose:'Local biosignature index'}),
+ Object.freeze({key:'temperature',instrument:'thermometer',label:'TEMP',purpose:'Local temperature'}),
+ Object.freeze({key:'atmosphere',instrument:'barometer',label:'AIR',purpose:'Local surface pressure'}),
+ Object.freeze({key:'magnetic',instrument:'magnetometer',label:'MAG',purpose:'Local magnetic field'})
+]);
+const finite=n=>typeof n==='number'&&Number.isFinite(n);
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+function sanitize(saved){
+ const s=saved&&typeof saved==='object'?saved:{};
+ const valid=MODES.some(x=>x.key===s.mode)?s.mode:'geology';
+ const history=Array.isArray(s.history)?s.history.filter(x=>x&&typeof x.id==='string'&&x.id.length<100&&
+  typeof x.bodyId==='string'&&x.bodyId.length<180&&
+  typeof x.instrument==='string'&&finite(x.value)&&finite(x.timeS)&&x.timeS>=0&&
+  (x.target===null||x.target===undefined||typeof x.target==='string')).slice(-MAX_LOG):[];
+ return{schema:1,batteryJ:finite(s.batteryJ)?clamp(s.batteryJ,0,CAPACITY_J):CAPACITY_J,
+  mode:valid,history,completed:Math.max(0,Math.min(999999,Number.isInteger(s.completed)?s.completed:0))};
+}
+function nextMode(mode){const i=MODES.findIndex(x=>x.key===mode);return MODES[(i+1+MODES.length)%MODES.length];}
+function mode(mode){return MODES.find(x=>x.key===mode)||MODES[0];}
+function selectTarget(objects,position,forward,{maxRange=82,cosHalfAngle=.70}={}){
+ if(!Array.isArray(objects)||!Array.isArray(position)||!Array.isArray(forward)||
+   position.length!==3||forward.length!==3||!position.every(finite)||!forward.every(finite))return null;
+ const fmag=Math.hypot(...forward);if(fmag<.5)return null;
+ const candidates=[];
+ for(const obj of objects.slice(0,36)){
+  if(!obj?.alive||!Array.isArray(obj.position)||!obj.position.every(finite)||!obj.id||!obj.kind)continue;
+  const delta=obj.position.map((x,i)=>x-position[i]),distance=Math.hypot(...delta);
+  if(distance>maxRange||distance<1.3)continue;
+  const alignment=delta.reduce((sum,v,i)=>sum+v*forward[i],0)/(distance*fmag);
+  if(alignment<cosHalfAngle)continue;
+  candidates.push({id:String(obj.id).slice(0,100),kind:String(obj.kind).slice(0,36),
+   behavior:String(obj.behavior||'unobserved').slice(0,90),rangeScene:distance,
+   candidateOnly:!!obj.encounterOnly,alignment,score:alignment*3-distance/maxRange});
+ }
+ candidates.sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
+ return candidates[0]||null;
+}
+function begin(s,ctx,spec){
+ if(!ctx?.landed||!ctx.eva||ctx.truckOccupied||ctx.manufacturedOccupied||
+   !ctx.body?.landable||!Array.isArray(ctx.local)||ctx.local.length!==3||
+   !ctx.local.every(finite))throw Error('Exit onto a landable planetary surface in EVA to scan');
+ if(!spec||!finite(spec.seconds)||spec.seconds<=0||!finite(spec.powerW)||spec.powerW<=0)
+  throw Error('Unsupported scanner instrument');
+ const cost=spec.seconds*spec.powerW;
+ if(s.batteryJ+1e-9<cost)throw Error('Multitool battery insufficient; recharge at a powered landed ship');
+ return{instrument:mode(s.mode).instrument,bodyId:ctx.body.id,local:ctx.local.slice(),
+  elapsed:0,seconds:spec.seconds,powerJ:cost,
+  // Finite-progress visual state. Completion is only after a real 4A receipt.
+  target:null};
+}
+function advance(job,dt,ctx,radius){
+ if(!job)return{status:'inactive',job:null};
+ if(!ctx?.landed||!ctx.eva||ctx.truckOccupied||ctx.manufacturedOccupied||
+  ctx.body?.id!==job.bodyId||!Array.isArray(ctx.local))
+  return{status:'cancelled',reason:'Scanner stopped: EVA or body changed',job:null};
+ const dot=ctx.local.reduce((a,x,i)=>a+x*job.local[i],0),d=Math.acos(clamp(dot,-1,1))*radius;
+ if(d>12)return{status:'cancelled',reason:'Scanner stopped: moved over 12 scene units from the sample site',job:null};
+ // A sensor uses wall time, not 9C flight time steps or the game's 40 ms
+ // physics frame cap. A 1-second upper bound prevents background-tab jumps.
+ const elapsed=clamp(job.elapsed+clamp(dt,0,1),0,job.seconds);
+ return{status:elapsed>=job.seconds?'ready':'sampling',job:{...job,elapsed},progress:elapsed/job.seconds};
+}
+function record(s,observation,job,target){
+ if(!observation?.id||observation.instrument!==job.instrument||observation.bodyId!==job.bodyId||
+   !finite(observation.value)||!finite(observation.timeS))
+  throw Error('Cannot record an unverified or mismatched instrument receipt');
+ if(s.batteryJ+1e-9<job.powerJ)throw Error('Multitool battery exhausted');
+ const entry={id:observation.id,bodyId:observation.bodyId,instrument:job.instrument,
+  value:observation.value,unit:observation.unit,uncertainty:observation.uncertainty,
+  timeS:observation.timeS,quality:observation.quality,
+  target:target?.id||null,targetKind:target?.kind||null,
+  model:observation.model||'procedural estimate'};
+ return{...s,batteryJ:Math.max(0,s.batteryJ-job.powerJ),completed:s.completed+1,
+   history:[...s.history,entry].slice(-MAX_LOG)};
+}
+function applyCharge(s,receivedJ){
+ if(!finite(receivedJ)||receivedJ<0||receivedJ>CAPACITY_J+1)throw Error('Invalid ship-paid scanner charge');
+ return{...s,batteryJ:clamp(s.batteryJ+receivedJ,0,CAPACITY_J)};
+}
+const API=Object.freeze({CAPACITY_J,MAX_LOG,MODES,sanitize,mode,nextMode,selectTarget,begin,advance,record,applyCharge});
+root.StarfallHandheldScanner9G=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
 /* STARFALL T14 — trusted sensor evidence and shared survey geography.
@@ -16534,14 +16682,14 @@ function updateDebrisHazards(now){
   vehicleStore.update('ship',{...previous,health:Math.max(0,previous.health-Math.min(.12,.02+V.len(vel)*.00015))});
  }
 }
-function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
- try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);updateDebrisHazards(now);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);window.StarfallMissionOperationsUI?.advanceTo(simTime);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
+function loop(now){const realDt=Math.max((now-lastTime)/1000,0),dt=Math.min(realDt,.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
+ try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);updateDebrisHazards(now);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallMultitoolUI9G?.tick)window.StarfallMultitoolUI9G.tick(document.hidden?0:Math.min(realDt,1));if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);window.StarfallMissionOperationsUI?.advanceTo(simTime);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
   const afterUpdate=started?performance.now():0;
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
   const portraitBase=eva&&!interiorState&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(swimming?Math.max(.03,(window.StarfallHydrosphereLW04?.material(nearest,GALAXY_SEED)?.seaLevelOffsetScene||2.1)-swimDepthScene-1.7):truckOccupied?3.4:.25)+rampLift+(eva&&!truckOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
   renderer.render({camera,swimming:swimming&&swimDepthScene>=.001,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,hidePlayerShip:shipWalking8e||camMode===1&&!eva&&!truckOccupied,shipWalkInterior:shipWalking8e,hidePlayerTruck:camMode===1&&truckOccupied,lightPosition:eva?pos:ship.position,headlampForward:eva?evaForward:forward,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,miningRig8D:!!mining8d.active&&miningContext8D().truckPresent,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:shipWalking8e&&camMode!==1?shipWalkWorld8E(-1.0):eva&&!truckOccupied&&!interiorState?portraitBase:null,
- avatarUp:shipWalking8e?ship.up:rad,avatarForward:shipWalking8e?shipWalkHeading8E():evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{kind:interiorState.kind||'ruin',siteId:site.id,tier:site.tier,site,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
+ avatarUp:shipWalking8e?ship.up:rad,avatarForward:shipWalking8e?shipWalkHeading8E():evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,avatarToolScanning:!!window.StarfallMultitoolUI9G?.isScanning,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{kind:interiorState.kind||'ruin',siteId:site.id,tier:site.tier,site,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
  if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
   window.StarfallAssetUI7A1?.tick();if(window.StarfallAssetUI7A1?.hasWorldSelection&&now-lastAssetHighlightAt>160){lastAssetHighlightAt=now;window.StarfallAssetUI7A1.syncHighlight({...camera,fov:renderer.fov},canvas,assetPickCandidates());}refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
@@ -16559,6 +16707,26 @@ updateBodyUI();setTimeout(()=>$('boot').classList.add('ready'),170);requestAnima
 function scienceContext(){const body=nearest,foot=eva&&!truckOccupied;
  const local=foot&&evaLocal?evaLocal:truckOccupied&&truckBody===body&&truckLocal?truckLocal:roverBody===body&&roverLocal?roverLocal:groundLocal;
  return{seed:GALAXY_SEED,body,bodyId:body?.id,simTime,local,mode:foot?'EVA':truckOccupied?'TRUCK':landed?'LANDED':'FLIGHT',altitudeM:foot?.6:truckOccupied?1.0:landed?SHIP_CLEARANCE:Math.max(0,altitude)*P.SCENE_METERS_PER_UNIT,roverLocal:roverBody===body?roverLocal:null,roverOccupied:false,roverExists:roverBody===body&&!!roverLocal,truckOccupied,landed,energy:vehicleStore.get('rover').state.energyJ,roverStats:vehicleStore.get('rover').stats,roverState:vehicleStore.get('rover').state,roverPowerEnabled:vehicleStore.get('rover').state.powerEnabled};}
+// 9G handheld multitool recharge. Transfer *existing* ship battery Joules
+// only when the EVA explorer is physically beside the landed powered ship.
+function rechargeHandheldScanner9G(requestJ){
+ if(!Number.isFinite(requestJ)||requestJ<=0||requestJ>18000)
+  throw Error('Invalid scanner charging request');
+ if(!landed||!eva||truckOccupied||manufacturedOccupied8G||interiorState||
+    !nearest?.landable||shipBody!==nearest)
+  throw Error('Scanner charging requires EVA beside your landed ship');
+ const shipPose=shipWorldState();
+ if(!shipPose?.position||V.len(V.sub(pos,shipPose.position))>32)
+  throw Error('Move within 32 scene units of your ship charging interface');
+ const ship=vehicleStore.get('ship'),stored=ship.state;
+ if(!stored.powerEnabled)throw Error('Switch ship electrical power ON before charging the scanner');
+ const requested=Math.floor(requestJ),available=Math.max(0,Math.floor(stored.energyJ));
+ const transfer=Math.min(requested,available);
+ if(transfer<1)throw Error('Ship battery depleted; restore vessel power to recharge multitool');
+ vehicleStore.update('ship',{...stored,energyJ:stored.energyJ-transfer});
+ persistVehicles();
+ return transfer;
+}
 function acquireFieldReading(instrument,nonce=0,fromRover=false){const data=scienceContext(),info=StarfallFieldScience.INSTRUMENTS[instrument];
  if(!data.body?.landable||!data.landed)throw Error('Land on a solid body before sampling');
  if(!fromRover&&!(eva||truckOccupied))throw Error('Leave the ship to use the instrument');
@@ -19236,7 +19404,7 @@ window.StarfallRuntime={galaxy,vehicleStore,industryCompletion8K,planetaryEngine
  shipPose:shipBody&&shipLocal?{bodyId:shipBody.id,systemId:shipBody.systemId,local:shipLocal}:null,
  roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,systemId:roverBody.systemId,local:roverLocal}:null,
  truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,batteryJ:truckBatteryJ}:null
-};},enterInterior,enterCave,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({spaceWeather:window.StarfallSpaceWeatherLW06?.nearest(galaxy,pos,simTime,GALAXY_SEED)||null,debrisNearby:renderer.debrisRendered||0,debrisRisk:latestDebrisWarning,pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
+};},enterInterior,enterCave,leaveInterior,get interiorState(){return interiorState?{...interiorState,at:{...interiorState.at}}:null;},outpostContext,outpostOffset,rechargeHandheldScanner9G,engineeringSystemReport:()=>engineeringSystemReport,renderStats:()=>({spaceWeather:window.StarfallSpaceWeatherLW06?.nearest(galaxy,pos,simTime,GALAXY_SEED)||null,debrisNearby:renderer.debrisRendered||0,debrisRisk:latestDebrisWarning,pixelRatio:renderer.pixelRatio,patchRebuilds:renderer.patchDraws,terrain:renderer.terrainDiagnostics(),meshCache:renderer.meshCache.size,ringCache:renderer.ringCache.size,infrastructureMeshes:renderer.infrastructure.size,renderedBodies:renderer.renderedBodies,culledBodies:renderer.culledBodies,visibleStars:renderer.starPoints,drawCalls:renderer.lastDrawCalls??null,galaxyCacheLoaded:galaxy.skyCatalog.filter(s=>!s.dormant).length}),configureVehicle,safeToReconfigure,equipmentSnapshotT15,restoreVehicleT15,persistVehicles,plotSurfaceWaypoint(bodyId,direction,name='Geothermal source'){
  const body=galaxy.byId.get(bodyId);
  if(!body?.landable||!Array.isArray(direction)||direction.length!==3||!direction.every(Number.isFinite))throw Error('Invalid geological surface waypoint');
  const directionUnit=V.norm(direction);if(V.len(directionUnit)<.99)throw Error('Invalid waypoint direction');
@@ -27254,6 +27422,155 @@ function refresh(){const r=root.StarfallRuntime;if(!r?.industryCompletion8K)retu
 }
 let last=0;function tick(t){if(t-last>1000){last=t;if(!section.closest('[hidden]'))refresh();}requestAnimationFrame(tick);}requestAnimationFrame(tick);
 root.StarfallIndustryCompletionUI8K={refresh};
+})(globalThis);
+
+</script>
+<aside id="multitool9g" hidden aria-label="EVA hand scanner" role="region">
+  <div class="mt9g-heading"><span>◈ SCANNER / MULTITOOL</span><span id="mt9g-battery" class="mt9g-sub">18,000 J</span></div>
+  <div class="mt9g-bar" aria-hidden="true"><div id="mt9g-energy" class="mt9g-energy" style="width:100%"></div></div>
+  <div class="mt9g-field"><label for="mt9g-mode">SENSOR</label><select id="mt9g-mode" aria-label="Scanner sensor mode"></select></div>
+  <div class="mt9g-actions">
+    <button id="mt9g-scan" class="mt9g-scan" type="button">SCAN</button>
+    <button id="mt9g-charge" class="mt9g-charge" type="button" title="Transfer real ship battery energy to the handheld cell">CHARGE</button>
+    <button id="mt9g-journal" type="button" title="Open canonical Field Science journal">LOG</button>
+  </div>
+  <div id="mt9g-target" class="mt9g-target">Aim at the environment or a nearby creature</div>
+  <div id="mt9g-readout" class="mt9g-readout" aria-live="polite">Scanner ready</div>
+  <div class="mt9g-progress" aria-hidden="true"><span id="mt9g-progress"></span></div>
+  <div class="mt9g-shortcuts">P SCAN · O CYCLE · journal stored in Field Science</div>
+</aside>
+<script>
+/* STARFALL 9G — hand-held suit multitool UI.
+ * Uses the original 4A field instrument path and canonical ScienceUI journal.
+ * A real ship power debit is required for recharging a depleted tool cell.
+ */
+(function(root){'use strict';
+const M=root.StarfallHandheldScanner9G,S=root.StarfallFieldScience,RT=root.StarfallRuntime,Science=root.StarfallScienceUI;
+const $=id=>document.getElementById(id);
+if(!M||!S||!RT||!Science||!$('multitool9g'))throw Error('9G scanner requires 4A field science, journal, runtime and HUD');
+const panel=$('multitool9g'),modeSelect=$('mt9g-mode'),scanButton=$('mt9g-scan'),chargeButton=$('mt9g-charge'),
+ energyFill=$('mt9g-energy'),batteryLabel=$('mt9g-battery'),readout=$('mt9g-readout'),
+ targetLabel=$('mt9g-target'),progress=$('mt9g-progress');
+let state=M.sanitize(SF.load()?.multitool9g),job=null,aimed=null,
+ lastMessage='',lastError=false,paintClock=0,wasVisible=false;
+const costFor=key=>{const instrument=M.mode(key).instrument,spec=S.INSTRUMENTS[instrument];return spec&&spec.seconds*spec.powerW;};
+function save(){SF.save({multitool9g:{...state}});}
+function available(){const ctx=RT.outpostContext();
+ return !!(ctx?.body?.landable&&ctx.landed&&ctx.eva&&!RT.truckOccupied&&
+  !RT.manufacturedOccupied8G&&!RT.interiorState&&RT.eva);
+}
+function message(text,error=false){lastMessage=String(text).slice(0,400);lastError=error;paint(true);}
+function context(){return RT.outpostContext();}
+function snapshotTarget(ctx){
+ if(!ctx?.position||!ctx?.forward||!root.StarfallEcologyUI?.scene)return null;
+ return M.selectTarget(root.StarfallEcologyUI.scene(),ctx.position,ctx.forward);
+}
+function start(){
+ if(!available()){message('Leave your ship or vehicle in EVA before using the multitool.',true);return false;}
+ if(job){message('A reading is already acquiring.');return false;}
+ try{
+  const ctx=context(),selected=M.mode(state.mode),spec=S.INSTRUMENTS[selected.instrument];
+  job=M.begin(state,{...ctx,manufacturedOccupied:RT.manufacturedOccupied8G},spec);
+  // Only the biodiversity overlay is a modelled visual sighting. The actual
+  // reading remains the canonical local 4A field instrument observation.
+  aimed=selected.key==='life'?snapshotTarget(ctx):null;
+  job.target=aimed;
+  message('ACQUIRING '+selected.label+' · '+spec.seconds+' s · '+job.powerJ+' J',false);
+  return true;
+ }catch(e){job=null;message(e.message,true);return false;}
+}
+function cancel(reason='Acquisition cancelled'){
+ if(!job)return;
+ job=null;aimed=null;message(reason,true);
+}
+function finish(){
+ const ready=job;if(!ready)return;
+ try{
+  const ctx=context(),step=M.advance(ready,0,{...ctx,manufacturedOccupied:RT.manufacturedOccupied8G},ctx.body.radius);
+  if(step.status==='cancelled')throw Error(step.reason);
+  // Canonical 4A acquisition and the existing ScienceUI journal; it is the
+  // same observation path used by the original Field Laboratory controls.
+  const reading=Science.measure(ready.instrument,false);
+  state=M.record(state,reading,ready,aimed);
+  save();
+  const value=Number(reading.value).toLocaleString('en-US',{maximumFractionDigits:5});
+  const uncertain=Number(reading.uncertainty).toLocaleString('en-US',{maximumFractionDigits:4});
+  const label=M.mode(state.mode).label;
+  lastMessage=label+' · '+value+' '+reading.unit+' ± '+uncertain+
+   (aimed?' · '+aimed.kind.toUpperCase()+' candidate '+aimed.rangeScene.toFixed(1)+'u':'')+
+   '\n'+reading.quality+' / '+reading.model+' · journal '+reading.id;
+  lastError=false;
+ }catch(e){lastMessage='Scan failed: '+e.message;lastError=true;}
+ finally{job=null;aimed=null;paint(true);}
+}
+function setMode(key){
+ if(job){message('Finish the current reading before switching modes.',true);return;}
+ state={...state,mode:M.mode(key).key};save();
+ message(M.mode(state.mode).label+' · '+M.mode(state.mode).purpose+'.',false);
+}
+function cycle(){setMode(M.nextMode(state.mode).key);}
+function recharge(){
+ if(!available()){message('Approach your landed ship in EVA to recharge.',true);return;}
+ if(job){message('Stop the acquisition before recharging.',true);return;}
+ try{
+  const needed=Math.max(0,Math.ceil(M.CAPACITY_J-state.batteryJ));
+  if(needed<1){message('Multitool cell already fully charged.');return;}
+  const paid=RT.rechargeHandheldScanner9G(needed);
+  state=M.applyCharge(state,paid);save();
+  message('Recharged +'+paid.toLocaleString('en-US')+' J from your ship battery. Remaining '+Math.round(state.batteryJ)+' J.');
+ }catch(e){message(e.message,true);}
+}
+function paint(force=false){
+ if(!force&&!wasVisible)return;
+ panel.hidden=!available();wasVisible=!panel.hidden;
+ if(panel.hidden)return;
+ modeSelect.value=state.mode;modeSelect.disabled=!!job;
+ const selection=M.mode(state.mode),cost=costFor(state.mode)||0;
+ const remaining=state.batteryJ;
+ energyFill.style.width=(100*remaining/M.CAPACITY_J).toFixed(1)+'%';
+ batteryLabel.textContent=Math.round(remaining).toLocaleString('en-US')+' / '+M.CAPACITY_J.toLocaleString('en-US')+' J';
+ scanButton.textContent=job?'SCANNING '+Math.round(job.elapsed/job.seconds*100)+'%':'SCAN · '+cost+' J';
+ scanButton.disabled=!!job||remaining+1e-9<cost;
+ chargeButton.disabled=!!job||remaining>=M.CAPACITY_J;
+ progress.style.width=(job?100*job.elapsed/job.seconds:0).toFixed(1)+'%';
+ const target=job?.target;
+ targetLabel.textContent=target?'TARGET · '+target.kind.toUpperCase()+' · '+target.rangeScene.toFixed(1)+'u · visual candidate':
+  'AIM · '+selection.purpose+' · sample at your EVA position';
+ readout.style.color=lastError?'#ffb9ab':'#d7f7de';
+ if(lastMessage)readout.textContent=lastMessage;
+ else if(state.history.length){
+  const last=state.history[state.history.length-1];
+  readout.textContent='LAST · '+last.instrument.toUpperCase()+' = '+last.value+' '+last.unit+
+   '\n'+last.model+' · '+last.id;
+ }else readout.textContent='SUIT MULTITOOL READY · choose a sensor and press SCAN';
+}
+for(const m of M.MODES){const option=document.createElement('option');option.value=m.key;option.textContent=m.label+' — '+m.purpose;modeSelect.append(option);}
+modeSelect.onchange=()=>setMode(modeSelect.value);
+scanButton.onclick=start;chargeButton.onclick=recharge;
+$('mt9g-journal').onclick=()=>Science.open();
+function tick(dt){
+ // The original game frame clock drives progress, not accelerated planetary
+ // simulation time. No fake timer continues when gameplay is paused.
+ if(job){
+  const ctx=context();
+  const result=M.advance(job,dt,{...ctx,manufacturedOccupied:RT.manufacturedOccupied8G},ctx.body?.radius||1);
+  if(result.status==='cancelled')cancel(result.reason);
+  else if(result.job){job=result.job;if(result.status==='ready')finish();}
+ }
+ paintClock+=Math.max(0,Math.min(.1,dt||0));
+ if(paintClock>.13||wasVisible!==available()){paintClock=0;paint(true);}
+}
+addEventListener('keydown',ev=>{
+ if(ev.repeat||ev.ctrlKey||ev.altKey||ev.metaKey||!available()||!['KeyP','KeyO'].includes(ev.code))return;
+ const target=ev.target;
+ if(target?.closest?.('input,textarea,select,[contenteditable=true]'))return;
+ if([...document.querySelectorAll('[role=dialog][aria-modal=true]')].some(el=>!el.hidden&&el.getClientRects().length>0))return;
+ ev.preventDefault();if(ev.code==='KeyP')start();else cycle();
+});
+root.StarfallMultitoolUI9G={tick,start,cycle,recharge,get isScanning(){return !!job;},
+ get mode(){return state.mode;},get batteryJ(){return state.batteryJ;},
+ get status(){return{...state,job:job?{...job}:null,lastMessage,visible:available()};}};
+paint(true);
 })(globalThis);
 
 </script>
