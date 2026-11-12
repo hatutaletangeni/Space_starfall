@@ -26,7 +26,7 @@ assert(Bio.sanitize([{...dry,agents:[{...dry.agents[0],role:'forged'}]}]).length
 const roles=['grazer','predator','detritivore','filterer','aquatic_predator'];
 const mocks=roles.map((role,i)=>({id:'9d-'+i,role,energy:.55,lastEvent:'hungry',sizeM:1.1,massKg:1}));
 for(const a of mocks){
- assert(['grazer','stalker','burrower','jelly','eel'].includes(Motion.modelKind(a,site)));
+ assert(['grazer','crawler','stalker','burrower','jelly','eel'].includes(Motion.modelKind(a,site)));
  const init=Motion.start(a,0);
  let s=init;
  for(let i=0;i<1200;i++){
