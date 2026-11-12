@@ -1600,7 +1600,20 @@ precision highp float;
 layout(location=0) in vec3 aPos;layout(location=1) in vec3 aNormal;layout(location=2) in vec3 aColor;
 uniform mat4 uViewProj;uniform mat4 uModel;uniform float uEcologyWingPhase,uEcologyGait,uEcologyPulse;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
 void main(){vec3 pos=aPos;
- if(uEcologyWingPhase>0.){float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);pos.y+=sin(uEcologyWingPhase)*tip*1.7;}
+ if(uEcologyWingPhase>0.){
+   // Four separately phased membranes respond to local chord position.
+   float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);
+   float side=sign(pos.x);
+   float sail=sin(uEcologyWingPhase+pos.z*.62+side*.64);
+   pos.y+=(sail*1.24+sin(uEcologyWingPhase*.52-pos.x*.43)*.29)*tip;
+   pos.z+=sin(uEcologyWingPhase*.72+abs(pos.x)*.55)*tip*.16;
+   // Beaded lattice-sailer tail bends progressively behind the body.
+   if(pos.z>1.55&&abs(pos.x)<.83){
+     float tail=clamp((pos.z-1.55)/4.65,0.,1.);
+     pos.x+=sin(uEcologyWingPhase*.42-pos.z*.83)*tail*.42;
+     pos.y+=cos(uEcologyWingPhase*.56-pos.z*.64)*tail*.23;
+   }
+  }
  if(uEcologyGait>0.){float legs=clamp((1.5-pos.y)/1.5,0.,1.);
    pos.y+=sin(uEcologyGait+pos.z*1.9+pos.x*.7)*.16*legs;
    pos.x+=sin(uEcologyGait*.66+pos.z*1.65)*.15*clamp(abs(pos.z)/4.,0.,1.);}
@@ -7232,16 +7245,47 @@ function step(original,agent,peers=[],env={},dt=DT){
  s.v[0]+=(dx/d*targetSpeed-s.v[0])*steer;
  s.v[1]+=(dz/d*targetSpeed-s.v[1])*steer;
  let next=[s.p[0]+s.v[0]*dt,s.p[1]+s.v[1]*dt];
- // No crossing cliffs, lakes, ridges or the local model patch edge.
- if(len(...next)>MAX_RANGE){const scale=MAX_RANGE/len(...next);next=next.map(x=>x*scale);s.v[0]*=-.45;s.v[1]*=-.45;}
- if(typeof env.traversable==='function'&&!env.traversable(next[0],next[1],agent.role)){
-  s.v=[-s.v[1]*.8,s.v[0]*.8];next=[s.p[0]+s.v[0]*dt,s.p[1]+s.v[1]*dt];
-  if(!env.traversable(next[0],next[1],agent.role)){next=s.p.slice();s.v=[0,0];}
-  s.behavior='avoiding terrain';
- }else s.behavior=intent.action;
+ // Probe a full local fan of possible surface headings instead of returning
+ // zero velocity when two orthogonal collision attempts both fail.
+ const allowed=(x,z)=>len(x,z)<=MAX_RANGE+1e-9&&
+  (typeof env.traversable!=='function'||env.traversable(x,z,agent.role));
+ let clear=allowed(next[0],next[1]);
+ if(!clear){
+  // Try short step-sized sweeps first, then tangential/anti-obstacle motion.
+  // Terrain probing is deterministic per agent; no random frame-to-frame jitter.
+  const speed=Math.max(.22,Math.min(6.5,len(...s.v),intent.pace));
+  const preferred=Math.atan2(s.v[1],s.v[0]);
+  const offsets=[PI/6,-PI/6,PI/3,-PI/3,PI/2,-PI/2,
+                 2*PI/3,-2*PI/3,5*PI/6,-5*PI/6,PI];
+  const spin=seed(agent.id+':obstacle')>.5?1:-1;
+  const probes=[preferred,...offsets.map(o=>preferred+spin*o)];
+  for(const head of probes){
+   for(const stepLength of [speed*dt,.5*speed*dt,.25*speed*dt]){
+    if(stepLength<.001)continue;
+    const trial=[s.p[0]+Math.cos(head)*stepLength,s.p[1]+Math.sin(head)*stepLength];
+    if(!allowed(...trial))continue;
+    next=trial;s.v=[Math.cos(head)*stepLength/dt,Math.sin(head)*stepLength/dt];
+    clear=true;break;
+   }
+   if(clear)break;
+  }
+  if(clear){
+   s.behavior='navigating terrain';s.stuck=0;
+  }else{
+   next=s.p.slice();s.v=[0,0];
+   s.stuck=Math.min(250,(s.stuck||0)+1);
+   s.behavior='blocked by impassable terrain';
+  }
+ }else{
+  s.behavior=intent.action;s.stuck=0;
+ }
+
  s.p=next;s.t+=dt;
  const speed=len(...s.v);
  if(speed>.06)s.heading=Math.atan2(s.v[1],s.v[0]);
+ // Alert animals also have clearly visible weight shifts/head motions when
+ // feeding or when immobilized by a genuinely enclosed obstacle.
+ if(speed<=.06)s.heading+=dt*.26*Math.sin(s.t*.81+TAU*seed(agent.id+':look'));
  s.gait=(s.gait+dt*(agent.role==='grazer'?3.9:agent.role==='detritivore'?6.5:agent.role==='predator'?5.9:4.7)*Math.max(.30,speed))%TAU;
  s.pulse=(s.pulse+dt*(agent.role==='filterer'?4.6:3.2))%TAU;
  if(agent.role==='filterer'||agent.role==='aquatic_predator'){
@@ -20539,7 +20583,9 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
      addObject(site,kind,local,altitude,animal.id,Math.max(.3,Math.min(1.8,animal.sizeM)),state.flightMode,{
       alive:true,up:bankedUp,forward:travel,heartPhase:RT.time*9.2+phase,
       digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
-      wingPhase:Math.max(.0001,state.wingPhase)
+      wingPhase:Math.max(.0001,state.wingPhase),
+      bodyPulse:Math.max(.0001,RT.time*2.7+phase),
+      locomotionSpeed:Math.hypot(...state.v)
      });
      continue;
     }
@@ -20552,14 +20598,21 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
       const state=groundStates.get(a.id)||Motion.start(a,RT.time);
       return {id:a.id,role:a.role,p:state.p};
      });
+     const oldState=groundStates.get(animal.id);
+     const prevLocal=E.offset(site.local,oldState?.p[0]??0,oldState?.p[1]??0,ctx.body.radius);
+     const prevHeight=sample(ctx.body,prevLocal).height;
      const traversable=(x,z,role)=>{
       const dir=E.offset(site.local,x,z,ctx.body.radius),s=sample(ctx.body,dir);
       const biome=root.StarfallBiomes.classify(ctx.body,dir,s.height,s.field);
       const aquatic=role==='filterer'||role==='aquatic_predator';
-      return aquatic?biome.material==='water':biome.material!=='water'
-        &&Math.abs(s.height-sample(ctx.body,site.local).height)<5;
+      if(aquatic)return biome.material==='water';
+      // Check LOCAL slope against the last safe position, not the height of
+      // the seed site: otherwise animals freeze on walkable gradual hills.
+      const hDelta=Math.abs(s.height-prevHeight),
+       walkDist=Math.hypot(x-(oldState?.p[0]??0),z-(oldState?.p[1]??0));
+      return biome.material!=='water'&&hDelta<Math.max(1.25,walkDist*.9);
      };
-     let state=Motion.advance(groundStates.get(animal.id),animal,RT.time,seeded,{
+     let state=Motion.advance(oldState,animal,RT.time,seeded,{
       player,plantKg:patch.plantKg,detritusKg:patch.detritusKg,light:envAt?.light??.6,traversable
      });
      groundStates.set(animal.id,state);

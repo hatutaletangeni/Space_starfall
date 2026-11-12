@@ -118,7 +118,9 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
      addObject(site,kind,local,altitude,animal.id,Math.max(.3,Math.min(1.8,animal.sizeM)),state.flightMode,{
       alive:true,up:bankedUp,forward:travel,heartPhase:RT.time*9.2+phase,
       digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
-      wingPhase:Math.max(.0001,state.wingPhase)
+      wingPhase:Math.max(.0001,state.wingPhase),
+      bodyPulse:Math.max(.0001,RT.time*2.7+phase),
+      locomotionSpeed:Math.hypot(...state.v)
      });
      continue;
     }
@@ -131,14 +133,21 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
       const state=groundStates.get(a.id)||Motion.start(a,RT.time);
       return {id:a.id,role:a.role,p:state.p};
      });
+     const oldState=groundStates.get(animal.id);
+     const prevLocal=E.offset(site.local,oldState?.p[0]??0,oldState?.p[1]??0,ctx.body.radius);
+     const prevHeight=sample(ctx.body,prevLocal).height;
      const traversable=(x,z,role)=>{
       const dir=E.offset(site.local,x,z,ctx.body.radius),s=sample(ctx.body,dir);
       const biome=root.StarfallBiomes.classify(ctx.body,dir,s.height,s.field);
       const aquatic=role==='filterer'||role==='aquatic_predator';
-      return aquatic?biome.material==='water':biome.material!=='water'
-        &&Math.abs(s.height-sample(ctx.body,site.local).height)<5;
+      if(aquatic)return biome.material==='water';
+      // Check LOCAL slope against the last safe position, not the height of
+      // the seed site: otherwise animals freeze on walkable gradual hills.
+      const hDelta=Math.abs(s.height-prevHeight),
+       walkDist=Math.hypot(x-(oldState?.p[0]??0),z-(oldState?.p[1]??0));
+      return biome.material!=='water'&&hDelta<Math.max(1.25,walkDist*.9);
      };
-     let state=Motion.advance(groundStates.get(animal.id),animal,RT.time,seeded,{
+     let state=Motion.advance(oldState,animal,RT.time,seeded,{
       player,plantKg:patch.plantKg,detritusKg:patch.detritusKg,light:envAt?.light??.6,traversable
      });
      groundStates.set(animal.id,state);
