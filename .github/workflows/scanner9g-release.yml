@@ -52,6 +52,7 @@ jobs:
         run: |
           python tests/handheld-scanner9g-browser.py
           python tests/ecology9b-browser.py
+          python tests/industry-completion8k-browser.py
       - name: Store desktop/mobile scanner screenshots and source receipts
         if: always()
         uses: actions/upload-artifact@v4
