@@ -59,3 +59,7 @@ Real device GPU performance and whether the tool is aesthetically prominent on t
 ### Known boundaries
 
 This is a hand-held **scientific sensor multitool**, not a laser miner, energy weapon, terraforming manipulator, tractor beam, scanner-based item duplicator, or surgical instrument. Those would require independent hardware resource, safety, inventory and engineering contracts and are not silently added to 9G. All temperatures, pressure, magnetic fields, biosignatures and silicates remain approximations seeded by the original STARFALL instrument model.
+
+## Verified standalone packaging and release gates
+
+GitHub's 9G release workflow has regenerated and committed **both** exact offline browser editions on the feature branch: `PLAY-STARFALL.html` and `PLAY-STARFALL-MOBILE.html`. The bot-generated bundle commit cannot itself trigger recursive PR workflows (it shows `action_required`, which is **not** a pass). This subsequent documentation commit is intentionally authored via the connected repository account to trigger all 9A–9G, industry, engineering and mobile release checks against the synchronized bundles. Require actual green results on this final PR head before merging. On-device graphics frame-rate acceptance remains a separate player hardware test.
