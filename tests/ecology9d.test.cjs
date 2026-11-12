@@ -1,0 +1,54 @@
+'use strict';
+const assert=require('node:assert/strict');
+global.StarfallFieldScience={profile:()=>({temperatureK:286,pressurePa:95000,waterIcePotential:.72})};
+global.StarfallCompositionCW01={bodyFor:()=>({atmosphereMoleFractions:{O2:.20,N2:.79,CO2:.01}})};
+const Bio=require('../src/ecology/living-biosphere.js');
+const Motion=require('../src/ecology/locomotion9d.js');
+const Fly=require('../src/ecology/flight-dynamics9c.js');
+const planet={id:'star-0-p0',kind:'planet',type:'Lush',landable:true,life:true,orbitRadius:100000,systemId:'star-0'};
+const site={id:'eco-7nw1',bodyId:planet.id,kind:'crawler',group:'fauna',local:[1,0,0]};
+const env={light:.85,water:.8,temp:1,oxygen:.21,level:4};
+const feed=Bio.seedPatch(site,planet,742,null,0);
+assert(feed.agents.some(a=>a.role==='detritivore'), 'crawler site has detritivores');
+const planetBodyMass=Bio.mass(feed);
+const next=Bio.advance(feed,Bio.STEP_S*96,env).state;
+assert(Math.abs(Bio.mass(next)-planetBodyMass)<1e-6, 'soil food web mass balance');
+assert.deepEqual(Bio.sanitize([next]),[next], 'new 9D roles survive old schema');
+const water=Bio.seedPatch({...site,id:'eco-jelly1',kind:'jelly'},planet,742,null,0);
+assert(water.agents.some(a=>a.role==='filterer'),'aquatic filter feeders');
+assert(water.agents.every(a=>['filterer','aquatic_predator'].includes(a.role)), 'water-specific food web');
+const wet=Bio.advance(water,Bio.STEP_S*96,env).state;
+assert(Math.abs(Bio.mass(wet)-Bio.mass(water))<1e-6,'aquatic mass conservation');
+assert.deepEqual(Bio.sanitize([wet]),[wet], 'aquatic save compatibility');
+const dry=Bio.seedPatch({...site,id:'eco-eel1',kind:'eel'},planet,742,null,0);
+assert(dry.agents.some(a=>a.role==='aquatic_predator'), 'eel has real predator');
+assert(Bio.sanitize([{...dry,agents:[{...dry.agents[0],role:'forged'}]}]).length===0,'reject unrecognized roles');
+const roles=['grazer','predator','detritivore','filterer','aquatic_predator'];
+const mocks=roles.map((role,i)=>({id:'9d-'+i,role,energy:.55,lastEvent:'hungry',sizeM:1.1,massKg:1}));
+for(const a of mocks){
+ assert(['grazer','stalker','burrower','jelly','eel'].includes(Motion.modelKind(a,site)));
+ const init=Motion.start(a,0);
+ let s=init;
+ for(let i=0;i<1200;i++){
+  const peer=mocks.filter(b=>b!==a).map((b,j)=>({id:b.id,role:b.role,p:[1+j*2,2+j*2]}));
+  s=Motion.step(s,a,peer,{plantKg:10,detritusKg:10,light:.6,traversable:()=>true},Motion.DT);
+  assert(Math.hypot(...s.p)<=Motion.MAX_RANGE+1e-9,'bounded near-field agent path');
+  assert([...s.p,...s.v,s.heading,s.gait,s.altitude].every(Number.isFinite),'finite 9D path');
+ }
+ assert(Math.hypot(s.p[0]-init.p[0],s.p[1]-init.p[1])>.3,'animal must visibly move');
+}
+const grazer=mocks[0],threat=mocks[1],start=Motion.start(grazer,0);
+const flee=Motion.step(start,grazer,[{id:threat.id,role:'predator',p:[start.p[0]+2,start.p[1]]}],{plantKg:10},.05);
+assert(flee.behavior==='fleeing'&&flee.v[0]<start.v[0], 'grazer turns away from nearby predator');
+const hunt=Motion.step(Motion.start(threat,0),threat,[{id:grazer.id,role:'grazer',p:[2,2]}],{plantKg:10},.05);
+assert(['pursuing prey','stalking'].includes(hunt.behavior),'hungry hunter pursues real prey');
+const blocked=Motion.step(start,grazer,[],{plantKg:10,traversable:()=>false},.05);
+assert.deepEqual(blocked.p,start.p,'terrain obstruction prevents clipping');
+const swimming=Motion.step(Motion.start(mocks[3],0),mocks[3],[],{light:.1},.05);
+assert(swimming.altitude<0&&swimming.behavior.includes('night'),'jelly ascends at night');
+const evolving=Motion.advance(null,grazer,25,[],{plantKg:10});
+assert(Number.isFinite(evolving.t)&&evolving.t===25,'high timewarp bounded');
+assert.equal(Fly.airDensity(0,285),0,'fliers cannot generate lift in vacuum');
+const high=Fly.start('9d-test-flier',1,1,1),near=Fly.step(high,{pressurePa:100000,temperatureK:293.15,threat:[high.p[0]+4,high.p[2]+1]}),far=Fly.step(high,{pressurePa:100000,temperatureK:293.15});
+assert.notDeepEqual(near.v,far.v,'aerial steering changes under predator/observer threat');
+console.log('PASS 9D species, mass balance, aquatic trophic web, running/hunting/fleeing, terrain avoidance and high time warp');
