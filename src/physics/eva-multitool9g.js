@@ -46,7 +46,7 @@
   const pct=$('multitool9g-charge');
   if(pct)pct.style.width=(100*chargeJ/MAX_J).toFixed(1)+'%';
   if(open&&!activeEva)close();
-  root.StarfallMultitool9G.activeUntil=pulseUntil;
+  // Pulse state is exposed by the API getter for the avatar renderer.
  }
  function close(){open=false;$('multitool9g-panel').hidden=true;}
  function show(){
@@ -103,6 +103,7 @@
   get observation(){return lastObservation;},get activeUntil(){return pulseUntil;},
   get canUse(){return available();}};
  root.StarfallMultitool9G=api;
+ $('multitool9g-mode').value=mode;
  $('multitool9g-open').onclick=()=>open?close():show();
  $('multitool9g-close').onclick=close;
  $('multitool9g-mode').onchange=e=>{try{setMode(e.target.value);}catch(err){status(err.message,true);}};
