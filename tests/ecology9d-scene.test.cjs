@@ -10,7 +10,7 @@ const v={
  rot:(a,axis,angle)=>{const u=v.norm(axis),c=Math.cos(angle),s=Math.sin(angle);return v.add(v.add(v.mul(a,c),v.mul(v.cross(u,a),s)),v.mul(u,v.dot(u,a)*(1-c)));}
 };
 const local=[0,1,0],planet={id:'planet-test',kind:'planet',type:'Lush',landable:true,
- life:true,radius:1500,seed:42,spinAxis:[0,1,0],spinAngle:0,orbitRadius:100000,systemId:'test-star'};
+ life:true,radius:1500,position:[0,0,0],seed:42,spinAxis:[0,1,0],spinAngle:0,orbitRadius:100000,systemId:'test-star'};
 const sites=[
  {id:'eco-a1',bodyId:planet.id,kind:'flier',group:'fauna',local:[0,1,0],distance:0},
  {id:'eco-a2',bodyId:planet.id,kind:'crawler',group:'fauna',local:v.norm([.011,1,.008]),distance:20}
