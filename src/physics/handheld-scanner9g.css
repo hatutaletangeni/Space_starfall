@@ -36,7 +36,6 @@ body.sfmobile-edition #multitool9g .mt9g-shortcuts{display:none}
 body.ui20.sf-workspace-open #multitool9g,
 body.ui20.sf-flow-open #multitool9g,
 body:has(.obs-backdrop:not([hidden])) #multitool9g,
-body:has(.modal-backdrop:not([hidden])) #multitool9g,
-body:has([role="dialog"][aria-modal="true"]:not([hidden])) #multitool9g{
+body:has(.modal-backdrop:not([hidden])) #multitool9g{
  display:none!important;pointer-events:none!important;
 }
