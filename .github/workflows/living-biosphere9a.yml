@@ -1,0 +1,36 @@
+name: STARFALL Living Biosphere 9A verification
+on:
+  pull_request:
+    paths:
+      - 'src/ecology/**'
+      - 'src/engine.js'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'PLAY-STARFALL-MOBILE.html'
+      - 'tests/living-biosphere.test.cjs'
+      - '.github/workflows/living-biosphere9a.yml'
+  workflow_dispatch:
+jobs:
+  ecology-integrity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/ecology/ecology.js
+          node --check src/ecology/living-biosphere.js
+          node --check src/ecology/ecology-ui.js
+          node --check src/engine.js
+      - name: Test deterministic living ecology invariants
+        run: node tests/living-biosphere.test.cjs
+      - name: Verify editable and desktop offline parity
+        run: |
+          python3 tests/standalone-parity.py
+          python3 tools/build-standalone.py
+          git diff --exit-code -- PLAY-STARFALL.html
+      - name: Verify mobile landscape offline parity
+        run: |
+          python3 tools/build-mobile-standalone.py
+          git diff --exit-code -- PLAY-STARFALL-MOBILE.html
