@@ -1,0 +1,75 @@
+name: STARFALL 9G EVA Handheld Scanner Release
+on:
+  push:
+    branches:
+      - feature/9g-functional-handheld-scanner
+  pull_request:
+    paths:
+      - 'src/physics/handheld-scanner9g*'
+      - 'src/flight.js'
+      - 'src/engine.js'
+      - 'index.html'
+      - 'tests/handheld-scanner9g*'
+      - 'PLAY-STARFALL.html'
+      - 'PLAY-STARFALL-MOBILE.html'
+      - '.github/workflows/scanner9g-release.yml'
+  workflow_dispatch:
+jobs:
+  handheld-scanner-real-standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify original source and 9G sensor and journal logic
+        run: |
+          node --check src/physics/handheld-scanner9g.js
+          node --check src/physics/handheld-scanner-ui9g.js
+          node --check src/engine.js
+          node --check src/flight.js
+          node tests/handheld-scanner9g.test.cjs
+          node tests/handheld-scanner9g-ui.test.cjs
+          node tests/living-biosphere.test.cjs
+          node tests/ecology9f.test.cjs
+      - name: Build both exact offline editions and parity check
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install browser and real software WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Test authentic EVA scanner, original 4A journal and active GPU beam
+        run: |
+          python tests/handheld-scanner9g-browser.py
+          python tests/ecology9b-browser.py
+          python tests/industry-completion8k-browser.py
+      - name: Store desktop/mobile scanner screenshots and source receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-9g-scanner-real-browser-evidence
+          path: |
+            artifacts/scanner9g/
+            artifacts/ecology9b/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Commit generated desktop/mobile standalone games to feature branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/9g-functional-handheld-scanner'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build(9G): bundle functional suit scanner in desktop/mobile standalones"
+            git push origin HEAD:feature/9g-functional-handheld-scanner
+          fi
