@@ -47,7 +47,20 @@ precision highp float;
 layout(location=0) in vec3 aPos;layout(location=1) in vec3 aNormal;layout(location=2) in vec3 aColor;
 uniform mat4 uViewProj;uniform mat4 uModel;uniform float uEcologyWingPhase,uEcologyGait,uEcologyPulse;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
 void main(){vec3 pos=aPos;
- if(uEcologyWingPhase>0.){float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);pos.y+=sin(uEcologyWingPhase)*tip*1.7;}
+ if(uEcologyWingPhase>0.){
+   // Four separately phased membranes respond to local chord position.
+   float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);
+   float side=sign(pos.x);
+   float sail=sin(uEcologyWingPhase+pos.z*.62+side*.64);
+   pos.y+=(sail*1.24+sin(uEcologyWingPhase*.52-pos.x*.43)*.29)*tip;
+   pos.z+=sin(uEcologyWingPhase*.72+abs(pos.x)*.55)*tip*.16;
+   // Beaded lattice-sailer tail bends progressively behind the body.
+   if(pos.z>1.55&&abs(pos.x)<.83){
+     float tail=clamp((pos.z-1.55)/4.65,0.,1.);
+     pos.x+=sin(uEcologyWingPhase*.42-pos.z*.83)*tail*.42;
+     pos.y+=cos(uEcologyWingPhase*.56-pos.z*.64)*tail*.23;
+   }
+  }
  if(uEcologyGait>0.){float legs=clamp((1.5-pos.y)/1.5,0.,1.);
    pos.y+=sin(uEcologyGait+pos.z*1.9+pos.x*.7)*.16*legs;
    pos.x+=sin(uEcologyGait*.66+pos.z*1.65)*.15*clamp(abs(pos.z)/4.,0.,1.);}
