@@ -501,7 +501,7 @@ body.sfmobile-edition #sf-resource-tests8er button{padding:6px;font-size:9px}
  * No drag selection on touch, safe-area aware, does not alter old HUD DOM.
  */
 #multitool9g[hidden]{display:none!important}
-#multitool9g{box-sizing:border-box;position:fixed;z-index:84;right:max(14px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));width:min(300px,calc(100vw - 28px));color:#d7f8ff;background:rgba(5,19,29,.91);border:1px solid rgba(97,222,235,.38);box-shadow:0 14px 34px rgba(0,0,0,.47),inset 0 1px 0 rgba(136,246,255,.12);border-radius:14px;padding:11px 13px 12px;font:500 12px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif;user-select:none;-webkit-user-select:none;touch-action:manipulation;backdrop-filter:blur(12px)}
+#multitool9g{box-sizing:border-box;position:fixed;z-index:12;right:max(14px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));width:min(300px,calc(100vw - 28px));color:#d7f8ff;background:rgba(5,19,29,.91);border:1px solid rgba(97,222,235,.38);box-shadow:0 14px 34px rgba(0,0,0,.47),inset 0 1px 0 rgba(136,246,255,.12);border-radius:14px;padding:11px 13px 12px;font:500 12px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif;user-select:none;-webkit-user-select:none;touch-action:manipulation;backdrop-filter:blur(12px)}
 #multitool9g *{box-sizing:border-box}
 #multitool9g .mt9g-heading{display:flex;align-items:center;justify-content:space-between;gap:7px;font-weight:750;letter-spacing:.12em;color:#7cecff}
 #multitool9g .mt9g-sub{color:#8eaab5;font-size:10px;font-weight:550;letter-spacing:.04em}
@@ -526,6 +526,18 @@ body.sfmobile-edition #multitool9g{right:max(9px,env(safe-area-inset-right));bot
 body.sfmobile-edition #multitool9g .mt9g-shortcuts{display:none}
 @media(max-height:560px){#multitool9g{bottom:max(8px,env(safe-area-inset-bottom));padding:8px 10px}#multitool9g .mt9g-bar{margin:5px 0}#multitool9g .mt9g-field{margin:6px 0}#multitool9g .mt9g-target{margin:5px 0 2px}}
 @media(max-width:700px) and (orientation:portrait){#multitool9g{right:7px;bottom:7px;width:min(280px,calc(100vw - 14px))}}
+
+/* A field scanner is an in-world secondary HUD, NEVER a modal. Every
+ * Mission workspace, workflow and native full-screen dialog takes priority.
+ * This keeps older engineer/industry selectors actually clickable in EVA.
+ * CSS applies immediately when UI22 toggles body classes, even while the
+ * simulation is paused and the scanner JS tick is suspended. */
+body.ui20.sf-workspace-open #multitool9g,
+body.ui20.sf-flow-open #multitool9g,
+body:has(.obs-backdrop:not([hidden])) #multitool9g,
+body:has(.modal-backdrop:not([hidden])) #multitool9g{
+ display:none!important;pointer-events:none!important;
+}
 
 </style>
 </head>
