@@ -11,7 +11,7 @@
  const saved=SF.load()?.multitool9g||{};
  let chargeJ=Number.isFinite(saved.chargeJ)?Math.max(0,Math.min(MAX_J,saved.chargeJ)):MAX_J;
  let mode=MODES.includes(saved.mode)?saved.mode:'bioassay',busy=false,lastStart=-Infinity,
-  active=null,open=false,lastObservation=null,pulseUntil=0;
+  active=null,open=false,lastObservation=null,lastVisualTarget=null,pulseUntil=0;
  const validMode=x=>MODES.includes(x);
  const spec=x=>F.INSTRUMENTS[x];
  const cost=x=>spec(x).powerW*spec(x).seconds;
@@ -27,8 +27,24 @@
   status(spec(mode).name.toUpperCase()+' READY · '+spec(mode).seconds+' s acquisition');
  }
  function cycle(){setMode(MODES[(MODES.indexOf(mode)+1)%MODES.length]);}
+ function visibleTarget(){
+  const ctx=RT.outpostContext(),scene=root.StarfallEcologyUI?.scene;
+  if(!ctx?.eva||!ctx.position||!ctx.forward||!scene)return null;
+  const a=scene(),vx=ctx.forward,vm=Math.hypot(...vx)||1;
+  let result=null,rank=Infinity;
+  for(const creature of a){
+   if(!creature?.alive||!Array.isArray(creature.position))continue;
+   const d=creature.position.map((v,i)=>v-ctx.position[i]),range=Math.hypot(...d);
+   if(range<.1||range>45)continue;
+   const dot=d.reduce((sum,v,i)=>sum+v*vx[i],0)/(range*vm);
+   if(dot<.68)continue;
+   const score=range/(.5+dot);
+   if(score<rank){rank=score;result={kind:creature.kind,id:creature.id,range};}
+  }
+  return result;
+ }
  function format(obs){
-  return obs.parameter+': '+Number(obs.value).toFixed(obs.unit==='K'?1:obs.unit==='Pa'?0:4)+' '+obs.unit+
+  return (lastVisualTarget?'VISIBLE FAUNA: '+lastVisualTarget.kind+' / '+lastVisualTarget.id+' ('+lastVisualTarget.range.toFixed(1)+' scene units)\nVISUAL MODEL IDENTIFICATION ONLY, NOT LABORATORY PROOF\n':'')+obs.parameter+': '+Number(obs.value).toFixed(obs.unit==='K'?1:obs.unit==='Pa'?0:4)+' '+obs.unit+
     ' ±'+Number(obs.uncertainty).toFixed(3)+'\n'+obs.biome+' · '+obs.bodyId+
     '\nQUALITY: '+String(obs.quality||'estimated').toUpperCase()+
     '\nSIMULATED SCIENCE · '+obs.id;
@@ -92,6 +108,7 @@
     const observation=Science.measure(job.instrument,false);
     if(!observation||!observation.id)throw Error('Authoritative instrument returned no reading');
     chargeJ=Math.max(0,chargeJ-cost(job.instrument));lastObservation=observation;
+    lastVisualTarget=job.instrument==='bioassay'?visibleTarget():null;
     persist();status('SCANNED · '+observation.parameter+' = '+observation.value+' '+observation.unit);
    }catch(error){status(error.message||String(error),true);}
    finally{busy=false;render();}
