@@ -746,11 +746,32 @@ function createExplorerMesh(gl){
  const cape=sculpt();cape.box(-.35,2.03,.50,.35,2.46,.57,C.dark);cape.tube([-.25,2.43,.47],[.25,2.43,.47],.055,.055,C.trim,8);
  const legs=[];for(const side of [-1,1]){const b=sculpt();b.tube([0,-.02,0],[0,-.52,0],.202,.17,C.suit,9);b.oval([0,-.56,-.03],.19,.16,.20,C.dark);b.tube([0,-.61,0],[0,-1.16,0],.17,.145,C.light,9);b.box(-.20,-1.39,-.30,.20,-1.12,.20,C.rubber);b.box(-.19,-1.28,-.36,.19,-1.17,-.24,C.steel);b.box(-.185,-.68,-.21,.185,-.51,-.165,side===-1?C.trim:C.dark);legs.push(b.finish());}
  const arms=[];for(const side of [-1,1]){const a=sculpt();a.oval([0,-.1,0],.245,.20,.25,C.steel);a.tube([0,-.15,0],[side*.10,-.54,0],.194,.16,C.suit,9);a.tube([side*.10,-.56,0],[side*.10,-.86,0],.165,.17,C.undersuit,9);a.box(side*.10-.18,-.83,-.19,side*.10+.18,-.66,.17,C.dark);a.oval([side*.10,-1.02,0],.142,.17,.15,C.rubber);a.box(side*.10-.10,-.79,-.205,side*.10+.10,-.69,-.18,C.trim);arms.push(a.finish());}
- const staff=sculpt(); // folded sampling tool, compact rather than an oversized staff
- staff.box(-.68,.94,-.10,-.58,1.88,-.04,C.steel);staff.box(-.73,1.84,-.14,-.53,2.01,.06,C.light);staff.box(-.68,1.92,-.16,-.58,1.98,-.14,C.visor);
- const glow=sculpt();glow.box(-.10,1.87,-.44,.10,1.93,-.42,C.glow);glow.box(-.15,2.90,-.37,.15,2.94,-.34,C.glow2);
- const staffGlow=sculpt();staffGlow.box(-.67,1.92,-.18,-.59,1.97,-.15,C.glow);
- return{body:body.finish(),cape:cape.finish(),legs,arms,staff:staff.finish(),glow:glow.finish(),staffGlow:staffGlow.finish()};
+ const staff=sculpt(); // 9G: actual calibrated sensor housing held at the glove
+ // A handgrip, shielded battery, readout, and five-collar sensor aperture.
+ staff.box(-.70,.95,-.13,-.57,1.64,.00,C.rubber);
+ staff.box(-.735,1.25,-.16,-.535,1.56,.03,C.steel);
+ staff.box(-.765,1.48,-.205,-.505,1.83,.045,C.light);
+ staff.box(-.747,1.54,-.216,-.52,1.76,-.203,C.visor);
+ staff.box(-.715,1.83,-.17,-.55,2.03,.06,C.steel);
+ staff.box(-.754,1.94,-.235,-.515,2.015,-.165,C.trim);
+ for(const y of [1.12,1.23,1.34])staff.box(-.72,y,-.15,-.55,y+.022,.025,C.dark);
+ // Lens points in front of the player's hand, aligned with -Z camera-forward.
+ staff.box(-.700,1.83,-.37,-.572,1.99,-.20,C.dark);
+ staff.box(-.688,1.854,-.399,-.585,1.960,-.365,C.visor);
+ const glow=sculpt();glow.box(-.10,1.87,-.44,.10,1.93,-.42,C.glow);
+ glow.box(-.15,2.90,-.37,.15,2.94,-.34,C.glow2);
+ const staffGlow=sculpt();staffGlow.box(-.713,1.59,-.222,-.551,1.73,-.217,C.glow);
+ staffGlow.box(-.685,1.875,-.418,-.589,1.948,-.408,C.glow2);
+ const scanBeam=sculpt();
+ // A bounded, emissive triangulated scan fan. This geometry is created ONCE
+ // and only drawn during an actual 4A instrument acquisition.
+ for(const x of [-.14,0,.14]){
+   scanBeam.tube([-.637,1.91,-.43],[-.637+x,1.91+Math.abs(x)*.4,-12.8],
+     .018,.008,C.glow,5);
+ }
+ scanBeam.tube([-.637,1.91,-.44],[-.637,1.91,-15.0],.025,.010,C.glow2,6);
+ return{body:body.finish(),cape:cape.finish(),legs,arms,
+  staff:staff.finish(),glow:glow.finish(),staffGlow:staffGlow.finish(),scanBeam:scanBeam.finish()};
 }
 
 function rand(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
@@ -1216,7 +1237,8 @@ class Renderer{
    this.setFloat(p,'uShip',2); // Only the cyan devices are emissive at night.
    this.renderMesh(p,parts.glow,basis);
    this.renderMesh(p,parts.staffGlow,M.mul(basis,M.spin([0,0,0],[1,0,0],-.018*Math.sin(phase))));
-   this.avatarDrawCalls=9;
+   if(state.avatarToolScanning)this.renderMesh(p,parts.scanBeam,basis);
+   this.avatarDrawCalls=state.avatarToolScanning?10:9;
   }else this.avatarDrawCalls=0;
   // Infrastructure uses fixed meshes, scene-relative transforms and normal depth testing.
   // No geometry allocation or global structure traversal occurs in render().
@@ -1348,7 +1370,7 @@ class Renderer{
   }
  }
 
- dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();this.freeMesh(this.ecologyOrgans.heart);this.freeMesh(this.ecologyOrgans.stomach);for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
+ dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();this.freeMesh(this.ecologyOrgans.heart);this.freeMesh(this.ecologyOrgans.stomach);for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow,this.avatarParts.scanBeam])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
 }
 root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:(planet,localDirection)=>ST.sample(planet,localDirection,groundHeight,field,shade,(body,d)=>Renderer.prototype.terrainNormal.call(null,body,d))};
 })(globalThis);
