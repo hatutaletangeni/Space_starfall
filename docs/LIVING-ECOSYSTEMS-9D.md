@@ -67,3 +67,7 @@ python tests/ecology9d-browser.py
 Browser tests run *real* STARFALL WebGL2 + SwiftShader using the generated desktop and landscape-mobile standalones. They capture actual skin translucency, wing-deformation, internal organ, gait and pulsing draw calls plus screenshots. These are software-rendered CI screenshots; they are **not hardware FPS validation**. Real-machine acceptance requires a foreground Windows/Android playtest at a seeded biological world, with performance and visual inspection, especially the purple sailer.
 
 The upload is a **visual/behavior reference**, not a replacement project or authority over STARFALL's resource/planetary science models.
+
+## Release build state
+
+Desktop and landscape-mobile single-file standalones were regenerated from these exact source files by the 9D CI pipeline. Release acceptance additionally requires all repository regression checks against the synchronized bundle commit.
