@@ -122,7 +122,7 @@ addEventListener('keydown',ev=>{
  if(ev.repeat||ev.ctrlKey||ev.altKey||ev.metaKey||!available()||!['KeyP','KeyO'].includes(ev.code))return;
  const target=ev.target;
  if(target?.closest?.('input,textarea,select,[contenteditable=true]'))return;
- if([...document.querySelectorAll('[role=dialog][aria-modal=true]')].some(el=>!el.hidden))return;
+ if([...document.querySelectorAll('[role=dialog][aria-modal=true]')].some(el=>!el.hidden&&el.getClientRects().length>0))return;
  ev.preventDefault();if(ev.code==='KeyP')start();else cycle();
 });
 root.StarfallMultitoolUI9G={tick,start,cycle,recharge,get isScanning(){return !!job;},
