@@ -47,7 +47,16 @@ def exercise(browser,html,viewport):
  # Use the actual keyboard path on desktop, touch-accessible button on mobile.
  if 'MOBILE' in html:page.locator('#mt9g-scan').click()
  else:page.keyboard.press('p')
- page.wait_for_function("StarfallMultitoolUI9G.isScanning",timeout=3000)
+ page.wait_for_timeout(250)
+ scan_started=page.evaluate("""()=>({
+   scanning:StarfallMultitoolUI9G.isScanning,
+   state:StarfallMultitoolUI9G.status,
+   readout:document.getElementById('mt9g-readout').textContent,
+   controlDisabled:document.getElementById('mt9g-scan').disabled,
+   activeDialogs:[...document.querySelectorAll('[role=dialog][aria-modal=true]')]
+     .filter(el=>!el.hidden&&el.getClientRects().length>0).map(el=>el.id)
+ })""")
+ assert scan_started['scanning'],'Multitool did not start: '+repr(scan_started)
  page.wait_for_function("STARFALL_DEBUG.state.avatarDrawCalls===10",timeout=7000)
  page.screenshot(path=str(ART/(html.lower().replace('.html','')+'-active-scan.png')))
  page.wait_for_function("!StarfallMultitoolUI9G.isScanning && StarfallMultitoolUI9G.status.completed===1",timeout=15000)
