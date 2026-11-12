@@ -23,7 +23,7 @@ assert.throws(()=>Tool.begin(original,{...sampleCtx,eva:false},spectro),/EVA/);
 assert.throws(()=>Tool.begin(original,{...sampleCtx,truckOccupied:true},spectro),/EVA/);
 const inProgress=Tool.advance(job,1.8,sampleCtx,1500);
 assert.equal(inProgress.status,'sampling');
-assert(inProgress.progress>0&&inProgress.progress<.05,'fixed 0.1 second maximum step');
+assert(inProgress.progress>.24&&inProgress.progress<.26,'one-second maximum wall-clock step for low-FPS rendering');
 let next=job;for(let i=0;i<40;i++)next=Tool.advance(next,.1,sampleCtx,1500).job;
 assert.equal(Tool.advance(next,0,sampleCtx,1500).status,'ready','sample duration completed');
 assert.equal(Tool.advance(job,.01,{...sampleCtx,local:[0,.999, .0447]},1500).status,'cancelled','moving away cancels acquisition');
