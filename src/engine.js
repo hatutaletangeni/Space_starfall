@@ -45,8 +45,14 @@ function program(gl,vs,fs){const p=gl.createProgram();gl.attachShader(p,compile(
 const meshVS=`#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;layout(location=1) in vec3 aNormal;layout(location=2) in vec3 aColor;
-uniform mat4 uViewProj;uniform mat4 uModel;uniform float uEcologyWingPhase;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
-void main(){vec3 pos=aPos;if(uEcologyWingPhase>0.){float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);pos.y+=sin(uEcologyWingPhase)*tip*2.0;}vec4 world=uModel*vec4(pos,1.);vWorld=world.xyz;vNormal=normalize(mat3(uModel)*aNormal);vColor=aColor;gl_Position=uViewProj*world;}`;
+uniform mat4 uViewProj;uniform mat4 uModel;uniform float uEcologyWingPhase,uEcologyGait,uEcologyPulse;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
+void main(){vec3 pos=aPos;
+ if(uEcologyWingPhase>0.){float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);pos.y+=sin(uEcologyWingPhase)*tip*1.7;}
+ if(uEcologyGait>0.){float legs=clamp((1.5-pos.y)/1.5,0.,1.);
+   pos.y+=sin(uEcologyGait+pos.z*1.9+pos.x*.7)*.16*legs;
+   pos.x+=sin(uEcologyGait*.66+pos.z*1.65)*.15*clamp(abs(pos.z)/4.,0.,1.);}
+ if(uEcologyPulse>0.){float breath=sin(uEcologyPulse);pos.x*=1.+.04*breath;pos.y*=1.+.05*breath;}
+ vec4 world=uModel*vec4(pos,1.);vWorld=world.xyz;vNormal=normalize(mat3(uModel)*aNormal);vColor=aColor;gl_Position=uViewProj*world;}`;
 // A moon/planet only reflects light from its own star-lit hemisphere.
 function evaluateLighting(body,sys,galaxy,position){
  const sun=V.sub(sys.position,body.position),dist=Math.max(V.len(sun),sys.star.radius*1.001),sunDir=V.norm(sun);
@@ -502,11 +508,101 @@ function makeEcologyMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
  function quad(a,b,c,d,color){tri(a,b,c,color);tri(a,c,d,color);}
  function box(x,y,z,X,Y,Z,col){const a=[x,y,z],b=[X,y,z],c=[X,Y,z],d=[x,Y,z],e=[x,y,Z],f=[X,y,Z],g=[X,Y,Z],h=[x,Y,Z];quad(a,b,c,d,col);quad(f,e,h,g,col);quad(e,a,d,h,col);quad(b,f,g,c,col);quad(d,c,g,h,col);quad(e,f,b,a,col);}
  function stem(x,z,h,col){box(x-.10,0,z-.10,x+.10,h,z+.10,col);}
+ // Faceted body/eye/organ shells, tessellated once rather than per creature.
+ function crystal(x,y,z,rx,ry,rz,col){const a=[x,y+ry,z],b=[x,y-ry,z],e=[x-rx,y,z],f=[x+rx,y,z],n=[x,y,z-rz],s=[x,y,z+rz];
+  for(const [p,q] of [[e,n],[n,f],[f,s],[s,e]]){tri(a,p,q,col);tri(b,q,p,col);}
+ }
+ function vein(a,b,w,color){const v=V.sub(b,a),perp=V.norm([v[2],0,-v[0]]),o=V.mul(perp,w);
+  quad(V.add(a,o),V.add(b,o),V.sub(b,o),V.sub(a,o),color);
+ }
  if(kind==='microbial'){for(let i=0;i<9;i++){const a=i*2.4,x=Math.cos(a)*1.8,z=Math.sin(a)*1.8;box(x-.5,0,z-.5,x+.5,.18+.16*(i%3),z+.5,i%3?skin:shell);}}
  else if(kind==='spores'){for(let i=0;i<7;i++){const a=i*2.3,x=Math.sin(a)*1.4,z=Math.cos(a)*1.5;stem(x,z,1.3+.7*(i%3),skin);box(x-.45,1.1+.7*(i%3),z-.45,x+.45,1.35+.7*(i%3),z+.45,spore);}}
  else if(kind==='grazer'){box(-1.4,1.0,-2.2,1.4,2.25,2.2,skin);box(-.9,1.65,-3.0,.9,2.45,-1.7,shell);for(const x of [-1,1])for(const z of [-1.45,1.45])box(x-.3,0,z-.3,x+.3,1.35,z+.3,shell);stem(-.45,-2.75,3.25,bone);stem(.45,-2.75,3.25,bone);}
  else if(kind==='crawler'){box(-.95,.45,-1.5,.95,1.4,1.5,shell);for(const x of [-1,1])for(const z of [-1.2,-.4,.4,1.2]){const side=x*1.8;tri([x*.75,1.1,z],[side,.18,z+.35],[side,.18,z-.3],skin);}box(-.7,1.3,-1.0,.7,1.62,-.1,spore);}
  else if(kind==='flier'){box(-.5,-.3,-1.7,.5,.3,1.5,shell);tri([-.15,.0,-.5],[-5.0,.02,1.8],[-.25,.02,1.2],wing);tri([.15,.0,-.5],[.25,.02,1.2],[5.0,.02,1.8],wing);tri([-.2,.05,.6],[-3.1,.03,2.0],[-.1,.0,1.1],spore);tri([.2,.05,.6],[.1,.0,1.1],[3.1,.03,2.0],spore);}
+ else if(kind==='aurora'){
+  // Aurelius-inspired four-lobed purple lattice-sailer and luminous bead tail.
+  // Living population and physical lift still belong to 9A and 9C.
+  const violet=[.45,.13,.83],lilac=[.68,.36,.99],glow=[.87,.66,1],dark=[.23,.08,.42];
+  crystal(0,0,-.55,.48,.43,1.75,violet);
+  crystal(0,.03,-1.4,.30,.31,.48,glow);
+  crystal(0,.17,-.95,.18,.19,.16,glow);
+  for(const side of [-1,1])for(const quadrant of [-1,1]){
+   const a=[side*.30,.03,quadrant*.5],b=[side*4.9,.12,quadrant*2.8],
+         d=[side*.72,.01,quadrant*3.0],n=9;
+   const grid=[];
+   for(let i=0;i<=n;i++)for(let j=0;j<=n-i;j++){
+    const x=i/n,y=j/n,back=1-x-y;
+    grid.push([a[0]*back+b[0]*x+d[0]*y,a[1]*back+b[1]*x+d[1]*y,
+               a[2]*back+b[2]*x+d[2]*y]);
+   }
+   const cell=(i,j)=>{let k=0;for(let a=0;a<i;a++)k+=n-a+1;return k+j;};
+   for(let i=0;i<n;i++)for(let j=0;j<n-i;j++){
+    const A=grid[cell(i,j)],B=grid[cell(i+1,j)],C=grid[cell(i,j+1)];
+    tri(A,B,C,((i+j)%3)?violet:lilac);
+    if(i+j+1<n){const D=grid[cell(i+1,j+1)];tri(B,D,C,(i+j)%2?lilac:violet);}
+   }
+   for(let k=0;k<=n;k++){
+    const u=k/n,p=[a[0]*(1-u)+b[0]*u,.04,a[2]*(1-u)+b[2]*u];
+    vein(a,p,.025,glow); // visible membrane struts/wireframe veins
+    const q=[a[0]*(1-u)+d[0]*u,.04,a[2]*(1-u)+d[2]*u];
+    if(k%2===0)vein(a,q,.02,lilac);
+   }
+   vein(b,d,.042,glow);
+  }
+  for(let i=0;i<8;i++){
+   const z=1.45+i*.58,r=.29*(1-i/10);
+   crystal(.04*Math.sin(i*1.2),.03*Math.cos(i),z,r,r,r*1.10,i%2?lilac:glow);
+  }
+ }
+ else if(kind==='burrower'){
+  const a=[.53,.35,.20],b=[.80,.56,.33],c=[.36,.20,.12];
+  for(let i=0;i<11;i++){
+   const k=1-i/14,z=-2.6+i*.50;
+   crystal(.16*Math.sin(i*.5),.37,z,.72*k,.52*k,.35,i%2?a:b);
+   if(i<9)for(const side of [-1,1])tri([side*.42*k,.32,z],[side*1.18*k,.06,z+.25],[side*.52*k,.10,z+.52],c);
+  }
+  crystal(0,.35,-2.78,.7,.5,.66,b);
+  for(const side of [-1,1])crystal(side*.45,.53,-3.03,.09,.10,.10,[.98,.78,.40]);
+ }
+ else if(kind==='stalker'){
+  const hide=[.62,.32,.32],deep=[.35,.12,.15],eyes=[1,.40,.17];
+  crystal(0,1.5,0,1.02,.82,2.12,hide);
+  crystal(0,1.35,-2.05,.87,.62,.90,deep);
+  for(const side of [-1,1])for(const z of [-1.25,1.10]){
+   box(side-.21,.15,z-.23,side+.21,1.45,z+.23,deep);
+   tri([side,.26,z-.20],[side*1.35,.05,z],[side,.29,z+.20],hide);
+  }
+  for(let i=0;i<6;i++)tri([0,2.0,-1.1+i*.55],[-.23,2.9,-1.1+i*.55],
+                            [.23,2.0,-1.1+i*.55+.3],deep);
+  for(const side of [-1,1])crystal(side*.48,1.57,-2.85,.12,.14,.15,eyes);
+ }
+ else if(kind==='jelly'){
+  // Pulsing, semi-transparent lamp-bell with independent tentacle ribbons.
+  const lilac=[.62,.38,.92],rim=[.82,.68,1],tent=[.38,.62,.87];
+  const rings=3,segments=12;
+  for(let j=0;j<rings;j++)for(let i=0;i<segments;i++){
+   const t0=i*2*Math.PI/segments,t1=(i+1)*2*Math.PI/segments;
+   const p=(row,t)=>{const r=(1.48-row*.40),y=.15+Math.sin((row+1)/4*Math.PI)*1.38;return[Math.cos(t)*r,y,Math.sin(t)*r];};
+   const a=p(j,t0),b=p(j,t1),d=p(j+1,t0),e=p(j+1,t1);quad(a,d,e,b,j%2?lilac:rim);
+  }
+  crystal(0,1.05,0,.36,.38,.36,rim);
+  for(let i=0;i<12;i++){
+   const a=i*2*Math.PI/12,x=Math.cos(a)*1.08,z=Math.sin(a)*1.08;
+   for(let j=0;j<4;j++)vein([x*(1-j*.13),.15-j*.63,z*(1-j*.13)],
+     [x*(1-(j+1)*.13),.15-(j+1)*.63,z*(1-(j+1)*.13)],.045,j%2?lilac:tent);
+  }
+ }
+ else if(kind==='eel'){
+  const skin=[.17,.72,.83],light=[.42,.94,1],fin=[.20,.36,.73];
+  for(let i=0;i<11;i++){
+   const z=-3+i*.56,rad=.67*(1-i/13);
+   crystal(.13*Math.sin(i*.8),.25,z,rad,rad*.55,.46,i%3?skin:light);
+   if(i<10)tri([0,.45,z],[-.1,1.0,z+.2],[.1,.45,z+.48],fin);
+  }
+  crystal(0,.30,-3.4,.66,.39,.77,skin);
+  for(const side of [-1,1])crystal(side*.47,.47,-3.78,.11,.11,.11,light);
+ }
  else if(kind==='tracks'){for(let i=0;i<6;i++){const z=i*1.2-3;box(-1.4+(i%2)*1.5,0,z-.4,-.65+(i%2)*1.5,.06,z+.4,soil);}}
  else if(kind==='nest'){for(let i=0;i<12;i++){const a=i*Math.PI/6,x=Math.cos(a)*2.15,z=Math.sin(a)*2.15;box(x-.52,0,z-.35,x+.52,.55,z+.35,soil);}box(-.6,0,-.6,.6,.24,.6,spore);}
  else if(kind==='fossil'){for(let j=0;j<5;j++){const z=j*1.2-2.5;box(-2.1,.07,z-.13,2.1,.24,z+.13,bone);}box(-.23,.12,-3.4,.23,.35,3.5,bone);}
@@ -653,9 +749,9 @@ class Renderer{
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
   // All non-biological meshes remain opaque across every render pass.
-  gl.useProgram(this.p.mesh);this.setFloat(this.p.mesh,'uEcologyAlpha',1);this.setFloat(this.p.mesh,'uEcologyWingPhase',0);
+  gl.useProgram(this.p.mesh);this.setFloat(this.p.mesh,'uEcologyAlpha',1);this.setFloat(this.p.mesh,'uEcologyWingPhase',0);this.setFloat(this.p.mesh,'uEcologyGait',0);this.setFloat(this.p.mesh,'uEcologyPulse',0);
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.ecologyOrgans={heart:makeEcologyOrganMesh(gl,'heart'),stomach:makeEcologyOrganMesh(gl,'stomach')};this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','aurora','stalker','burrower','jelly','eel','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.ecologyOrgans={heart:makeEcologyOrganMesh(gl,'heart'),stomach:makeEcologyOrganMesh(gl,'stomach')};this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -1137,10 +1233,13 @@ class Renderer{
     const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;
     const r=V.norm(V.cross(f,u)),scale=Number.isFinite(item.scale)?Math.max(.2,Math.min(2.5,item.scale)):1,
      model=M.basis(V.mul(r,scale),V.mul(u,scale),V.mul(f,scale),V.sub(item.position,origin)),
-     creature=!!item.alive&&['grazer','crawler','flier'].includes(item.kind);
+     creature=!!item.alive&&['grazer','crawler','flier','aurora','stalker','burrower','jelly','eel'].includes(item.kind);
     if(creature&&distance<115){
-     const anatomy=item.kind==='grazer'?{heart:[0,1.8,-.8],stomach:[0,1.5,.8],size:.65}:
+     const anatomy=item.kind==='grazer'||item.kind==='stalker'?{heart:[0,1.8,-.8],stomach:[0,1.5,.8],size:.65}:
       item.kind==='crawler'?{heart:[0,1.1,-.5],stomach:[0,.77,.45],size:.47}:
+      item.kind==='burrower'?{heart:[0,.45,-1.8],stomach:[0,.4,-.6],size:.25}:
+      item.kind==='jelly'?{heart:[0,1.03,0],stomach:[0,.65,.25],size:.27}:
+      item.kind==='eel'?{heart:[0,.35,-2.6],stomach:[0,.25,-1.0],size:.32}:
        {heart:[0,.08,-.65],stomach:[0,-.05,.42],size:.31};
      const phase=Number.isFinite(item.heartPhase)?item.heartPhase:0,
       beat=Math.pow(Math.max(0,Math.sin(phase)),10)+.65*Math.pow(Math.max(0,Math.sin(phase-1.18)),12),
@@ -1152,13 +1251,16 @@ class Renderer{
      this.renderMesh(p,this.ecologyOrgans.heart,heart);this.renderMesh(p,this.ecologyOrgans.stomach,gut);
     }
     if(item.alive){
-     this.setFloat(p,'uShip',1.8);this.setFloat(p,'uEcologyAlpha',creature ? .24 : .37);
-     if(item.kind==='flier')this.setFloat(p,'uEcologyWingPhase',Math.max(.0001,Number.isFinite(item.wingPhase)?item.wingPhase:0));
+     this.setFloat(p,'uShip',1.8);this.setFloat(p,'uEcologyAlpha',item.kind==='aurora'?.36:item.kind==='jelly'?.42:creature?.26:.37);
+     if(item.kind==='flier'||item.kind==='aurora')
+      this.setFloat(p,'uEcologyWingPhase',Math.max(.0001,Number.isFinite(item.wingPhase)?item.wingPhase:0));
+     this.setFloat(p,'uEcologyGait',Number.isFinite(item.gaitPhase)?Math.max(.0001,item.gaitPhase):0);
+     this.setFloat(p,'uEcologyPulse',Number.isFinite(item.bodyPulse)?Math.max(.0001,item.bodyPulse):0);
      gl.depthMask(false);this.renderMesh(p,mesh,model);gl.depthMask(true);
-     this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uEcologyAlpha',1);
+     this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uEcologyGait',0);this.setFloat(p,'uEcologyPulse',0);this.setFloat(p,'uEcologyAlpha',1);
     }else{this.setFloat(p,'uShip',1);this.renderMesh(p,mesh,model);}
    }
-   gl.depthMask(true);this.setFloat(p,'uEcologyAlpha',1);this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uShip',1);
+   gl.depthMask(true);this.setFloat(p,'uEcologyAlpha',1);this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uEcologyGait',0);this.setFloat(p,'uEcologyPulse',0);this.setFloat(p,'uShip',1);
   }
   // Draw the active ruin interior in the same 3D scene. The camera, avatar and
   // corridor layout are all site-local; no extra rendering surface or scene load.
