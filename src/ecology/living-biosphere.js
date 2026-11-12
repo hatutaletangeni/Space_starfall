@@ -52,7 +52,9 @@ function agent(site,i,role,timeS,seed,traits){
  return {id:'bio-'+hash(h).toString(36),role,ageS:DAY*(.5+rand(h+':age')*10),
   lifeS:DAY*((role==='predator'||role==='aquatic_predator')?25:role==='flier'?12:role==='filterer'?10:role==='detritivore'?14:17)*(0.7+rand(h+':life')*.7),
   massKg:adult*(.5+.5*rand(h+':mass')),sizeM:Math.pow(adult,1/3)*(.5+rand(h+':shape')*.8),
-  energy:.5+.35*rand(h+':energy'),generation:0,lastEvent:'forage'};
+  energy:.5+.35*rand(h+':energy'),generation:0,lastEvent:'forage',
+  // Mixotrophic 4-sail variants derive light energy from source CO2 and water.
+  phototrophic:role==='flier'&&rand('bio-'+hash(h).toString(36)+':sails')>.32};
 }
 function seedPatch(site,body,seed=742,galaxy=null,atS=0){
  if(!site?.id||!body||site.kind==='fossil'||site.group==='trace')return null;
@@ -140,13 +142,22 @@ function tick(s,e){const dt=STEP_S/DAY;
     if(!victim.killed){victim.killed=true;food=victim.massKg;s.kills++;s.deaths++;}
    }
   }
+  // Aerial lattice-sail variants harvest light using the SAME finite 9A
+  // photosynthesis reservoirs. Transfer new organic mass directly to the
+  // organism instead of leaving phantom vegetation in the patch.
+  let phototrophy=0;
+  if(a.role==='flier'&&(a.phototrophic??(rand(a.id+':sails')>.32))&&e.light>0){
+   phototrophy=photo(s,a.massKg*.018*e.light*dt);
+   s.plantKg-=phototrophy;a.massKg+=phototrophy;
+   a.energy=clamp(a.energy+phototrophy/Math.max(EPS,a.massKg)*.5,0,1);
+  }
   // Digestion: assimilated tissue, indigestible waste, oxidative respiration.
   const growth=food*.19,excreta=food*.29,resp=food-growth-excreta;
   a.massKg+=growth;s.detritusKg+=excreta;
   const oxidation=respire(s,resp);
   s.detritusKg+=resp-oxidation;
   a.energy=clamp(a.energy+(food/Math.max(EPS,hunger)-1)*.11*dt,0,1);
-  a.lastEvent=food>0?(isHunter?'hunting':a.role==='detritivore'?'scavenging':a.role==='filterer'?'filtering':'grazing'):'hungry';
+  a.lastEvent=food>0?(isHunter?'hunting':a.role==='detritivore'?'scavenging':a.role==='filterer'?'filtering':'grazing'):phototrophy>0?'basking':'hungry';
   // Resting metabolism burns stored mass (not created mass).
   const basal=Math.min(a.massKg,a.massKg*(isHunter?.008:a.role==='flier'?.024:.014)*dt);
   a.massKg-=basal;const basalOx=respire(s,basal);s.detritusKg+=basal-basalOx;
@@ -167,7 +178,7 @@ function tick(s,e){const dt=STEP_S/DAY;
   const childMass=a.massKg*.25;a.massKg-=childMass;a.energy-=.23;
   const id='bio-'+hash(s.id+':offspring:'+s.serial+':'+s.seed).toString(36);
   s.agents.push({id,role:a.role,ageS:0,lifeS:a.lifeS*(.85+.3*rand(id+':life')),
-   massKg:childMass,sizeM:a.sizeM*.65,energy:.62,generation:a.generation+1,lastEvent:'newborn'});
+   massKg:childMass,sizeM:a.sizeM*.65,energy:.62,generation:a.generation+1,lastEvent:'newborn',phototrophic:!!a.phototrophic});
   s.serial++;s.births++;
  }
  // Decomposers mineralize dead biomass and restore fertility, subject to O2.
