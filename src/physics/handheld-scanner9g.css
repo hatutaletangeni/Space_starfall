@@ -23,7 +23,7 @@
 #multitool9g .mt9g-progress > span{height:100%;width:0;background:#e1c66c;display:block;transition:width .1s linear}
 #multitool9g .mt9g-actions button:active{transform:translateY(1px)}
 #multitool9g .mt9g-shortcuts{font-size:9px;color:#7797a4;margin-top:5px}
-body.sfmobile-edition #multitool9g{right:max(9px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));width:min(270px,37vw);max-height:min(80vh,390px);overflow:auto;padding:9px 10px}
+body.sfmobile-edition #multitool9g{right:max(9px,env(safe-area-inset-right));bottom:clamp(110px,29dvh,164px);width:min(262px,37vw);max-height:calc(100dvh - clamp(110px,29dvh,164px) - 8px);overflow:auto;padding:9px 10px}
 body.sfmobile-edition #multitool9g .mt9g-shortcuts{display:none}
 @media(max-height:560px){#multitool9g{bottom:max(8px,env(safe-area-inset-bottom));padding:8px 10px}#multitool9g .mt9g-bar{margin:5px 0}#multitool9g .mt9g-field{margin:6px 0}#multitool9g .mt9g-target{margin:5px 0 2px}}
 @media(max-width:700px) and (orientation:portrait){#multitool9g{right:7px;bottom:7px;width:min(280px,calc(100vw - 14px))}}
