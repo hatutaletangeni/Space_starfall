@@ -45,8 +45,8 @@ function program(gl,vs,fs){const p=gl.createProgram();gl.attachShader(p,compile(
 const meshVS=`#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;layout(location=1) in vec3 aNormal;layout(location=2) in vec3 aColor;
-uniform mat4 uViewProj;uniform mat4 uModel;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
-void main(){vec4 world=uModel*vec4(aPos,1.);vWorld=world.xyz;vNormal=normalize(mat3(uModel)*aNormal);vColor=aColor;gl_Position=uViewProj*world;}`;
+uniform mat4 uViewProj;uniform mat4 uModel;uniform float uEcologyWingPhase;out vec3 vWorld;out vec3 vNormal;out vec3 vColor;
+void main(){vec3 pos=aPos;if(uEcologyWingPhase>0.){float tip=clamp((abs(pos.x)-.35)/4.65,0.,1.);pos.y+=sin(uEcologyWingPhase)*tip*2.0;}vec4 world=uModel*vec4(pos,1.);vWorld=world.xyz;vNormal=normalize(mat3(uModel)*aNormal);vColor=aColor;gl_Position=uViewProj*world;}`;
 // A moon/planet only reflects light from its own star-lit hemisphere.
 function evaluateLighting(body,sys,galaxy,position){
  const sun=V.sub(sys.position,body.position),dist=Math.max(V.len(sun),sys.star.radius*1.001),sunDir=V.norm(sun);
@@ -75,7 +75,7 @@ function evaluateLighting(body,sys,galaxy,position){
 const meshFS=`#version 300 es
 precision highp float;in vec3 vWorld;in vec3 vNormal;in vec3 vColor;
 uniform vec3 uCamera,uLight,uStarColor,uBounceDir,uBounceColor,uHeadlampPos,uHeadlampDir,uFogColor;
-uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip,uClimateIce;
+uniform vec4 uOccluder;uniform float uStarPower,uAmbient,uBouncePower,uHeadlampPower,uFogDensity,uShip,uClimateIce,uEcologyAlpha;
 out vec4 frag;
 float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 void main(){
@@ -96,7 +96,7 @@ void main(){
  vec3 color=clamp(groundColor*illumination,0.,1.);
  if(uShip>.5)color=max(color,vColor*.075);if(uShip>1.5)color=max(color,vColor*.93);
  float fog=1.-exp(-length(uCamera-vWorld)*uFogDensity);color=mix(color,uFogColor,clamp(fog,0.,.96));
- frag=vec4(color,1.);
+ frag=vec4(color,uEcologyAlpha);
 }`;
 // LW04: animated sea normals and wave displacement live in the same 3D scene.
 const waterVS=`#version 300 es
@@ -512,6 +512,33 @@ function makeEcologyMesh(gl,kind){const pp=[],nn=[],cc=[],ix=[];
  else if(kind==='fossil'){for(let j=0;j<5;j++){const z=j*1.2-2.5;box(-2.1,.07,z-.13,2.1,.24,z+.13,bone);}box(-.23,.12,-3.4,.23,.35,3.5,bone);}
  return makeMesh(gl,pp,nn,cc,ix);
 }
+
+ // 9B: shared heart and stomach meshes, never allocated per individual.
+ function makeEcologyOrganMesh(gl,organ){const pp=[],nn=[],cc=[],ix=[];
+  function tri(a,b,c,col){
+   const normal=V.norm(V.cross(V.sub(b,a),V.sub(c,a))),i=pp.length/3;
+   for(const p of [a,b,c]){pp.push(...p);nn.push(...normal);cc.push(...col);}
+   ix.push(i,i+1,i+2);
+  }
+  function ellipsoid(cx,cy,cz,rx,ry,rz,col){
+   const lat=6,lon=10;
+   function point(phi,theta){return[cx+rx*Math.sin(phi)*Math.cos(theta),cy+ry*Math.cos(phi),cz+rz*Math.sin(phi)*Math.sin(theta)];}
+   for(let i=0;i<lat;i++)for(let j=0;j<lon;j++){
+    const a=point(i*Math.PI/lat,j*2*Math.PI/lon),b=point((i+1)*Math.PI/lat,j*2*Math.PI/lon),
+     c=point((i+1)*Math.PI/lat,(j+1)*2*Math.PI/lon),d=point(i*Math.PI/lat,(j+1)*2*Math.PI/lon);
+    tri(a,b,c,col);tri(a,c,d,col);
+   }
+  }
+  if(organ==='heart'){
+   ellipsoid(-.18,.14,0,.33,.36,.32,[.98,.13,.23]);
+   ellipsoid(.18,.14,0,.33,.36,.32,[.94,.19,.32]);
+   ellipsoid(0,-.24,0,.36,.45,.29,[1,.27,.28]);
+  }else{
+   ellipsoid(0,0,0,.56,.39,.46,[.96,.57,.25]);
+   ellipsoid(.19,-.16,.18,.29,.24,.32,[.95,.77,.35]);
+  }
+  return makeMesh(gl,pp,nn,cc,ix);
+ }
 /* Explorer avatar: original, lightweight 3D mesh assembled once per session.
  * Lit by the same star/moon/headlamp shader as the ships and terrain.
  * Local model axes: +Y up, -Z forward. Feet y=0; eyes at y=5.25.
@@ -625,8 +652,10 @@ class Renderer{
   this.gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:true,powerPreference:'high-performance'});
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
   this.p={mesh:program(gl,meshVS,meshFS),shell:program(gl,shellVS,atmoFS),cloud:program(gl,shellVS,cloudFS),star:program(gl,starVS,starFS),bg:program(gl,bgVS,bgFS),sun:program(gl,meshVS,sunFS),effects:program(gl,effectsVS,effectsFS),water:program(gl,waterVS,waterFS)};
+  // All non-biological meshes remain opaque across every render pass.
+  gl.useProgram(this.p.mesh);this.setFloat(this.p.mesh,'uEcologyAlpha',1);this.setFloat(this.p.mesh,'uEcologyWingPhase',0);
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
-  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
+  this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.ecologyOrgans={heart:makeEcologyOrganMesh(gl,'heart'),stomach:makeEcologyOrganMesh(gl,'stomach')};this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
   this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
@@ -1179,7 +1208,7 @@ class Renderer{
   }
  }
 
- dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
+ dispose(){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.props);}this.terrainTiles.clear();for(const obj of this.meshCache.values()){this.freeMesh(obj.world);this.freeMesh(obj.atmo);this.freeMesh(obj.cloud);}for(const m of this.ringCache.values())this.freeMesh(m);for(const mesh of this.debrisMeshes)this.freeMesh(mesh);this.debrisMeshes.length=0;this.freeMesh(this.sunSphere);this.freeMesh(this.sunHalo);this.freeMesh(this.ship);this.freeMesh(this.rover);for(const mesh of this.infrastructure.values())this.freeMesh(mesh);this.infrastructure.clear();for(const mesh of this.ruins.values())this.freeMesh(mesh);this.ruins.clear();for(const mesh of this.ecologyMeshes.values())this.freeMesh(mesh);this.ecologyMeshes.clear();this.freeMesh(this.ecologyOrgans.heart);this.freeMesh(this.ecologyOrgans.stomach);for(const mesh of this.interiorMeshes.values())if(mesh)this.freeMesh(mesh);this.interiorMeshes.clear();for(const mesh of this.caveMeshes.values())this.freeMesh(mesh);this.caveMeshes.clear();for(const mesh of this.caveEntranceMeshes.values())this.freeMesh(mesh);this.caveEntranceMeshes.clear();for(const part of [this.avatarParts.body,this.avatarParts.cape,...this.avatarParts.legs,...this.avatarParts.arms,this.avatarParts.staff,this.avatarParts.glow,this.avatarParts.staffGlow])this.freeMesh(part);this.gl.deleteBuffer(this.effectBuffer);this.gl.deleteVertexArray(this.effectVao);for(const p of Object.values(this.p))this.gl.deleteProgram(p);}
 }
 root.Starfall3D={Renderer,V,M,groundHeight,field,evaluateLighting,sampleTerrain:(planet,localDirection)=>ST.sample(planet,localDirection,groundHeight,field,shade,(body,d)=>Renderer.prototype.terrainNormal.call(null,body,d))};
 })(globalThis);
