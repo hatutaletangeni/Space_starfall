@@ -33,8 +33,7 @@ global.StarfallScienceUI={measure:instrument=>{const ob={id:'obs-9g-'+readings.l
  value:.32,unit:'index',uncertainty:.08,biome:'Canopy basin',quality:'estimated',bodyId:ctx.bodyId};
  readings.push(ob);return ob;},open:()=>{}};
 try{
-const T=require('../src/physics/eva-multitool9g.js'); // browser script defines root, no commonjs
-assert(T===undefined);
+require('../src/physics/eva-multitool9g.js'); // side-effect attaches API to globalThis
 const M=global.StarfallMultitool9G;
 assert(M,'scanner API exposed to main game');
 assert(M.canUse,'available in EVA');
