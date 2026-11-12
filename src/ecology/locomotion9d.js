@@ -14,7 +14,7 @@ const hash=s=>{let h=2166136261;for(let i=0;i<String(s).length;i++)h=Math.imul(h
 const seed=s=>hash(s)/4294967296;
 const roles=Object.freeze({grazer:'grazer',predator:'stalker',detritivore:'burrower',filterer:'jelly',aquatic_predator:'eel'});
 function modelKind(agent,site){
- if(agent.role==='flier')return seed(agent.id+':sails')>.32?'aurora':'flier';
+ if(agent.role==='flier')return (agent.phototrophic??(seed(agent.id+':sails')>.32))?'aurora':'flier';
  if(agent.role==='grazer')return site?.kind==='crawler'?'crawler':'grazer';
  return roles[agent.role]||'grazer';
 }
