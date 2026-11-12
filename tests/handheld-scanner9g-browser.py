@@ -83,14 +83,27 @@ def exercise(browser,html,viewport):
   if(s.energyJ<1000||!s.powerEnabled)
    rt.vehicleStore.update('ship',{...s,energyJ:Math.max(s.energyJ,1000),
     powerEnabled:true});
+  // Record the synchronous source debit in the ORIGINAL charging function:
+  // separate Playwright steps allow normal ship power-load simulation ticks.
+  const native=rt.rechargeHandheldScanner9G.bind(rt);
+  rt.rechargeHandheldScanner9G=amount=>{
+    const from=rt.vehicleStore.get('ship').state.energyJ;
+    const credited=native(amount);
+    const to=rt.vehicleStore.get('ship').state.energyJ;
+    window.__scanner9gPaid={from,to,credited};
+    return credited;
+  };
   return rt.vehicleStore.get('ship').state.energyJ;
  }""")
  page.locator('#mt9g-charge').click()
  charged=page.evaluate("""()=>({tool:StarfallMultitoolUI9G.batteryJ,
    ship:StarfallRuntime.vehicleStore.get('ship').state.energyJ,
+   paid:window.__scanner9gPaid||null,
    text:document.getElementById('mt9g-readout').textContent})""")
  if charged['tool']==18000:
-  assert before_ship-charged['ship']==560,'ship power debit must exactly match charged handheld energy'
+  assert charged['paid'] and charged['paid']['credited']==560,charged
+  assert abs((charged['paid']['from']-charged['paid']['to'])-560)<.00001,\
+   'native ship-to-scanner transfer must debit exact source energy'
  else:
   # A ship-to-explorer distance check can legitimately block recharge if
   # the landed starter position is beyond 32 game units.
