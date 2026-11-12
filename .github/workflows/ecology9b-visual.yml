@@ -1,0 +1,42 @@
+name: STARFALL 9B flying fauna real WebGL
+on:
+  pull_request:
+    paths:
+      - 'src/ecology/**'
+      - 'src/engine.js'
+      - 'tests/ecology9b-browser.py'
+      - 'PLAY-STARFALL.html'
+      - 'PLAY-STARFALL-MOBILE.html'
+      - '.github/workflows/ecology9b-visual.yml'
+  workflow_dispatch:
+jobs:
+  winged-anatomy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Enforce exact offline desktop and landscape mobile parity
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          git diff --exit-code -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+      - name: Install actual Chromium software WebGL2 harness
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Verify real animated flier and organ rendering
+        run: python tests/ecology9b-browser.py
+      - name: Upload unaltered WebGL screenshots and draw observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecology-9b-actual-webgl2
+          path: artifacts/ecology9b/
+          if-no-files-found: warn
+          retention-days: 14
