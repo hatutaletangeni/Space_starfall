@@ -4,7 +4,8 @@
 (function(root){'use strict';
 const E=root.StarfallEcology,Bio=root.StarfallLivingBiosphere,Fly=root.StarfallAerialFlight9C,RT=root.StarfallRuntime,G=root.Starfall3D,V=G.V,ST=root.StarfallStableTerrain,$=id=>document.getElementById(id);
 if(!E||!RT)throw Error('Ecology UI needs runtime and ecology layer');
-const flierStates=new Map();let flierBody=null;\nconst storageKey='ecology6h',initial=SF.load()?.[storageKey]||{};let records=E.sanitizeRecords(initial.records),biospheres=Bio?Bio.sanitize(initial.biospheres):[],bioDirty=false,lastBioSave=0,selectedId=null,candidates=[],lastLocal=null,lastBody=null,updatedAt=-Infinity;
+const flierStates=new Map();let flierBody=null;
+const storageKey='ecology6h',initial=SF.load()?.[storageKey]||{};let records=E.sanitizeRecords(initial.records),biospheres=Bio?Bio.sanitize(initial.biospheres):[],bioDirty=false,lastBioSave=0,selectedId=null,candidates=[],lastLocal=null,lastBody=null,updatedAt=-Infinity;
 function context(){const ctx=RT.outpostContext(),b=ctx.body;return b?.landable&&ctx.local?{...ctx,local:ST.normalize(ctx.local),body:b}:null;}
 function sample(b,d){return G.sampleTerrain(b,d);}
 function save(){SF.save({[storageKey]:{...initial,schema:1,records:records.slice(-300),biospheres:biospheres.slice(-Bio.MAX_PATCHES)}});bioDirty=false;lastBioSave=RT.time;}
