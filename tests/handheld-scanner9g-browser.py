@@ -36,6 +36,15 @@ def exercise(browser,html,viewport):
  page.wait_for_function("!!(window.StarfallRuntime&&window.StarfallMultitoolUI9G&&window.STARFALL_DEBUG)",timeout=50000)
  page.wait_for_function("StarfallRuntime.landed && StarfallRuntime.eva && !StarfallRuntime.truckOccupied",timeout=15000)
  page.locator('#multitool9g').wait_for(state='visible',timeout=12000)
+ # Mission and engineering workspaces MUST appear above the scanner;
+ # the original 8K manufacturing test requires these click targets to work.
+ page.evaluate("document.body.classList.add('sf-workspace-open')")
+ assert not page.locator('#multitool9g').is_visible(), 'Scanner obscures the engineering workspace'
+ page.evaluate("document.body.classList.remove('sf-workspace-open')")
+ page.evaluate("document.body.classList.add('sf-flow-open')")
+ assert not page.locator('#multitool9g').is_visible(), 'Scanner obscures the Mission workflow'
+ page.evaluate("document.body.classList.remove('sf-flow-open')")
+ page.locator('#multitool9g').wait_for(state='visible',timeout=3000)
  assert page.locator('#mt9g-mode option').count()==5
  before=page.evaluate("""()=>({energy:StarfallMultitoolUI9G.batteryJ,
   journal:StarfallScienceUI.journal.length,
