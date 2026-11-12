@@ -64,7 +64,9 @@ function advance(job,dt,ctx,radius){
   return{status:'cancelled',reason:'Scanner stopped: EVA or body changed',job:null};
  const dot=ctx.local.reduce((a,x,i)=>a+x*job.local[i],0),d=Math.acos(clamp(dot,-1,1))*radius;
  if(d>12)return{status:'cancelled',reason:'Scanner stopped: moved over 12 scene units from the sample site',job:null};
- const elapsed=clamp(job.elapsed+clamp(dt,0,.10),0,job.seconds);
+ // A sensor uses wall time, not 9C flight time steps or the game's 40 ms
+ // physics frame cap. A 1-second upper bound prevents background-tab jumps.
+ const elapsed=clamp(job.elapsed+clamp(dt,0,1),0,job.seconds);
  return{status:elapsed>=job.seconds?'ready':'sampling',job:{...job,elapsed},progress:elapsed/job.seconds};
 }
 function record(s,observation,job,target){
