@@ -1103,7 +1103,7 @@ class Renderer{
   if(Array.isArray(state.ecology)&&state.ecology.length){
    p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
    let count=0;for(const item of state.ecology){if(count++>=18)break;const mesh=this.ecologyMeshes.get(item.kind);if(!mesh||!item.position||V.len(V.sub(item.position,origin))>240)continue;
-    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;const r=V.norm(V.cross(f,u));this.renderMesh(p,mesh,M.basis(r,u,f,V.sub(item.position,origin)));
+    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;const r=V.norm(V.cross(f,u)),scale=Number.isFinite(item.scale)?Math.max(.2,Math.min(2.5,item.scale)):1;this.renderMesh(p,mesh,M.basis(V.mul(r,scale),V.mul(u,scale),V.mul(f,scale),V.sub(item.position,origin)));
    }
   }
   // Draw the active ruin interior in the same 3D scene. The camera, avatar and
