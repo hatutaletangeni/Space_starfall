@@ -57,3 +57,9 @@ CI screenshots and FPS reflect software SwiftShader, **not** a player's actual g
 ## Backout
 
 This is additive and does not migrate or rewrite the saved 9A / 9E ecology data. Disable 9F by omitting the `biome-wildlife9f.js` script, or revert the 9F merge; the existing 9A–9E ecological site actors remain functional.
+
+## Release validation after generated bundles
+
+The 9F browser/build workflow regenerates and commits both large offline standalone HTML files on the feature branch. Early PR jobs can report exact-parity failures while running against an earlier source-only commit. After that machine-generated bundle commit, a separate user-authorized documentation commit triggers PR checks again against **both synchronized bundles**, including independent older 8H/8K, 9A–9E and 9F suites. An `action_required` result on a GitHub Actions bot commit is not proof of test success.
+
+Only merge if the final synchronized PR head's real checks succeed. The hardware user's own GPU and device appearance are outside software CI.
