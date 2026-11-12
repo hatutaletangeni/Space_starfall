@@ -1,0 +1,56 @@
+/* 9G handheld scanner: compact, always on top of EVA view, no mobile text selection. */
+#multitool9g-open[hidden],#multitool9g-panel[hidden],#multitool9g-dismiss[hidden]{display:none!important}
+#multitool9g-dismiss{display:none}
+#multitool9g-open{position:fixed;z-index:14;right:16px;bottom:120px;border:1px solid #37c7e4a8;
+ background:#061923ed;color:#a2f0ff;padding:12px 17px;border-radius:7px;letter-spacing:.09em;
+ box-shadow:0 0 19px #04b8d83b;font:700 11px Consolas,monospace;touch-action:manipulation;
+ -webkit-user-select:none;user-select:none}
+#multitool9g-panel{position:fixed;z-index:45;right:18px;bottom:178px;width:min(340px,calc(100vw - 28px));
+ max-height:min(610px,calc(100dvh - 24px));overflow:auto;box-sizing:border-box;
+ padding:17px;background:#071721f7;border:1px solid #35c4e3a8;border-radius:9px;
+ color:#dffbff;box-shadow:0 14px 42px #000b;backdrop-filter:blur(16px);
+ font:11px/1.5 Consolas,monospace;overscroll-behavior:contain}
+.multitool9g-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#8ff3ff;font-size:12px;position:sticky;top:-8px;z-index:2;padding:8px 1px 9px;background:#071721;min-height:38px}
+#multitool9g-close{color:#e8f9ff;background:transparent;border:0;font-size:20px;cursor:pointer}
+.multitool9g-note{color:#a5b8c1;font-size:10px;line-height:1.5}
+#multitool9g-panel label{display:block;color:#a5b8c1;margin:14px 0 6px;font-size:10px}
+#multitool9g-mode{width:100%;box-sizing:border-box;padding:10px;background:#0c2632;color:#ecfcff;
+ border:1px solid #387d8b;border-radius:5px;font:12px Consolas,monospace}
+.multitool9g-meter{height:7px;overflow:hidden;border-radius:5px;background:#1c3945;margin:16px 0 5px}
+#multitool9g-charge{height:100%;width:100%;background:linear-gradient(90deg,#12b2b5,#85faff);transition:width .35s}
+.multitool9g-power{color:#99ceda;font-size:10px;margin-bottom:12px}
+#multitool9g-trigger{width:100%;padding:12px 8px;background:#0d6875;color:#f3ffff;
+ border:1px solid #78e5f3;border-radius:5px;font:700 11px Consolas,monospace;cursor:pointer}
+#multitool9g-trigger:disabled{opacity:.42;cursor:not-allowed}
+.multitool9g-actions{display:flex;gap:8px;margin-top:10px}
+.multitool9g-actions button{flex:1;min-width:0;padding:10px 5px;background:#10303e;
+ border:1px solid #39758a;color:#c7edf5;font:10px Consolas,monospace;border-radius:4px;cursor:pointer}
+#multitool9g-status{min-height:26px;color:#b6f6cb}
+#multitool9g-status[data-error=true]{color:#ffae9a}
+#multitool9g-last{white-space:pre-wrap;overflow-wrap:anywhere;color:#cfedf3;font:10px/1.65 Consolas,monospace;
+ border-top:1px solid #275262;padding-top:10px;margin:8px 0 0}
+@media (pointer:coarse),(max-width:680px){
+ #multitool9g-dismiss:not([hidden]){display:block;position:fixed;top:8px;right:8px;z-index:90;
+  background:#073140;color:#b7fcff;border:1px solid #71dce8;border-radius:5px;
+  padding:11px 14px;min-height:44px;font:700 12px Consolas,monospace;
+  cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+ #multitool9g-close{display:none}
+
+ #multitool9g-open{right:10px;bottom:16px;padding:13px 14px;z-index:31;font-size:11px}
+ #multitool9g-panel{right:7px;bottom:63px;width:min(340px,calc(100vw - 14px));
+  max-height:calc(100dvh - 78px);z-index:46;padding:12px}
+ #multitool9g-panel button,#multitool9g-mode{min-height:39px;touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+}
+
+/* A mobile standalone remains a mobile UI even when tested on a laptop with
+   a fine pointer or shown at 920px landscape width. Do not infer device type
+   only from CSS pointer media queries. */
+body.sfmobile-edition #multitool9g-dismiss:not([hidden]){display:block;position:fixed;top:8px;right:8px;z-index:90;
+ background:#073140;color:#b7fcff;border:1px solid #71dce8;border-radius:5px;padding:11px 14px;
+ min-height:44px;font:700 12px Consolas,monospace;cursor:pointer;
+ touch-action:manipulation;-webkit-user-select:none;user-select:none}
+body.sfmobile-edition #multitool9g-close{display:none}
+body.sfmobile-edition #multitool9g-open{right:10px;bottom:16px;padding:13px 14px;z-index:31}
+body.sfmobile-edition #multitool9g-panel{right:7px;bottom:63px;width:min(340px,calc(100vw - 14px));
+ max-height:calc(100dvh - 78px);z-index:46;padding:12px}
