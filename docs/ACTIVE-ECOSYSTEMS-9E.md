@@ -65,3 +65,7 @@ This is a finite **local** gameplay ecosystem, not a planet-wide agent simulatio
 Open the latest **desktop** \`PLAY-STARFALL.html\` or **mobile landscape** \`PLAY-STARFALL-MOBILE.html\`; travel to a landed, warm biologically suitable world with level-3/4 ecology. In **Mission → Explore → Ecology**, select a rich living patch and approach it in EVA. Watch a grazer/predator/burrower for 10–20s: it should move, turn, graze/flee/chase, and animate limbs. Observe translucent aurora sailers at closer range to see four independently rippling sails and the trailing beads, plus pulsing heart and digestive sac.
 
 The source and generated standalones stay synchronized by the 9E GitHub workflow. All new visual changes preserve 9A save schema.
+
+## Release-gate note
+
+On the first feature-branch commit, 9A and 9B stand-alone parity jobs can fail before the new HTML bundles are committed by the 9E builder. The 9E job checks the exact rebuilt contents and commits both generated single-file editions on the feature branch. The final PR head must be checked **again** after that bundle commit, including the independent 9A, 9B, 9C, 9D and 9E tests, before merging. A GitHub Actions bot-generated commit may receive `action_required` checks instead of executed tests due GitHub's workflow-recursion protections; these are **not** equivalent to pass results. This source-author commit is intentionally used to trigger a fresh eligible PR check cycle on the synchronized branch.
