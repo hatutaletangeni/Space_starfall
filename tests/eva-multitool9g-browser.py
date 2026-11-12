@@ -44,7 +44,14 @@ def verify(browser,filename,viewport):
  assert info['mode']=='thermometer' and info['ready'],info
  assert 'THERMOMETER' in info['label'],info
  page.screenshot(path=str(OUT/(filename.replace('.html','').lower()+'-scanner.png')))
- page.locator('#multitool9g-close').click()
+ if filename.endswith('MOBILE.html'):
+  dismiss=page.locator('#multitool9g-dismiss')
+  assert dismiss.is_visible(),'dedicated landscape close button is not visible'
+  box=dismiss.bounding_box()
+  assert box and box['x']>=0 and box['y']>=0 and box['x']+box['width']<=viewport['width'] and box['y']+box['height']<=viewport['height'],f'close button not within viewport: {box}'
+  dismiss.click(timeout=5000)
+ else:
+  page.locator('#multitool9g-close').click(timeout=5000)
  assert page.locator('#multitool9g-panel').is_hidden(),'close button failed'
  assert not errors,errors[:6]
  assert not requests,requests[:6]
