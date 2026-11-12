@@ -59,7 +59,18 @@ def exercise(browser,html,viewport):
  assert scan_started['scanning'],'Multitool did not start: '+repr(scan_started)
  page.wait_for_function("STARFALL_DEBUG.state.avatarDrawCalls===10",timeout=7000)
  page.screenshot(path=str(ART/(html.lower().replace('.html','')+'-active-scan.png')))
- page.wait_for_function("!StarfallMultitoolUI9G.isScanning && StarfallMultitoolUI9G.status.completed===1",timeout=15000)
+ try:
+  page.wait_for_function("!StarfallMultitoolUI9G.isScanning",timeout=19000)
+ except Exception as e:
+  detail=page.evaluate("""()=>({
+   status:StarfallMultitoolUI9G.status,
+   scannerText:document.getElementById('mt9g-readout').textContent,
+   frame:STARFALL_DEBUG.state.avatarDrawCalls,
+   pageHidden:document.hidden
+  })""")
+  raise AssertionError('Scanner acquisition did not stop: '+repr(detail)) from e
+ after_scan=page.evaluate("StarfallMultitoolUI9G.status")
+ assert after_scan['completed']==1,'Scan stopped without journal receipt: '+repr(after_scan)
  result=page.evaluate("""()=>({
   status:StarfallMultitoolUI9G.status,
   journal:StarfallScienceUI.journal,
