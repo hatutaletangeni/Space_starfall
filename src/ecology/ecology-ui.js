@@ -2,8 +2,9 @@
    Nothing here creates measurements: all corroboration comes from Update 4 journal.
 */
 (function(root){'use strict';
-const E=root.StarfallEcology,Bio=root.StarfallLivingBiosphere,RT=root.StarfallRuntime,G=root.Starfall3D,V=G.V,ST=root.StarfallStableTerrain,$=id=>document.getElementById(id);
+const E=root.StarfallEcology,Bio=root.StarfallLivingBiosphere,Fly=root.StarfallAerialFlight9C,RT=root.StarfallRuntime,G=root.Starfall3D,V=G.V,ST=root.StarfallStableTerrain,$=id=>document.getElementById(id);
 if(!E||!RT)throw Error('Ecology UI needs runtime and ecology layer');
+const flierStates=new Map();let flierBody=null;
 const storageKey='ecology6h',initial=SF.load()?.[storageKey]||{};let records=E.sanitizeRecords(initial.records),biospheres=Bio?Bio.sanitize(initial.biospheres):[],bioDirty=false,lastBioSave=0,selectedId=null,candidates=[],lastLocal=null,lastBody=null,updatedAt=-Infinity;
 function context(){const ctx=RT.outpostContext(),b=ctx.body;return b?.landable&&ctx.local?{...ctx,local:ST.normalize(ctx.local),body:b}:null;}
 function sample(b,d){return G.sampleTerrain(b,d);}
@@ -78,21 +79,50 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
    }
    for(const animal of patch.agents){
     if(objects.length>=18)break;
-    // Each organism uses a stable phase; air foragers occupy a true flying volume.
     const phase=root.StarfallFieldScience.rand(animal.id+':flight')*Math.PI*2;
-    const flying=animal.role==='flier',speed=flying?24+animal.sizeM*7:300+animal.sizeM*150;
-    const span=flying?Math.min(18,8+animal.sizeM*4):Math.min(8,2+animal.sizeM*3);
+    const flying=animal.role==='flier',kind=flying?'flier':animal.role==='predator'?'crawler':site.kind==='crawler'?'crawler':'grazer';
+    // 9C: integrate actual lift, drag, thrust and gravity in the near-field.
+    // The biology record still owns mass, food, mortality and reproduction.
+    if(flying&&Fly){
+     if(flierBody!==ctx.body.id){flierStates.clear();flierBody=ctx.body.id;}
+     let state=flierStates.get(animal.id);
+     if(!state)state=Fly.start(animal.id,animal.massKg,animal.sizeM,RT.time);
+     const world=Bio.world(ctx.body,RT.galaxy.seed,RT.galaxy);
+     const groundAtSite=sample(ctx.body,site.local).height;
+     const previousLocal=E.offset(site.local,state.p[0],state.p[2],ctx.body.radius);
+     const groundAtFlyer=sample(ctx.body,previousLocal).height;
+     const gravity=root.StarfallPhysics?.bodyProfile?.(ctx.body)?.surfaceGravityMS2||9.81;
+     state=Fly.advance(state,RT.time,{massKg:animal.massKg,sizeM:animal.sizeM,
+      rhoKgM3:Fly.airDensity(world.pressurePa,world.temperatureK),
+      gravityMS2:gravity,floorY:groundAtFlyer-groundAtSite});
+     flierStates.set(animal.id,state);
+     if(flierStates.size>36)flierStates.delete(flierStates.keys().next().value);
+     const local=E.offset(site.local,state.p[0],state.p[2],ctx.body.radius);
+     const groundHere=sample(ctx.body,local).height;
+     const altitude=Math.max(1.2,state.p[1]+groundAtSite-groundHere);
+     const spinAxis=ctx.body.spinAxis||[0,1,0],spinAngle=ctx.body.spinAngle||0;
+     const frame=E.basis(local),up=V.rot(frame.up,spinAxis,spinAngle),
+      east=V.rot(frame.east,spinAxis,spinAngle),north=V.rot(frame.north,spinAxis,spinAngle);
+     const travel=V.norm(V.add(V.add(V.mul(east,state.v[0]),V.mul(north,state.v[2])),V.mul(up,state.v[1])));
+     const right=V.norm(V.cross(travel,up)),
+      bankedUp=V.norm(V.add(V.mul(up,Math.cos(state.bank)),V.mul(right,Math.sin(state.bank))));
+     addObject(site,'flier',local,altitude,animal.id,Math.max(.3,Math.min(1.8,animal.sizeM)),state.flightMode,{
+      alive:true,up:bankedUp,forward:travel,heartPhase:RT.time*9.2+phase,
+      digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
+      wingPhase:Math.max(.0001,state.wingPhase)
+     });
+     continue;
+    }
+    // Ground-dweller wandering is independent of airborne physics.
+    const speed=300+animal.sizeM*150,span=Math.min(8,2+animal.sizeM*3);
     const x=Math.cos(RT.time/speed+phase)*span;
     const z=Math.sin(RT.time/(speed*1.16)+phase)*span*.83;
     const local=E.offset(site.local,x,z,ctx.body.radius);
-    const kind=flying?'flier':animal.role==='predator'?'crawler':site.kind==='crawler'?'crawler':'grazer';
-    const altitude=flying?7+2.8*Math.sin(RT.time/9+phase)+1.2*Math.cos(RT.time/17+phase):0;
-    addObject(site,kind,local,altitude,animal.id,
-      Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent,{
-       alive:true,heartPhase:RT.time*(animal.role==='predator'?5.2:flying?9.2:6.4)+phase,
-       digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
-       wingPhase:flying?((RT.time*8.3+phase)%(Math.PI*2)+.0001):0
-      });
+    addObject(site,kind,local,0,animal.id,Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent,{
+     alive:true,heartPhase:RT.time*(animal.role==='predator'?5.2:6.4)+phase,
+     digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
+     wingPhase:0
+    });
    }
   }else if(site.kind==='microbial'||site.kind==='spores'){
    // A local candidate is not a guaranteed living population.

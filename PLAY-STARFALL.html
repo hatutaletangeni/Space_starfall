@@ -6918,6 +6918,108 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL 9C — local aerodynamic animal flight (no WebGL dependency).
+ * Flight uses SI kg, m, s, N and Pa in an ecology-local frame: +Y is up,
+ * +X east and +Z north. One ecology-display unit is one local metre.
+ * IMPORTANT: celestial scene coordinates use a different legacy mapping
+ * (1000 m/scene unit); that scale is intentionally NOT reused for animal
+ * anatomy. The ecology UI is responsible for the visual coordinate adapter.
+ * This is a bounded force-based wing model, not full CFD, fluid coupling or
+ * rigid articulated wing dynamics.
+ */
+(function(root){'use strict';
+const DT=1/30, MAX_STEPS=14, TAU=Math.PI*2;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const finite=v=>typeof v==='number'&&Number.isFinite(v);
+function hash(id){let h=2166136261;for(const c of String(id))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+function phase(id){return hash(id)/4294967296*TAU;}
+function airDensity(pressurePa,temperatureK){
+ if(!finite(pressurePa)||!finite(temperatureK)||pressurePa<=0||temperatureK<=0)return 0;
+ return clamp(pressurePa/(287.05*temperatureK),0,6);
+}
+function start(id,massKg=1,sizeM=1,timeS=0){
+ const p=phase(id),angle=p+timeS*.21,speed=7.2;
+ return {id:String(id),t:Math.max(0,timeS),p:[Math.cos(angle)*11,10+2*Math.sin(p),Math.sin(angle)*11],
+  v:[-Math.sin(angle)*speed,0,Math.cos(angle)*speed],bank:0,
+  wingPhase:p+timeS*13.5,angle:p,flightMode:'cruise',
+  massKg:clamp(massKg,.10,30),sizeM:clamp(sizeM,.15,5)};
+}
+function step(original,env={},dt=DT){
+ if(!(dt>0&&dt<=.1))throw Error('Flight timestep must be (0, 0.1] seconds');
+ const s={...original,p:original.p.slice(),v:original.v.slice()};
+ const mass=clamp(finite(env.massKg)?env.massKg:s.massKg,.1,30);
+ const size=clamp(finite(env.sizeM)?env.sizeM:s.sizeM,.15,5);
+ const rho=clamp(finite(env.rhoKgM3)?env.rhoKgM3:airDensity(env.pressurePa,env.temperatureK),0,6);
+ const g=clamp(finite(env.gravityMS2)?env.gravityMS2:9.81,.1,35);
+ const time=s.t,desiredAngle=s.angle+time*.21,target=[Math.cos(desiredAngle)*13,
+  12+1.6*Math.sin(time*.12+s.angle),Math.sin(desiredAngle)*13];
+ const wind=[.65*Math.sin(time*.13+s.angle),0,.55*Math.cos(time*.11+s.angle)];
+ const air=[s.v[0]-wind[0],s.v[1],s.v[2]-wind[2]];
+ const airspeed=Math.max(.01,Math.hypot(...air));
+ const horizontal=Math.max(.01,Math.hypot(air[0],air[2]));
+ const fx=air[0]/horizontal,fz=air[2]/horizontal;
+ const heading=Math.atan2(fz,fx),desired=Math.atan2(target[2]-s.p[2],target[0]-s.p[0]);
+ const error=Math.atan2(Math.sin(desired-heading),Math.cos(desired-heading));
+ const wantedBank=clamp(error*.8,-.72,.72);
+ s.bank+=clamp((wantedBank-s.bank)*dt*2.4,-.055,.055);
+ const wingArea=clamp(1.65*size*size,.18,18);
+ const q=.5*rho*airspeed*airspeed;
+ const verticalDemand=clamp((target[1]-s.p[1])*1.4-s.v[1]*1.9,-g*.65,g*.75);
+ const requestedLift=mass*(g+verticalDemand)/Math.max(.6,Math.cos(s.bank));
+ const reqCl=q>1e-5?requestedLift/(q*wingArea):2.8;
+ // Normal aerodynamic angle-of-attack response, with a finite stall region.
+ const alpha=clamp((reqCl-.18)/5.1,-.12,.46);
+ const absAlpha=Math.abs(alpha),stall=absAlpha>.30?clamp(1-(absAlpha-.30)*2.8,.35,1):1;
+ const cl=clamp((.18+5.1*alpha)*stall,-.35,1.65);
+ const cd=.065+.075*cl*cl+(.30<absAlpha?.12*(absAlpha-.30)/.16:0);
+ const lift=q*wingArea*cl,drag=q*wingArea*cd;
+ // Wing beats do useful propulsive work; power is bounded by body mass.
+ const flapFrequency=3.0+clamp(reqCl,0,1.7)*1.5;
+ const thrust=rho>.04?mass*clamp((10-airspeed)*1.05+2.5,.2,5.5):0;
+ const rightX=-fz,rightZ=fx,forwardY=clamp(air[1]/airspeed,-.32,.32);
+ const liftX=rightX*lift*Math.sin(s.bank);
+ const liftZ=rightZ*lift*Math.sin(s.bank);
+ const liftY=lift*Math.cos(s.bank);
+ const ax=(liftX-drag*air[0]/airspeed+thrust*fx)/mass;
+ const ay=(liftY-drag*air[1]/airspeed+thrust*forwardY)/mass-g;
+ const az=(liftZ-drag*air[2]/airspeed+thrust*fz)/mass;
+ s.v[0]=clamp(s.v[0]+ax*dt,-45,45);
+ s.v[1]=clamp(s.v[1]+ay*dt,-45,45);
+ s.v[2]=clamp(s.v[2]+az*dt,-45,45);
+ s.p[0]+=s.v[0]*dt;s.p[1]+=s.v[1]*dt;s.p[2]+=s.v[2]*dt;
+ // Local collision terrain is sampled by the game at the current position.
+ // Floor contact is a safe grounded transition, not fake levitation.
+ const floor=finite(env.floorY)?env.floorY:0;
+ if(s.p[1]<floor+1.2){s.p[1]=floor+1.2;s.v[1]=Math.max(0,-s.v[1]*.12);}
+ const range=Math.hypot(s.p[0],s.p[2]);
+ if(range>75){ // Long-range migrations are outside a local-patch simulation.
+  const n=75/range;s.p[0]*=n;s.p[2]*=n;
+  s.v[0]*=.6;s.v[2]*=.6;
+ }
+ s.t+=dt;s.wingPhase=(s.wingPhase+TAU*flapFrequency*dt)%TAU;
+ s.flightMode=airspeed<4.3?'stall':s.v[1]>.9?'climb':s.v[1]<-1.2?'descent':'cruise';
+ s.massKg=mass;s.sizeM=size;
+ if(![...s.p,...s.v,s.bank,s.wingPhase].every(finite))throw Error('Nonfinite aerodynamic state');
+ return s;
+}
+function advance(state,toTimeS,env={},stepBudget=MAX_STEPS){
+ if(!finite(toTimeS)||toTimeS<0)throw Error('Invalid ecology flight time');
+ if(!Number.isInteger(stepBudget)||stepBudget<0||stepBudget>MAX_STEPS)throw Error('Invalid work budget');
+ let s=state;
+ if(!s||toTimeS<s.t||toTimeS-s.t>8)return start(state?.id||'unknown',env.massKg||state?.massKg||1,env.sizeM||state?.sizeM||1,toTimeS);
+ let n=0;
+ while(toTimeS-s.t>=DT*.999999&&n<stepBudget){s=step(s,env,DT);n++;}
+ // Never integrate unbounded frame time or spoil 100x time-warp frame budgets.
+ // Keep the last physically integrated pose, with a freshly anchored wall clock.
+ if(toTimeS-s.t>DT){s={...s,t:toTimeS};}
+ return s;
+}
+const API=Object.freeze({DT,MAX_STEPS,airDensity,start,step,advance});
+root.StarfallAerialFlight9C=API;
+if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 6I — Deterministic simulated planetary events.
  * Pure model: same seed/body/site/time -> identical event. No terrain edits.
  * Weather is an authored scientific approximation, not an N-body or CFD solver.
@@ -20073,8 +20175,9 @@ root.StarfallSurveyUI={recordOrbitalFootprint,open,draw,get coverage(){return M.
    Nothing here creates measurements: all corroboration comes from Update 4 journal.
 */
 (function(root){'use strict';
-const E=root.StarfallEcology,Bio=root.StarfallLivingBiosphere,RT=root.StarfallRuntime,G=root.Starfall3D,V=G.V,ST=root.StarfallStableTerrain,$=id=>document.getElementById(id);
+const E=root.StarfallEcology,Bio=root.StarfallLivingBiosphere,Fly=root.StarfallAerialFlight9C,RT=root.StarfallRuntime,G=root.Starfall3D,V=G.V,ST=root.StarfallStableTerrain,$=id=>document.getElementById(id);
 if(!E||!RT)throw Error('Ecology UI needs runtime and ecology layer');
+const flierStates=new Map();let flierBody=null;
 const storageKey='ecology6h',initial=SF.load()?.[storageKey]||{};let records=E.sanitizeRecords(initial.records),biospheres=Bio?Bio.sanitize(initial.biospheres):[],bioDirty=false,lastBioSave=0,selectedId=null,candidates=[],lastLocal=null,lastBody=null,updatedAt=-Infinity;
 function context(){const ctx=RT.outpostContext(),b=ctx.body;return b?.landable&&ctx.local?{...ctx,local:ST.normalize(ctx.local),body:b}:null;}
 function sample(b,d){return G.sampleTerrain(b,d);}
@@ -20149,21 +20252,50 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
    }
    for(const animal of patch.agents){
     if(objects.length>=18)break;
-    // Each organism uses a stable phase; air foragers occupy a true flying volume.
     const phase=root.StarfallFieldScience.rand(animal.id+':flight')*Math.PI*2;
-    const flying=animal.role==='flier',speed=flying?24+animal.sizeM*7:300+animal.sizeM*150;
-    const span=flying?Math.min(18,8+animal.sizeM*4):Math.min(8,2+animal.sizeM*3);
+    const flying=animal.role==='flier',kind=flying?'flier':animal.role==='predator'?'crawler':site.kind==='crawler'?'crawler':'grazer';
+    // 9C: integrate actual lift, drag, thrust and gravity in the near-field.
+    // The biology record still owns mass, food, mortality and reproduction.
+    if(flying&&Fly){
+     if(flierBody!==ctx.body.id){flierStates.clear();flierBody=ctx.body.id;}
+     let state=flierStates.get(animal.id);
+     if(!state)state=Fly.start(animal.id,animal.massKg,animal.sizeM,RT.time);
+     const world=Bio.world(ctx.body,RT.galaxy.seed,RT.galaxy);
+     const groundAtSite=sample(ctx.body,site.local).height;
+     const previousLocal=E.offset(site.local,state.p[0],state.p[2],ctx.body.radius);
+     const groundAtFlyer=sample(ctx.body,previousLocal).height;
+     const gravity=root.StarfallPhysics?.bodyProfile?.(ctx.body)?.surfaceGravityMS2||9.81;
+     state=Fly.advance(state,RT.time,{massKg:animal.massKg,sizeM:animal.sizeM,
+      rhoKgM3:Fly.airDensity(world.pressurePa,world.temperatureK),
+      gravityMS2:gravity,floorY:groundAtFlyer-groundAtSite});
+     flierStates.set(animal.id,state);
+     if(flierStates.size>36)flierStates.delete(flierStates.keys().next().value);
+     const local=E.offset(site.local,state.p[0],state.p[2],ctx.body.radius);
+     const groundHere=sample(ctx.body,local).height;
+     const altitude=Math.max(1.2,state.p[1]+groundAtSite-groundHere);
+     const spinAxis=ctx.body.spinAxis||[0,1,0],spinAngle=ctx.body.spinAngle||0;
+     const frame=E.basis(local),up=V.rot(frame.up,spinAxis,spinAngle),
+      east=V.rot(frame.east,spinAxis,spinAngle),north=V.rot(frame.north,spinAxis,spinAngle);
+     const travel=V.norm(V.add(V.add(V.mul(east,state.v[0]),V.mul(north,state.v[2])),V.mul(up,state.v[1])));
+     const right=V.norm(V.cross(travel,up)),
+      bankedUp=V.norm(V.add(V.mul(up,Math.cos(state.bank)),V.mul(right,Math.sin(state.bank))));
+     addObject(site,'flier',local,altitude,animal.id,Math.max(.3,Math.min(1.8,animal.sizeM)),state.flightMode,{
+      alive:true,up:bankedUp,forward:travel,heartPhase:RT.time*9.2+phase,
+      digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
+      wingPhase:Math.max(.0001,state.wingPhase)
+     });
+     continue;
+    }
+    // Ground-dweller wandering is independent of airborne physics.
+    const speed=300+animal.sizeM*150,span=Math.min(8,2+animal.sizeM*3);
     const x=Math.cos(RT.time/speed+phase)*span;
     const z=Math.sin(RT.time/(speed*1.16)+phase)*span*.83;
     const local=E.offset(site.local,x,z,ctx.body.radius);
-    const kind=flying?'flier':animal.role==='predator'?'crawler':site.kind==='crawler'?'crawler':'grazer';
-    const altitude=flying?7+2.8*Math.sin(RT.time/9+phase)+1.2*Math.cos(RT.time/17+phase):0;
-    addObject(site,kind,local,altitude,animal.id,
-      Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent,{
-       alive:true,heartPhase:RT.time*(animal.role==='predator'?5.2:flying?9.2:6.4)+phase,
-       digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
-       wingPhase:flying?((RT.time*8.3+phase)%(Math.PI*2)+.0001):0
-      });
+    addObject(site,kind,local,0,animal.id,Math.max(.3,Math.min(1.8,animal.sizeM)),animal.lastEvent,{
+     alive:true,heartPhase:RT.time*(animal.role==='predator'?5.2:6.4)+phase,
+     digestion:(animal.lastEvent==='grazing'||animal.lastEvent==='hunting')?.85:.25,
+     wingPhase:0
+    });
    }
   }else if(site.kind==='microbial'||site.kind==='spores'){
    // A local candidate is not a guaranteed living population.

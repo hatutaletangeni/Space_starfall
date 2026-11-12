@@ -1,0 +1,75 @@
+name: STARFALL 9C Aerodynamic Ecology Release
+on:
+  push:
+    branches:
+      - feature/aerodynamic-fauna-9c
+    paths:
+      - 'index.html'
+      - 'src/ecology/**'
+      - 'tests/aerodynamics9c*'
+      - '.github/workflows/ecology9c-release.yml'
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'src/ecology/**'
+      - 'tests/aerodynamics9c*'
+      - 'PLAY-STARFALL.html'
+      - 'PLAY-STARFALL-MOBILE.html'
+      - '.github/workflows/ecology9c-release.yml'
+  workflow_dispatch:
+jobs:
+  aerodynamic-physics-and-offline-webgl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify physics and ecology model syntax
+        run: |
+          node --check src/ecology/flight-dynamics9c.js
+          node --check src/ecology/ecology-ui.js
+          node tests/aerodynamics9c.test.cjs
+          node tests/living-biosphere.test.cjs
+      - name: Rebuild exact desktop/mobile offline editions
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install real software WebGL2 browser harness
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Test original anatomy and 9C force-based flight on both editions
+        run: |
+          python tests/ecology9b-browser.py
+          python tests/aerodynamics9c-browser.py
+      - name: Record CI screenshots and software-render performance metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-9c-swiftshader-evidence
+          path: |
+            artifacts/ecology9b/
+            artifacts/ecology9c/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Commit rebuilt single-file editions to 9C feature branch only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/aerodynamic-fauna-9c'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build(9C): synchronize desktop and mobile offline standalones"
+            git push origin HEAD:feature/aerodynamic-fauna-9c
+          fi
