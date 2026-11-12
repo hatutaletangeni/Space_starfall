@@ -74,12 +74,21 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
       - name: Commit synchronized desktop and mobile standalone files
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/9d-active-ecologies'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/9d-active-ecologies'
         run: |
+          # PR checks normally test a detached synthetic merge ref. Switch to
+          # the original same-repository feature branch before committing.
+          git reset --hard
+          git fetch origin feature/9d-active-ecologies
+          git checkout -B feature/9d-active-ecologies origin/feature/9d-active-ecologies
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
           if ! git diff --cached --quiet; then
-            git commit -m "build(9D): synchronize both offline standalones"
+            git commit -m "build(9D): synchronize desktop/mobile offline standalones"
             git push origin HEAD:feature/9d-active-ecologies
           fi
