@@ -1127,13 +1127,38 @@ class Renderer{
     if(V.len(front)<.01)continue;const right=V.norm(V.cross(front,worldUp));this.renderMesh(p,mesh,M.basis(right,worldUp,front,V.sub(item.position,origin)));
    }
   }
-  // Ecology near-field: strict draw cap, shared meshes and normal depth testing.
-  // Animated poses are recomputed in BODY-FIXED coordinates, never camera grids.
+  // 9B: translucent organisms, shared internal organs, and shader wing flaps.
+  // All real ecological meshes stay in the body-fixed scene, capped at 18 actors.
   if(Array.isArray(state.ecology)&&state.ecology.length){
    p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p,near);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
-   let count=0;for(const item of state.ecology){if(count++>=18)break;const mesh=this.ecologyMeshes.get(item.kind);if(!mesh||!item.position||V.len(V.sub(item.position,origin))>240)continue;
-    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;const r=V.norm(V.cross(f,u)),scale=Number.isFinite(item.scale)?Math.max(.2,Math.min(2.5,item.scale)):1;this.renderMesh(p,mesh,M.basis(V.mul(r,scale),V.mul(u,scale),V.mul(f,scale),V.sub(item.position,origin)));
+   let count=0;for(const item of state.ecology){if(count++>=18)break;
+    const mesh=this.ecologyMeshes.get(item.kind);if(!mesh||!item.position)continue;
+    const distance=V.len(V.sub(item.position,origin));if(distance>240)continue;
+    const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u))));if(V.len(f)<.01)continue;
+    const r=V.norm(V.cross(f,u)),scale=Number.isFinite(item.scale)?Math.max(.2,Math.min(2.5,item.scale)):1,
+     model=M.basis(V.mul(r,scale),V.mul(u,scale),V.mul(f,scale),V.sub(item.position,origin)),
+     creature=!!item.alive&&['grazer','crawler','flier'].includes(item.kind);
+    if(creature&&distance<115){
+     const anatomy=item.kind==='grazer'?{heart:[0,1.8,-.8],stomach:[0,1.5,.8],size:.65}:
+      item.kind==='crawler'?{heart:[0,1.1,-.5],stomach:[0,.77,.45],size:.47}:
+       {heart:[0,.08,-.65],stomach:[0,-.05,.42],size:.31};
+     const phase=Number.isFinite(item.heartPhase)?item.heartPhase:0,
+      beat=Math.pow(Math.max(0,Math.sin(phase)),10)+.65*Math.pow(Math.max(0,Math.sin(phase-1.18)),12),
+      fill=Number.isFinite(item.digestion)?V.clamp(item.digestion,0,1):.2;
+     this.setFloat(p,'uEcologyAlpha',1);this.setFloat(p,'uShip',2.1);this.setFloat(p,'uEcologyWingPhase',0);
+     const heartSize=anatomy.size*(1+.22*beat),gutSize=anatomy.size*(1+.16*fill+.035*Math.sin(phase*.21));
+     const heart=M.mul(model,M.mul(M.translate(anatomy.heart),M.scaleTranslate([0,0,0],heartSize))),
+      gut=M.mul(model,M.mul(M.translate(anatomy.stomach),M.scaleTranslate([0,0,0],gutSize)));
+     this.renderMesh(p,this.ecologyOrgans.heart,heart);this.renderMesh(p,this.ecologyOrgans.stomach,gut);
+    }
+    if(item.alive){
+     this.setFloat(p,'uShip',1.8);this.setFloat(p,'uEcologyAlpha',creature ? .24 : .37);
+     if(item.kind==='flier')this.setFloat(p,'uEcologyWingPhase',Math.max(.0001,Number.isFinite(item.wingPhase)?item.wingPhase:0));
+     gl.depthMask(false);this.renderMesh(p,mesh,model);gl.depthMask(true);
+     this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uEcologyAlpha',1);
+    }else{this.setFloat(p,'uShip',1);this.renderMesh(p,mesh,model);}
    }
+   gl.depthMask(true);this.setFloat(p,'uEcologyAlpha',1);this.setFloat(p,'uEcologyWingPhase',0);this.setFloat(p,'uShip',1);
   }
   // Draw the active ruin interior in the same 3D scene. The camera, avatar and
   // corridor layout are all site-local; no extra rendering surface or scene load.
