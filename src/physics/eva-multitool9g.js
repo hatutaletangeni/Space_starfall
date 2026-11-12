@@ -57,6 +57,7 @@
   if(btn){btn.disabled=busy||!activeEva||chargeJ<cost(mode);
    btn.textContent=busy?'ACQUIRING… '+s.seconds+' s':'SCAN '+s.name.toUpperCase();}
   if(record)record.textContent=lastObservation?format(lastObservation):'No scanner readings recorded in this session.';
+  const dismiss=$('multitool9g-dismiss');if(dismiss)dismiss.hidden=!open;
   const opener=$('multitool9g-open');
   if(opener){opener.hidden=!activeEva;opener.textContent=busy?'◉ SCANNING':'◉ MULTITOOL';}
   const pct=$('multitool9g-charge');
@@ -64,7 +65,7 @@
   if(open&&!activeEva)close();
   // Pulse state is exposed by the API getter for the avatar renderer.
  }
- function close(){open=false;$('multitool9g-panel').hidden=true;}
+ function close(){open=false;$('multitool9g-panel').hidden=true;$('multitool9g-dismiss').hidden=true;}
  function show(){
   if(!available()){status('Exit the ship or truck into EVA to use the multitool',true);return false;}
   open=true;$('multitool9g-panel').hidden=false;render();return true;
@@ -123,6 +124,7 @@
  $('multitool9g-mode').value=mode;
  $('multitool9g-open').onclick=()=>open?close():show();
  $('multitool9g-close').onclick=close;
+ $('multitool9g-dismiss').onclick=close;
  $('multitool9g-mode').onchange=e=>{try{setMode(e.target.value);}catch(err){status(err.message,true);}};
  $('multitool9g-trigger').onclick=()=>{try{begin();}catch(err){status(err.message,true);}};
  $('multitool9g-recharge').onclick=()=>{try{recharge();}catch(err){status(err.message,true);}};
