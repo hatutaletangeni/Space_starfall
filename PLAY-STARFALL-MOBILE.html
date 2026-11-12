@@ -7461,6 +7461,88 @@ if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
 </script><script>
+/* STARFALL Update 9F: deterministic, bounded biome-wide wildlife encounters.
+ * This is a streamed VISUAL ENCOUNTER LAYER, not a new biological stock ledger.
+ * Spawning is conditional on the authoritative 9A world viability gate and
+ * actual 6B biome material; no organism grants resources or alters global gas.
+ * The 9A population patches remain the only metabolic source of truth.
+ */
+(function(root){'use strict';
+ const E=root.StarfallEcology,ST=root.StarfallStableTerrain,B=root.StarfallBiomes;
+ if(!E||!ST||!B)throw Error('9F wildlife needs planet-fixed ecology, terrain and biomes');
+ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+ function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+ function random(s){let x=hash(s);x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296;}
+ function chooseRole(world,biome,id){
+  if(biome.material==='water'){
+   if(world.level<2||world.waterPotential<=.3)return null;
+   return random(id+':water')<.17&&world.level>=4?'aquatic_predator':'filterer';
+  }
+  // No complex land animals in bare rock, salt pans or lifeless dunes.
+  if(world.level<3||!biome.lifePotential)return null;
+  const r=random(id+':role'),air=world.pressurePa>=22000;
+  if(r<.10&&world.level>=4)return'predator';
+  if(r<.27&&air)return'flier';
+  if(r<.40)return'detritivore';
+  return'grazer';
+ }
+ function cellPlan(body,cell,terrain,seed,world){
+  const key=String(seed)+':'+body.id+':9f:'+cell.face+':'+cell.ix+':'+cell.iy;
+  const anchor=E.cellDirection(cell),jX=(random(key+':jX')-.5)*16,jZ=(random(key+':jZ')-.5)*16;
+  const local=E.offset(anchor,jX,jZ,body.radius),s=terrain(body,local);
+  const biome=B.classify(body,local,s.height,s.field);
+  const role=chooseRole(world,biome,key);
+  if(!role)return [];
+  const density=biome.material==='water'?.53:
+   clamp(.34+.30*(biome.moisture||.5)+.08*(world.level-3),.25,.83);
+  if(random(key+':presence')>density)return [];
+  const count=role==='grazer'?(random(key+':herd')>.55?2:1):1;
+  const result=[];
+  for(let i=0;i<count;i++){
+   const id='wild-'+hash(key+':member:'+i).toString(36),
+    kind=role==='flier'?(random(id+':sail')>.35?'aurora':'flier'):
+     role==='grazer'?(random(id+':limbs')>.72?'crawler':'grazer'):
+     role==='predator'?'stalker':role==='detritivore'?'burrower':
+     role==='filterer'?'jelly':'eel';
+   result.push(Object.freeze({id,cellId:key,role,kind,
+    bodyId:body.id,local,biome:biome.name,material:biome.material,
+    massKg:.5+random(id+':mass')*3.2,
+    sizeM:.64+random(id+':size')*.65,
+    energy:.49+random(id+':energy')*.34,
+    lastEvent:'forage',phototrophic:role==='flier'&&kind==='aurora',
+    encounterOnly:true}));
+  }
+  return result;
+ }
+ function nearby(body,viewer,terrain,world,seed=742,options={}){
+  if(!body?.landable||!body.id||!Array.isArray(viewer)||
+     !world?.life||world.subsurface||world.level<2)return[];
+  if(typeof terrain!=='function')throw Error('A real terrain sampler is required');
+  const max=clamp(Math.floor(options.max||12),1,12);
+  const distanceCap=clamp(options.distance||220,40,240);
+  const span=clamp(Math.floor(options.span||3),1,4),start=E.cell(body,viewer),found=new Set(),all=[];
+  for(let dz=-span;dz<=span;dz++)for(let dx=-span;dx<=span;dx++){
+   const target=ST.faceDirection(start.face,-1+2*(start.ix+dx+.5)/start.n,
+                                   -1+2*(start.iy+dz+.5)/start.n);
+   const cell=E.cell(body,target),key=cell.face+':'+cell.ix+':'+cell.iy;
+   if(found.has(key))continue;
+   found.add(key);
+   const anchor=E.cellDirection(cell),dist=E.arc(viewer,anchor,body.radius);
+   if(dist>distanceCap+24)continue;
+   for(const agent of cellPlan(body,cell,terrain,seed,world)){
+    const distance=E.arc(viewer,agent.local,body.radius);
+    if(distance<=distanceCap)all.push({...agent,distance});
+   }
+  }
+  all.sort((a,b)=>a.distance-b.distance||a.id.localeCompare(b.id));
+  return all.slice(0,max);
+ }
+ const API=Object.freeze({nearby,cellPlan,chooseRole,MAX_ENCOUNTERS:12});
+ root.StarfallBiomeWildlife9F=API;
+ if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
 /* STARFALL 6I — Deterministic simulated planetary events.
  * Pure model: same seed/body/site/time -> identical event. No terrain edits.
  * Weather is an authored scientific approximation, not an N-body or CFD solver.
@@ -20616,9 +20698,9 @@ root.StarfallSurveyUI={recordOrbitalFootprint,open,draw,get coverage(){return M.
    Nothing here creates measurements: all corroboration comes from Update 4 journal.
 */
 (function(root){'use strict';
-const E=root.StarfallEcology,Bio=root.StarfallLivingBiosphere,Fly=root.StarfallAerialFlight9C,Motion=root.StarfallLocomotion9D,RT=root.StarfallRuntime,G=root.Starfall3D,V=G.V,ST=root.StarfallStableTerrain,$=id=>document.getElementById(id);
+const E=root.StarfallEcology,Bio=root.StarfallLivingBiosphere,Fly=root.StarfallAerialFlight9C,Motion=root.StarfallLocomotion9D,Wild=root.StarfallBiomeWildlife9F,RT=root.StarfallRuntime,G=root.Starfall3D,V=G.V,ST=root.StarfallStableTerrain,$=id=>document.getElementById(id);
 if(!E||!RT)throw Error('Ecology UI needs runtime and ecology layer');
-const flierStates=new Map(),groundStates=new Map();let flierBody=null;
+const flierStates=new Map(),groundStates=new Map(),wildGround=new Map(),wildFly=new Map();let flierBody=null,wildBody=null,wildLocal=null,wildRecords=[];
 const storageKey='ecology6h',initial=SF.load()?.[storageKey]||{};let records=E.sanitizeRecords(initial.records),biospheres=Bio?Bio.sanitize(initial.biospheres):[],bioDirty=false,lastBioSave=0,selectedId=null,candidates=[],lastLocal=null,lastBody=null,updatedAt=-Infinity;
 function context(){const ctx=RT.outpostContext(),b=ctx.body;return b?.landable&&ctx.local?{...ctx,local:ST.normalize(ctx.local),body:b}:null;}
 function sample(b,d){return G.sampleTerrain(b,d);}
@@ -20631,7 +20713,7 @@ function living(site,ctx){if(!Bio||!site||!ctx||site.group==='trace'||site.group
   if(r.steps){Object.assign(p,r.state);bioDirty=true;}}
  if(bioDirty&&RT.time-lastBioSave>=120)save();return p;
 }
-function region(force=false){const ctx=context();if(!ctx||!ctx.landed){candidates=[];lastBody=null;flierStates.clear();groundStates.clear();flierBody=null;return null;}
+function region(force=false){const ctx=context();if(!ctx||!ctx.landed){candidates=[];lastBody=null;flierStates.clear();groundStates.clear();wildGround.clear();wildFly.clear();wildRecords=[];wildBody=null;wildLocal=null;flierBody=null;return null;}
  if(force||ctx.body.id!==lastBody||!lastLocal||E.arc(ctx.local,lastLocal,ctx.body.radius)>38){candidates=E.nearby(ctx.body,ctx.local,sample,5,RT.galaxy.seed,30);lastBody=ctx.body.id;lastLocal=[...ctx.local];updatedAt=RT.time;}
  return ctx;}
 function current(){return candidates.find(s=>s.id===selectedId)||null;}
@@ -20664,7 +20746,8 @@ function detail(){const site=current(),ctx=context(),element=$('ecology-detail')
 }
 function render(){const ctx=region(true),listing=$('ecology-sites');listing.replaceChildren();if(!ctx){$('ecology-context').textContent='Land on a solid world and explore its surface.';$('ecology-detail').textContent='No accessible surface.';return;}
  const cl=E.climate(ctx.body,RT.galaxy.seed),w=Bio?.world(ctx.body,RT.galaxy.seed,RT.galaxy);
- $('ecology-context').textContent=ctx.body.name+' · '+(w?.life?'Living biosphere potential (tier '+w.level+')':cl.suitable?'Potentially hospitable':'No supported active biosphere')+' · '+(w?.speciesCount||0)+' possible species · modeled temperature '+cl.temperatureK.toFixed(0)+' K · pressure '+(cl.pressurePa/1000).toFixed(0)+' kPa · '+records.length+' saved observations.';
+ const sightings=Wild?.nearby(ctx.body,ctx.local,sample,w,RT.galaxy.seed,{max:12,distance:215})||[];
+ $('ecology-context').textContent=ctx.body.name+' · '+(w?.life?'Living biosphere potential (tier '+w.level+')':cl.suitable?'Potentially hospitable':'No supported active biosphere')+' · '+(w?.speciesCount||0)+' possible species · modeled temperature '+cl.temperatureK.toFixed(0)+' K · pressure '+(cl.pressurePa/1000).toFixed(0)+' kPa · '+records.length+' saved observations.\nBiome wildlife nearby: '+sightings.length+' encounters (seeded observations, not verified biological discoveries).';
  if(!candidates.length)listing.textContent='No seeded ecology signals nearby. Another biome or planet may hold more.';
  for(const s of candidates){const r=rec(s),button=document.createElement('button');button.type='button';button.className=s.id===selectedId?'active':'';button.textContent=(r?.stage>=2?E.KINDS[s.kind].label:r?.stage?'Possible '+E.KINDS[s.kind].group+' signal':'Unsurveyed local signature')+' · '+Math.round(s.distance)+' u · '+s.biome;button.onclick=()=>{selectedId=s.id;detail();for(const el of listing.querySelectorAll('button'))el.classList.toggle('active',el===button);};listing.append(button);}
  if(!candidates.some(x=>x.id===selectedId))selectedId=candidates[0]?.id||null;detail();}
@@ -20674,6 +20757,99 @@ function operate(stage){try{const ctx=region(true),s=current();if(!ctx||!s)throw
  else{if((rec(s)?.stage||0)<2)throw Error('First complete a close field observation.');const observations=linkedReadings(s,ctx);if(!observations.length)throw Error('No matching instrument evidence nearby. Use FIELD SCIENCE to collect '+(s.kind==='fossil'?'a spectrometer or sampler':'a bioassay')+' reading within 40 units.');updateRecord(s,ctx,3,observations.map(x=>x.id));status('Instrument observations linked. This remains a procedural hypothesis, not confirmed biology.');}
  }catch(err){status(err.message,true);}}
 function exportData(){const blob=new Blob([JSON.stringify({schema:1,seed:RT.galaxy.seed,model:'fictional seeded local biospheres, NOT a planetary gas ledger',records,biospheres},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='starfall-ecology-journal.json';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+// 9F: camera-independent planet-fixed fauna streaming beyond sparse field sites.
+// This uses bounded, ephemeral encounter poses: 9A continues to own all edible
+// biomass, metabolism, birth/death and industrial matter bookkeeping.
+function wildScene(ctx,world,envAt,objects,addObject){
+ if(!Wild||!Motion||!Fly||!world?.life||world.subsurface||objects.length>=18)return;
+ if(wildBody!==ctx.body.id){
+  wildBody=ctx.body.id;wildGround.clear();wildFly.clear();
+  wildLocal=null;wildRecords=[];
+ }
+ if(!wildLocal||E.arc(ctx.local,wildLocal,ctx.body.radius)>24){
+  wildLocal=[...ctx.local];
+  wildRecords=Wild.nearby(ctx.body,ctx.local,sample,world,RT.galaxy.seed,{max:12,distance:215,span:3});
+ }
+ if(!wildRecords.length)return;
+ const axis=ctx.body.spinAxis||[0,1,0],spin=ctx.body.spinAngle||0;
+ const gravity=root.StarfallPhysics?.bodyProfile?.(ctx.body)?.surfaceGravityMS2||9.81;
+ const phaseFor=id=>root.StarfallFieldScience.rand(id+':phase')*6.28318530718;
+ const light=envAt?.light??.5;
+ // Keep 9A creatures visible when the two visual systems share territory.
+ for(const animal of wildRecords){
+  if(objects.length>=18)break;
+  if(candidates.some(s=>s.distance<55&&E.arc(s.local,animal.local,ctx.body.radius)<18))continue;
+  const frame=E.basis(animal.local),base=sample(ctx.body,animal.local).height;
+  const relative=V.mul(V.sub(ctx.local,animal.local),ctx.body.radius);
+  const player=[V.dot(relative,frame.east),V.dot(relative,frame.north)];
+  const phase=phaseFor(animal.id),flying=animal.role==='flier',
+   swim=animal.role==='filterer'||animal.role==='aquatic_predator';
+  if(flying){
+   let s=wildFly.get(animal.id)||Fly.start(animal.id,animal.massKg,animal.sizeM,RT.time);
+   const previous=E.offset(animal.local,s.p[0],s.p[2],ctx.body.radius);
+   const ground=sample(ctx.body,previous).height;
+   const close=Math.hypot(player[0]-s.p[0],player[1]-s.p[2])<24?player:null;
+   s=Fly.advance(s,RT.time,{massKg:animal.massKg,sizeM:animal.sizeM,
+      rhoKgM3:Fly.airDensity(world.pressurePa,world.temperatureK),
+      gravityMS2:gravity,floorY:ground-base,
+      foraging:animal.energy<.73,threat:close});
+   wildFly.set(animal.id,s);
+   const local=E.offset(animal.local,s.p[0],s.p[2],ctx.body.radius);
+   const positionHeight=sample(ctx.body,local).height;
+   const altitude=Math.max(1.2,s.p[1]+base-positionHeight);
+   const orient=E.basis(local),up=V.rot(orient.up,axis,spin),
+     east=V.rot(orient.east,axis,spin),north=V.rot(orient.north,axis,spin);
+   const forward=V.norm(V.add(V.add(V.mul(east,s.v[0]),V.mul(north,s.v[2])),V.mul(up,s.v[1])));
+   const right=V.norm(V.cross(forward,up));
+   const tilted=V.norm(V.add(V.mul(up,Math.cos(s.bank)),V.mul(right,Math.sin(s.bank))));
+   addObject({id:animal.id},animal.kind,local,altitude,animal.id,animal.sizeM,s.flightMode,{
+      alive:true,encounterOnly:true,up:tilted,forward,heartPhase:RT.time*8.1+phase,
+      digestion:.25,wingPhase:Math.max(.0001,s.wingPhase),
+      bodyPulse:Math.max(.0001,RT.time*2.4+phase)
+   });
+  }else{
+   const last=wildGround.get(animal.id),previous=E.offset(animal.local,last?.p[0]||0,last?.p[1]||0,ctx.body.radius);
+   const prevHeight=sample(ctx.body,previous).height;
+   const peers=wildRecords.filter(a=>a.cellId===animal.cellId&&a.role!=='flier').map(a=>{
+      const state=wildGround.get(a.id)||Motion.start(a,RT.time);
+      return{id:a.id,role:a.role,p:state.p};
+   });
+   const traversable=(x,z,role)=>{
+      const dir=E.offset(animal.local,x,z,ctx.body.radius),terrain=sample(ctx.body,dir);
+      const biome=root.StarfallBiomes.classify(ctx.body,dir,terrain.height,terrain.field);
+      if(role==='filterer'||role==='aquatic_predator')return biome.material==='water';
+      const delta=Math.abs(terrain.height-prevHeight),step=Math.hypot(x-(last?.p[0]||0),z-(last?.p[1]||0));
+      return biome.material!=='water'&&delta<Math.max(1.25,step*.9);
+   };
+   const s=Motion.advance(last,animal,RT.time,peers,{
+      player,light,plantKg:animal.role==='grazer'?1:0,
+      detritusKg:animal.role==='detritivore'?1:0,traversable
+   });
+   wildGround.set(animal.id,s);
+   const local=E.offset(animal.local,s.p[0],s.p[1],ctx.body.radius),
+     terrain=sample(ctx.body,local);
+   const waterDepth=1.15+.22*s.altitude*-1;
+   const altitude=swim?Math.max(.35,2.1-waterDepth-terrain.height):
+                        Math.max(.04,Math.min(.5,s.altitude));
+   const speed=Math.hypot(...s.v);
+   const direction=V.norm(V.add(
+     V.mul(frame.east,speed>.04?s.v[0]:Math.cos(s.heading)),
+     V.mul(frame.north,speed>.04?s.v[1]:Math.sin(s.heading))));
+   addObject({id:animal.id},animal.kind,local,altitude,animal.id,animal.sizeM,s.behavior,{
+     alive:true,encounterOnly:true,forward:V.rot(direction,axis,spin),
+     heartPhase:RT.time*(animal.role.includes('predator')?5.4:6.2)+phase,
+     digestion:.25,gaitPhase:s.gait,bodyPulse:Math.max(.0001,s.pulse),
+     locomotionSpeed:speed
+   });
+  }
+ }
+ // Bounded nearby animation cache; unobserved animals re-seed deterministically.
+ const ids=new Set(wildRecords.map(a=>a.id));
+ for(const map of [wildGround,wildFly]){
+  for(const key of map.keys())if(!ids.has(key))map.delete(key);
+  while(map.size>24)map.delete(map.keys().next().value);
+ }
+}
 function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)return[];
  if(flierBody!==ctx.body.id){flierStates.clear();groundStates.clear();flierBody=ctx.body.id;}
  const world=Bio?.world(ctx.body,RT.galaxy.seed,RT.galaxy);
@@ -20798,6 +20974,7 @@ function scene(){const ctx=region();if(!ctx||!ctx.landed||RT.interiorState)retur
    continue;
   }
  }
+ wildScene(ctx,world,envAt,objects,addObject);
  return objects;
 }
 $('ecology-open').onclick=()=>{$('ecology-panel').hidden=false;render();};$('ecology-close').onclick=()=>{$('ecology-panel').hidden=true;};$('ecology-panel').addEventListener('click',e=>{if(e.target===$('ecology-panel'))$('ecology-panel').hidden=true;});
