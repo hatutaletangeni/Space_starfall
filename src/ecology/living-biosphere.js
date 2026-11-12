@@ -48,21 +48,31 @@ function world(body,seed=742,galaxy){
   reason:life?'Biochemistry/temperature/water threshold passed':'Unavailable water, temperature, pressure or inherited life potential'});
 }
 function agent(site,i,role,timeS,seed,traits){
- const h=site.id+':'+role+':'+i+':'+seed,adult=role==='predator'?(3+14*rand(h+':size')):role==='flier'?(.25+1.8*rand(h+':size')):(.4+5*rand(h+':size'));
+ const h=site.id+':'+role+':'+i+':'+seed,adult=(role==='predator'||role==='aquatic_predator')?(3+14*rand(h+':size')):role==='flier'?(.25+1.8*rand(h+':size')):role==='filterer'?(.25+2.2*rand(h+':size')):role==='detritivore'?(.18+1.4*rand(h+':size')):(.4+5*rand(h+':size'));
  return {id:'bio-'+hash(h).toString(36),role,ageS:DAY*(.5+rand(h+':age')*10),
-  lifeS:DAY*(role==='predator'?25:role==='flier'?12:17)*(0.7+rand(h+':life')*.7),
+  lifeS:DAY*((role==='predator'||role==='aquatic_predator')?25:role==='flier'?12:role==='filterer'?10:role==='detritivore'?14:17)*(0.7+rand(h+':life')*.7),
   massKg:adult*(.5+.5*rand(h+':mass')),sizeM:Math.pow(adult,1/3)*(.5+rand(h+':shape')*.8),
-  energy:.5+.35*rand(h+':energy'),generation:0,lastEvent:'forage'};
+  energy:.5+.35*rand(h+':energy'),generation:0,lastEvent:'forage',
+  // Mixotrophic 4-sail variants derive light energy from source CO2 and water.
+  phototrophic:role==='flier'&&rand('bio-'+hash(h).toString(36)+':sails')>.32};
 }
 function seedPatch(site,body,seed=742,galaxy=null,atS=0){
  if(!site?.id||!body||site.kind==='fossil'||site.group==='trace')return null;
  const info=world(body,seed,galaxy);if(!info.life||info.subsurface)return null;
  const h=site.id+':biosphere:'+seed,richness=.4+.6*rand(h+':richness');
  const floraKg=info.level>=2?(6+18*richness):(.4+3*richness);
- const agents=[];if(info.level>=3){
+ const agents=[],aquatic=site.kind==='jelly'||site.kind==='eel';
+ if(aquatic&&info.level>=2&&info.waterPotential>.30){
+  // Water-column filter feeders and hunters own real finite food/oxygen ledgers.
+  for(let i=0;i<3;i++)agents.push(agent(site,i,'filterer',atS,seed));
+  if(info.level>=4&&(site.kind==='eel'||rand(h+':aquatic-hunter')>.45))
+   agents.push(agent(site,0,'aquatic_predator',atS,seed));
+ }else if(!aquatic&&info.level>=3){
   for(let i=0;i<Math.min(4,2+Math.floor(rand(h+':herd')*3));i++)agents.push(agent(site,i,'grazer',atS,seed));
-  // Winged nectar-feeders are independent population members, not just a cosmetic grazer mesh.
-  // Dense enough air and high-tier biospheres allow occasional cross-site aerial visitors.
+  // Soil animals mineralize detritus in addition to the existing microbial loop.
+  if(site.kind==='crawler'||rand(h+':detritivore')>.55)
+   agents.push(agent(site,0,'detritivore',atS,seed));
+  // Winged nectar-feeders are independent population members.
   if(info.pressurePa>=22000&&(site.kind==='flier'||rand(h+':winged')>.72)){
    const flyers=site.kind==='flier'?2:1;
    for(let i=0;i<flyers;i++)agents.push(agent(site,i,'flier',atS,seed));
@@ -116,17 +126,30 @@ function tick(s,e){const dt=STEP_S/DAY;
  for(const a of s.agents){
   // A prey eaten earlier this tick must not feed or metabolize after it died.
   if(a.killed)continue;
-  a.ageS+=STEP_S;const hunger=a.massKg*(a.role==='predator'?.025:a.role==='flier'?.18:.13)*dt;
+  a.ageS+=STEP_S;const isHunter=a.role==='predator'||a.role==='aquatic_predator';
+  const hunger=a.massKg*(isHunter?.025:a.role==='flier'?.18:a.role==='detritivore'?.09:.13)*dt;
   let food=0;
-  if(a.role==='grazer'||a.role==='flier'){
-   food=Math.min(s.plantKg,hunger*(a.role==='flier'?1.9:2.4));s.plantKg-=food;s.consumedPlantsKg+=food;
+  if(a.role==='grazer'||a.role==='flier'||a.role==='filterer'){
+   food=Math.min(s.plantKg,hunger*(a.role==='flier'?1.9:a.role==='filterer'?1.75:2.4));
+   s.plantKg-=food;s.consumedPlantsKg+=food;
+  }else if(a.role==='detritivore'){
+   food=Math.min(s.detritusKg,hunger*1.7);s.detritusKg-=food;
   }else{
-   const prey=s.agents.filter(x=>(x.role==='grazer'||x.role==='flier')&&!x.killed&&x.ageS>DAY&&x.energy<.75);
+   const prey=s.agents.filter(x=>(a.role==='aquatic_predator'?x.role==='filterer':['grazer','flier','detritivore'].includes(x.role))&&!x.killed&&x.ageS>DAY&&x.energy<.75);
    const chance=clamp((.1+.8*(1-a.energy))*(prey.length/4)*dt);
    if(prey.length&&rand(a.id+':hunt:'+s.stepNo)<chance){
     const victim=prey[Math.floor(rand(a.id+':target:'+s.stepNo)*prey.length)];
     if(!victim.killed){victim.killed=true;food=victim.massKg;s.kills++;s.deaths++;}
    }
+  }
+  // Aerial lattice-sail variants harvest light using the SAME finite 9A
+  // photosynthesis reservoirs. Transfer new organic mass directly to the
+  // organism instead of leaving phantom vegetation in the patch.
+  let phototrophy=0;
+  if(a.role==='flier'&&(a.phototrophic??(rand(a.id+':sails')>.32))&&e.light>0){
+   phototrophy=photo(s,a.massKg*.018*e.light*dt);
+   s.plantKg-=phototrophy;a.massKg+=phototrophy;
+   a.energy=clamp(a.energy+phototrophy/Math.max(EPS,a.massKg)*.5,0,1);
   }
   // Digestion: assimilated tissue, indigestible waste, oxidative respiration.
   const growth=food*.19,excreta=food*.29,resp=food-growth-excreta;
@@ -134,9 +157,9 @@ function tick(s,e){const dt=STEP_S/DAY;
   const oxidation=respire(s,resp);
   s.detritusKg+=resp-oxidation;
   a.energy=clamp(a.energy+(food/Math.max(EPS,hunger)-1)*.11*dt,0,1);
-  a.lastEvent=food>0?(a.role==='predator'?'hunting':'grazing'):'hungry';
+  a.lastEvent=food>0?(isHunter?'hunting':a.role==='detritivore'?'scavenging':a.role==='filterer'?'filtering':'grazing'):phototrophy>0?'basking':'hungry';
   // Resting metabolism burns stored mass (not created mass).
-  const basal=Math.min(a.massKg,a.massKg*(a.role==='predator'?.008:a.role==='flier'?.024:.014)*dt);
+  const basal=Math.min(a.massKg,a.massKg*(isHunter?.008:a.role==='flier'?.024:.014)*dt);
   a.massKg-=basal;const basalOx=respire(s,basal);s.detritusKg+=basal-basalOx;
   if(a.killed||a.ageS>=a.lifeS||a.massKg<.035||a.energy<=.005){
     if(!a.killed)s.deaths++;
@@ -149,13 +172,13 @@ function tick(s,e){const dt=STEP_S/DAY;
  // Reproduction is paid for by parent mass/energy; a new unique individual is born.
  for(const a of s.agents.slice()){
   if(s.agents.length>=MAX_AGENTS)break;
-  const maturity=DAY*(a.role==='predator'?7:a.role==='flier'?3:4);
-  if(a.ageS<maturity||a.energy<.79||a.massKg<(a.role==='predator'?3:a.role==='flier'?.24:1))continue;
+  const maturity=DAY*((a.role==='predator'||a.role==='aquatic_predator')?7:a.role==='flier'?3:4);
+  if(a.ageS<maturity||a.energy<.79||a.massKg<((a.role==='predator'||a.role==='aquatic_predator')?3:a.role==='flier'?.24:a.role==='filterer'?.20:a.role==='detritivore'?.15:1))continue;
   if(rand(a.id+':birth:'+s.stepNo)>.030*dt)continue;
   const childMass=a.massKg*.25;a.massKg-=childMass;a.energy-=.23;
   const id='bio-'+hash(s.id+':offspring:'+s.serial+':'+s.seed).toString(36);
   s.agents.push({id,role:a.role,ageS:0,lifeS:a.lifeS*(.85+.3*rand(id+':life')),
-   massKg:childMass,sizeM:a.sizeM*.65,energy:.62,generation:a.generation+1,lastEvent:'newborn'});
+   massKg:childMass,sizeM:a.sizeM*.65,energy:.62,generation:a.generation+1,lastEvent:'newborn',phototrophic:!!a.phototrophic});
   s.serial++;s.births++;
  }
  // Decomposers mineralize dead biomass and restore fertility, subject to O2.
@@ -183,7 +206,7 @@ function sanitize(input){if(!Array.isArray(input))return [];
    !Number.isInteger(s.stepNo)||s.stepNo<0||!Number.isInteger(s.serial)||s.serial<0||
    !['plantKg','detritusKg','waterKg','carbonDioxideKg','oxygenKg','fertility'].every(k=>finite(s[k])&&s[k]>=0)||
    !Array.isArray(s.agents)||s.agents.length>MAX_AGENTS||seen.has(s.bodyId+':'+s.id))continue;
-  const agents=s.agents.filter(a=>a&&typeof a.id==='string'&&['grazer','flier','predator'].includes(a.role)&&
+  const agents=s.agents.filter(a=>a&&typeof a.id==='string'&&['grazer','flier','predator','detritivore','filterer','aquatic_predator'].includes(a.role)&&
     ['ageS','lifeS','massKg','sizeM','energy'].every(k=>finite(a[k])&&a[k]>=0)).slice(0,MAX_AGENTS);
   if(agents.length!==s.agents.length)continue;
   seen.add(s.bodyId+':'+s.id);out.push({...s,agents});if(out.length>=MAX_PATCHES)break;

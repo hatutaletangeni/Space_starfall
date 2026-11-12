@@ -1,0 +1,94 @@
+name: STARFALL 9D Active Ecosystems and Aurora Sailers
+on:
+  push:
+    branches:
+      - feature/9d-active-ecologies
+    paths:
+      - 'src/ecology/**'
+      - 'src/engine.js'
+      - 'index.html'
+      - 'tests/ecology9d*'
+      - '.github/workflows/ecology9d-release.yml'
+  pull_request:
+    paths:
+      - 'src/ecology/**'
+      - 'src/engine.js'
+      - 'index.html'
+      - 'tests/ecology9d*'
+      - 'PLAY-STARFALL.html'
+      - 'PLAY-STARFALL-MOBILE.html'
+      - '.github/workflows/ecology9d-release.yml'
+  workflow_dispatch:
+jobs:
+  ecology-physics-and-visuals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate new and pre-existing biology source
+        run: |
+          node --check src/ecology/locomotion9d.js
+          node --check src/ecology/flight-dynamics9c.js
+          node --check src/ecology/ecology-ui.js
+          node --check src/ecology/living-biosphere.js
+          node --check src/ecology/ecology.js
+          node --check src/engine.js
+          node tests/living-biosphere.test.cjs
+          node tests/aerodynamics9c.test.cjs
+          node tests/ecology9d.test.cjs
+          node tests/ecology9d-scene.test.cjs
+      - name: Rebuild both completely offline standalone editions
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install real Chromium SwiftShader WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Verify old and new translucency, anatomy, AI and flight
+        run: |
+          python tests/ecology9b-browser.py
+          python tests/aerodynamics9c-browser.py
+          python tests/ecology9d-browser.py
+      - name: Store screenshots and draw observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-9d-aurelius-sailers-webgl
+          path: |
+            artifacts/ecology9b/
+            artifacts/ecology9c/
+            artifacts/ecology9d/
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Commit synchronized desktop and mobile standalone files
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/9d-active-ecologies'
+        run: |
+          # PR checks normally test a detached synthetic merge ref. Switch to
+          # the original same-repository feature branch before committing.
+          git reset --hard
+          git fetch origin feature/9d-active-ecologies
+          git checkout -B feature/9d-active-ecologies origin/feature/9d-active-ecologies
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build(9D): synchronize desktop/mobile offline standalones"
+            git push origin HEAD:feature/9d-active-ecologies
+          fi

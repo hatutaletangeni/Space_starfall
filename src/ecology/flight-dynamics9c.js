@@ -32,7 +32,14 @@ function step(original,env={},dt=DT){
  const rho=clamp(finite(env.rhoKgM3)?env.rhoKgM3:airDensity(env.pressurePa,env.temperatureK),0,6);
  const g=clamp(finite(env.gravityMS2)?env.gravityMS2:9.81,.1,35);
  const time=s.t,desiredAngle=s.angle+time*.21,target=[Math.cos(desiredAngle)*13,
-  12+1.6*Math.sin(time*.12+s.angle),Math.sin(desiredAngle)*13];
+  (env.foraging?6.5:12)+1.6*Math.sin(time*.12+s.angle),Math.sin(desiredAngle)*13];
+ // Aurelius-inspired aerial awareness: alter the requested heading/altitude,
+ // never teleport or overwrite the integrated physical motion.
+ const threat=Array.isArray(env.threat)&&env.threat.length===2?env.threat:null;
+ if(threat){
+  const awayX=s.p[0]-threat[0],awayZ=s.p[2]-threat[1],d=Math.hypot(awayX,awayZ);
+  if(d<24){target[0]=s.p[0]+(awayX/(d||1))*25;target[2]=s.p[2]+(awayZ/(d||1))*25;target[1]=17;}
+ }else if(env.predatorAlert)target[1]+=3;
  const wind=[.65*Math.sin(time*.13+s.angle),0,.55*Math.cos(time*.11+s.angle)];
  const air=[s.v[0]-wind[0],s.v[1],s.v[2]-wind[2]];
  const airspeed=Math.max(.01,Math.hypot(...air));
