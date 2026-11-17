@@ -466,6 +466,9 @@ body.sfmobile-edition #multitool9g-open{right:10px;bottom:16px;padding:13px 14px
 body.sfmobile-edition #multitool9g-panel{right:7px;bottom:63px;width:min(340px,calc(100vw - 14px));
  max-height:calc(100dvh - 78px);z-index:46;padding:12px}
 
+.multitool9g-asteroid{margin-top:13px;padding:11px;border:1px solid #c39a5b88;border-radius:5px;background:#2b241a66;color:#f4ddb3}
+.multitool9g-asteroid[hidden]{display:none!important}.multitool9g-asteroid>strong{font-size:10px;letter-spacing:.7px}.multitool9g-asteroid p{min-height:28px;color:#c6b69a;font:10px/1.55 Consolas,monospace}.multitool9g-asteroid button:disabled{opacity:.4;cursor:not-allowed}
+
 </style>
 <style>
 /* 8E-R single chronological control hierarchy; no simulations or button IDs changed. */
@@ -715,6 +718,7 @@ html,body.sfmobile-edition{width:100%;height:100%;overflow:hidden;touch-action:p
  <div id="multitool9g-power" class="multitool9g-power">35 / 35 kJ</div>
  <button type="button" id="multitool9g-trigger">SCAN BIOSIGNATURES</button>
  <div class="multitool9g-actions"><button type="button" id="multitool9g-recharge">CHARGE AT SHIP</button><button type="button" id="multitool9g-journal">SCIENCE JOURNAL</button></div>
+ <section id="multitool9g-asteroid" class="multitool9g-asteroid" hidden><strong>ASTEROID FIELD EXTRACTION</strong><p id="multitool9g-asteroid-status">Use Geology / spectroscopy to prospect a local deposit.</p><div class="multitool9g-actions"><button type="button" id="multitool9g-mine">EXTRACT 2 KG CORE</button><button type="button" id="multitool9g-transfer">STOW POUCH AT SHIP</button></div></section>
  <p id="multitool9g-status" role="status" aria-live="polite">Z opens scanner · N cycles modes</p>
  <pre id="multitool9g-last">No scanner readings recorded in this session.</pre>
 </section><button id="multitool9g-dismiss" type="button" aria-label="Close scanner multitool" hidden>✕ CLOSE SCANNER</button><button id="multitool9g-open" type="button" aria-label="Open EVA scanner multitool" hidden>◉ MULTITOOL</button>
@@ -1083,7 +1087,7 @@ html,body.sfmobile-edition{width:100%;height:100%;overflow:hidden;touch-action:p
 </style>
 <style>
 /* 6I ambient overlays; visual only, never modifies terrain or camera transforms. */
-.events-window{width:min(730px,94vw);max-height:89dvh;overflow:auto}.events-grid{display:grid;grid-template-columns:minmax(190px,1fr) minmax(0,1fr);gap:16px}.events-entry{width:100%;text-align:left;display:block;border:1px solid #ffffff25;background:#101923;padding:11px;margin:4px 0;color:#cbd5da;font:11px/1.6 Consolas,monospace}.events-entry:hover,.events-entry.active{border-color:#dfba84;background:#51402940}.events-records{max-height:230px;overflow:auto}.events-pre{white-space:pre-wrap;line-height:1.7;color:#d1d6dd;font:11px Consolas,monospace}.events-window textarea{width:100%;resize:vertical;min-height:80px;background:#09121b;color:#dce2e6;border:1px solid #ffffff30;padding:10px}.weather-veil{pointer-events:none;position:fixed;inset:0;z-index:2;opacity:0;transition:opacity 500ms ease;mix-blend-mode:screen;background:transparent}.weather-dust,.weather-volcanic{background:repeating-linear-gradient(111deg,transparent 0 55px,#b7945970 58px 61px,transparent 63px 110px),linear-gradient(#c28d4b3b,#281b0d0e);animation:weather-slide 13s linear infinite}.weather-volcanic{background-color:#853b3020}.weather-snow,.weather-cryo{background:radial-gradient(circle at 25% 36%,#d9ecff9a 0 1px,transparent 2.5px),radial-gradient(circle at 64% 60%,#a7dcff99 0 1px,transparent 2.5px);background-size:83px 89px,57px 76px;animation:weather-slide 8s linear infinite}.weather-aurora{background:radial-gradient(ellipse at 50% -20%,#4fbb7999,transparent 65%),repeating-linear-gradient(96deg,transparent 0 100px,#9cfff12c 110px 132px,transparent 145px 290px);animation:aurora-shift 18s ease-in-out infinite alternate}.weather-meteor{background:repeating-linear-gradient(133deg,transparent 0 70px,#ffcca14a 72px 73px,transparent 74px 210px);animation:weather-slide 5s ease-out infinite}.weather-electrical{background:radial-gradient(ellipse at 40% 20%,#6d8bc95a,transparent 68%);animation:aurora-shift 3s ease-in-out infinite alternate}.weather-seismic{background:radial-gradient(ellipse at 50% 100%,#cda07842,transparent 55%)}.weather-hud{pointer-events:none;position:fixed;top:148px;left:40px;z-index:5;color:#e6c994;letter-spacing:1.1px;text-shadow:0 2px 8px #02060a;font:10px Consolas,monospace}.weather-hud[hidden]{display:none}@keyframes weather-slide{to{background-position:300px 130px,-95px 150px}}@keyframes aurora-shift{from{filter:hue-rotate(-10deg);transform:translateX(-3%)}to{filter:hue-rotate(24deg);transform:translateX(3%)}}@media(max-width:650px){.events-grid{grid-template-columns:1fr}.weather-hud{top:76px;left:20px;font-size:8px;max-width:75vw}}
+.events-window{width:min(730px,94vw);max-height:89dvh;overflow:auto}.events-grid{display:grid;grid-template-columns:minmax(190px,1fr) minmax(0,1fr);gap:16px}.events-entry{width:100%;text-align:left;display:block;border:1px solid #ffffff25;background:#101923;padding:11px;margin:4px 0;color:#cbd5da;font:11px/1.6 Consolas,monospace}.events-entry:hover,.events-entry.active{border-color:#dfba84;background:#51402940}.events-records{max-height:230px;overflow:auto}.events-pre{white-space:pre-wrap;line-height:1.7;color:#d1d6dd;font:11px Consolas,monospace}.events-window textarea{width:100%;resize:vertical;min-height:80px;background:#09121b;color:#dce2e6;border:1px solid #ffffff30;padding:10px}.weather-veil{pointer-events:none;position:fixed;inset:0;z-index:2;opacity:0;transition:opacity 500ms ease;mix-blend-mode:screen;background:transparent}.weather-dust,.weather-volcanic{background:radial-gradient(ellipse at 18% 72%,#b7945966 0%,transparent 48%),radial-gradient(ellipse at 78% 80%,#9d754b55 0%,transparent 54%),radial-gradient(ellipse at 52% 28%,#c28d4b35 0%,transparent 62%);animation:weather-slide 13s ease-in-out infinite alternate}.weather-volcanic{background:radial-gradient(ellipse at 48% 74%,#9b493b77 0%,transparent 47%),radial-gradient(ellipse at 68% 38%,#6b342f4d 0%,transparent 60%);}.weather-snow,.weather-cryo{background:radial-gradient(circle at 25% 36%,#d9ecff9a 0 1px,transparent 2.5px),radial-gradient(circle at 64% 60%,#a7dcff99 0 1px,transparent 2.5px);background-size:83px 89px,57px 76px;animation:weather-slide 8s linear infinite}.weather-aurora{background:radial-gradient(ellipse at 26% 12%,#4fbb7966 0%,transparent 47%),radial-gradient(ellipse at 71% 20%,#9cfff14d 0%,transparent 55%),radial-gradient(ellipse at 52% 36%,#4b8eaa35 0%,transparent 66%);animation:aurora-shift 18s ease-in-out infinite alternate}.weather-meteor{background:radial-gradient(ellipse at 38% 24%,#ffcca13d 0%,transparent 32%),radial-gradient(ellipse at 74% 48%,#ff9c6540 0%,transparent 28%),radial-gradient(ellipse at 18% 68%,#f7c48a25 0%,transparent 35%);animation:weather-slide 5s ease-out infinite}.weather-electrical{background:radial-gradient(ellipse at 40% 20%,#6d8bc95a,transparent 68%);animation:aurora-shift 3s ease-in-out infinite alternate}.weather-seismic{background:radial-gradient(ellipse at 50% 100%,#cda07842,transparent 55%)}.weather-hud{pointer-events:none;position:fixed;top:148px;left:40px;z-index:5;color:#e6c994;letter-spacing:1.1px;text-shadow:0 2px 8px #02060a;font:10px Consolas,monospace}.weather-hud[hidden]{display:none}@keyframes weather-slide{to{background-position:300px 130px,-95px 150px}}@keyframes aurora-shift{from{filter:hue-rotate(-10deg);transform:translateX(-3%)}to{filter:hue-rotate(24deg);transform:translateX(3%)}}@media(max-width:650px){.events-grid{grid-template-columns:1fr}.weather-hud{top:76px;left:20px;font-size:8px;max-width:75vw}}
 
 @media(prefers-reduced-motion:reduce){.weather-veil{animation:none!important;transition:none!important}}
 
@@ -1798,8 +1802,28 @@ function hash3(x,y,z,s){let h=(Math.imul(x,374761393)^Math.imul(y,668265263)^Mat
 function noise(x,y,z,seed){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z);let a=x-ix,b=y-iy,c=z-iz;a=a*a*(3-2*a);b=b*b*(3-2*b);c=c*c*(3-2*c);const mix=(l,r,t)=>l+(r-l)*t;
 return mix(mix(mix(hash3(ix,iy,iz,seed),hash3(ix+1,iy,iz,seed),a),mix(hash3(ix,iy+1,iz,seed),hash3(ix+1,iy+1,iz,seed),a),b),mix(mix(hash3(ix,iy,iz+1,seed),hash3(ix+1,iy,iz+1,seed),a),mix(hash3(ix,iy+1,iz+1,seed),hash3(ix+1,iy+1,iz+1,seed),a),b),c);}
 function field(n,seed){let v=0,a=.55,k=2.9;for(let i=0;i<5;i++){v+=noise(n[0]*k+13,n[1]*k+27,n[2]*k+5,seed)*a;k*=2.03;a*=.49;}return v/1.06;}
-function groundHeight(n,planet,value){if(planet.type==='Gas Giant')return 0;const e=value??field(n,planet.seed),sea=planet.type==='Ocean'?.56:planet.type==='Temperate'?.47:planet.type==='Lush'?.48:.19;if(['Temperate','Lush','Ocean'].includes(planet.type)&&e<sea)return 0;const base=Math.max(0,e-sea);const detail=noise(n[0]*88,n[1]*88,n[2]*88,planet.seed+9);return Math.min(110,3+Math.pow(base,1.3)*158+Math.max(0,detail-.5)*11);}
-function shade(n,h,planet,value,biome){if(planet.landable)return BIOMES.color(planet,n,h,value??field(n,planet.seed),biome);const t=planet.type;const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
+function craterRelief(n,planet){
+ const craters=planet.impactCraters;if(!Array.isArray(craters)||!craters.length)return 0;
+ const bounded=craters.length>48?craters.slice(-48):craters;let delta=0;for(const crater of bounded){const angular=crater.radiusScene/Math.max(1,planet.radius),cos=V.clamp(V.dot(n,crater.direction),-1,1),distance=Math.acos(cos);
+  if(distance>angular*1.55)continue;const x=distance/Math.max(1e-5,angular);
+  const bowl=-crater.depthScene*Math.exp(-2.7*x*x),rim=crater.depthScene*.34*Math.exp(-Math.pow((x-1.04)/.18,2));delta+=bowl+rim;
+ }return delta;
+}
+function groundHeight(n,planet,value){
+ if(planet.type==='Gas Giant')return 0;
+ const e=value??field(n,planet.seed),detail=noise(n[0]*88,n[1]*88,n[2]*88,planet.seed+9);
+ if(planet.kind==='asteroid'){const relief=(e-.5)*Math.min(9,planet.radius*.10)+Math.max(0,detail-.48)*Math.min(4,planet.radius*.05);return relief+craterRelief(n,planet);}
+ const sea=planet.type==='Ocean'?.56:planet.type==='Temperate'?.47:planet.type==='Lush'?.48:.19;
+ if(['Temperate','Lush','Ocean'].includes(planet.type)&&e<sea)return craterRelief(n,planet);
+ const base=Math.max(0,e-sea),height=Math.min(110,3+Math.pow(base,1.3)*158+Math.max(0,detail-.5)*11);
+ return height+craterRelief(n,planet);
+}
+function shade(n,h,planet,value,biome){const t=planet.type;
+if(t==='Shattered'){
+ const fracture=V.clamp((h+18)/92,0,1),vein=Math.max(0,noise(n[0]*43+7,n[1]*43-4,n[2]*43+12,planet.seed+311)-.61);
+ let c=V.mix([.035,.045,.060],[.39,.32,.26],fracture);c=V.mix(c,[.72,.49,.30],vein*.55);return c;
+}
+if(planet.landable)return BIOMES.color(planet,n,h,value??field(n,planet.seed),biome);const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
 let c;
 if(t==='Gas Giant'){const bands=Math.sin(n[1]*57+field(n,planet.seed)*17),storm=Math.sin(n[0]*22+n[2]*29+field(n,planet.seed)*25);return V.mix([.37,.23,.18],[.84,.71,.49],V.clamp(.49+.28*bands+.09*storm,0,1));}
 if(['Temperate','Lush','Ocean'].includes(t)&&h<1){const shallow=V.clamp((e-sea+.12)*3,0,1);c=V.mix([.038,.097,.161],[.11,.20,.27],shallow);}
@@ -1980,7 +2004,7 @@ void main(){vec2 xy=(uv-1.)*vec2(uAspect,1.)*uTan;vec3 ray=normalize(uForward+xy
 function makeMesh(gl,positions,normals,colors,indices){const vao=gl.createVertexArray();gl.bindVertexArray(vao);const data=new Float32Array(positions.length+normals.length+colors.length);for(let i=0,j=0;i<positions.length;i+=3){data[j++]=positions[i];data[j++]=positions[i+1];data[j++]=positions[i+2];data[j++]=normals[i];data[j++]=normals[i+1];data[j++]=normals[i+2];data[j++]=colors[i];data[j++]=colors[i+1];data[j++]=colors[i+2];}
 const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);for(let i=0;i<3;i++){gl.enableVertexAttribArray(i);gl.vertexAttribPointer(i,3,gl.FLOAT,false,36,i*12);}let ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);let idx=indices.length>65535?new Uint32Array(indices):new Uint16Array(indices);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);gl.bindVertexArray(null);return{vao,vb,ib,count:idx.length,indexType:idx instanceof Uint32Array?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT};}
 function makeSphere(gl,r,rows,cols,planet,withTerrain){let p=[],n=[],c=[],idx=[];for(let i=0;i<=rows;i++){const lat=-Math.PI/2+Math.PI*i/rows,cl=Math.cos(lat);for(let j=0;j<=cols;j++){const lon=j/cols*Math.PI*2,d=[Math.sin(lon)*cl,Math.sin(lat),Math.cos(lon)*cl];const e=withTerrain?field(d,planet.seed):0;const h=withTerrain?groundHeight(d,planet,e):0;p.push(d[0]*(r+h),d[1]*(r+h),d[2]*(r+h));n.push(...d);c.push(...(withTerrain?shade(d,h,planet,e):[1,1,1]));}}
-for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;if(planet.type==='Shattered'&&withTerrain){const longitude=j/cols*6.28318,latitude=i/rows*3.14159;if((longitude>1.2&&longitude<2.4&&latitude>.52&&latitude<2.35)||(longitude>4.6&&longitude<5.18&&latitude<2.5))continue;}idx.push(a,a+1,b,a+1,b+1,b);}return makeMesh(gl,p,n,c,idx);}
+for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;idx.push(a,a+1,b,a+1,b+1,b);}return makeMesh(gl,p,n,c,idx);}
 // Smoothed heightfield normals match actual triangle slopes rather than assuming a
 // perfectly spherical planet. They also eliminate apparent flickering faceted hills.
 function smoothNormals(positions,indices){
@@ -2546,11 +2570,11 @@ class Renderer{
   gl.useProgram(this.p.mesh);this.setFloat(this.p.mesh,'uEcologyAlpha',1);this.setFloat(this.p.mesh,'uEcologyWingPhase',0);this.setFloat(this.p.mesh,'uEcologyGait',0);this.setFloat(this.p.mesh,'uEcologyPulse',0);
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
   this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','aurora','stalker','burrower','jelly','eel','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.ecologyOrgans={heart:makeEcologyOrganMesh(gl,'heart'),stomach:makeEcologyOrganMesh(gl,'stomach')};this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
-  this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.meshBudget=48;
+  this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.nearbyDebris=[];this.eventScratch=new Float32Array(8*256);this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
   // collision height, which is always sampled from the seeded continuous field.
-  this.terrainTiles=new Map();this.activeTerrain=[];this.terrainKeyBody=null;
+  this.terrainTiles=new Map();this.activeTerrain=[];this.terrainKeyBody=null;this.terrainKeyImpact=-1;
   this.terrainCacheHits=0;this.terrainCacheMisses=0;this.terrainCacheEvictions=0;this.terrainPropCount=0;
   this.terrainGridSegments=24;this.terrainCacheBudget=110;this.terrainDebugEnabled=false;
   this.pixelRatio=Math.min(devicePixelRatio||1,1.4);this.dprTarget=this.pixelRatio;this.starPoints=0;this.renderedBodies=0;this.culledBodies=0;this.visibleSystems=0;
@@ -2619,7 +2643,7 @@ class Renderer{
   if(!(w.precipitationKgM2S>0||w.regime==='dust'||w.regime==='CO2-frost'))return;
   const center=state.viewerPosition||state.position,up=V.norm(V.sub(center,body.position)),
    right=V.norm(V.cross(Math.abs(up[1])>.93?[0,0,1]:[0,1,0],up)),forward=V.norm(V.cross(up,right));
-  const count=w.regime==='dust'?110:Math.min(150,Math.ceil(22+w.precipitationKgM2S*18000)),verts=[];
+  const count=w.regime==='dust'?110:Math.min(150,Math.ceil(22+w.precipitationKgM2S*18000)),verts=this.eventScratch;let written=0;
   const snow=w.regime==='snow'||w.regime==='CO2-frost',dust=w.regime==='dust',methane=w.sourceSpecies==='CH4';
   const color=dust?[.64,.48,.31]:snow?[.80,.87,.93]:methane?[.60,.73,.86]:[.65,.77,.89];
   const t=this.galaxy.time,wind=w.windMS*.012;
@@ -2633,7 +2657,7 @@ class Renderer{
    if(V.len(V.sub(pos,body.position))<base+.3)continue;
    const rel=V.sub(pos,eye);
    if(V.dot(rel,state.camera.forward)<-3||V.len(rel)>150)continue;
-   verts.push(rel[0],rel[1],rel[2],dust?1.2:snow?.55:.22,color[0],color[1],color[2],dust?.26:.53);
+   const i=written++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=dust?2.4:snow?1.6:1.1;verts[i+4]=color[0];verts[i+5]=color[1];verts[i+6]=color[2];verts[i+7]=dust?.28:snow?.76:.62;
   }
   // An illuminated flash is permitted only when charged, condensate-driven
   // convection is present. No atmospheric lightning in vacuum.
@@ -2641,15 +2665,89 @@ class Renderer{
    const base=V.add(center,V.add(V.mul(forward,48),V.mul(up,20)));
    for(let j=0;j<18;j++){
     const rel=V.sub(V.add(base,V.add(V.mul(up,-j*1.2),V.mul(right,Math.sin(j*2.8)*.7))),eye);
-    verts.push(rel[0],rel[1],rel[2],.7,.86,.91,1,.65*w.charge);
+    const i=written++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=1.8;verts[i+4]=.86;verts[i+5]=.91;verts[i+6]=1;verts[i+7]=.85*w.charge;
    }
   }
-  if(!verts.length)return;
+  if(!written)return;
   const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderHeight*.7);
-  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,verts,gl.DYNAMIC_DRAW);
   gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
-  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
+  gl.drawArrays(gl.POINTS,0,written);this.frameDrawCalls++;this.effectsRendered+=written;
   gl.depthMask(true);
+ }
+ renderPlanetaryEvent(state,eye,vp,renderH){
+  const e=state.weather,body=state.nearest;if(!e||!body?.landable||state.interior||state.altitude>1800||!e.kind)return;
+  const kind=String(e.kind).toLowerCase(),axis=body.spinAxis||[0,1,0],spin=body.spinAngle||0;
+  const local=Array.isArray(e.anchor)&&e.anchor.length===3?e.anchor:V.norm(V.sub(state.position,body.position));
+  const up=V.norm(V.rot(local,axis,spin)),right=V.norm(V.cross(Math.abs(up[1])>.92?[0,0,1]:[0,1,0],up)),forward=V.norm(V.cross(up,right));
+  const surface=V.add(body.position,V.mul(up,body.radius+groundHeight(local,body)+.8)),extent=Math.max(25,Math.min(1000,e.extentScene||280));
+  const intensity=V.clamp(e.intensity??.5,0,1),phase=V.clamp(e.phase??.5,0,1),t=this.galaxy.time,verts=this.eventScratch;let count=0;
+  const add=(point,size,color,alpha)=>{if(count>=256)return;const rel=V.sub(point,eye);if(V.len(rel)>2400||V.dot(rel,state.camera.forward)<-8)return;const i=count++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=size;verts[i+4]=color[0];verts[i+5]=color[1];verts[i+6]=color[2];verts[i+7]=alpha;};
+  const rnd=i=>{let x=Math.imul((i+1)^((e.seed||742)+body.seed),0x45d9f3b);x=Math.imul(x^(x>>>16),0x45d9f3b);return ((x^(x>>>16))>>>0)/4294967296;};
+  if(kind==='meteor'){
+   for(let m=0;m<7;m++){const side=(rnd(m*7)-.5)*extent*.9,depth=(rnd(m*7+1)-.5)*extent*.7,
+    start=V.add(surface,V.add(V.mul(up,extent*(.65+rnd(m*7+2)*.5)),V.add(V.mul(right,side),V.mul(forward,depth)))),
+    drift=V.add(V.mul(right,(rnd(m*7+3)-.5)*extent*.12),V.mul(forward,(rnd(m*7+4)-.5)*extent*.12));
+    for(let j=0;j<14;j++){const q=j/13,point=V.add(start,V.add(V.mul(up,-extent*.72*q),V.add(V.mul(drift,q),V.mul(right,Math.sin(q*8+t*.4+m)*extent*.025))));
+     add(point,1.4+2.4*(1-q),[1,.58,.28],intensity*(1-q)*.72);}
+   }
+  }else if(kind==='dust'||kind==='volcanic'||kind==='cloud'){
+   const color=kind==='volcanic'?[.78,.32,.18]:kind==='dust'?[.76,.53,.30]:[.66,.72,.78];
+   for(let i=0;i<132;i++){const a=rnd(i*5)*Math.PI*2,r=Math.sqrt(rnd(i*5+1))*extent*.62,
+    h=12+rnd(i*5+2)*Math.min(160,extent*.22),drift=t*.018*(.35+rnd(i*5+3));
+    const point=V.add(surface,V.add(V.mul(right,Math.cos(a+drift)*r),V.add(V.mul(forward,Math.sin(a+drift)*r),V.mul(up,h))));
+    add(point,.8+rnd(i*5+4)*2.5,color,intensity*(.12+.35*rnd(i*5+2)));}
+  }else if(kind==='aurora'){
+   const magnetic=body.spinAxis||[0,1,0];
+   for(let band=0;band<5;band++)for(let i=0;i<34;i++){
+    const a=i/34*Math.PI*2+t*.006+band*.13,polar=.82+.035*Math.sin(i*.7+band),
+     dir=V.rot([Math.cos(a)*Math.sqrt(1-polar*polar),polar,Math.sin(a)*Math.sqrt(1-polar*polar)],magnetic,spin),
+     point=V.add(body.position,V.mul(dir,body.radius+85+band*31+Math.sin(i*.4+t*.03)*18));
+    add(point,2+band*.5,[.23,.88,.66],intensity*(.16+.25*Math.sin(i*.2+band+t*.025)**2));
+   }
+  }else if(kind==='seismic'){
+   const radius=extent*(.12+.88*phase);
+   for(let i=0;i<72;i++){const a=i/72*Math.PI*2,point=V.add(surface,V.add(V.mul(right,Math.cos(a)*radius),V.mul(forward,Math.sin(a)*radius)));
+    add(point,1.2+intensity*2,[.91,.63,.37],intensity*.45);}
+  }else if(kind==='electrical'){
+   for(let bolt=0;bolt<4;bolt++){const side=(rnd(bolt*11)-.5)*extent*.45,depth=(rnd(bolt*11+1)-.5)*extent*.35;
+    for(let j=0;j<19;j++){const q=j/18,zig=(rnd(bolt*11+j+2)-.5)*extent*.055,
+     point=V.add(surface,V.add(V.mul(up,extent*(.32-.30*q)),V.add(V.mul(right,side+zig),V.mul(forward,depth+Math.sin(j*1.8+bolt)*extent*.025))));
+     add(point,1.5+intensity*2,[.66,.78,1],intensity*.72);}
+   }
+  }else{
+   const snow=kind==='snow'||kind==='cryo',color=snow?[.80,.91,1]:kind==='hydrothermal'?[.72,.88,.91]:[.69,.77,.86];
+   const count=kind==='cryo'||kind==='hydrothermal'?90:112;
+   for(let i=0;i<count;i++){const a=rnd(i*3)*Math.PI*2,r=Math.sqrt(rnd(i*3+1))*extent*.34,
+    h=(kind==='cryo'||kind==='hydrothermal'?12:8)+((rnd(i*3+2)*extent*.3-t*(snow?1.5:4))%Math.max(12,extent*.3)+Math.max(12,extent*.3))%Math.max(12,extent*.3),
+    point=V.add(surface,V.add(V.mul(right,Math.cos(a)*r),V.add(V.mul(forward,Math.sin(a)*r),V.mul(up,h))));
+    add(point,snow?1.1:1.8,color,intensity*.42);}
+  }
+  if(!count)return;
+  const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,verts,gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,count);this.frameDrawCalls++;this.effectsRendered+=count;gl.depthMask(true);
+ }
+ renderAsteroidImpact(state,eye,vp,renderH){
+  const e=state.impactEvent,body=state.nearest;if(!e||!body||body.id!==e.bodyId||state.interior)return;
+  const axis=body.spinAxis||[0,1,0],spin=body.spinAngle||0,local=e.direction,
+   up=V.norm(V.rot(local,axis,spin)),surface=V.add(body.position,V.mul(up,body.radius+groundHeight(local,body)+.7)),
+   incoming=V.norm(e.incoming||up),side=V.norm(V.cross(incoming,up)),phase=V.clamp(e.phase||0,0,1),
+   travel=V.clamp(phase/.615,0,1),start=V.add(surface,V.mul(incoming,e.radiusScene*22)),head=V.add(start,V.mul(V.sub(surface,start),travel)),verts=this.eventScratch;let count=0;
+  const add=(point,size,color,alpha)=>{if(count>=256)return;const rel=V.sub(point,eye);if(V.len(rel)>5000||V.dot(rel,state.camera.forward)<-12)return;const i=count++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=size;verts[i+4]=color[0];verts[i+5]=color[1];verts[i+6]=color[2];verts[i+7]=alpha;};
+  for(let i=0;i<32;i++){const q=i/31,point=V.add(head,V.add(V.mul(incoming,e.radiusScene*q*2.1),V.mul(side,Math.sin(q*18+this.galaxy.time)*e.radiusScene*.35)));
+   add(point,e.radiusScene*(.18+.18*q),[1,.40+.25*q,.12],.8*(1-q*.75));}
+  add(head,e.radiusScene*1.15,[1,.86,.55],.95);
+  if(phase>.615){const flash=V.clamp((phase-.615)/.385,0,1),radius=e.radiusScene*(.35+flash*2.6);
+   for(let i=0;i<48;i++){const a=i/48*Math.PI*2,point=V.add(surface,V.add(V.mul(side,Math.cos(a)*radius),V.mul(V.cross(up,side),Math.sin(a)*radius)));
+    add(point,1.2+flash*2.4,[1,.57,.24],(1-flash*.65)*.72);}
+  }
+  if(!count)return;const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,verts,gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,count);this.frameDrawCalls++;this.effectsRendered+=count;
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(true);
  }
  // LW06 auroral curtains depend on atmospheric pressure, magnetic field and
  // real source-linked stellar particle activity; never generated in vacuum.
@@ -2728,9 +2826,9 @@ class Renderer{
   gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
   gl.drawArrays(gl.POINTS,0,values.length/8);this.frameDrawCalls++;this.effectsRendered+=values.length/8;gl.depthMask(true);
  }
- geometry(body,lod){const key=body.id+':'+lod;let cached=this.meshCache.get(key);if(cached){if(lod===2&&body.landable&&!cached.atmo&&(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)cached.atmo=makeSphere(this.gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);this.meshCache.delete(key);this.meshCache.set(key,cached);return cached;}
-  const gl=this.gl,detail=lod===2?[80,160]:lod===1?[36,72]:[16,32];cached={world:makeSphere(gl,body.radius,...detail,body,true),atmo:null,cloud:null};
-  if(lod===2&&body.landable&&(body.kind!=='moon'||(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)){cached.atmo=makeSphere(gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);if(['Temperate','Ocean','Lush','Ice'].includes(body.type))cached.cloud=makeSphere(gl,body.radius+Math.min(114,body.radius*.06),28,56,body,false);}
+ geometry(body,lod){const key=body.id+':'+lod+':'+(body.impactRevision||0);let cached=this.meshCache.get(key);if(cached){if(lod===2&&body.landable&&body.kind!=='asteroid'&&!cached.atmo&&(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)cached.atmo=makeSphere(this.gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);this.meshCache.delete(key);this.meshCache.set(key,cached);return cached;}
+  const gl=this.gl,detail=body.kind==='asteroid'?(lod===2?[56,112]:lod===1?[28,56]:[14,28]):lod===2?[80,160]:lod===1?[36,72]:[16,32];cached={world:makeSphere(gl,body.radius,...detail,body,true),atmo:null,cloud:null};
+  if(lod===2&&body.landable&&body.kind!=='asteroid'&&(body.kind!=='moon'||(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)){cached.atmo=makeSphere(gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);if(['Temperate','Ocean','Lush','Ice'].includes(body.type))cached.cloud=makeSphere(gl,body.radius+Math.min(114,body.radius*.06),28,56,body,false);}
   this.meshCache.set(key,cached);while(this.meshCache.size>this.meshBudget){const oldest=this.meshCache.keys().next().value,old=this.meshCache.get(oldest);this.freeMesh(old.world);this.freeMesh(old.atmo);this.freeMesh(old.cloud);this.meshCache.delete(oldest);}return cached;
  }
  ringMesh(body){let mesh=this.ringCache.get(body.id);if(mesh){this.ringCache.delete(body.id);this.ringCache.set(body.id,mesh);return mesh;}
@@ -2818,7 +2916,8 @@ class Renderer{
   this.activeTerrain=[];
   if(!planet||!planet.landable||alt>Math.min(1000,planet.radius*.65)){this.patchPlanet=null;return;}
   const local=this.localDir(planet,V.norm(V.sub(position,planet.position)));
-  if(this.terrainKeyBody!==planet.id){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.water);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;}
+  const impactRevision=planet.impactRevision||0;
+  if(this.terrainKeyBody!==planet.id||this.terrainKeyImpact!==impactRevision){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.water);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;this.terrainKeyImpact=impactRevision;}
   this.patchPlanet=planet;this.patchCenter=local;
   const requested=ST.visibleTiles(planet,local,3),needed=new Set(requested.map(t=>t.key));
   let built=0;for(const desc of requested){let tile=this.terrainTiles.get(desc.key);
@@ -2830,7 +2929,7 @@ class Renderer{
  terrainDiagnostics(){const d=this.patchCenter&&this.patchPlanet?ST.descriptorForDirection(this.patchPlanet,this.patchCenter):null;
   return{body:this.patchPlanet?.id||null,face:d?.face??null,tile:d?.key||null,resolution:this.terrainGridSegments,cached:this.terrainTiles.size,active:this.activeTerrain.length,hits:this.terrainCacheHits,misses:this.terrainCacheMisses,evictions:this.terrainCacheEvictions,built:this.patchDraws,props:this.activeTerrain.reduce((sum,t)=>sum+(t.propCount||0),0),biome:this.patchCenter&&this.patchPlanet?BIOMES.classify(this.patchPlanet,this.patchCenter,groundHeight(this.patchCenter,this.patchPlanet),field(this.patchCenter,this.patchPlanet.seed)).name:null,collision:'continuous deterministic planet-fixed sample',render:'fixed cubemap tiles / no moving tessellation',sampleHeight:this.patchCenter&&this.patchPlanet?groundHeight(this.patchCenter,this.patchPlanet):null,seamError:(()=>{if(!d)return null;const neighbor=d.ix+1<d.n?ST.tileDescriptor(this.patchPlanet,d.face,d.ix+1,d.iy):null;if(!neighbor)return null;let max=0;for(let j=0;j<=this.terrainGridSegments;j+=6){const a=ST.vertexDirection(d,this.terrainGridSegments,j,this.terrainGridSegments),b=ST.vertexDirection(neighbor,0,j,this.terrainGridSegments);max=Math.max(max,Math.abs(groundHeight(a,this.patchPlanet)-groundHeight(b,this.patchPlanet)));}return max;})()};
  }
- updateProps(planet,position,alt){if(!planet||!planet.landable||alt>Math.min(310,planet.radius*.45)){this.propsPlanet=null;return;}const dir=this.localDir(planet,V.norm(V.sub(position,planet.position)));if(this.propsPlanet===planet&&(V.len(V.sub(dir,this.propsCenter))*planet.radius<90||performance.now()-this.lastPropsAt<300))return;this.lastPropsAt=performance.now();
+ updateProps(planet,position,alt){if(!planet||!planet.landable||planet.kind==='asteroid'||alt>Math.min(310,planet.radius*.45)){this.propsPlanet=null;return;}const dir=this.localDir(planet,V.norm(V.sub(position,planet.position)));if(this.propsPlanet===planet&&(V.len(V.sub(dir,this.propsCenter))*planet.radius<90||performance.now()-this.lastPropsAt<300))return;this.lastPropsAt=performance.now();
   this.propsPlanet=planet;this.propsCenter=[...dir];this.freeMesh(this.props);const east=V.norm(V.cross(Math.abs(dir[1])>.92?[0,0,1]:[0,1,0],dir)),north=V.norm(V.cross(dir,east));const p=[],n=[],c=[],indices=[];
   const triangle=(a,b,d,color)=>{const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const point of [a,b,d]){p.push(...point);n.push(...normal);c.push(...color);}indices.push(base,base+1,base+2);};
   const rng=rand(planet.seed^Math.floor(dir[0]*5000)^Math.floor(dir[2]*5000)*29);
@@ -2893,6 +2992,14 @@ class Renderer{
     const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340;const caveOcclusion=state.interior?.kind==='cave'&&body===near;if(!nearPatch&&!caveOcclusion)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
    }
   }
+  if(near?.kind==='asteroid'&&near.landable){
+   const rel=V.sub(near.position,origin),dist=V.len(rel),pixels=near.radius/Math.max(1,dist-near.radius)*renderH;
+   if((dist<1600000&&V.dot(V.norm(rel),cam.forward)>-.26)||dist<near.radius*1.8){
+    const lod=pixels>180?2:pixels>30?1:0,geometry=this.geometry(near,lod),nearPatch=near===this.patchPlanet&&alt<Math.min(22,near.radius*.18);
+    applyLight(p,near);if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(near,rel));
+    this.renderedBodies++;rendered.push({body:near,rel,dist,geometry,lod});
+   }
+  }
   if(this.patchPlanet&&alt<340&&state.interior?.kind!=='cave'){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
     for(const tile of this.activeTerrain){this.renderMesh(p,tile.ground,model);if(tile.props)this.renderMesh(p,tile.props,model);}
      if(root.StarfallHydrosphereLW04?.material(this.patchPlanet,this.galaxy.seed)){
@@ -2938,12 +3045,13 @@ class Renderer{
     this.debrisMeshes.push(makeMesh(gl,g.positions,g.normals,g.colors,g.indices));
    }
    const rockSet=root.StarfallDebrisLW05.nearby(this.galaxy,origin,this.galaxy.time,18000);
-   this.debrisRendered=rockSet.length;
-   this.closestDebris=root.StarfallDebrisLW05.proximity(rockSet,viewer,4);
+   this.nearbyDebris=rockSet;this.debrisRendered=rockSet.length;
+   this.closestDebris=root.StarfallDebrisLW05.proximity(rockSet,viewer,4,near?.kind==='asteroid'?near.id:null);
    if(rockSet.length){
     p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);
     applyLight(p,near);this.setVec(p,'uFogColor',[.005,.007,.01]);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',1);
     for(const rock of rockSet){
+     if(near?.kind==='asteroid'&&rock.id===near.id)continue;
      const delta=V.sub(rock.position,origin);
      if(V.dot(delta,cam.forward)<-rock.radius)continue;
      this.renderMesh(p,this.debrisMeshes[rock.variant],M.mul(M.spin(delta,rock.axis,rock.spin),M.scaleTranslate([0,0,0],rock.radius)));
@@ -2956,7 +3064,7 @@ class Renderer{
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',(()=>{const base=root.StarfallMeteorologyLW03?.base(obj.body,this.galaxy.seed).vacuum?0:.9;return base+(1-base)*(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.hazeOpacity||0);})());this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):Math.max(0,Math.min(1,.45+(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.cloudDelta||0))));this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
-  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderPlanetaryEvent(state,origin,vp,renderH);this.renderAsteroidImpact(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(state.shipWalkInterior){
     const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));
     this.renderMesh(p,this.shipWalkDeck,model);
@@ -3168,7 +3276,7 @@ function check(x){const a=Object.values(x);return a.length===0||Math.abs(a.reduc
 function interpolate(prior,seed,id){const entries=Object.entries(prior),altered={};for(const [name,frac] of entries)altered[name]=frac*(.91+.18*unit(seed,id,name));return fractions(altered);}
 function starFor(star,seed=742){if(!star||!star.id)throw Error('Expected an existing star ID');const metal=.008+.024*unit(seed,star.id,'stellar-metallicity');const helium=.225+.09*unit(seed,star.id,'stellar-helium');const elements=fractions({H:1-helium-metal,He:helium,metals:metal});
 return FREEZE({schema:VERSION,id:star.id,kind:'star',legacyType:star.type,elementMassFractions:elements,metallicityMassFraction:elements.metals,provenance:'seeded stellar abundance prior (not spectroscopic measurement)',uncertainty:'high',generationKey:seed+':'+star.id+':'+VERSION});}
-function bodyFor(body,seed=742,context={}){if(!body||!body.id||!['planet','moon'].includes(body.kind))throw Error('Expected existing planet/moon ID');
+function bodyFor(body,seed=742,context={}){if(!body||!body.id||!['planet','moon','asteroid'].includes(body.kind))throw Error('Expected existing planet, moon or stable asteroid ID');
  const type=compatible.includes(body.type)?body.type:'Rocky',giant=type==='Gas Giant',p=interpolate(mixtures[type],seed,body.id);
  const parentType=context.parentType||null;
  // Legacy moon surfaces remain interpreted by their own type; no body-class or terrain rewriting.
@@ -3180,7 +3288,7 @@ function bodyFor(body,seed=742,context={}){if(!body||!body.id||!['planet','moon'
  });
  // Legacy moon-atmosphere text is not trustworthy pressure evidence. The existing
  // physics model reports vacuum for moons; interpretation must therefore be vacuum.
- const vacuum=body.kind==='moon'||type==='Rocky'||type==='Shattered'||body.atmosphere==='Vacuum / debris field';
+ const vacuum=body.kind==='moon'||body.kind==='asteroid'||type==='Rocky'||type==='Shattered'||body.atmosphere==='Vacuum / debris field';
  const atmosphereMoleFractions=vacuum?FREEZE({}):interpolate(atmosphereTemplates[type],seed,body.id+':atm');
  const layers=giant?FREEZE({envelopeMassFraction:p.gas,condensateMassFraction:p.ice,deepInteriorMassFraction:p.rock}):FREEZE({crustMantleSilicateMassFraction:p.silicate,coreMetalMassFraction:p.metal,bulkVolatileMassFraction:p.volatile});
  const profile=FREEZE({schema:VERSION,id:body.id,seed,kind:body.kind,legacyType:body.type,parentType,landable:!!body.landable,
@@ -3557,12 +3665,46 @@ function beltRock(system,belt,rock,index,timeS){
  const angularDrift=(rnd(belt.id+':period:'+index)-.5)*.008*timeS/period;
  const a=phase+angularDrift,ca=Math.cos(a),sa=Math.sin(a);
  const x=rock[0]*ca-rock[2]*sa,z=rock[0]*sa+rock[2]*ca;
- // Use original cached debris body position (not a newly randomized orbit).
- const radius=Math.max(12,Math.min(250,Math.max(55,belt.radius*.0018)*rock[3]*.14));
- const spin=timeS*(.05+.27*rnd(belt.id+':spin:'+index));
+ // Preserve the original orbit and size distribution. A seeded 7.5% subset
+ // are major asteroids with enough radius for the existing ship landing loop.
+ const rawRadius=Math.max(12,Math.min(250,Math.max(55,belt.radius*.0018)*rock[3]*.14));
+ const landable=rnd(belt.id+':landable:'+index)<.075;
+ const radius=landable?Math.max(58,rawRadius):rawRadius;
+ const spinRate=landable ? .00004+.00016*rnd(belt.id+':spin:'+index):.05+.27*rnd(belt.id+':spin:'+index),spin=timeS*spinRate;
  return Object.freeze({id:belt.id+':rock:'+index,kind:'asteroid',position:[system.position[0]+x,system.position[1]+rock[1],system.position[2]+z],
-  radius,spin,axis:[.35+rnd(belt.id+':axisx:'+index),.25+rnd(belt.id+':axisy:'+index),.3+rnd(belt.id+':axisz:'+index)],
-  variant:index%8,estimatedDensityKgM3:1500+1300*rnd(belt.id+':rho:'+index),sourceId:belt.id});
+  radius,spin,spinRate,axis:[.35+rnd(belt.id+':axisx:'+index),.25+rnd(belt.id+':axisy:'+index),.3+rnd(belt.id+':axisz:'+index)],
+  variant:index%8,estimatedDensityKgM3:1500+1300*rnd(belt.id+':rho:'+index),sourceId:belt.id,
+  systemId:system.id,systemName:system.name,index,landable,major:landable});
+}
+function bodyFromRock(rock){
+ if(!rock?.landable||!Array.isArray(rock.position)||!Array.isArray(rock.axis))return null;
+ const density=Number.isFinite(rock.estimatedDensityKgM3)?rock.estimatedDensityKgM3:2200;
+ const radiusM=rock.radius*1000,gravityMS2=(4/3)*Math.PI*6.67430e-11*density*radiusM;
+ const spinRate=Number.isFinite(rock.spinRate)?rock.spinRate:.12;
+ return{id:rock.id,name:'Asteroid '+String(rock.index+1).padStart(3,'0'),kind:'asteroid',type:'Rocky',
+  seed:hash(rock.id),systemId:rock.systemId,system:rock.systemName||'Unknown system',
+  position:[...rock.position],radius:rock.radius,landable:true,gravity:gravityMS2/9.80665,
+  spinAngle:rock.spin,spinAxis:[...rock.axis],spinPeriod:TAU/spinRate,spinPhase:0,
+  atmosphere:'Vacuum',water:'Unsurveyed',life:false,ring:false,moons:[],sky:[.025,.035,.055],
+  asteroidSourceId:rock.sourceId,asteroidIndex:rock.index,densityKgM3:density,impactCraters:[],impactRevision:0};
+}
+function resolveBody(galaxy,id,timeS=0){
+ if(typeof id!=='string')return null;
+ const marker=':rock:',at=id.lastIndexOf(marker);if(at<1)return null;
+ const sourceId=id.slice(0,at),index=Number(id.slice(at+marker.length));
+ if(!Number.isSafeInteger(index)||index<0)return null;
+ const match=sourceId.match(/-belt\d*$/);if(!match)return null;
+ const systemId=sourceId.slice(0,match.index),system=galaxy?.byId?.get(systemId);
+ if(!system)return null;
+ if(system.dormant&&typeof galaxy.activate==='function')galaxy.activate(system);
+ const belt=(system.belts||[]).find(x=>x.id===sourceId);
+ if(!belt||!belt.rocks?.[index])return null;
+ return bodyFromRock(beltRock(system,belt,belt.rocks[index],index,timeS));
+}
+function refreshBody(galaxy,body,timeS=0){
+ if(!body||body.kind!=='asteroid')return body;
+ const fresh=resolveBody(galaxy,body.id,timeS);if(!fresh)return null;
+ Object.assign(body,fresh);return body;
 }
 function ringRock(body,index,timeS){
  if(!body?.ring)return null;
@@ -3603,15 +3745,117 @@ function nearby(galaxy,eye,timeS,maxDistance=18000){
  found.sort((a,b)=>dist2(a.position)-dist2(b.position));
  return Object.freeze(found.slice(0,55));
 }
-function proximity(rocks,eye,shipRadius=4){
+function proximity(rocks,eye,shipRadius=4,excludeId=null){
  if(!Array.isArray(rocks)||!Array.isArray(eye))return null;
  let closest=null;
- for(const item of rocks){const d=Math.hypot(...item.position.map((v,i)=>v-eye[i])),clearance=d-item.radius-shipRadius;
+ for(const item of rocks){if(excludeId&&item.id===excludeId)continue;const d=Math.hypot(...item.position.map((v,i)=>v-eye[i])),clearance=d-item.radius-shipRadius;
   if(!closest||clearance<closest.clearance)closest={rockId:item.id,sourceId:item.sourceId,clearance,collision:clearance<=0,category:item.kind};}
  return closest?Object.freeze(closest):null;
 }
-const API=Object.freeze({irregularMesh,beltRock,ringRock,nearby,proximity});root.StarfallDebrisLW05=API;
+const API=Object.freeze({irregularMesh,beltRock,bodyFromRock,resolveBody,refreshBody,ringRock,nearby,proximity});root.StarfallDebrisLW05=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
+})(globalThis);
+
+</script><script>
+/* STARFALL LW07 — seeded asteroid impacts and permanent, closed-surface craters.
+ * Impacts only occur in systems that actually contain a generated asteroid belt.
+ * The model stores bounded crater records; it never edits body IDs or orbit data.
+ */
+(function(root){'use strict';
+const VERSION=1,PERIOD_S=18000,MAX_RECORDS=1200,TAU=Math.PI*2;
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function hash(s){let h=2166136261;for(const c of String(s))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0;}
+function unit(key){let v=hash(key);v=Math.imul(v^(v>>>16),0x7feb352d);v=Math.imul(v^(v>>>15),0x846ca68b);return ((v^(v>>>16))>>>0)/4294967296;}
+function direction(key){const y=unit(key+':y')*2-1,a=unit(key+':a')*TAU,r=Math.sqrt(Math.max(0,1-y*y));return [Math.cos(a)*r,y,Math.sin(a)*r];}
+function validRecord(x){
+ return !!x&&typeof x.id==='string'&&x.id.length<=180&&typeof x.bodyId==='string'&&x.bodyId.length<=160&&
+  Array.isArray(x.direction)&&x.direction.length===3&&x.direction.every(Number.isFinite)&&
+  Number.isFinite(x.radiusScene)&&x.radiusScene>0&&Number.isFinite(x.depthScene)&&x.depthScene>0&&
+  Number.isFinite(x.createdAtS)&&x.createdAtS>=0&&Number.isFinite(x.energyJ)&&x.energyJ>=0&&
+  Number.isFinite(x.massKg)&&x.massKg>=0;
+}
+function staticCraters(body,system,seed=742){
+ if(!body||!system)return [];
+ const belts=Array.isArray(system.belts)?system.belts:[],isShattered=body.type==='Shattered';
+ if(!belts.length&&!isShattered)return [];
+ const population=belts.reduce((n,b)=>n+(Array.isArray(b.rocks)?b.rocks.length:0),0);
+ const density=belts.length?Math.max(.5,Math.min(2.5,population/420)):0;
+ const key='lw07:history:'+seed+':'+body.id;
+ const count=isShattered?5+Math.floor(unit(key+':count')*4):
+  Math.min(7,1+Math.floor(unit(key+':count')*(belts.length*2.1+density)));
+ const out=[];
+ for(let i=0;i<count;i++){
+  const k=key+':'+i,frac=isShattered ? .035+unit(k+':r')*.065 : .018+unit(k+':r')*.04;
+  const radiusScene=Math.max(2,body.radius*frac),depthScene=radiusScene*(.12+unit(k+':d')*.16);
+  out.push(Object.freeze({id:'crater:'+hash(k).toString(36),bodyId:body.id,direction:direction(k),
+   radiusScene,depthScene,createdAtS:0,source:isShattered?'fragmentation':'asteroid-belt'}));
+ }
+ return out;
+}
+function attachSystem(system,seed=742){
+ if(!system||!Array.isArray(system.bodies))return 0;
+ let count=0;
+ for(const body of system.bodies){
+  const craters=staticCraters(body,system,seed);
+  body.impactBaseCraters=craters;
+  body.impactCraters=craters;
+  body.impactRevision=(body.impactRevision||0)+1;
+  count+=craters.length;
+ }
+ return count;
+}
+function scheduled(body,system,window,seed){
+ const belts=system?.belts||[];
+ if(!belts.length||!body||!['planet','moon'].includes(body.kind))return null;
+ const population=belts.reduce((n,b)=>n+(Array.isArray(b.rocks)?b.rocks.length:0),0);
+ const density=Math.max(.5,Math.min(2.5,population/420));
+ const chance=clamp(.008+.012*belts.length+.003*density,.008,.05);
+ const key='lw07:impact:'+seed+':'+body.id+':'+window;
+ if(unit(key+':occur')>=chance)return null;
+ const impactTimeS=window*PERIOD_S+90+unit(key+':time')*(PERIOD_S-180);
+ const massKg=1e5+unit(key+':mass')*8e8,velocityMS=4500+unit(key+':velocity')*28500;
+ const energyJ=.5*massKg*velocityMS*velocityMS;
+ const radiusScene=Math.max(2,body.radius*(.012+unit(key+':radius')*.03));
+ return Object.freeze({id:'impact:'+hash(key).toString(36),bodyId:body.id,impactTimeS,
+  direction:direction(key),incoming:direction(key+':incoming'),radiusScene,
+  depthScene:radiusScene*(.20+unit(key+':depth')*.18),massKg,velocityMS,energyJ,
+  source:'system-asteroid-belt',window});
+}
+function safeClone(value){try{return JSON.parse(JSON.stringify(value));}catch(_error){return{unreadable:true};}}
+function create(saved){
+ const invalid=saved!=null&&(saved.schema!==VERSION||!Array.isArray(saved.craters)||saved.craters.length>MAX_RECORDS||!saved.craters.every(validRecord));
+ const recovery=invalid?{status:'quarantined',reason:'Invalid LW07 impact archive; original payload preserved',original:safeClone(saved)}:(saved?.recovery||null);
+ const records=new Map((invalid?[]:(saved?.craters||[])).map(x=>[x.id,{...x,direction:[...x.direction]}]));
+ function step(body,system,timeS,seed=742){
+  if(!body||!Number.isFinite(timeS)||timeS<0||!['planet','moon'].includes(body.kind))return null;
+  const window=Math.floor(timeS/PERIOD_S),first=Math.max(0,window-6);
+  let active=null,changed=false;
+  for(let w=first;w<=window;w++){
+   const event=scheduled(body,system,w,seed);if(!event)continue;
+   if(timeS>=event.impactTimeS&&!records.has(event.id)){
+    records.set(event.id,{id:event.id,bodyId:body.id,direction:[...event.direction],
+     radiusScene:event.radiusScene,depthScene:event.depthScene,createdAtS:event.impactTimeS,
+     energyJ:event.energyJ,massKg:event.massKg,source:event.source});
+    changed=true;
+   }
+   if(timeS>=event.impactTimeS-8&&timeS<=event.impactTimeS+5)
+    active={...event,phase:clamp((timeS-(event.impactTimeS-8))/13,0,1)};
+  }
+  if(records.size>MAX_RECORDS){const oldest=[...records.values()].sort((a,b)=>a.createdAtS-b.createdAtS).slice(0,records.size-MAX_RECORDS);for(const x of oldest)records.delete(x.id);}
+  const base=body.impactBaseCraters||staticCraters(body,system,seed);
+  const dynamic=[...records.values()].filter(x=>x.bodyId===body.id);
+  if(changed||!Array.isArray(body.impactCraters)||body.impactCraters.length!==base.length+dynamic.length){
+   body.impactBaseCraters=base;body.impactCraters=base.concat(dynamic);
+   body.impactRevision=(body.impactRevision||0)+1;
+  }
+  return active;
+ }
+ function serialize(){return{schema:VERSION,craters:[...records.values()].map(x=>({...x,direction:[...x.direction]})),recovery:safeClone(recovery)};}
+ return Object.freeze({step,serialize,staticCraters,attachSystem,
+  get craterCount(){return records.size;},get recoveryRequired(){return !!recovery;}});
+}
+root.StarfallAsteroidImpactsLW07=Object.freeze({VERSION,PERIOD_S,staticCraters,scheduled,attachSystem,create,direction});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallAsteroidImpactsLW07;
 })(globalThis);
 
 </script><script>
@@ -4078,7 +4322,7 @@ const INSTRUMENTS=Object.freeze({
 });
 function profile(body,seed=742){if(!body||!body.id)throw Error('Missing body');const k=seed+':'+body.id,type=(body.type||'Rocky').toLowerCase(),ice=/ice|frozen|glacial|tundra/.test(type),volcanic=/volcan|lava|magma/.test(type),gas=/gas|giant/.test(type),temperate=/temper|ocean|forest|lush/.test(type);
  const mix=rand(k+':sil'),iron=clamp(.06+rand(k+':iron')*.34+(volcanic?.09:0),.01,.63),silicate=clamp(.26+.38*mix-(ice?.13:0),.03,.8),water=clamp((ice?.45:temperate?.27:.04)+rand(k+':water')*.23,0,.92),mag=(rand(k+':field')-.15)*25000;
- const pressure=gas?1.1e6:body.kind==='moon'?0:/vacuum|airless/.test(type)?0:(.015+rand(k+':pressure')*1.4)*101325;
+ const pressure=gas?1.1e6:(body.kind==='moon'||body.kind==='asteroid'||body.atmosphere==='Vacuum'||/vacuum|airless/.test(type))?0:(.015+rand(k+':pressure')*1.4)*101325;
  const baseK=(ice?155:volcanic?450:temperate?282:245)+70*(rand(k+':temp')-.5);
  return Object.freeze({bodyId:body.id,seed,model:'seeded approximation / not measured',silicateFraction:silicate,ironFraction:iron,waterIcePotential:water,temperatureK:baseK,pressurePa:pressure,magneticFieldNT:mag,iceDepthM:Math.max(0,(ice?1:water*.4)*rand(k+':depth')*60),seismicLevelMMs:(volcanic?.12:.015)*rand(k+':seismic'),biosignatureIndex:clamp((body.life&&body.kind!=='moon'&&temperate&&baseK>=235&&baseK<=335&&pressure>=1800? .35+.42*rand(k+':potential-organic'): .015+.055*rand(k+':abiotic-organics')),0,1),volatileFraction:clamp(1-iron-silicate,0,1)});}
 function localTruth(body,seed,local,simTime=0){const p=profile(body,seed),vec=Array.isArray(local)?local:[0,1,0],lat=clamp(vec[1],-1,1),lon=Math.atan2(vec[2],vec[0]);const patch=rand(seed+':'+body.id+':patch:'+Math.floor(lat*38)+':'+Math.floor(lon*38)),diurnal=Math.sin(simTime*Math.PI*2/Math.max(30,body.spinPeriod||500)+lon);
@@ -7643,7 +7887,7 @@ const TYPES=Object.freeze({
  dust:{name:'Dust storm',instrument:'barometer',tint:[.62,.40,.24],visibility:.77,solar:.72,scope:'global',desc:'Airborne particulate load may reduce visibility and sunlight.'},
  snow:{name:'Ice crystal squall',instrument:'thermometer',tint:[.65,.79,.91],visibility:.58,solar:.58,scope:'global',desc:'Wind-driven icy particulate simulation.'},
  aurora:{name:'Polar aurora',instrument:'magnetometer',tint:[.16,.60,.47],visibility:.04,solar:0,scope:'polar',desc:'Upper-atmosphere emission estimated from magnetic conditions.'},
- meteor:{name:'Meteor shower',instrument:'spectrometer',tint:[.88,.62,.40],visibility:.07,solar:.03,scope:'global',desc:'Atmospheric trails or surface impact flashes; no terrain destruction.'},
+ meteor:{name:'Meteor shower',instrument:'spectrometer',tint:[.88,.62,.40],visibility:.07,solar:.03,scope:'global',desc:'Atmospheric trails; persistent crater impacts are separately simulated only in systems with asteroid belts.'},
  seismic:{name:'Seismic tremor',instrument:'seismometer',tint:[.55,.44,.36],visibility:.09,solar:0,scope:'regional',desc:'Small ground motion signal; no structural damage.'},
  volcanic:{name:'Volcanic ash plume',instrument:'seismometer',tint:[.48,.23,.17],visibility:.64,solar:.65,scope:'regional',desc:'Ash and hot-gas column estimated for volcanic terrain.'},
  cryo:{name:'Cryovolcanic plume',instrument:'radar',tint:[.54,.71,.79],visibility:.48,solar:.44,scope:'regional',desc:'Estimated volatile-ice plume. No permanent surface modification.'},
@@ -9614,7 +9858,7 @@ function candidates(body,c){
  };
  return TYPES.filter(t=>eligible[t.id]);}
 function site(body,dir,seed=742){
- if(!body||!validId(body.id)||!body.landable||!['planet','moon'].includes(body.kind))return null;
+ if(!body||!validId(body.id)||!body.landable||!['planet','moon','asteroid'].includes(body.kind))return null;
  const c=composition(body,seed),t=tiles(dir),local=center(t.lat,t.lon),key='8c:'+VERSION+':'+seed+':'+body.id+':'+t.lat+':'+t.lon;
  const choices=candidates(body,c);if(!choices.length)return null;
  const index=Math.floor(unit(key+':kind')*choices.length),type=choices[index];
@@ -9625,12 +9869,13 @@ function site(body,dir,seed=742){
   (type.id==='silica'&&name==='silicate')||(type.id==='regolith'&&name==='regolith');
  const richness=unit(key+':richness'),regional=match?1.5:1;
  const grade=clamp((type.grade[0]+(type.grade[1]-type.grade[0])*richness)*regional,0,1);
- const radiusScene=6+unit(key+':radius')*17;
- const thicknessM=1.5+unit(key+':thickness')*27;
- const depthM=unit(key+':depth')*(body.type==='Ice'?16:42);
+ const asteroid=body.kind==='asteroid';
+ const radiusScene=asteroid?1.5+unit(key+':radius')*4.5:6+unit(key+':radius')*17;
+ const thicknessM=asteroid ? .6+unit(key+':thickness')*7:1.5+unit(key+':thickness')*27;
+ const depthM=unit(key+':depth')*(asteroid?9:body.type==='Ice'?16:42);
  // Accessible excavated material, not a planetary bulk metal reserve.
  const density=type.id==='water_ice'?850:type.id==='regolith'?1600:2300;
- const massKg=Math.round(Math.PI*Math.pow(radiusScene*1000,2)*thicknessM*density*.002*(.15+.4*unit(key+':access')));
+ const massKg=Math.round(Math.PI*Math.pow(radiusScene*1000,2)*thicknessM*density*(asteroid ? .00035 : .002)*(.15+.4*unit(key+':access')));
  const deposit={id:key,model:VERSION,bodyId:body.id,seed,local,cell:{lat:t.lat,lon:t.lon},
   type:type.id,label:type.label,hostRock:name,grade,depthMinM:Math.round(depthM*10)/10,
   depthMaxM:Math.round((depthM+thicknessM)*10)/10,radiusScene,
@@ -9678,7 +9923,7 @@ function create(saved){
   const old=transactions.get(receipt.id);
   if(old){if(old.siteId!==deposit.id||old.massKg!==massKg)throw Error('Extraction receipt collision');return copy(old);}
   if(massKg>remaining(deposit)+1e-8)throw Error('Deposit depleted: insufficient accessible mass');
-  const record={id:receipt.id,siteId:deposit.id,massKg,destinationContainerId:receipt.destinationContainerId,provenance:'8D externally accounted extraction'};
+  const record={id:receipt.id,siteId:deposit.id,massKg,destinationContainerId:receipt.destinationContainerId,provenance:receipt.provenance||'8D externally accounted extraction'};
   used.set(deposit.id,(used.get(deposit.id)||0)+massKg);transactions.set(receipt.id,record);return copy(record);
  }
  function serialize(){return{schema:1,depletions:[...used].map(([id,massKg])=>({id,massKg})),
@@ -9776,6 +10021,107 @@ function create(saved,legacy={}){
 root.StarfallPhysical8A=Object.freeze({create,location});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallPhysical8A;
 })(typeof globalThis!=='undefined'?globalThis:this);
+
+</script><script>
+/* STARFALL LW07 — finite EVA asteroid extraction into a carried sample pouch.
+ * Uses the existing 8A material ledger and 8C deposit depletion authority.
+ * No free ore, remote teleportation, or infinite inventory.
+ */
+(function(root){'use strict';
+const POUCH='8d:eva-sample-pouch',SHIP=root.StarfallMining8D?.SHIP||'8d:ship-main:materials';
+const LIMITS=Object.freeze({pouchMassKg:20,pouchVolumeM3:.012});
+const BATCH=Object.freeze({massKg:2,durationS:12,powerW:800,energyJ:9600,volumeM3PerKg:.00058});
+const clone=x=>JSON.parse(JSON.stringify(x));
+const finite=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0;
+const validId=x=>typeof x==='string'&&x.length>0&&x.length<=180;
+function prepareContainers(materials){
+ const ids=new Set(materials.snapshot().containers.map(x=>x.id));
+ if(!ids.has(POUCH))materials.registerContainer({id:POUCH,ownerId:'eva-explorer-001',
+  kind:'sealed EVA geological sample pouch',maxMassKg:LIMITS.pouchMassKg,maxVolumeM3:LIMITS.pouchVolumeM3});
+ return materials;
+}
+function normalize(saved){
+ if(saved==null)return{schema:1,sequence:0,active:null,history:[],recovery:null};
+ const invalid=saved.schema!==1||!Number.isSafeInteger(saved.sequence)||saved.sequence<0||
+  !Array.isArray(saved.history)||saved.history.length>500||
+  !saved.history.every(x=>validId(x.id)&&typeof x.status==='string')||
+  (saved.active!==null&&saved.active!==undefined&&(!validId(saved.active.id)||
+   saved.active.type!=='EVA_ASTEROID'||!validId(saved.active.bodyId)||!validId(saved.active.siteId)||
+   !finite(saved.active.elapsedS)||!finite(saved.active.energyJ)||!finite(saved.active.durationS)||
+   !saved.active.deposit||!validId(saved.active.deposit.id)));
+ if(invalid)return{schema:1,sequence:Number.isSafeInteger(saved.sequence)&&saved.sequence>=0?saved.sequence:0,active:null,
+  history:Array.isArray(saved.history)?saved.history.filter(x=>validId(x.id)&&typeof x.status==='string').slice(-500):[],
+  recovery:{status:'quarantined',reason:'Invalid LW07 asteroid-mining archive; original payload preserved',original:clone(saved)}};
+ return{schema:1,sequence:saved.sequence,active:saved.active?clone(saved.active):null,
+  history:clone(saved.history),recovery:saved.recovery?clone(saved.recovery):null};
+}
+function create(saved,Materials,Resources){
+ let state=normalize(saved);
+ function snapshot(){return clone(state);}
+ function start({deposit,surveyed,bodyId,bodyKind,landed,eva,operatorNear,chargeJ}){
+  if(state.active)throw Error('Finish or cancel the current EVA extraction first');
+  if(bodyKind!=='asteroid'||!landed||!eva||!operatorNear||!deposit||
+   !validId(bodyId)||deposit.bodyId!==bodyId||!validId(deposit.id)||!finite(deposit.accessibleMassKg))
+   throw Error('Stand beside a landable asteroid and select a valid surface deposit');
+  if(!surveyed)throw Error('Use the EVA spectrometer to prospect this deposit first');
+  if(deposit.accessibleMassKg<BATCH.massKg)throw Error('This deposit has less than 2 kg of accessible material');
+  if(!finite(chargeJ)||chargeJ<BATCH.energyJ)throw Error('EVA multitool needs at least 9.6 kJ for a 2 kg extraction');
+  state.sequence++;
+  state.active={id:'lw07:eva-extract:'+state.sequence,type:'EVA_ASTEROID',bodyId,siteId:deposit.id,
+   deposit:clone(deposit),massKg:BATCH.massKg,elapsedS:0,durationS:BATCH.durationS,
+   powerW:BATCH.powerW,energyJ:0,volumeM3PerKg:BATCH.volumeM3PerKg};
+  return clone(state.active);
+ }
+ function advance(dt,availableEnergyJ,{enabled=true}={}){
+  const a=state.active;if(!a)return{active:false,usedJ:0,completed:false};
+  if(!finite(dt)||dt>2||!finite(availableEnergyJ))throw Error('Invalid LW07 extraction time step');
+  if(!enabled)return{active:true,usedJ:0,completed:false,paused:true,progress:a.elapsedS/a.durationS};
+  const seconds=Math.min(dt,Math.max(0,a.durationS-a.elapsedS),availableEnergyJ/a.powerW);
+  const usedJ=seconds*a.powerW;a.elapsedS+=seconds;a.energyJ+=usedJ;
+  return{active:true,usedJ,completed:a.elapsedS+1e-8>=a.durationS,progress:a.elapsedS/a.durationS};
+ }
+ function cancel(){
+  if(!state.active)return false;
+  state.history.push({id:state.active.id,type:state.active.type,status:'CANCELLED',
+   bodyId:state.active.bodyId,siteId:state.active.siteId,energyJ:state.active.energyJ});
+  if(state.history.length>500)state.history.shift();state.active=null;return true;
+ }
+ function commit(materials,resources){
+  const a=state.active;if(!a||a.elapsedS+1e-6<a.durationS)throw Error('EVA extraction cycle incomplete');
+  const nextMaterials=prepareContainers(Materials.create(materials.snapshot()));
+  const nextResources=Resources.create(resources.serialize());
+  const pouch=nextMaterials.used(POUCH);
+  if(pouch.massKg+BATCH.massKg>LIMITS.pouchMassKg+1e-8||
+   pouch.volumeM3+BATCH.massKg*BATCH.volumeM3PerKg>LIMITS.pouchVolumeM3+1e-8)
+   throw Error('EVA sample pouch is full; return to the ship and transfer samples');
+  if(nextResources.remaining(a.deposit)<a.massKg)throw Error('Asteroid deposit depleted before extraction could commit');
+  const lot={id:'lw07:lot:'+a.id,containerId:POUCH,materialId:a.deposit.type,
+   massKg:a.massKg,volumeM3:a.massKg*a.volumeM3PerKg,grade:a.deposit.grade,provenance:a.deposit.id};
+  try{nextMaterials.importLot(lot);}catch(error){if(/capacity/i.test(String(error.message||error)))throw Error('EVA sample pouch is full; return to the ship and transfer samples');throw error;}
+  nextResources.extract(a.deposit,a.massKg,{id:a.id,depositId:a.deposit.id,
+   destinationContainerId:POUCH,status:'COMMITTED',provenance:'LW07 EVA asteroid extraction'});
+  const receipt={id:a.id,type:a.type,status:'COMMITTED',bodyId:a.bodyId,siteId:a.siteId,
+   massKg:a.massKg,source:a.siteId,destination:POUCH,energyJ:a.energyJ};
+  state.history.push(receipt);if(state.history.length>500)state.history.shift();state.active=null;
+  return{materials:nextMaterials,resources:nextResources,operation:clone(receipt)};
+ }
+ function transfer(materials,lotId,massKg,transferId){
+  if(state.active)throw Error('Wait for EVA extraction to finish before transferring samples');
+  if(!validId(lotId)||!validId(transferId)||!finite(massKg)||massKg<=0)
+   throw Error('Select an actual sample lot and positive transfer mass');
+  const next=prepareContainers(Materials.create(materials.snapshot()));
+  const lot=next.inventory(POUCH).find(x=>x.id===lotId);
+  if(!lot||massKg>lot.massKg+1e-8)throw Error('Selected sample lot is not in the EVA pouch');
+  next.reserve(transferId,lotId,SHIP,massKg);next.commit(transferId);
+  return{materials:next,transfer:{id:transferId,lotId,massKg,source:POUCH,destination:SHIP,status:'COMMITTED'}};
+ }
+ return Object.freeze({start,advance,cancel,commit,transfer,snapshot,
+  apply:saved=>{state=normalize(saved);},get active(){return state.active?clone(state.active):null;},
+  get history(){return state.history.map(clone);},get recoveryRequired(){return !!state.recovery;}});
+}
+root.StarfallAsteroidMiningLW07=Object.freeze({POUCH,SHIP,LIMITS,BATCH,prepareContainers,create});
+if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallAsteroidMiningLW07;
+})(globalThis);
 
 </script><script>
 /* STARFALL 8G — factory commissioning: exact one BOM -> one physical asset. */
@@ -15399,8 +15745,11 @@ const $=id=>document.getElementById(id),{Renderer,V,groundHeight}=Starfall3D;
 const P=StarfallPhysics, FP=StarfallFlightPhysics;
 const BIOMES=StarfallBiomes;
 const SEED_QUERY=new URLSearchParams(location.search).get('seed'),GALAXY_SEED=SEED_QUERY!==null?(Number(SEED_QUERY)>>>0):742,galaxy=StarfallGalaxy.generateGalaxy(GALAXY_SEED,64);
+for(const sys of galaxy.systems){StarfallAsteroidImpactsLW07.attachSystem(sys,GALAXY_SEED);sys.__lw07ImpactsAttached=true;}
+const activateSystemLW07=galaxy.activate.bind(galaxy);
+galaxy.activate=function(sys){const result=activateSystemLW07(sys);if(result&&!result.__lw07ImpactsAttached){StarfallAsteroidImpactsLW07.attachSystem(result,GALAXY_SEED);result.__lw07ImpactsAttached=true;}return result;};
 const first=galaxy.systems[0].planets[0];
-let target=first,nearest=first,renderer;
+let target=first,nearest=first,renderer,asteroidActors=[],asteroidActorsAt=0,currentImpactEvent=null,lastAsteroidMiningError='',lastAsteroidMiningSaveMS=0;
 try{renderer=new Renderer($('universe'),galaxy);}catch(error){console.error('STARFALL initialization:',error);$('fatal').hidden=false;$('boot').hidden=true;return;}
 let simTime=0,pos=V.add(first.position,[0,300,-(first.radius+3550)]),vel=[0,0,0],forward=V.norm(V.sub(first.position,pos)),up=[0,1,0];
 let landed=false,warp=false,camMode=0,camEye=null,camDistance=145,orbitYaw=0,orbitPitch=0,heat=0,solarWarning=false,timeScale=1,altitude=3500,vertical=0,fps=60,lastPlanetId='',nearPhase='DEEP SPACE',hudClock=0,frames=0,frameClock=0,lastTime=performance.now(),lastSave=0,toastTimer=0,landingTimer=0;
@@ -15427,6 +15776,7 @@ if(recovery?.recovered&&SF.storageStatus().durable){
  if(!recoveryPersisted)SF.save(originalSession);
 }
 const session=recoveryPersisted?recovery.session:originalSession,saved=session.flightGalaxy;
+const impactsLW07=StarfallAsteroidImpactsLW07.create(session.asteroidImpactsLW07);
 truckShoreCrawl8ER=!!saved?.truckPose?.shoreCrawl8er;
 if(recoveryPersisted)setTimeout(()=>showToast('8B · Assisted rescue: ORIGINAL truck and untouched battery/cargo secured in ship. This is not physical 8H delivery.'),1600);
 let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
@@ -15503,6 +15853,8 @@ let logisticsEnergyReceipts8h=(()=>{
 let vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(session.vehicleAssembly8g);
 let manufacturedOccupied8G=null;
 let resources8c=StarfallResources8C.create(session.resources8c);
+materials8a=StarfallAsteroidMiningLW07.prepareContainers(materials8a);
+const asteroidMiningLW07=StarfallAsteroidMiningLW07.create(session.asteroidMiningLW07,StarfallMaterials8A,StarfallResources8C);
 let atmosphere8g=StarfallAirFractionation8G.create(session.atmosphere8g);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
 let transformation8e=StarfallTransformation8E.create(session.transformations8e);
@@ -15673,7 +16025,7 @@ function restoreVehicleT15(kind){
 engEnabled=session.scienceSettings?.flightMode==='Engineering';
 engAttitude=['Manual','Hold','Prograde','Retrograde'].includes(session.scienceSettings?.sas)?session.scienceSettings.sas:'Manual';
 if(saved&&saved.seed===GALAXY_SEED&&Array.isArray(saved.position)&&saved.position.length===3&&saved.position.every(Number.isFinite)){
- try{simTime=Number.isFinite(saved.time)&&saved.time>=0&&saved.time<1e13?saved.time:0;galaxy.update(simTime);if(saved.target?.startsWith('catalog-')){const sid=saved.target.replace(/-p\d+(?:-m\d+)?$|\-sun$/,'');const ss=galaxy.byId.get(sid);if(ss)galaxy.activate(ss);}target=galaxy.byId.get(saved.target)||first;galaxy.pinnedSystemId=target.systemId;nearest=galaxy.byId.get(saved.attached)||first;
+ try{simTime=Number.isFinite(saved.time)&&saved.time>=0&&saved.time<1e13?saved.time:0;galaxy.update(simTime);if(saved.target?.startsWith('catalog-')){const sid=saved.target.replace(/-p\d+(?:-m\d+)?$|\-sun$/,'');const ss=galaxy.byId.get(sid);if(ss)galaxy.activate(ss);}target=(saved.target?.includes(':rock:')?window.StarfallDebrisLW05?.resolveBody(galaxy,saved.target,simTime):galaxy.byId.get(saved.target))||first;galaxy.pinnedSystemId=target.systemId;nearest=(saved.attached?.includes(':rock:')?window.StarfallDebrisLW05?.resolveBody(galaxy,saved.attached,simTime):galaxy.byId.get(saved.attached))||first;
   pos=saved.position.slice();forward=V.norm(saved.forward||forward);up=V.norm(saved.up||up);landed=!!saved.landed&&nearest.landable;
   if(engEnabled&&saved.engineering?.bodyId===nearest.id&&saved.engineering.rM?.length===3&&saved.engineering.vMS?.length===3){const current=shipConfiguredState(),legacyCraft=saved.engineering.craft||{};
    engState={rM:[...saved.engineering.rM],vMS:[...saved.engineering.vMS],craft:FP.shipState({...current,fuelKg:Number.isFinite(legacyCraft.fuelKg)?Math.min(Math.max(0,legacyCraft.fuelKg),vehicleStore.get('ship').stats.fuelCapacityKg):current.fuelKg,temperatureK:Number.isFinite(legacyCraft.temperatureK)?legacyCraft.temperatureK:current.temperatureK})};engBody=nearest.id;
@@ -15904,7 +16256,7 @@ function tangentOffsetLocal(body,localRadial,worldForward,forwardMeters,rightMet
  return V.rot(d,axis,-(body.spinAngle||0));
 }
 function placeRoverNearShip(){
- if(!shipBody||!shipLocal)return;
+ if(!shipBody||!shipLocal||shipBody.kind==='asteroid')return;
  const deploy=(id,front,right)=>{const a=physical8a.get(id);if(!a)return null;
   if(a.location.kind==='ship'){const local=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,front,right);
    physical8a.move(id,{kind:'surface',bodyId:shipBody.id,local},'initial-deploy:'+id,{expected:a.location});return local;}
@@ -15924,7 +16276,7 @@ function exitShip(){
  shipWalking8e=false;
  const ns=surfaceData(nearest,pos),axis=nearest.spinAxis||[0,1,0],radial=ns.dir;
  shipBody=nearest;shipLocal=V.rot(radial,axis,-(nearest.spinAngle||0));shipForwardVec=[...forward];shipUpVec=[...up];
- if(!roverBody||roverBody!==nearest||!roverLocal)placeRoverNearShip();
+ if(nearest.kind!=='asteroid'&&(!roverBody||roverBody!==nearest||!roverLocal))placeRoverNearShip();
  const hatchLocal=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-30,0);
  const groundLocalEVA=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-37,0);
  const evacDir=V.norm(V.rot(hatchLocal,axis,nearest.spinAngle||0));
@@ -16007,7 +16359,7 @@ function engineeringTouchdown(ns){
  pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));
  landed=true;vel=[0,0,0];warp=false;if(engState)vehicleStore.update('ship',{...vehicleStore.get('ship').state,fuelKg:engState.craft.fuelKg,temperatureK:engState.craft.temperatureK});engState=null;engBody=null;up=ns.dir;
  let tangent=V.sub(forward,V.mul(up,V.dot(forward,up)));if(V.len(tangent)<.05)tangent=V.cross([0,1,0],up);forward=V.norm(tangent);
- shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;placeRoverNearShip();
+ shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;if(nearest.kind!=='asteroid')placeRoverNearShip();
  SF.recordDiscovery({id:'seamless-land:'+nearest.id,type:'landing',name:'Landed on '+nearest.name,detail:'Engineering physics touchdown',planet:nearest.name,system:nearest.system});
  showToast('ENGINEERING TOUCHDOWN · EVA descent underway');saveFlight();exitShip();
 }
@@ -16229,6 +16581,24 @@ function pickActualStar(clientX,clientY){
  if(!best)return false;
  target=best.star;galaxy.pinnedSystemId=best.id;siteWaypoint=null;showToast('STAR ACQUIRED · '+best.name+' · G align · SHIFT+W warp');return true;
 }
+function pickNearbyAsteroid(clientX,clientY){
+ const rect=canvas.getBoundingClientRect(),cam=lastPickingCamera,D=window.StarfallDebrisLW05;
+ if(!cam||!D||eva||landed||!rect.width||!rect.height)return false;
+ const x=(clientX-rect.left)/rect.width,y=(clientY-rect.top)/rect.height,tan=Math.tan(renderer.fov/2),aspect=renderer.aspect;
+ let best=null,bestScore=Infinity;
+ const list=renderer.nearbyDebris?.length?renderer.nearbyDebris:asteroidActors;
+ for(const rock of list){if(!rock.landable)continue;
+  const rel=V.sub(rock.position,cam.eye),depth=V.dot(rel,cam.forward);if(depth<=Math.max(1,rock.radius*.3))continue;
+  const sx=.5+.5*V.dot(rel,cam.right)/(depth*tan*aspect),sy=.5-.5*V.dot(rel,cam.up)/(depth*tan);
+  const dx=(sx-x)*rect.width,dy=(sy-y)*rect.height,d=dx*dx+dy*dy;
+  const radiusPx=Math.min(48,Math.max(10,rock.radius/depth*rect.height/(2*tan)+7));
+  if(d<radiusPx*radiusPx&&d<bestScore){best=rock;bestScore=d;}
+ }
+ if(!best)return false;
+ const body=D.bodyFromRock(best);if(!body)return false;
+ target=body;galaxy.pinnedSystemId=body.systemId;siteWaypoint=null;
+ showToast('ASTEROID ACQUIRED · '+body.name+' · G ALIGN · APPROACH AND TOUCH DOWN');return true;
+}
 canvas.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;dragging=true;dragButton=ev.button;lastX=ev.clientX;lastY=ev.clientY;dragTravel=0;canvas.setPointerCapture(ev.pointerId);});
 canvas.addEventListener('pointermove',ev=>{if(!dragging||busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;const rawDx=V.clamp(ev.clientX-lastX,-100,100),rawDy=V.clamp(ev.clientY-lastY,-100,100),{dx,dy}=controls.signedDrag(rawDx,rawDy);dragTravel+=Math.abs(dx)+Math.abs(dy);lastX=ev.clientX;lastY=ev.clientY;
  // EVA uses an independent full-range view pitch. Dragging upward looks at the sky;
@@ -16236,7 +16606,7 @@ canvas.addEventListener('pointermove',ev=>{if(!dragging||busy()||!$('launch-dial
  if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*(eva?.0042:.003),eva?-1.3:-1.15,eva?1.72:1.15);return;}
  if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.0042,-1.3,1.72);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,controls.flightPitch(-dy*.0021),0);
 });
-canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&!truckOccupied&&!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&!truckOccupied&&!eva&&!landed&&dragButton===0&&dragTravel<7){if(!pickNearbyAsteroid(ev.clientX,ev.clientY))pickActualStar(ev.clientX,ev.clientY);}dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
 document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
@@ -16246,7 +16616,7 @@ function saveFlight(extra={}){
   physical8a.setSurface(START_TRUCK,truckBody.id,truckLocal,{batteryJ:truckBatteryJ,lights:truckLights,cargoKg:truckCargo,forward:truckForwardVec});
  if(roverBody&&roverLocal&&physical8a.get(START_ROVER)?.location?.bodyId===roverBody.id)
   physical8a.setSurface(START_ROVER,roverBody.id,roverLocal,{forward:roverForwardVec});
- const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];return SF.save({t02Paid8I:JSON.parse(JSON.stringify(t02Paid8I)),terraformWorlds8j:JSON.parse(JSON.stringify(terraformWorlds8j)),physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsConveyorPackets8h:conveyorPackets8h.snapshot(),logisticsPressureGasPackets8h:pressureGasPackets8h.snapshot(),chemicalGasOutput8h:chemicalGasOutput8h.snapshot(),chemicalGasInput8h:chemicalGasInput8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,shoreCrawl8er:truckShoreCrawl8ER,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null},...extra});}
+ const ship=shipWorldState(),body=ship.body||nearest,radial=body?V.norm(V.sub(ship.position,body.position)):[0,1,0];return SF.save({t02Paid8I:JSON.parse(JSON.stringify(t02Paid8I)),terraformWorlds8j:JSON.parse(JSON.stringify(terraformWorlds8j)),physical8a:physical8a.serialize(),materials8a:materials8a.snapshot(),logisticsOrders8h:logisticsOrders8h.snapshot(),logisticsRoutes8h:logisticsRoutes8h.snapshot(),logisticsOffworldManifests8h:offworldManifests8h.snapshot(),logisticsConveyorPackets8h:conveyorPackets8h.snapshot(),logisticsPressureGasPackets8h:pressureGasPackets8h.snapshot(),chemicalGasOutput8h:chemicalGasOutput8h.snapshot(),chemicalGasInput8h:chemicalGasInput8h.snapshot(),logisticsEnergyReceipts8h:JSON.parse(JSON.stringify(logisticsEnergyReceipts8h)),logisticsPickupReceipts8h:JSON.parse(JSON.stringify(logisticsPickupReceipts8h)),vehicleAssembly8g:vehicleAssembly8g.snapshot(),resources8c:resources8c.serialize(),asteroidMiningLW07:asteroidMiningLW07.snapshot(),asteroidImpactsLW07:impactsLW07.serialize(),atmosphere8g:atmosphere8g.snapshot(),mining8d:mining8d.snapshot(),refinery8e:refinery8e.snapshot(),industrialPlant8e:industrialPlant8e.snapshot(),industrialJob8e:JSON.parse(JSON.stringify(industrialJob8e)),factory8f:factory8f.snapshot(),transformations8e:transformation8e.snapshot(),modularShip8e:modularShip8e.snapshot(),lifeSupport8e:lifeSupport8e,engineeringVehicles:vehicleStore.serialize(),flightGalaxy:{shipCargo8b:cargo8b,shipWalk8e:shipWalkAt8e,seed:GALAXY_SEED,time:simTime,position:(eva?ship.position:pos).map(v=>+v.toFixed(3)),forward:eva?ship.forward:forward,up:eva?ship.up:up,target:target.id,attached:body?.id||null,groundDirection:landed?radial:null,landed,engineering:engEnabled&&engState?{bodyId:engBody,rM:engState.rM,vMS:engState.vMS,craft:engState.craft}:null,roverPose:roverBody&&roverLocal?{bodyId:roverBody.id,local:roverLocal,forward:roverForwardVec}:null,shipDockT13:shipDockT13,truckPose:truckBody&&truckLocal?{bodyId:truckBody.id,local:truckLocal,forward:truckForwardVec,batteryJ:truckBatteryJ,lights:truckLights,cargo:truckCargo,chargeReadyAtS:truckChargeReadyAtS,shoreCrawl8er:truckShoreCrawl8ER,roverChargeReadyAtS:localRoverChargeReadyAtS,roverPortTemperatureK:localRoverPortTemperatureK,fieldServiceT12:localServiceT12,recovery:winch7d}:null},...extra});}
 function checkStarCollision(from,to){const segment=V.sub(to,from),den=V.dot(segment,segment);if(den===0)return null;
  for(const sys of galaxy.nearbySystems(V.mul(V.add(from,to),.5),Math.sqrt(den)*.5+2.5e7)){const center=V.sub(sys.position,from),t=V.clamp(V.dot(center,segment)/den,0,1),point=V.add(from,V.mul(segment,t)),gap=V.len(V.sub(point,sys.position));if(gap<sys.star.radius*1.008){return{sys,point};}}
  return null;
@@ -16264,12 +16634,40 @@ function tryCrewHatchEntry8ER(atEntrance){
  rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
  showToast('CREW HATCH · Crossing the central crew boarding ramp');return true;
 }
+function refreshAsteroidActors(force=false){
+ const now=performance.now();if(!force&&now-asteroidActorsAt<65)return asteroidActors;
+ const D=window.StarfallDebrisLW05;
+ if(!D){asteroidActors=[];return asteroidActors;}
+ const rendered=renderer?.nearbyDebris;
+ asteroidActors=(Array.isArray(rendered)&&rendered.length?rendered:D.nearby(galaxy,pos,simTime,18000)).filter(x=>x?.landable&&x.kind==='asteroid');
+ asteroidActorsAt=now;return asteroidActors;
+}
+function nearestBodyAt(point){
+ const current=galaxy.nearestBody(point);let body=current.planet||first,alt=Number.isFinite(current.alt)?current.alt:Infinity;
+ if(landed&&nearest?.kind==='asteroid'){
+  const refreshed=window.StarfallDebrisLW05?.refreshBody(galaxy,nearest,simTime);
+  if(refreshed){body=nearest;alt=V.len(V.sub(point,body.position))-body.radius;}
+ }
+ const D=window.StarfallDebrisLW05;
+ if(!landed&&D)for(const rock of asteroidActors){
+  const gap=V.len(V.sub(point,rock.position))-rock.radius;if(gap>=alt)continue;
+  const candidate=D.bodyFromRock(rock);if(candidate){body=candidate;alt=gap;}
+ }
+ if(!landed&&target?.kind==='asteroid'&&D){
+  const refreshed=D.refreshBody(galaxy,target,simTime);
+  if(refreshed){const gap=V.len(V.sub(point,target.position))-target.radius;if(gap<alt){body=target;alt=gap;}}
+ }
+ return{planet:body,alt};
+}
 function updatePhysics(dt){if(busy()||document.hidden)return;
  hatchCooldown=Math.max(0,hatchCooldown-dt);roverEntryCooldown=Math.max(0,roverEntryCooldown-dt);
  simTime=physicsClock.advance(dt,timeScale);
  let attached=landed?nearest:(nearest&&V.len(V.sub(pos,nearest.position))<nearest.radius+75000?nearest:null);
  const previousCenter=attached?[...attached.position]:null,oldSpin=attached?.spinAngle||0;
  galaxy.update(simTime);planetaryClimateTick8J();galaxy.hydrateNear(pos,galaxy.byId.get(target.systemId));
+ if(attached?.kind==='asteroid')window.StarfallDebrisLW05?.refreshBody(galaxy,attached,simTime);
+ if(target?.kind==='asteroid')window.StarfallDebrisLW05?.refreshBody(galaxy,target,simTime);
+ refreshAsteroidActors();
  if(attached){
   if(landed){
    const axis=attached.spinAxis||[0,1,0],turn=(attached.spinAngle||0)-oldSpin;
@@ -16296,7 +16694,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    }
   }else pos=V.add(attached.position,V.sub(pos,previousCenter));
  }
- const current=galaxy.nearestBody(pos);nearest=current.planet||first;const sample=surfaceData(nearest,pos);altitude=sample.distance-nearest.radius-sample.height;const radial=sample.dir;vertical=V.dot(vel,radial);
+ const current=nearestBodyAt(pos);nearest=current.planet||first;currentImpactEvent=impactsLW07.step(nearest,galaxy.byId.get(nearest.systemId),simTime,GALAXY_SEED);const sample=surfaceData(nearest,pos);altitude=sample.distance-nearest.radius-sample.height;const radial=sample.dir;vertical=V.dot(vel,radial);
  if(shipWalking8e&&landed&&!eva){
   const turn=((keys.has('KeyA')||keys.has('ArrowLeft'))?1:0)-((keys.has('KeyD')||keys.has('ArrowRight'))?1:0);
   const move=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
@@ -16442,7 +16840,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  if(nearest.landable&&altitude<120&&vertical<-1&&!keys.has('Space'))landingCapture=nearest.id;
  if(altitude>180||keys.has('Space')||landingCapture!==nearest.id)landingCapture=null;
  const boost=keys.has('ShiftLeft')||keys.has('ShiftRight'),thrust=keys.has('KeyW'),brake=keys.has('KeyS');
- const toTarget=V.sub(target.position,pos),range=V.len(toTarget),desiredStop=target.kind==='star'?target.radius*1.24:Math.max(125000,target.radius*38);
+ const toTarget=V.sub(target.position,pos),range=V.len(toTarget),desiredStop=target.kind==='star'?target.radius*1.24:target.kind==='asteroid'?Math.max(180,target.radius*2.8):Math.max(125000,target.radius*38);
  const nearSun=galaxy.nearestStar(pos),starDist=nearSun.alt,starRadius=nearSun.system.star.radius;
  solarWarning=starDist<starRadius*.95;
  heat=V.clamp(heat+(solarWarning?Math.max(0,1.9-(starDist+starRadius)/starRadius)*27*dt:-13*dt),0,100);
@@ -16479,7 +16877,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  if(nearest.landable&&altitude<=7.5){
   groundLocal=V.rot(ns.dir,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0));
   pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));landed=true;landingCapture=null;vel=[0,0,0];up=ns.dir;let tangent=V.sub(forward,V.mul(up,V.dot(forward,up)));if(V.len(tangent)<.05)tangent=V.cross([0,1,0],up);forward=V.norm(tangent);
-  shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;placeRoverNearShip();
+  shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;if(nearest.kind!=='asteroid')placeRoverNearShip();
  $('landed-label').textContent='Welcome to '+nearest.name;$('landing-banner').classList.add('show');clearTimeout(landingTimer);landingTimer=setTimeout(()=>$('landing-banner').classList.remove('show'),6500);
  SF.recordDiscovery({id:'seamless-land:'+nearest.id,type:'landing',name:'Landed on '+nearest.name,detail:'Continuous physical landing',planet:nearest.name,system:nearest.system});showToast('TOUCHDOWN CONFIRMED · disembarking onto surface');saveFlight();exitShip();}
 }
@@ -16595,7 +16993,7 @@ function updateDebrisHazards(now){
  const D=window.StarfallDebrisLW05;
  if(!D||eva||landed||warp||truckOccupied||busy()||now-debrisLastCheckMS<65)return;
  debrisLastCheckMS=now;
- const rocks=D.nearby(galaxy,pos,simTime,520),risk=D.proximity(rocks,pos,4);
+ const rocks=D.nearby(galaxy,pos,simTime,520),risk=D.proximity(rocks,pos,4,nearest?.kind==='asteroid'?nearest.id:null);
  latestDebrisWarning=risk;
  if(!risk)return;
  if(risk.clearance<150&&now-debrisLastToastMS>11000){
@@ -16606,6 +17004,8 @@ function updateDebrisHazards(now){
  if(!risk.collision||simTime-debrisLastContactS<.4)return;
  const rock=rocks.find(x=>x.id===risk.rockId);
  if(!rock)return;
+ // A selected major asteroid is a legitimate landing surface, not a collision hazard.
+ if(rock.landable&&nearest?.kind==='asteroid'&&nearest.id===rock.id&&altitude<110)return;
  const outward=V.norm(V.sub(pos,rock.position));
  pos=V.add(rock.position,V.mul(outward,rock.radius+4.5));
  const incoming=V.dot(vel,outward);
@@ -16618,20 +17018,20 @@ function updateDebrisHazards(now){
  }
 }
 function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
- try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);updateDebrisHazards(now);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);window.StarfallMissionOperationsUI?.advanceTo(simTime);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
+ try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);updateDebrisHazards(now);asteroidMiningAdvanceLW07(dt);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);window.StarfallMissionOperationsUI?.advanceTo(simTime);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
   const afterUpdate=started?performance.now():0;
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;
   const rad=nearest?V.norm(V.sub(pos,nearest.position)):[0,1,0];
   const portraitBase=eva&&!interiorState&&nearest&&nearest.landable?V.add(nearest.position,V.mul(rad,nearest.radius+groundHeight(evaLocal||V.rot(rad,nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),nearest)+(swimming?Math.max(.03,(window.StarfallHydrosphereLW04?.material(nearest,GALAXY_SEED)?.seaLevelOffsetScene||2.1)-swimDepthScene-1.7):truckOccupied?3.4:.25)+rampLift+(eva&&!truckOccupied&&!rampTransition&&(keys.has('KeyW')||keys.has('KeyS'))?.10*Math.abs(Math.sin(performance.now()*.013)):0))):null;
   renderer.render({camera,swimming:swimming&&swimDepthScene>=.001,weather:!interiorState&&nearest?.landable&&altitude<600?StarfallEvents.evaluate(nearest,V.rot(V.norm(V.sub(pos,nearest.position)),nearest.spinAxis||[0,1,0],-(nearest.spinAngle||0)),simTime,GALAXY_SEED):null,position:pos,viewerPosition:pos,shipPosition:ship.position,hidePlayerShip:shipWalking8e||camMode===1&&!eva&&!truckOccupied,shipWalkInterior:shipWalking8e,hidePlayerTruck:camMode===1&&truckOccupied,lightPosition:eva?pos:ship.position,headlampForward:eva?evaForward:forward,shipForward:eva?ship.forward:forward,shipUp:eva?ship.up:up,roverPosition:rover?.position||null,roverForward:rover?.forward||null,roverUp:rover?.up||null,truckPosition:truckWorldState()?.position||null,truckForward:truckWorldState()?.forward||null,truckUp:truckWorldState()?.up||null,miningRig8D:!!mining8d.active&&miningContext8D().truckPresent,extraRovers:window.StarfallLaunchUI?.sceneRovers()||[],satellites:window.StarfallLaunchUI?.sceneSatellites()||[],rockets:window.StarfallLaunchUI?.sceneRockets()||[],avatarBase:shipWalking8e&&camMode!==1?shipWalkWorld8E(-1.0):eva&&!truckOccupied&&!interiorState?portraitBase:null,
- avatarUp:shipWalking8e?ship.up:rad,avatarForward:shipWalking8e?shipWalkHeading8E():evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{kind:interiorState.kind||'ruin',siteId:site.id,tier:site.tier,site,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
+ avatarUp:shipWalking8e?ship.up:rad,avatarForward:shipWalking8e?shipWalkHeading8E():evaForward,avatarWalking:!!(rampTransition||roverExitMove||keys.has('KeyW')||keys.has('KeyS')||keys.has('ArrowUp')||keys.has('ArrowDown')),avatarSpeed:keys.has('ShiftLeft')||keys.has('ShiftRight')?1.7:1,avatarDelta:dt,nearest,altitude,impactEvent:currentImpactEvent,headlights,infrastructure:window.StarfallOutpostUI?.scene()||[],ruins:window.StarfallRuinsUI?.scene()||[],ecology:!interiorState?(window.StarfallEcologyUI?.scene()||[]):[],interior:interiorState?(()=>{const site=interiorState.site,body=nearest,worldUp=V.rot(site.local,body.spinAxis||[0,1,0],body.spinAngle||0);return{kind:interiorState.kind||'ruin',siteId:site.id,tier:site.tier,site,position:V.add(body.position,V.mul(worldUp,body.radius+site.height)),up:worldUp,forward:V.rot(V.mul(interiorState.basis.forward,-1),body.spinAxis||[0,1,0],body.spinAngle||0)};})():null});window.StarfallImagingUI7F?.tick?.(dt*timeScale);if(renderer.terrainDebugEnabled&&now-(window.__terrainDebugAt||0)>260){window.__terrainDebugAt=now;const d=renderer.terrainDiagnostics();const tag=$('terrain-debug');if(tag){tag.hidden=false;tag.textContent='TERRAIN / FIXED TILES\n'+JSON.stringify(d,null,2);}}else if(!renderer.terrainDebugEnabled){const tag=$('terrain-debug');if(tag&&!tag.hidden)tag.hidden=true;}
  if(started)perf.recordFrame(now,performance.now()-started,afterUpdate-started,renderer,galaxy,simTime,timeScale);frames++;frameClock+=dt;
   if(frameClock>2.4){fps=frames/frameClock;frames=0;frameClock=0;if(fps<38&&renderer.pixelRatio>.7){renderer.pixelRatio=Math.max(.7,renderer.pixelRatio-.12);renderer.resize();}else if(fps>56&&renderer.pixelRatio<renderer.dprTarget){renderer.pixelRatio=Math.min(renderer.dprTarget,renderer.pixelRatio+.1);renderer.resize();}}
   window.StarfallAssetUI7A1?.tick();if(window.StarfallAssetUI7A1?.hasWorldSelection&&now-lastAssetHighlightAt>160){lastAssetHighlightAt=now;window.StarfallAssetUI7A1.syncHighlight({...camera,fov:renderer.fov},canvas,assetPickCandidates());}refreshHUD(dt);if(now-lastSave>4000){lastSave=now;saveFlight();}
  }catch(e){console.error('Starfall frame failed:',e);$('status-text').textContent='GRAPHICS / FLIGHT ERROR: '+String(e.message).slice(0,85);}requestAnimationFrame(loop);}
 addEventListener('resize',()=>renderer.resize());addEventListener('pagehide',saveFlight);
-nearest=galaxy.nearestBody(pos).planet||first;let initial=surfaceData(nearest,pos);altitude=initial.distance-nearest.radius-initial.height;
-if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}placeRoverNearShip();
+refreshAsteroidActors(true);if(!(landed&&nearest?.kind==='asteroid'))nearest=nearestBodyAt(pos).planet||first;let initial=surfaceData(nearest,pos);altitude=initial.distance-nearest.radius-initial.height;
+if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}if(nearest.kind!=='asteroid')placeRoverNearShip();
  const tp=saved?.truckPose;if(truckBody===nearest&&truckLocal&&tp?.bodyId===nearest.id&&Array.isArray(tp.local)&&tp.local.length===3&&tp.local.every(Number.isFinite)){truckLocal=V.norm(tp.local);if(Array.isArray(tp.forward)&&tp.forward.length===3&&tp.forward.every(Number.isFinite))truckForwardVec=V.norm(tp.forward);truckBatteryJ=V.clamp(Number(tp.batteryJ)||0,0,44e6);truckLights=tp.lights!==false;truckCargo=V.clamp(Number(tp.cargo)||0,0,800);truckChargeReadyAtS=Number.isFinite(tp.chargeReadyAtS)?Math.max(0,tp.chargeReadyAtS):0;if(tp.recovery&&Array.isArray(tp.recovery.destination)&&tp.recovery.destination.length===3&&tp.recovery.destination.every(Number.isFinite)&&Number.isFinite(tp.recovery.remainingWorkJ))winch7d=StarfallFieldServiceT12.restore(tp.recovery,nearest.id);}
  const pose=saved?.roverPose;if(roverBody===nearest&&roverLocal&&pose?.bodyId===nearest.id&&Array.isArray(pose.local)&&pose.local.length===3&&pose.local.every(Number.isFinite)){
   roverLocal=V.norm(pose.local);const f=pose.forward;if(Array.isArray(f)&&f.length===3&&f.every(Number.isFinite)&&V.len(f)>.001)roverForwardVec=V.norm(f);
@@ -19009,6 +19409,59 @@ function miningContext8D(){
   truckHopper:materials8a.used(StarfallMining8D.TRUCK),shipWarehouse:materials8a.used(StarfallMining8D.SHIP),
   active:mining8d.active,drillCondition:mining8d.toolCondition};
 }
+function asteroidMiningContextLW07(){
+ const body=nearest,local=evaLocal||groundLocal,available=body?.kind==='asteroid'&&landed&&eva&&!truckOccupied&&!interiorState&&shipBody===body;
+ const deposit=available&&local?StarfallResources8C.site(body,local,GALAXY_SEED):null;
+ const survey=deposit?resources8c.observations().find(x=>x.siteId===deposit.id&&x.instrument==='EVA field spectrometer'):null;
+ const distance=deposit&&local?Math.acos(V.clamp(V.dot(V.norm(local),V.norm(deposit.local)),-1,1))*body.radius:Infinity;
+ const shipDistance=available&&shipLocal&&local?Math.acos(V.clamp(V.dot(V.norm(local),V.norm(shipLocal)),-1,1))*body.radius:Infinity;
+ const pouch=materials8a.used(StarfallAsteroidMiningLW07.POUCH),active=asteroidMiningLW07.active;
+ return{available,bodyId:body?.id||null,deposit,surveyed:!!survey,depositLabel:deposit?.label||'No local deposit',
+  remainingKg:deposit?resources8c.remaining(deposit):0,nearDeposit:distance<=Math.max(12,(body?.radius||0)*.035),
+  nearShip:shipDistance<=40,pouchMassKg:pouch.massKg,pouchVolumeM3:pouch.volumeM3,active:active?{...active,progress:V.clamp(active.elapsedS/active.durationS,0,1)}:null};
+}
+function asteroidSurveyLW07(local=evaLocal){
+ const ctx=asteroidMiningContextLW07();if(!ctx.available||!local)throw Error('Exit the ship onto a landable asteroid before prospecting');
+ const deposit=StarfallResources8C.site(nearest,local,GALAXY_SEED);if(!deposit)throw Error('No accessible resource occurrence at this asteroid surface cell');
+ const before=resources8c.serialize(),report=resources8c.survey(deposit,simTime,'EVA field spectrometer');
+ if(!saveFlight()){resources8c=StarfallResources8C.create(before);throw Error('Survey could not be saved; no persistent record was added');}
+ return report;
+}
+function asteroidMineStartLW07(){
+ const ctx=asteroidMiningContextLW07(),tool=window.StarfallMultitool9G;
+ if(!ctx.available||!ctx.deposit)throw Error('Stand on a landable asteroid surface with an accessible deposit');
+ if(ctx.remainingKg<StarfallAsteroidMiningLW07.BATCH.massKg)throw Error('This surveyed deposit is depleted or has less than a 2 kg batch remaining');
+ if(ctx.pouchMassKg+StarfallAsteroidMiningLW07.BATCH.massKg>StarfallAsteroidMiningLW07.LIMITS.pouchMassKg||ctx.pouchVolumeM3+StarfallAsteroidMiningLW07.BATCH.massKg*StarfallAsteroidMiningLW07.BATCH.volumeM3PerKg>StarfallAsteroidMiningLW07.LIMITS.pouchVolumeM3)throw Error('EVA sample pouch is full; stow its contents at the ship first');
+ if(!tool)throw Error('EVA multitool is not initialized');
+ return asteroidMiningLW07.start({deposit:ctx.deposit,surveyed:ctx.surveyed,bodyId:ctx.bodyId,
+  bodyKind:nearest.kind,landed,eva,operatorNear:ctx.nearDeposit,chargeJ:tool.chargeJ});
+}
+function asteroidMineTransferLW07(){
+ const ctx=asteroidMiningContextLW07();if(!ctx.available||!ctx.nearShip)throw Error('Carry the EVA pouch back to the landed ship before stowing samples');
+ const lots=materials8a.inventory(StarfallAsteroidMiningLW07.POUCH);if(!lots.length)throw Error('The EVA sample pouch is empty');
+ const lot=lots[0],massKg=lot.massKg,prior=materials8a,transferId='lw07:eva-transfer:'+lot.id+':'+Math.floor(simTime*1000);
+ const result=asteroidMiningLW07.transfer(materials8a,lot.id,massKg,transferId);materials8a=result.materials;lastAsteroidMiningError='';
+ if(!saveFlight()){materials8a=prior;throw Error('Sample transfer was not durably saved; original pouch custody remains authoritative');}
+ return{massKg,lotId:lot.id,transferId};
+}
+function asteroidMiningAdvanceLW07(dt){
+ const active=asteroidMiningLW07.active,tool=window.StarfallMultitool9G;if(!active||!tool)return;
+ const ctx=asteroidMiningContextLW07(),enabled=ctx.available&&ctx.bodyId===active.bodyId&&ctx.nearDeposit;
+ let remaining=Math.min(4,Math.max(0,dt*timeScale)),guard=0;
+ while(remaining>1e-6&&guard++<3){
+  const slice=Math.min(2,remaining),step=asteroidMiningLW07.advance(slice,tool.chargeJ,{enabled});
+  if(step.usedJ>0){tool.consumeJ(step.usedJ,false);if(performance.now()-lastAsteroidMiningSaveMS>=2000){lastAsteroidMiningSaveMS=performance.now();tool.flush();if(!saveFlight()){if(lastAsteroidMiningError!=='progress-save-failed')showToast('ASTEROID EXTRACTION · progress could not be saved yet');lastAsteroidMiningError='progress-save-failed';}else if(lastAsteroidMiningError==='progress-save-failed')lastAsteroidMiningError='';}}remaining-=slice;
+  if(step.completed){
+   tool.flush();
+   const priorMaterials=materials8a,priorResources=resources8c,priorMining=asteroidMiningLW07.snapshot();
+   let committed;try{committed=asteroidMiningLW07.commit(materials8a,resources8c);}catch(error){const message=String(error.message||error);if(message!==lastAsteroidMiningError)showToast('ASTEROID EXTRACTION BLOCKED · '+message);lastAsteroidMiningError=message;return;}
+   materials8a=committed.materials;resources8c=committed.resources;
+   if(!saveFlight()){materials8a=priorMaterials;resources8c=priorResources;asteroidMiningLW07.apply(priorMining);if(lastAsteroidMiningError!=='save-failed')showToast('ASTEROID EXTRACTION · SAVE FAILED · operation retained for retry');lastAsteroidMiningError='save-failed';return;}
+   lastAsteroidMiningError='';showToast('ASTEROID EXTRACTION · 2 kg '+active.deposit.label+' secured in EVA pouch');break;
+  }
+  if(!enabled||step.usedJ<=0)break;
+ }
+}
 function miningDeposit8D(){
  const ctx=miningContext8D();return ctx.truckPresent?StarfallResources8C.site(nearest,truckLocal,GALAXY_SEED):null;
 }
@@ -19330,7 +19783,7 @@ function truckLocator8ER(){
   label:'EXPEDITION TRUCK',bodyId:body.id,atWater:!!window.StarfallHydrosphereLW04?.sample(body,actualLocal,groundHeight(actualLocal,body),simTime,GALAXY_SEED)?.hasWater};
 }
 window.StarfallRuntime={galaxy,vehicleStore,industryCompletion8K,planetaryEngineeringView,tailingsContext8H,tailingsTransfer8H,truckDestination8B,plotTruckDestination8B,truckHudInfo,truckHudAction,truckLocator8ER,get physical8a(){return physical8a;},get materials8a(){return materials8a;},get resources8c(){return resources8c;},get atmosphere8g(){return atmosphere8g;},modularShip8e,mining8d,refinery8e,factory8f,industrialJob8e,get chemicalGasOutput8h(){return chemicalGasOutput8h.snapshot();},
- get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,t02PaidContext8I,t02PaidInstallQuote8I,t02PaidInstallStart8I,t02PaidInstallCancel8I,t02PaidInstallTick8I,habitatCommissionContext8I,habitatCommission8I,habitatSupplyContext8I,habitatSupplyWater8I,habitatScrubberContext8I,habitatSupplyScrubber8I,greenhouseContext8I,greenhouseInstall8I,greenhouseHarvest8I,habitatOxygenContext8I,habitatSupplyOxygen8I,atmosphericContext8J,atmosphericRelease8J,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,miningService8D,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
+ get chemicalGasInput8h(){return chemicalGasInput8h.snapshot();},industrialConstruction8E,industrialInstall8E,industrialCandidates8E,assemblyContext8G,assemblyQuote8G,assemblyStage8G,structureAssemblyContext8G,structureQuote8G,structureStage8G,airFractionationContext8G,airFractionationQuote8G,airFractionationCollect8G,habitatHoseContext8G,habitatHoseQuote8G,habitatHoseTransfer8G,t02PaidContext8I,t02PaidInstallQuote8I,t02PaidInstallStart8I,t02PaidInstallCancel8I,t02PaidInstallTick8I,habitatCommissionContext8I,habitatCommission8I,habitatSupplyContext8I,habitatSupplyWater8I,habitatScrubberContext8I,habitatSupplyScrubber8I,greenhouseContext8I,greenhouseInstall8I,greenhouseHarvest8I,habitatOxygenContext8I,habitatSupplyOxygen8I,atmosphericContext8J,atmosphericRelease8J,habitatChargeContext8G,habitatChargeQuote8G,habitatCharge8G,fieldRepairContext8G,fieldRepair8G,activateManufactured8G,manufacturedWorld8G,enterManufactured8G,exitManufactured8G,get manufacturedOccupied8G(){return manufacturedOccupied8G;},gasVesselCargoContext8G,gasVesselCargoTransfer8G,frameCargoContext8G,frameCargoTransfer8G,industrialDryFeedContext8H,industrialDryFeedTransfer8H,industrialQuote8E,industrialStart8E,industrialCancel8E,industrialGasHasActive8H,industrialGasInputNativeTick8H,industrialGasOutputNativeTick8H,machineKitQuotes8F,machineInstall8F,factoryContext8F,factoryQuote8F,factoryStart8F,factoryCancel8F,refineryContext8E,refineryQuote8E,refineryStart8E,refineryCancel8E,shipCargoMass8A,miningContext8D,miningDeposit8D,miningStart8D,miningLoad8D,miningCancel8D,miningService8D,asteroidMiningContextLW07,asteroidSurveyLW07,asteroidMineStartLW07,asteroidMineTransferLW07,logisticsContext8H,logisticsReserve8H,logisticsCancel8H,logisticsDeliver8H,logisticsPickup8H,logisticsRoutePlan8H,logisticsRouteArrive8H,logisticsRouteCancel8H,logisticsOffworldContext8H,logisticsOffworldRegister8H,logisticsOffworldCancel8H,logisticsOffworldDepart8H,logisticsOffworldArrive8H,logisticsOffworldDeliver8H,industryFlowContext8H,logisticsConveyorContext8H,logisticsConveyorInstallPort8H,logisticsConveyorStart8H,logisticsConveyorHasActive8H,logisticsConveyorNativeTick8H,logisticsPressureContext8H,logisticsPressureInstallPort8H,logisticsPressureStart8H,logisticsPressureHasActive8H,logisticsPressureNativeTick8H,get lifeSupport8e(){return StarfallLifeSupport8E.diagnostics(lifeSupport8e,
     vehicleStore.get('ship').state.powerEnabled?!!engineeringSystemReport.ship?.draws?.lifeSupport:false,
     modularShip8e.describe('life').level);},get shipWalking8e(){return shipWalking8e;},get shipWalkAt8e(){return {...shipWalkAt8e};},get cargo8b(){return{...cargo8b,pose:{...cargo8b.pose}};},captureScienceImage({body,eye,forward,up,size=512,caption='',wide=false}){
  if(!body||!Array.isArray(eye)||!Array.isArray(forward)||!Array.isArray(up))throw Error('Imaging requires a valid loaded camera position');
@@ -19379,7 +19832,7 @@ Object.defineProperty(window,'STARFALL_DEBUG',{value:{galaxy,get state(){return{
  up=rad;evaForward=[...w.forward];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;
 },placeEvaNearTruck(){if(!landed||!eva||!truckBody||!truckLocal||truckBody!==nearest)throw Error('Require EVA and a surface truck');
  const local=tangentOffsetLocal(truckBody,truckLocal,truckForwardVec,0,-11),radial=V.rot(local,truckBody.spinAxis||[0,1,0],truckBody.spinAngle||0);
- evaLocal=local;pos=V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(local,truckBody)+EVA_HEIGHT));up=radial;evaForward=[...truckForwardVec];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setInteriorPosition(x,z){if(!interiorState||!(interiorState.kind==='cave'?window.StarfallGeologyLW02.canStand:StarfallInteriors.canStand)(interiorState.layout,x,z))throw Error('Not a valid interior floor coordinate');interiorState.at={x,z};const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;camEye=null;},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){if(!Number.isFinite(t)||t<0||t>=1e13)throw Error('Invalid simulation time');simTime=physicsClock.set(t);galaxy.update(simTime);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
+ evaLocal=local;pos=V.add(truckBody.position,V.mul(radial,truckBody.radius+groundHeight(local,truckBody)+EVA_HEIGHT));up=radial;evaForward=[...truckForwardVec];roverEntryCooldown=0;roverExitMove=null;rampTransition=null;camEye=null;},resetToOrbit(){pos=V.add(target.position,[0,300,-(target.radius+3550)]);vel=[0,0,0];forward=V.norm(V.sub(target.position,pos));up=[0,1,0];landed=false;groundLocal=null;camEye=null;},setTarget(id){const body=galaxy.byId.get(id)||window.StarfallDebrisLW05?.resolveBody(galaxy,id,simTime);if(!body||!body.radius||!body.kind)throw Error('Unknown celestial target');target=body;galaxy.pinnedSystemId=body.systemId;},setPosition(next){if(!Array.isArray(next)||next.length!==3||!next.every(Number.isFinite))throw Error('Invalid position');pos=[...next];landed=false;groundLocal=null;camEye=null;},align(){pointTowardWaypoint();},setInteriorPosition(x,z){if(!interiorState||!(interiorState.kind==='cave'?window.StarfallGeologyLW02.canStand:StarfallInteriors.canStand)(interiorState.layout,x,z))throw Error('Not a valid interior floor coordinate');interiorState.at={x,z};const q=interiorWorld(interiorState.at);evaLocal=q.local;pos=q.position;up=q.up;camEye=null;},setCameraZoom(n){camDistance=V.clamp(Number(n),25,400);},setSimulationTime(t){if(!Number.isFinite(t)||t<0||t>=1e13)throw Error('Invalid simulation time');simTime=physicsClock.set(t);galaxy.update(simTime);},setTimeScale(t){if(![1,10,100].includes(t))throw Error('Expected 1,10,100');timeScale=t;},setHeadlights(on){headlights=!!on;}}});
 })();
 
 </script><script>
@@ -19901,6 +20354,16 @@ root.StarfallScienceUI={ingestRover,ingestOrbital,ingestShip,tick,open:()=>$('fi
  }
  function render(){
   const activeEva=available(),s=spec(mode),btn=$('multitool9g-trigger');
+  let mining=null;try{if(typeof RT.asteroidMiningContextLW07==='function')mining=RT.asteroidMiningContextLW07();}catch(_error){}
+  const miningPanel=$('multitool9g-asteroid'),mineButton=$('multitool9g-mine'),transferButton=$('multitool9g-transfer'),miningStatus=$('multitool9g-asteroid-status');
+  if(miningPanel)miningPanel.hidden=!mining?.available;
+  if(miningStatus&&mining?.available){
+   const task=mining.active?('EXTRACTING · '+Math.round(mining.active.progress*100)+'%'):
+    mining.surveyed?'SURVEYED · '+mining.depositLabel+' · '+mining.remainingKg.toFixed(0)+' kg modeled accessible':'NOT SURVEYED · select Geology / spectroscopy and SCAN';
+   miningStatus.textContent=task+' · POUCH '+mining.pouchMassKg.toFixed(1)+' / 20 kg'+(mining.nearShip?' · SHIP WITHIN HAND-CARRY RANGE':'');
+  }
+  if(mineButton)mineButton.disabled=busy||!mining?.available||!mining.surveyed||!mining.nearDeposit||!!mining.active||chargeJ<9600;
+  if(transferButton)transferButton.disabled=busy||!mining?.available||!mining.nearShip||mining.pouchMassKg<=0||!!mining.active;
   const title=$('multitool9g-title'),power=$('multitool9g-power'),record=$('multitool9g-last');
   if(title)title.textContent='FIELD SCANNER · '+s.name.toUpperCase();
   if(power)power.textContent=(chargeJ/1000).toFixed(2)+' / '+(MAX_J/1000).toFixed(1)+' kJ · '+s.powerW+' W × '+s.seconds+' s';
@@ -19919,6 +20382,19 @@ root.StarfallScienceUI={ingestRover,ingestOrbital,ingestShip,tick,open:()=>$('fi
  function show(){
   if(!available()){status('Exit the ship or truck into EVA to use the multitool',true);return false;}
   open=true;$('multitool9g-panel').hidden=false;render();return true;
+ }
+ function consumeJ(requestedJ,save=true){
+  if(!Number.isFinite(requestedJ)||requestedJ<=0||chargeJ+1e-7<requestedJ)throw Error('Insufficient EVA multitool charge');
+  chargeJ=Math.max(0,chargeJ-requestedJ);if(save){persist();render();}return requestedJ;
+ }
+ function flush(){persist();render();return chargeJ;}
+ function beginMining(){
+  if(typeof RT.asteroidMineStartLW07!=='function')throw Error('Asteroid extraction controller is unavailable');
+  const task=RT.asteroidMineStartLW07();status('EXTRACTING 2 kg · keep the operator beside the deposit');render();return task;
+ }
+ function transferSamples(){
+  if(typeof RT.asteroidMineTransferLW07!=='function')throw Error('Asteroid sample transfer is unavailable');
+  const result=RT.asteroidMineTransferLW07();status('TRANSFERRED '+result.massKg.toFixed(1)+' kg TO SHIP MATERIAL HOLD');render();return result;
  }
  function recharge(){
   if(busy)throw Error('Finish current scan first');
@@ -19959,6 +20435,10 @@ root.StarfallScienceUI={ingestRover,ingestOrbital,ingestShip,tick,open:()=>$('fi
     const observation=Science.measure(job.instrument,false);
     if(!observation||!observation.id)throw Error('Authoritative instrument returned no reading');
     chargeJ=Math.max(0,chargeJ-cost(job.instrument));lastObservation=observation;
+    if(job.instrument==='spectrometer'&&after.body?.kind==='asteroid'&&typeof RT.asteroidSurveyLW07==='function'){
+     try{const prospect=RT.asteroidSurveyLW07(job.local);status(prospect?'ASTEROID DEPOSIT SURVEYED · '+prospect.gradeBand.toUpperCase()+' GRADE BAND':'SPECTROMETER READING COMPLETE · no local deposit detected');}
+     catch(prospectError){status('SPECTROMETER READING SAVED · '+String(prospectError.message||prospectError));}
+    }
     lastVisualTarget=job.instrument==='bioassay'?visibleTarget():null;
     persist();status('SCANNED · '+observation.parameter+' = '+observation.value+' '+observation.unit);
    }catch(error){status(error.message||String(error),true);}
@@ -19968,7 +20448,7 @@ root.StarfallScienceUI={ingestRover,ingestOrbital,ingestShip,tick,open:()=>$('fi
  }
  const api={MODES,MAX_J,begin,setMode,cycle,show,close,recharge,
   get chargeJ(){return chargeJ;},get mode(){return mode;},get busy(){return busy;},
-  get observation(){return lastObservation;},get activeUntil(){return pulseUntil;},
+  get observation(){return lastObservation;},get activeUntil(){return pulseUntil;},consumeJ,flush,beginMining,transferSamples,
   get canUse(){return available();}};
  root.StarfallMultitool9G=api;
  $('multitool9g-mode').value=mode;
@@ -19979,6 +20459,8 @@ root.StarfallScienceUI={ingestRover,ingestOrbital,ingestShip,tick,open:()=>$('fi
  $('multitool9g-trigger').onclick=()=>{try{begin();}catch(err){status(err.message,true);}};
  $('multitool9g-recharge').onclick=()=>{try{recharge();}catch(err){status(err.message,true);}};
  $('multitool9g-journal').onclick=()=>{close();Science.open();};
+ $('multitool9g-mine').onclick=()=>{try{beginMining();}catch(err){status(err.message,true);}};
+ $('multitool9g-transfer').onclick=()=>{try{transferSamples();}catch(err){status(err.message,true);}};
  document.addEventListener('keydown',e=>{
   if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||e.target?.closest?.('input,textarea,select,[contenteditable=true]'))return;
   if(e.code==='KeyZ'){if(!available())return;e.preventDefault();e.stopImmediatePropagation();try{open?begin():show();}catch(err){status(err.message,true);}}
