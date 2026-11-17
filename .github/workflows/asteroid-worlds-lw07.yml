@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: asteroid-worlds-lw07-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-and-bundle:
     runs-on: ubuntu-24.04
