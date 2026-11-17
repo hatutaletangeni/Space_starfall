@@ -30,7 +30,7 @@ This update adds a surface-capable class of large belt asteroids without changin
 
 ## Verification policy
 
-The new Node model tests cover stable asteroid body identity, finite resource transactions, survey gating, save/reload, crater scheduling and no-belt exclusion. Browser/WebGL smoke and visual quality must be reported separately from Node tests. No GPU visual pass is claimed until a real browser run completes.
+The new Node model tests cover stable asteroid body identity, finite resource transactions, survey gating, save/reload, crater scheduling and no-belt exclusion. GitHub Actions PASS: all Node suites, desktop/mobile standalone parity and Chromium software-WebGL smoke passed. This browser smoke is separate from real-device GPU visual/performance verification, which remains NOT VERIFIED.
 
 
 ## Local verification commands
