@@ -30,6 +30,7 @@ materials=committed.materials;resources=committed.resources;
 assert.equal(materials.used(Mining.POUCH).massKg,2);
 assert.equal(materials.used(Mining.SHIP).massKg,0);
 assert.equal(resources.remaining(deposit),98);
+assert.equal(resources.serialize().transactions[0].provenance,'LW07 EVA asteroid extraction');
 assert.equal(materials.inventory(Mining.POUCH)[0].provenance,deposit.id);
 assert.equal(resumed.history.at(-1).status,'COMMITTED');
 assert.throws(()=>resumed.commit(materials,resources),/incomplete/i);
