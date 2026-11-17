@@ -51,8 +51,8 @@
  }
  function render(){
   const activeEva=available(),s=spec(mode),btn=$('multitool9g-trigger');
-  const mining=typeof RT.asteroidMiningContextLW07==='function'?RT.asteroidMiningContextLW07():null,
-   miningPanel=$('multitool9g-asteroid'),mineButton=$('multitool9g-mine'),transferButton=$('multitool9g-transfer'),miningStatus=$('multitool9g-asteroid-status');
+  let mining=null;try{if(typeof RT.asteroidMiningContextLW07==='function')mining=RT.asteroidMiningContextLW07();}catch(_error){}
+  const miningPanel=$('multitool9g-asteroid'),mineButton=$('multitool9g-mine'),transferButton=$('multitool9g-transfer'),miningStatus=$('multitool9g-asteroid-status');
   if(miningPanel)miningPanel.hidden=!mining?.available;
   if(miningStatus&&mining?.available){
    const task=mining.active?('EXTRACTING · '+Math.round(mining.active.progress*100)+'%'):
