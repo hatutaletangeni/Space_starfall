@@ -6,6 +6,11 @@ on:
     paths-ignore:
       - PLAY-STARFALL.html
       - PLAY-STARFALL-MOBILE.html
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - PLAY-STARFALL.html
+      - PLAY-STARFALL-MOBILE.html
 
 permissions:
   contents: write
