@@ -35,4 +35,7 @@ restored.step(revisited,system,event.impactTimeS+20,742);
 assert.equal(revisited.impactCraters.length,before+1,'Crater persists after save/reload and revisit');
 assert.equal(Impacts.scheduled(untouched,noBelt,0,742),null);
 assert.equal(JSON.stringify(system.belts),original,'Impact simulation cannot mutate asteroid source population');
+const quarantined=Impacts.create({schema:90,craters:[]});
+assert.equal(quarantined.recoveryRequired,true);
+assert.equal(quarantined.serialize().recovery.original.schema,90);
 console.log('PASS LW07 seeded belt-dependent impacts, closed crater records, persistence and no-belt exclusion');
