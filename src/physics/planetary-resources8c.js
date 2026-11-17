@@ -51,11 +51,11 @@ function site(body,dir,seed=742){
  const grade=clamp((type.grade[0]+(type.grade[1]-type.grade[0])*richness)*regional,0,1);
  const asteroid=body.kind==='asteroid';
  const radiusScene=asteroid?1.5+unit(key+':radius')*4.5:6+unit(key+':radius')*17;
- const thicknessM=asteroid?.6+unit(key+':thickness')*7:1.5+unit(key+':thickness')*27;
+ const thicknessM=asteroid ? .6+unit(key+':thickness')*7:1.5+unit(key+':thickness')*27;
  const depthM=unit(key+':depth')*(asteroid?9:body.type==='Ice'?16:42);
  // Accessible excavated material, not a planetary bulk metal reserve.
  const density=type.id==='water_ice'?850:type.id==='regolith'?1600:2300;
- const massKg=Math.round(Math.PI*Math.pow(radiusScene*1000,2)*thicknessM*density*(asteroid?.00035:.002)*(.15+.4*unit(key+':access')));
+ const massKg=Math.round(Math.PI*Math.pow(radiusScene*1000,2)*thicknessM*density*(asteroid ? .00035 : .002)*(.15+.4*unit(key+':access')));
  const deposit={id:key,model:VERSION,bodyId:body.id,seed,local,cell:{lat:t.lat,lon:t.lon},
   type:type.id,label:type.label,hostRock:name,grade,depthMinM:Math.round(depthM*10)/10,
   depthMaxM:Math.round((depthM+thicknessM)*10)/10,radiusScene,
