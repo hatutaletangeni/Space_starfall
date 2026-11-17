@@ -908,6 +908,9 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  let attached=landed?nearest:(nearest&&V.len(V.sub(pos,nearest.position))<nearest.radius+75000?nearest:null);
  const previousCenter=attached?[...attached.position]:null,oldSpin=attached?.spinAngle||0;
  galaxy.update(simTime);planetaryClimateTick8J();galaxy.hydrateNear(pos,galaxy.byId.get(target.systemId));
+ if(attached?.kind==='asteroid')window.StarfallDebrisLW05?.refreshBody(galaxy,attached,simTime);
+ if(target?.kind==='asteroid')window.StarfallDebrisLW05?.refreshBody(galaxy,target,simTime);
+ refreshAsteroidActors(true);
  if(attached){
   if(landed){
    const axis=attached.spinAxis||[0,1,0],turn=(attached.spinAngle||0)-oldSpin;
@@ -934,7 +937,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
    }
   }else pos=V.add(attached.position,V.sub(pos,previousCenter));
  }
- const current=galaxy.nearestBody(pos);nearest=current.planet||first;const sample=surfaceData(nearest,pos);altitude=sample.distance-nearest.radius-sample.height;const radial=sample.dir;vertical=V.dot(vel,radial);
+ const current=nearestBodyAt(pos);nearest=current.planet||first;currentImpactEvent=impactsLW07.step(nearest,galaxy.byId.get(nearest.systemId),simTime,GALAXY_SEED);const sample=surfaceData(nearest,pos);altitude=sample.distance-nearest.radius-sample.height;const radial=sample.dir;vertical=V.dot(vel,radial);
  if(shipWalking8e&&landed&&!eva){
   const turn=((keys.has('KeyA')||keys.has('ArrowLeft'))?1:0)-((keys.has('KeyD')||keys.has('ArrowRight'))?1:0);
   const move=((keys.has('KeyW')||keys.has('ArrowUp'))?1:0)-((keys.has('KeyS')||keys.has('ArrowDown'))?1:0);
