@@ -3691,6 +3691,7 @@ function asteroidSurveyLW07(local=evaLocal){
 function asteroidMineStartLW07(){
  const ctx=asteroidMiningContextLW07(),tool=window.StarfallMultitool9G;
  if(!ctx.available||!ctx.deposit)throw Error('Stand on a landable asteroid surface with an accessible deposit');
+ if(ctx.remainingKg<StarfallAsteroidMiningLW07.BATCH.massKg)throw Error('This surveyed deposit is depleted or has less than a 2 kg batch remaining');
  if(!tool)throw Error('EVA multitool is not initialized');
  return asteroidMiningLW07.start({deposit:ctx.deposit,surveyed:ctx.surveyed,bodyId:ctx.bodyId,
   bodyKind:nearest.kind,landed,eva,operatorNear:ctx.nearDeposit,chargeJ:tool.chargeJ});
