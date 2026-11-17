@@ -26,7 +26,7 @@ function staticCraters(body,system,seed=742){
   Math.min(7,1+Math.floor(unit(key+':count')*(belts.length*2.1+density)));
  const out=[];
  for(let i=0;i<count;i++){
-  const k=key+':'+i,frac=isShattered?.035+unit(k+':r')*.065:.012+unit(k+':r')*.026;
+  const k=key+':'+i,frac=isShattered?.035+unit(k+':r')*.065:.018+unit(k+':r')*.04;
   const radiusScene=Math.max(2,body.radius*frac),depthScene=radiusScene*(.12+unit(k+':d')*.16);
   out.push(Object.freeze({id:'crater:'+hash(k).toString(36),bodyId:body.id,direction:direction(k),
    radiusScene,depthScene,createdAtS:0,source:isShattered?'fragmentation':'asteroid-belt'}));
@@ -56,10 +56,10 @@ function scheduled(body,system,window,seed){
  const impactTimeS=window*PERIOD_S+90+unit(key+':time')*(PERIOD_S-180);
  const massKg=1e5+unit(key+':mass')*8e8,velocityMS=4500+unit(key+':velocity')*28500;
  const energyJ=.5*massKg*velocityMS*velocityMS;
- const radiusScene=Math.max(2,body.radius*(.004+unit(key+':radius')*.014));
+ const radiusScene=Math.max(2,body.radius*(.012+unit(key+':radius')*.03));
  return Object.freeze({id:'impact:'+hash(key).toString(36),bodyId:body.id,impactTimeS,
   direction:direction(key),incoming:direction(key+':incoming'),radiusScene,
-  depthScene:radiusScene*(.18+unit(key+':depth')*.16),massKg,velocityMS,energyJ,
+  depthScene:radiusScene*(.20+unit(key+':depth')*.18),massKg,velocityMS,energyJ,
   source:'system-asteroid-belt',window});
 }
 function safeClone(value){try{return JSON.parse(JSON.stringify(value));}catch(_error){return{unreadable:true};}}
