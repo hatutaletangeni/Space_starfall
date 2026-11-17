@@ -51,6 +51,16 @@
  }
  function render(){
   const activeEva=available(),s=spec(mode),btn=$('multitool9g-trigger');
+  const mining=typeof RT.asteroidMiningContextLW07==='function'?RT.asteroidMiningContextLW07():null,
+   miningPanel=$('multitool9g-asteroid'),mineButton=$('multitool9g-mine'),transferButton=$('multitool9g-transfer'),miningStatus=$('multitool9g-asteroid-status');
+  if(miningPanel)miningPanel.hidden=!mining?.available;
+  if(miningStatus&&mining?.available){
+   const task=mining.active?('EXTRACTING · '+Math.round(mining.active.progress*100)+'%'):
+    mining.surveyed?'SURVEYED · '+mining.depositLabel+' · '+mining.remainingKg.toFixed(0)+' kg modeled accessible':'NOT SURVEYED · select Geology / spectroscopy and SCAN';
+   miningStatus.textContent=task+' · POUCH '+mining.pouchMassKg.toFixed(1)+' / 20 kg'+(mining.nearShip?' · SHIP WITHIN HAND-CARRY RANGE':'');
+  }
+  if(mineButton)mineButton.disabled=busy||!mining?.available||!mining.surveyed||!mining.nearDeposit||!!mining.active||chargeJ<9600;
+  if(transferButton)transferButton.disabled=busy||!mining?.available||!mining.nearShip||mining.pouchMassKg<=0||!!mining.active;
   const title=$('multitool9g-title'),power=$('multitool9g-power'),record=$('multitool9g-last');
   if(title)title.textContent='FIELD SCANNER · '+s.name.toUpperCase();
   if(power)power.textContent=(chargeJ/1000).toFixed(2)+' / '+(MAX_J/1000).toFixed(1)+' kJ · '+s.powerW+' W × '+s.seconds+' s';
@@ -69,6 +79,18 @@
  function show(){
   if(!available()){status('Exit the ship or truck into EVA to use the multitool',true);return false;}
   open=true;$('multitool9g-panel').hidden=false;render();return true;
+ }
+ function consumeJ(requestedJ){
+  if(!Number.isFinite(requestedJ)||requestedJ<=0||chargeJ+1e-7<requestedJ)throw Error('Insufficient EVA multitool charge');
+  chargeJ=Math.max(0,chargeJ-requestedJ);persist();render();return requestedJ;
+ }
+ function beginMining(){
+  if(typeof RT.asteroidMineStartLW07!=='function')throw Error('Asteroid extraction controller is unavailable');
+  const task=RT.asteroidMineStartLW07();status('EXTRACTING 2 kg · keep the operator beside the deposit');render();return task;
+ }
+ function transferSamples(){
+  if(typeof RT.asteroidMineTransferLW07!=='function')throw Error('Asteroid sample transfer is unavailable');
+  const result=RT.asteroidMineTransferLW07();status('TRANSFERRED '+result.massKg.toFixed(1)+' kg TO SHIP MATERIAL HOLD');render();return result;
  }
  function recharge(){
   if(busy)throw Error('Finish current scan first');
@@ -109,6 +131,10 @@
     const observation=Science.measure(job.instrument,false);
     if(!observation||!observation.id)throw Error('Authoritative instrument returned no reading');
     chargeJ=Math.max(0,chargeJ-cost(job.instrument));lastObservation=observation;
+    if(job.instrument==='spectrometer'&&after.body?.kind==='asteroid'&&typeof RT.asteroidSurveyLW07==='function'){
+     try{const prospect=RT.asteroidSurveyLW07(job.local);status(prospect?'ASTEROID DEPOSIT SURVEYED · '+prospect.gradeBand.toUpperCase()+' GRADE BAND':'SPECTROMETER READING COMPLETE · no local deposit detected');}
+     catch(prospectError){status('SPECTROMETER READING SAVED · '+String(prospectError.message||prospectError));}
+    }
     lastVisualTarget=job.instrument==='bioassay'?visibleTarget():null;
     persist();status('SCANNED · '+observation.parameter+' = '+observation.value+' '+observation.unit);
    }catch(error){status(error.message||String(error),true);}
@@ -118,7 +144,7 @@
  }
  const api={MODES,MAX_J,begin,setMode,cycle,show,close,recharge,
   get chargeJ(){return chargeJ;},get mode(){return mode;},get busy(){return busy;},
-  get observation(){return lastObservation;},get activeUntil(){return pulseUntil;},
+  get observation(){return lastObservation;},get activeUntil(){return pulseUntil;},consumeJ,beginMining,transferSamples,
   get canUse(){return available();}};
  root.StarfallMultitool9G=api;
  $('multitool9g-mode').value=mode;
@@ -129,6 +155,8 @@
  $('multitool9g-trigger').onclick=()=>{try{begin();}catch(err){status(err.message,true);}};
  $('multitool9g-recharge').onclick=()=>{try{recharge();}catch(err){status(err.message,true);}};
  $('multitool9g-journal').onclick=()=>{close();Science.open();};
+ $('multitool9g-mine').onclick=()=>{try{beginMining();}catch(err){status(err.message,true);}};
+ $('multitool9g-transfer').onclick=()=>{try{transferSamples();}catch(err){status(err.message,true);}};
  document.addEventListener('keydown',e=>{
   if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||e.target?.closest?.('input,textarea,select,[contenteditable=true]'))return;
   if(e.code==='KeyZ'){if(!available())return;e.preventDefault();e.stopImmediatePropagation();try{open?begin():show();}catch(err){status(err.message,true);}}
