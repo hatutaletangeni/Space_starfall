@@ -15,7 +15,7 @@ const TYPES=Object.freeze({
  dust:{name:'Dust storm',instrument:'barometer',tint:[.62,.40,.24],visibility:.77,solar:.72,scope:'global',desc:'Airborne particulate load may reduce visibility and sunlight.'},
  snow:{name:'Ice crystal squall',instrument:'thermometer',tint:[.65,.79,.91],visibility:.58,solar:.58,scope:'global',desc:'Wind-driven icy particulate simulation.'},
  aurora:{name:'Polar aurora',instrument:'magnetometer',tint:[.16,.60,.47],visibility:.04,solar:0,scope:'polar',desc:'Upper-atmosphere emission estimated from magnetic conditions.'},
- meteor:{name:'Meteor shower',instrument:'spectrometer',tint:[.88,.62,.40],visibility:.07,solar:.03,scope:'global',desc:'Atmospheric trails or surface impact flashes; no terrain destruction.'},
+ meteor:{name:'Meteor shower',instrument:'spectrometer',tint:[.88,.62,.40],visibility:.07,solar:.03,scope:'global',desc:'Atmospheric trails; persistent crater impacts are separately simulated only in systems with asteroid belts.'},
  seismic:{name:'Seismic tremor',instrument:'seismometer',tint:[.55,.44,.36],visibility:.09,solar:0,scope:'regional',desc:'Small ground motion signal; no structural damage.'},
  volcanic:{name:'Volcanic ash plume',instrument:'seismometer',tint:[.48,.23,.17],visibility:.64,solar:.65,scope:'regional',desc:'Ash and hot-gas column estimated for volcanic terrain.'},
  cryo:{name:'Cryovolcanic plume',instrument:'radar',tint:[.54,.71,.79],visibility:.48,solar:.44,scope:'regional',desc:'Estimated volatile-ice plume. No permanent surface modification.'},
