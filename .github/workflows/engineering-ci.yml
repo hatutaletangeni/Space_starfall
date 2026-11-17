@@ -44,6 +44,7 @@ jobs:
           python tools/build-standalone.py
           python tools/build-mobile-standalone.py
           python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
           git diff --exit-code -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
 
   browser-smoke:
@@ -83,6 +84,7 @@ jobs:
           python tests/interplanetary-t08-browser.py
           python tests/science-chain-t10-browser.py
           python tests/habitat-t09-browser.py
+          python tests/asteroid-worlds-lw07-browser.py
       - name: Upload actual software-WebGL screenshot and performance data
         if: always()
         uses: actions/upload-artifact@v4
