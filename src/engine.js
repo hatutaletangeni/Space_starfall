@@ -867,7 +867,7 @@ class Renderer{
   if(!(w.precipitationKgM2S>0||w.regime==='dust'||w.regime==='CO2-frost'))return;
   const center=state.viewerPosition||state.position,up=V.norm(V.sub(center,body.position)),
    right=V.norm(V.cross(Math.abs(up[1])>.93?[0,0,1]:[0,1,0],up)),forward=V.norm(V.cross(up,right));
-  const count=w.regime==='dust'?110:Math.min(150,Math.ceil(22+w.precipitationKgM2S*18000)),verts=[];
+  const count=w.regime==='dust'?110:Math.min(150,Math.ceil(22+w.precipitationKgM2S*18000)),verts=this.eventScratch;let written=0;
   const snow=w.regime==='snow'||w.regime==='CO2-frost',dust=w.regime==='dust',methane=w.sourceSpecies==='CH4';
   const color=dust?[.64,.48,.31]:snow?[.80,.87,.93]:methane?[.60,.73,.86]:[.65,.77,.89];
   const t=this.galaxy.time,wind=w.windMS*.012;
@@ -881,7 +881,7 @@ class Renderer{
    if(V.len(V.sub(pos,body.position))<base+.3)continue;
    const rel=V.sub(pos,eye);
    if(V.dot(rel,state.camera.forward)<-3||V.len(rel)>150)continue;
-   verts.push(rel[0],rel[1],rel[2],dust?1.2:snow?.55:.22,color[0],color[1],color[2],dust?.26:.53);
+   const i=written++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=dust?2.4:snow?1.6:1.1;verts[i+4]=color[0];verts[i+5]=color[1];verts[i+6]=color[2];verts[i+7]=dust?.28:snow?.76:.62;
   }
   // An illuminated flash is permitted only when charged, condensate-driven
   // convection is present. No atmospheric lightning in vacuum.
@@ -889,14 +889,14 @@ class Renderer{
    const base=V.add(center,V.add(V.mul(forward,48),V.mul(up,20)));
    for(let j=0;j<18;j++){
     const rel=V.sub(V.add(base,V.add(V.mul(up,-j*1.2),V.mul(right,Math.sin(j*2.8)*.7))),eye);
-    verts.push(rel[0],rel[1],rel[2],.7,.86,.91,1,.65*w.charge);
+    const i=written++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=1.8;verts[i+4]=.86;verts[i+5]=.91;verts[i+6]=1;verts[i+7]=.85*w.charge;
    }
   }
-  if(!verts.length)return;
+  if(!written)return;
   const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderHeight*.7);
-  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,verts,gl.DYNAMIC_DRAW);
   gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
-  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
+  gl.drawArrays(gl.POINTS,0,written);this.frameDrawCalls++;this.effectsRendered+=written;
   gl.depthMask(true);
  }
  renderPlanetaryEvent(state,eye,vp,renderH){
