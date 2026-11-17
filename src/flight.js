@@ -1247,6 +1247,8 @@ function updateDebrisHazards(now){
  if(!risk.collision||simTime-debrisLastContactS<.4)return;
  const rock=rocks.find(x=>x.id===risk.rockId);
  if(!rock)return;
+ // A selected major asteroid is a legitimate landing surface, not a collision hazard.
+ if(rock.landable&&nearest?.kind==='asteroid'&&nearest.id===rock.id&&altitude<110)return;
  const outward=V.norm(V.sub(pos,rock.position));
  pos=V.add(rock.position,V.mul(outward,rock.radius+4.5));
  const incoming=V.dot(vel,outward);
