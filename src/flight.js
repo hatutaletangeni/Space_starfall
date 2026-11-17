@@ -877,6 +877,31 @@ function tryCrewHatchEntry8ER(atEntrance){
  rampTransition={kind:'in',elapsed:0,duration:1.15,from:[...evaLocal],to:hatchLocal};
  showToast('CREW HATCH · Crossing the central crew boarding ramp');return true;
 }
+function refreshAsteroidActors(force=false){
+ const now=performance.now();if(!force&&now-asteroidActorsAt<65)return asteroidActors;
+ const D=window.StarfallDebrisLW05;
+ if(!D){asteroidActors=[];return asteroidActors;}
+ const rendered=renderer?.nearbyDebris;
+ asteroidActors=(Array.isArray(rendered)&&rendered.length?rendered:D.nearby(galaxy,pos,simTime,18000)).filter(x=>x?.landable&&x.kind==='asteroid');
+ asteroidActorsAt=now;return asteroidActors;
+}
+function nearestBodyAt(point){
+ const current=galaxy.nearestBody(point);let body=current.planet||first,alt=Number.isFinite(current.alt)?current.alt:Infinity;
+ if(landed&&nearest?.kind==='asteroid'){
+  const refreshed=window.StarfallDebrisLW05?.refreshBody(galaxy,nearest,simTime);
+  if(refreshed){body=nearest;alt=V.len(V.sub(point,body.position))-body.radius;}
+ }
+ const D=window.StarfallDebrisLW05;
+ if(!landed&&D)for(const rock of asteroidActors){
+  const gap=V.len(V.sub(point,rock.position))-rock.radius;if(gap>=alt)continue;
+  const candidate=D.bodyFromRock(rock);if(candidate){body=candidate;alt=gap;}
+ }
+ if(!landed&&target?.kind==='asteroid'&&D){
+  const refreshed=D.refreshBody(galaxy,target,simTime);
+  if(refreshed){const gap=V.len(V.sub(point,target.position))-target.radius;if(gap<alt){body=target;alt=gap;}}
+ }
+ return{planet:body,alt};
+}
 function updatePhysics(dt){if(busy()||document.hidden)return;
  hatchCooldown=Math.max(0,hatchCooldown-dt);roverEntryCooldown=Math.max(0,roverEntryCooldown-dt);
  simTime=physicsClock.advance(dt,timeScale);
