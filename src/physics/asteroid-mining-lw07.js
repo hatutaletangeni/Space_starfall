@@ -71,7 +71,7 @@ function create(saved,Materials,Resources){
   if(nextResources.remaining(a.deposit)<a.massKg)throw Error('Asteroid deposit depleted before extraction could commit');
   const lot={id:'lw07:lot:'+a.id,containerId:POUCH,materialId:a.deposit.type,
    massKg:a.massKg,volumeM3:a.massKg*a.volumeM3PerKg,grade:a.deposit.grade,provenance:a.deposit.id};
-  nextMaterials.importLot(lot);
+  try{nextMaterials.importLot(lot);}catch(error){if(/capacity/i.test(String(error.message||error)))throw Error('EVA sample pouch is full; return to the ship and transfer samples');throw error;}
   nextResources.extract(a.deposit,a.massKg,{id:a.id,depositId:a.deposit.id,
    destinationContainerId:POUCH,status:'COMMITTED',provenance:'LW07 EVA asteroid extraction'});
   const receipt={id:a.id,type:a.type,status:'COMMITTED',bodyId:a.bodyId,siteId:a.siteId,
