@@ -56,10 +56,26 @@ jobs:
       - name: Commit synchronized offline builds
         shell: bash
         run: |
-          if ! git diff --quiet -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
+          branch="${GITHUB_REF#refs/heads/}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "$branch"
+            git reset --hard "origin/$branch"
+            python tools/build-standalone.py
+            python tools/build-mobile-standalone.py
+            python tests/standalone-parity.py
+            python tests/mobile-standalone-parity.py
+            python tests/asteroid-worlds-lw07-browser.py
+            if git diff --quiet -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html; then
+              exit 0
+            fi
             git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
             git commit -m "Build offline standalones for asteroid worlds LW07"
-            git push
-          fi
+            if git push origin "HEAD:$branch"; then
+              exit 0
+            fi
+            echo "Branch advanced during bundle commit; retrying from the latest remote state."
+          done
+          exit 1
