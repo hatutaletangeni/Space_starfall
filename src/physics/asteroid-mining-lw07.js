@@ -24,8 +24,9 @@ function normalize(saved){
    saved.active.type!=='EVA_ASTEROID'||!validId(saved.active.bodyId)||!validId(saved.active.siteId)||
    !finite(saved.active.elapsedS)||!finite(saved.active.energyJ)||!finite(saved.active.durationS)||
    !saved.active.deposit||!validId(saved.active.deposit.id)));
- if(invalid)return{schema:1,sequence:0,active:null,history:[],recovery:{status:'quarantined',
-  reason:'Invalid LW07 asteroid-mining archive; original payload preserved',original:clone(saved)}};
+ if(invalid)return{schema:1,sequence:Number.isSafeInteger(saved.sequence)&&saved.sequence>=0?saved.sequence:0,active:null,
+  history:Array.isArray(saved.history)?saved.history.filter(x=>validId(x.id)&&typeof x.status==='string').slice(-500):[],
+  recovery:{status:'quarantined',reason:'Invalid LW07 asteroid-mining archive; original payload preserved',original:clone(saved)}};
  return{schema:1,sequence:saved.sequence,active:saved.active?clone(saved.active):null,
   history:clone(saved.history),recovery:saved.recovery?clone(saved.recovery):null};
 }
