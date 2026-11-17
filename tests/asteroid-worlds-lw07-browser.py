@@ -47,14 +47,14 @@ async def main():
           const noBeltPlanet=noBelt&&noBelt.bodies.find(x=>x.kind==='planet'&&x.type!=='Shattered');
           const noBeltCraters=noBeltPlanet?window.StarfallAsteroidImpactsLW07.staticCraters(noBeltPlanet,noBelt,g.seed).length:0;
           const sites=window.StarfallResources8C.neighbors(body,[.8,.3,.5],g.seed,4);
-          const styles=[...document.querySelectorAll('style')].map(x=>x.textContent).join('\\n');
+          const weatherStyles=[...document.querySelectorAll('style')].map(x=>x.textContent).filter(x=>x.includes('.weather-')).join('\\n');
           return {
             asteroidId:body.id,asteroidRadius:body.radius,gravity:body.gravity,
             restoreStable:restored.id===body.id,resourceSites:sites.length,
             pouchCapacity:pouch.massKg===0,landedMiningGate:mining.available===false,
             beltCraterCount:planet?.impactCraters?.length||0,noBeltCraters,
             miningControls:!!document.getElementById('multitool9g-mine')&&!!document.getElementById('multitool9g-transfer'),
-            noFlatLineWeather:!styles.includes('repeating-linear-gradient')
+            noFlatLineWeather:!weatherStyles.includes('repeating-linear-gradient')
           };
         }""")
         assert result["restoreStable"] and result["asteroidRadius"] >= 58
