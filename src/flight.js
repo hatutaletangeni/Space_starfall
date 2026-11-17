@@ -6,8 +6,11 @@ const $=id=>document.getElementById(id),{Renderer,V,groundHeight}=Starfall3D;
 const P=StarfallPhysics, FP=StarfallFlightPhysics;
 const BIOMES=StarfallBiomes;
 const SEED_QUERY=new URLSearchParams(location.search).get('seed'),GALAXY_SEED=SEED_QUERY!==null?(Number(SEED_QUERY)>>>0):742,galaxy=StarfallGalaxy.generateGalaxy(GALAXY_SEED,64);
+for(const sys of galaxy.systems){StarfallAsteroidImpactsLW07.attachSystem(sys,GALAXY_SEED);sys.__lw07ImpactsAttached=true;}
+const activateSystemLW07=galaxy.activate.bind(galaxy);
+galaxy.activate=function(sys){const result=activateSystemLW07(sys);if(result&&!result.__lw07ImpactsAttached){StarfallAsteroidImpactsLW07.attachSystem(result,GALAXY_SEED);result.__lw07ImpactsAttached=true;}return result;};
 const first=galaxy.systems[0].planets[0];
-let target=first,nearest=first,renderer;
+let target=first,nearest=first,renderer,asteroidActors=[],asteroidActorsAt=0,currentImpactEvent=null;
 try{renderer=new Renderer($('universe'),galaxy);}catch(error){console.error('STARFALL initialization:',error);$('fatal').hidden=false;$('boot').hidden=true;return;}
 let simTime=0,pos=V.add(first.position,[0,300,-(first.radius+3550)]),vel=[0,0,0],forward=V.norm(V.sub(first.position,pos)),up=[0,1,0];
 let landed=false,warp=false,camMode=0,camEye=null,camDistance=145,orbitYaw=0,orbitPitch=0,heat=0,solarWarning=false,timeScale=1,altitude=3500,vertical=0,fps=60,lastPlanetId='',nearPhase='DEEP SPACE',hudClock=0,frames=0,frameClock=0,lastTime=performance.now(),lastSave=0,toastTimer=0,landingTimer=0;
@@ -34,6 +37,7 @@ if(recovery?.recovered&&SF.storageStatus().durable){
  if(!recoveryPersisted)SF.save(originalSession);
 }
 const session=recoveryPersisted?recovery.session:originalSession,saved=session.flightGalaxy;
+const impactsLW07=StarfallAsteroidImpactsLW07.create(session.asteroidImpactsLW07);
 truckShoreCrawl8ER=!!saved?.truckPose?.shoreCrawl8er;
 if(recoveryPersisted)setTimeout(()=>showToast('8B · Assisted rescue: ORIGINAL truck and untouched battery/cargo secured in ship. This is not physical 8H delivery.'),1600);
 let physical8a=StarfallPhysical8A.create(session.physical8a,{truckPose:saved?.truckPose,roverPose:saved?.roverPose});
@@ -110,6 +114,8 @@ let logisticsEnergyReceipts8h=(()=>{
 let vehicleAssembly8g=StarfallVehicleAssemblyContract8G.create(session.vehicleAssembly8g);
 let manufacturedOccupied8G=null;
 let resources8c=StarfallResources8C.create(session.resources8c);
+materials8a=StarfallAsteroidMiningLW07.prepareContainers(materials8a);
+const asteroidMiningLW07=StarfallAsteroidMiningLW07.create(session.asteroidMiningLW07,StarfallMaterials8A,StarfallResources8C);
 let atmosphere8g=StarfallAirFractionation8G.create(session.atmosphere8g);
 const mining8d=StarfallMining8D.create(session.mining8d,StarfallMaterials8A,StarfallResources8C);
 let transformation8e=StarfallTransformation8E.create(session.transformations8e);
