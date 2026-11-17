@@ -1218,7 +1218,7 @@ class Renderer{
   if(near?.kind==='asteroid'&&near.landable){
    const rel=V.sub(near.position,origin),dist=V.len(rel),pixels=near.radius/Math.max(1,dist-near.radius)*renderH;
    if((dist<1600000&&V.dot(V.norm(rel),cam.forward)>-.26)||dist<near.radius*1.8){
-    const lod=pixels>180?2:pixels>30?1:0,geometry=this.geometry(near,lod),nearPatch=near===this.patchPlanet&&alt<340;
+    const lod=pixels>180?2:pixels>30?1:0,geometry=this.geometry(near,lod),nearPatch=near===this.patchPlanet&&alt<Math.min(22,near.radius*.18);
     applyLight(p,near);if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(near,rel));
     this.renderedBodies++;rendered.push({body:near,rel,dist,geometry,lod});
    }
