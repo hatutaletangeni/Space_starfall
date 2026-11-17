@@ -59,7 +59,7 @@ function resolveBody(galaxy,id,timeS=0){
  const marker=':rock:',at=id.lastIndexOf(marker);if(at<1)return null;
  const sourceId=id.slice(0,at),index=Number(id.slice(at+marker.length));
  if(!Number.isSafeInteger(index)||index<0)return null;
- const match=sourceId.match(/-belt\\d*$/);if(!match)return null;
+ const match=sourceId.match(/-belt\d*$/);if(!match)return null;
  const systemId=sourceId.slice(0,match.index),system=galaxy?.byId?.get(systemId);
  if(!system)return null;
  if(system.dormant&&typeof galaxy.activate==='function')galaxy.activate(system);
