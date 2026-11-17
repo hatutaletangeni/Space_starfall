@@ -3679,7 +3679,7 @@ function asteroidMiningContextLW07(){
  const pouch=materials8a.used(StarfallAsteroidMiningLW07.POUCH),active=asteroidMiningLW07.active;
  return{available,bodyId:body?.id||null,deposit,surveyed:!!survey,depositLabel:deposit?.label||'No local deposit',
   remainingKg:deposit?resources8c.remaining(deposit):0,nearDeposit:distance<=Math.max(12,(body?.radius||0)*.035),
-  nearShip:shipDistance<=40,pouchMassKg:pouch.massKg,active:active?{...active,progress:V.clamp(active.elapsedS/active.durationS,0,1)}:null};
+  nearShip:shipDistance<=40,pouchMassKg:pouch.massKg,pouchVolumeM3:pouch.volumeM3,active:active?{...active,progress:V.clamp(active.elapsedS/active.durationS,0,1)}:null};
 }
 function asteroidSurveyLW07(local=evaLocal){
  const ctx=asteroidMiningContextLW07();if(!ctx.available||!local)throw Error('Exit the ship onto a landable asteroid before prospecting');
@@ -3692,6 +3692,7 @@ function asteroidMineStartLW07(){
  const ctx=asteroidMiningContextLW07(),tool=window.StarfallMultitool9G;
  if(!ctx.available||!ctx.deposit)throw Error('Stand on a landable asteroid surface with an accessible deposit');
  if(ctx.remainingKg<StarfallAsteroidMiningLW07.BATCH.massKg)throw Error('This surveyed deposit is depleted or has less than a 2 kg batch remaining');
+ if(ctx.pouchMassKg+StarfallAsteroidMiningLW07.BATCH.massKg>StarfallAsteroidMiningLW07.LIMITS.pouchMassKg||ctx.pouchVolumeM3+StarfallAsteroidMiningLW07.BATCH.massKg*StarfallAsteroidMiningLW07.BATCH.volumeM3PerKg>StarfallAsteroidMiningLW07.LIMITS.pouchVolumeM3)throw Error('EVA sample pouch is full; stow its contents at the ship first');
  if(!tool)throw Error('EVA multitool is not initialized');
  return asteroidMiningLW07.start({deposit:ctx.deposit,surveyed:ctx.surveyed,bodyId:ctx.bodyId,
   bodyKind:nearest.kind,landed,eva,operatorNear:ctx.nearDeposit,chargeJ:tool.chargeJ});
@@ -3713,7 +3714,7 @@ function asteroidMiningAdvanceLW07(dt){
   if(step.usedJ>0)tool.consumeJ(step.usedJ);remaining-=slice;
   if(step.completed){
    const priorMaterials=materials8a,priorResources=resources8c,priorMining=asteroidMiningLW07.snapshot();
-   const committed=asteroidMiningLW07.commit(materials8a,resources8c);
+   let committed;try{committed=asteroidMiningLW07.commit(materials8a,resources8c);}catch(error){showToast('ASTEROID EXTRACTION BLOCKED · '+String(error.message||error));return;}
    materials8a=committed.materials;resources8c=committed.resources;
    if(!saveFlight()){materials8a=priorMaterials;resources8c=priorResources;asteroidMiningLW07.apply(priorMining);showToast('ASTEROID EXTRACTION · SAVE FAILED · operation retained for retry');return;}
    showToast('ASTEROID EXTRACTION · 2 kg '+active.deposit.label+' secured in EVA pouch');break;
