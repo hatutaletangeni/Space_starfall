@@ -71,7 +71,7 @@ function create(saved,Materials,Resources){
    massKg:a.massKg,volumeM3:a.massKg*a.volumeM3PerKg,grade:a.deposit.grade,provenance:a.deposit.id};
   nextMaterials.importLot(lot);
   nextResources.extract(a.deposit,a.massKg,{id:a.id,depositId:a.deposit.id,
-   destinationContainerId:POUCH,status:'COMMITTED'});
+   destinationContainerId:POUCH,status:'COMMITTED',provenance:'LW07 EVA asteroid extraction'});
   const receipt={id:a.id,type:a.type,status:'COMMITTED',bodyId:a.bodyId,siteId:a.siteId,
    massKg:a.massKg,source:a.siteId,destination:POUCH,energyJ:a.energyJ};
   state.history.push(receipt);if(state.history.length>500)state.history.shift();state.active=null;
