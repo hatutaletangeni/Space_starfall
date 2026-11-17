@@ -13,6 +13,7 @@ assert.ok(engine.includes('function craterRelief('),'Surface crater relief must 
 assert.ok(engine.includes('renderPlanetaryEvent(state,eye,vp,renderH)'),'Weather event particles must render in 3D');
 assert.ok(engine.includes('renderAsteroidImpact(state,eye,vp,renderH)'),'Asteroid collision must have a 3D impact effect');
 assert.ok(engine.includes('this.eventScratch=new Float32Array(8*256)'),'3D event particles must reuse a bounded typed buffer');
+assert.ok(engine.includes('verts=this.eventScratch;let written=0'),'rain, snow and dust must use the reusable 3D particle buffer');
 assert.ok(engine.includes('body.impactRevision||0'),'Crater changes must invalidate cached sphere geometry');
 assert.ok(!engine.includes("if(planet.type==='Shattered'&&withTerrain)"),'Shattered bodies must not omit surface triangles');
 assert.ok(engine.includes("planet.kind==='asteroid'"),'Asteroid-specific stable terrain sampling must exist');
