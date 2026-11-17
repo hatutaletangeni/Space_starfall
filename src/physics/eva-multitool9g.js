@@ -80,10 +80,11 @@
   if(!available()){status('Exit the ship or truck into EVA to use the multitool',true);return false;}
   open=true;$('multitool9g-panel').hidden=false;render();return true;
  }
- function consumeJ(requestedJ){
+ function consumeJ(requestedJ,save=true){
   if(!Number.isFinite(requestedJ)||requestedJ<=0||chargeJ+1e-7<requestedJ)throw Error('Insufficient EVA multitool charge');
-  chargeJ=Math.max(0,chargeJ-requestedJ);persist();render();return requestedJ;
+  chargeJ=Math.max(0,chargeJ-requestedJ);if(save){persist();render();}return requestedJ;
  }
+ function flush(){persist();render();return chargeJ;}
  function beginMining(){
   if(typeof RT.asteroidMineStartLW07!=='function')throw Error('Asteroid extraction controller is unavailable');
   const task=RT.asteroidMineStartLW07();status('EXTRACTING 2 kg · keep the operator beside the deposit');render();return task;
@@ -144,7 +145,7 @@
  }
  const api={MODES,MAX_J,begin,setMode,cycle,show,close,recharge,
   get chargeJ(){return chargeJ;},get mode(){return mode;},get busy(){return busy;},
-  get observation(){return lastObservation;},get activeUntil(){return pulseUntil;},consumeJ,beginMining,transferSamples,
+  get observation(){return lastObservation;},get activeUntil(){return pulseUntil;},consumeJ,flush,beginMining,transferSamples,
   get canUse(){return available();}};
  root.StarfallMultitool9G=api;
  $('multitool9g-mode').value=mode;
