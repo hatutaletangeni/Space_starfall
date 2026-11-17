@@ -1,0 +1,72 @@
+name: STARFALL 9G EVA Scanner Multitool
+on:
+  push:
+    branches:
+      - feature/9g-eva-scanner-multitool
+  pull_request:
+    paths:
+      - 'src/engine.js'
+      - 'src/flight.js'
+      - 'src/physics/eva-multitool9g.*'
+      - 'index.html'
+      - 'PLAY-STARFALL.html'
+      - 'PLAY-STARFALL-MOBILE.html'
+      - 'tests/eva-multitool9g*'
+      - '.github/workflows/eva-multitool9g.yml'
+  workflow_dispatch:
+jobs:
+  scanner-functional-and-standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate scanner source and timed science pipeline
+        run: |
+          node --check src/physics/eva-multitool9g.js
+          node --check src/engine.js
+          node --check src/flight.js
+          node tests/eva-multitool9g.test.cjs
+          node tests/ecology9f-scene.test.cjs
+          node tests/living-biosphere.test.cjs
+      - name: Build desktop and landscape-mobile standalones exactly
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install Chromium WebGL2
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Real offline browser and avatar/scanner controls
+        run: |
+          python tests/eva-multitool9g-browser.py
+          python tests/ecology9d-browser.py
+      - name: Archive scanner UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfall-9g-scanner-desktop-mobile
+          path: artifacts/multitool9g/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Commit synchronized offline editions
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/9g-eva-scanner-multitool'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build(9G): synchronize handheld scanner desktop/mobile standalones"
+            git push origin HEAD:feature/9g-eva-scanner-multitool
+          fi

@@ -746,10 +746,19 @@ function createExplorerMesh(gl){
  const cape=sculpt();cape.box(-.35,2.03,.50,.35,2.46,.57,C.dark);cape.tube([-.25,2.43,.47],[.25,2.43,.47],.055,.055,C.trim,8);
  const legs=[];for(const side of [-1,1]){const b=sculpt();b.tube([0,-.02,0],[0,-.52,0],.202,.17,C.suit,9);b.oval([0,-.56,-.03],.19,.16,.20,C.dark);b.tube([0,-.61,0],[0,-1.16,0],.17,.145,C.light,9);b.box(-.20,-1.39,-.30,.20,-1.12,.20,C.rubber);b.box(-.19,-1.28,-.36,.19,-1.17,-.24,C.steel);b.box(-.185,-.68,-.21,.185,-.51,-.165,side===-1?C.trim:C.dark);legs.push(b.finish());}
  const arms=[];for(const side of [-1,1]){const a=sculpt();a.oval([0,-.1,0],.245,.20,.25,C.steel);a.tube([0,-.15,0],[side*.10,-.54,0],.194,.16,C.suit,9);a.tube([side*.10,-.56,0],[side*.10,-.86,0],.165,.17,C.undersuit,9);a.box(side*.10-.18,-.83,-.19,side*.10+.18,-.66,.17,C.dark);a.oval([side*.10,-1.02,0],.142,.17,.15,C.rubber);a.box(side*.10-.10,-.79,-.205,side*.10+.10,-.69,-.18,C.trim);arms.push(a.finish());}
- const staff=sculpt(); // folded sampling tool, compact rather than an oversized staff
- staff.box(-.68,.94,-.10,-.58,1.88,-.04,C.steel);staff.box(-.73,1.84,-.14,-.53,2.01,.06,C.light);staff.box(-.68,1.92,-.16,-.58,1.98,-.14,C.visor);
+ const staff=sculpt(); // 9G: wrist-gripped optical/chemical scanner multitool
+ // Grip, handle, battery, optical aperture, vented sampling nose and microdisplay.
+ staff.box(-.70,.94,-.15,-.56,1.73,.04,C.steel);
+ staff.box(-.75,1.55,-.19,-.51,1.72,.08,C.dark);
+ staff.box(-.74,1.71,-.20,-.52,1.94,.11,C.light);
+ staff.box(-.71,1.81,-.24,-.55,1.91,-.21,C.visor);
+ staff.box(-.72,1.94,-.20,-.54,2.08,-.06,C.steel);
+ staff.box(-.69,2.07,-.24,-.57,2.15,-.02,C.glow2);
+ staff.box(-.72,1.38,-.19,-.54,1.47,-.16,C.trim);
+ staff.box(-.70,1.18,-.18,-.56,1.27,-.14,C.rubber);
  const glow=sculpt();glow.box(-.10,1.87,-.44,.10,1.93,-.42,C.glow);glow.box(-.15,2.90,-.37,.15,2.94,-.34,C.glow2);
- const staffGlow=sculpt();staffGlow.box(-.67,1.92,-.18,-.59,1.97,-.15,C.glow);
+ const staffGlow=sculpt();staffGlow.box(-.70,2.09,-.25,-.55,2.17,-.21,C.glow);
+ staffGlow.box(-.68,1.82,-.26,-.58,1.89,-.23,C.glow2);
  return{body:body.finish(),cape:cape.finish(),legs,arms,staff:staff.finish(),glow:glow.finish(),staffGlow:staffGlow.finish()};
 }
 
@@ -1210,13 +1219,17 @@ class Renderer{
    const bone=(x,y,z,angle)=>M.mul(basis,M.mul(M.translate([x,y,z]),M.spin([0,0,0],[1,0,0],angle)));
    this.renderMesh(p,parts.legs[0],bone(-.18,1.37,0,gait));
    this.renderMesh(p,parts.legs[1],bone(.18,1.37,0,-gait));
-   this.renderMesh(p,parts.arms[0],bone(-.42,2.42,0,-gait*.50));
+   const scanner=root.StarfallMultitool9G,scanning=!!scanner?.busy,
+    scannerTilt=scanning?-.38:-.018*Math.sin(phase),
+    scannerPose=M.mul(basis,M.spin([0,0,0],[1,0,0],scannerTilt));
+   this.renderMesh(p,parts.arms[0],bone(-.42,2.42,0,-gait*.50+(scanning?-.32:0)));
    this.renderMesh(p,parts.arms[1],bone(.42,2.42,0,gait*.50));
-   this.renderMesh(p,parts.staff,M.mul(basis,M.spin([0,0,0],[1,0,0],-.018*Math.sin(phase))));
-   this.setFloat(p,'uShip',2); // Only the cyan devices are emissive at night.
+   this.renderMesh(p,parts.staff,scannerPose);
+   this.setFloat(p,'uShip',2); // Cyan emissive scanner aperture pulses while acquiring.
    this.renderMesh(p,parts.glow,basis);
-   this.renderMesh(p,parts.staffGlow,M.mul(basis,M.spin([0,0,0],[1,0,0],-.018*Math.sin(phase))));
-   this.avatarDrawCalls=9;
+   if(!scanning||Math.sin(performance.now()*.025)>-.30)
+    this.renderMesh(p,parts.staffGlow,scannerPose);
+   this.avatarDrawCalls=scanning?9:9;
   }else this.avatarDrawCalls=0;
   // Infrastructure uses fixed meshes, scene-relative transforms and normal depth testing.
   // No geometry allocation or global structure traversal occurs in render().
