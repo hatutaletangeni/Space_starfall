@@ -6,7 +6,7 @@
 - Replaced flat weather-event streak overlays with soft haze and 3D particle volumes/trails.
 - Closed the missing faces on shattered planets/moons and added dark fractured materials, seeded scars and impact relief.
 - Added model, source integration and standalone browser tests; the workflow rebuilds desktop and mobile offline bundles.
-- **Verification:** Pending the LW07 Actions run; real-device GPU visuals/performance remain separate and unverified.
+- **Verification:** PASS — syntax, Node regression/model tests, both standalone parity checks and Chromium software-WebGL smoke completed. Real-device GPU visuals/performance remain NOT VERIFIED.
 
 ---
 
