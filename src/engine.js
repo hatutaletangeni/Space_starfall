@@ -26,7 +26,22 @@ function hash3(x,y,z,s){let h=(Math.imul(x,374761393)^Math.imul(y,668265263)^Mat
 function noise(x,y,z,seed){const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z);let a=x-ix,b=y-iy,c=z-iz;a=a*a*(3-2*a);b=b*b*(3-2*b);c=c*c*(3-2*c);const mix=(l,r,t)=>l+(r-l)*t;
 return mix(mix(mix(hash3(ix,iy,iz,seed),hash3(ix+1,iy,iz,seed),a),mix(hash3(ix,iy+1,iz,seed),hash3(ix+1,iy+1,iz,seed),a),b),mix(mix(hash3(ix,iy,iz+1,seed),hash3(ix+1,iy,iz+1,seed),a),mix(hash3(ix,iy+1,iz+1,seed),hash3(ix+1,iy+1,iz+1,seed),a),b),c);}
 function field(n,seed){let v=0,a=.55,k=2.9;for(let i=0;i<5;i++){v+=noise(n[0]*k+13,n[1]*k+27,n[2]*k+5,seed)*a;k*=2.03;a*=.49;}return v/1.06;}
-function groundHeight(n,planet,value){if(planet.type==='Gas Giant')return 0;const e=value??field(n,planet.seed),sea=planet.type==='Ocean'?.56:planet.type==='Temperate'?.47:planet.type==='Lush'?.48:.19;if(['Temperate','Lush','Ocean'].includes(planet.type)&&e<sea)return 0;const base=Math.max(0,e-sea);const detail=noise(n[0]*88,n[1]*88,n[2]*88,planet.seed+9);return Math.min(110,3+Math.pow(base,1.3)*158+Math.max(0,detail-.5)*11);}
+function craterRelief(n,planet){
+ const craters=planet.impactCraters;if(!Array.isArray(craters)||!craters.length)return 0;
+ let delta=0;for(const crater of craters){const angular=crater.radiusScene/Math.max(1,planet.radius),cos=V.clamp(V.dot(n,crater.direction),-1,1),distance=Math.acos(cos);
+  if(distance>angular*1.55)continue;const x=distance/Math.max(1e-5,angular);
+  const bowl=-crater.depthScene*Math.exp(-2.7*x*x),rim=crater.depthScene*.34*Math.exp(-Math.pow((x-1.04)/.18,2));delta+=bowl+rim;
+ }return delta;
+}
+function groundHeight(n,planet,value){
+ if(planet.type==='Gas Giant')return 0;
+ const e=value??field(n,planet.seed),detail=noise(n[0]*88,n[1]*88,n[2]*88,planet.seed+9);
+ if(planet.kind==='asteroid'){const relief=(e-.5)*Math.min(9,planet.radius*.10)+Math.max(0,detail-.48)*Math.min(4,planet.radius*.05);return relief+craterRelief(n,planet);}
+ const sea=planet.type==='Ocean'?.56:planet.type==='Temperate'?.47:planet.type==='Lush'?.48:.19;
+ if(['Temperate','Lush','Ocean'].includes(planet.type)&&e<sea)return craterRelief(n,planet);
+ const base=Math.max(0,e-sea),height=Math.min(110,3+Math.pow(base,1.3)*158+Math.max(0,detail-.5)*11);
+ return height+craterRelief(n,planet);
+}
 function shade(n,h,planet,value,biome){if(planet.landable)return BIOMES.color(planet,n,h,value??field(n,planet.seed),biome);const t=planet.type;const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
 let c;
 if(t==='Gas Giant'){const bands=Math.sin(n[1]*57+field(n,planet.seed)*17),storm=Math.sin(n[0]*22+n[2]*29+field(n,planet.seed)*25);return V.mix([.37,.23,.18],[.84,.71,.49],V.clamp(.49+.28*bands+.09*storm,0,1));}
