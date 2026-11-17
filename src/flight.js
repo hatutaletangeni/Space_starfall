@@ -928,7 +928,7 @@ function updatePhysics(dt){if(busy()||document.hidden)return;
  galaxy.update(simTime);planetaryClimateTick8J();galaxy.hydrateNear(pos,galaxy.byId.get(target.systemId));
  if(attached?.kind==='asteroid')window.StarfallDebrisLW05?.refreshBody(galaxy,attached,simTime);
  if(target?.kind==='asteroid')window.StarfallDebrisLW05?.refreshBody(galaxy,target,simTime);
- refreshAsteroidActors(true);
+ refreshAsteroidActors();
  if(attached){
   if(landed){
    const axis=attached.spinAxis||[0,1,0],turn=(attached.spinAngle||0)-oldSpin;
