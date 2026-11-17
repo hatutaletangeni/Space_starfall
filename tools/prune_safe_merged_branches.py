@@ -3,6 +3,7 @@
 
 Does not delete: main, backups, releases, protected branches, active PR heads,
 or any branch with even one unique commit not in main. Emits JSON audit first.
+Historical short-lived prefixes are eligible only after exact ancestry proof.
 This script is run with a limited repo-scoped GITHUB_TOKEN by GitHub Actions.
 """
 import json
@@ -18,7 +19,10 @@ REPO = os.getenv("GITHUB_REPOSITORY", "hatutaletangeni/Space_starfall")
 TOKEN = os.getenv("GITHUB_TOKEN")
 API = "https://api.github.com"
 PROTECTED_PREFIXES = ("backup/", "release/",)
-ELIGIBLE_PREFIXES = ("feature/", "fix/", "hotfix/", "update-")
+ELIGIBLE_PREFIXES = (
+    "feature/", "feat/", "fix/", "hotfix/", "update-", "update8/",
+    "ci/", "docs/", "test/", "maintenance/", "work/",
+)
 REPORT_PATH = Path("artifacts/update8-branch-prune.json")
 
 def api(path, method="GET"):

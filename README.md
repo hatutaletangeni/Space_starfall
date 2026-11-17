@@ -1,3 +1,67 @@
+# STARFALL
+
+**An offline WebGL2 space-exploration, science and engineering sandbox.** Explore a deterministic galaxy, fly and land spacecraft, walk on worlds, operate the original truck and scientific rover, investigate geology and wildlife, and experiment with finite materials, power, industry and habitats. The game is free of runtime CDNs and does not require a server.
+
+## Play or develop
+
+| Edition | Entry point | How to use it |
+| --- | --- | --- |
+| Desktop, single file | [PLAY-STARFALL.html](PLAY-STARFALL.html) | Download the repository ZIP, extract it and open this file in a WebGL2-capable browser |
+| Mobile, single file | [PLAY-STARFALL-MOBILE.html](PLAY-STARFALL-MOBILE.html) | Open locally on a WebGL2-capable phone browser; landscape works best |
+| Editable source | [index.html](index.html) and [src/](src/) | Keep their folder structure together; open index.html in a browser |
+
+The two PLAY files are **generated outputs**, not the source of truth. Do not edit them directly. After editing the source, rebuild and verify:
+
+~~~bash
+python tools/build-standalone.py
+python tools/build-mobile-standalone.py
+python tests/standalone-parity.py
+python tests/mobile-standalone-parity.py
+~~~
+
+The in-game **Mission** workspace exposes Navigate, Explore, Build, Operate and Records. Open the **? Field Manual** for current controls and system-specific instructions; keyboard, ship/truck and mobile controls vary by context. Mobile browser storage and GPU support vary, so export a save before moving devices.
+
+## Systems and status
+
+| System | Source / guide |
+| --- | --- |
+| Procedural stars, worlds, flight and WebGL2 graphics | [galaxy.js](src/galaxy.js), [engine.js](src/engine.js), [flight.js](src/flight.js) |
+| Physical ships, cargo, mining and geology | [8A–8D implementation](docs/UPDATE8A-PHYSICAL-INVENTORY.md), [8D guide](docs/UPDATE8D-MINING-HAULING.md) |
+| Rocket operations, satellites, radio, rover and cameras | [Update 7 verification](docs/UPDATE-7-VERIFICATION.md), [Camera 7F](docs/IMAGING-7F.md) |
+| Manufacturing, electricity, conveyors and gas systems | [8E–8K status](docs/INDUSTRY-8E-8K-STATUS.md), [8K acceptance](docs/STARFALL_8K_RELEASE_ACCEPTANCE.md) |
+| Habitats, ecology, climate and asteroid worlds | [Living ecosystems](docs/LIVING-ECOSYSTEMS-9D.md), [asteroids](docs/ASTEROID-WORLDS-LW07.md) |
+| Engineering models and learning material | [Engineering encyclopedia](docs/STARFALL_ENGINEERING_ENCYCLOPEDIA.md), [status matrix](docs/TECH-STATUS-MATRIX.md) |
+
+Feature source and model tests are **not** proof that every extended gameplay path is complete. STARFALL deliberately distinguishes deterministic model tests, browser smoke tests, full gameplay acceptance and measurements on a physical GPU. See the [release acceptance register](docs/UPDATE-8-ACCEPTANCE-REGISTER.md) and the [November 17 repository audit](docs/REPOSITORY-AUDIT-2026-11-17.md) before making release claims.
+
+## Quality checks
+
+~~~bash
+for test in tests/*.test.cjs; do node "$test" || exit 1; done
+python tests/prune_safe_merged_branches.test.py
+python tests/standalone-parity.py
+python tests/mobile-standalone-parity.py
+~~~
+
+The [engineering CI workflow](.github/workflows/engineering-ci.yml) also checks JavaScript syntax, rebuild reproducibility and all checked-in browser suites in six Chromium shards. Browser tests require Playwright and its compatible Chromium; source-model test success does not substitute for a playable UI check.
+
+## Repository layout
+
+- [src/](src/) — editable runtime, graphics, UI and physics.
+- [tests/](tests/) — model, source-contract, parity and browser regressions.
+- [tools/](tools/) — offline bundling and guarded maintenance tools.
+- [docs/](docs/) — feature contracts, engineering encyclopedia and caveats.
+- [reports/](reports/) — dated verification evidence and measured results.
+- [.github/workflows/](.github/workflows/) — CI and targeted release gates.
+
+**Important:** Branches and PRs can contain experimental work that differs from main. Backup and release refs are deliberately retained. Never treat an unmerged feature branch or a promising label as evidence of a shipped capability.
+
+---
+
+## Archived 7E / 7F release notes
+
+The following historical notes are preserved for context. References below to old release-candidate branches or to an earlier 7D-era main were accurate only at the time they were written; use the current guide above and the Git history for today's source state.
+
 ## Combined 7F — Expedition QA & Release Hardening (release candidate)
 
 Camera 7F is **still fully present**: real rover and satellite scene imaging, onboard photos, radio queuing, downlink, received-only gallery, IndexedDB archives and research evidence.

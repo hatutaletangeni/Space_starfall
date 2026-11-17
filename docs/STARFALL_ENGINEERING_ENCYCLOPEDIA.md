@@ -1,16 +1,34 @@
 
 
-# STARFALL ENGINEERING ENCYCLOPEDIA — Edition 1 (November 2026)
+# STARFALL ENGINEERING ENCYCLOPEDIA — Edition 2 (17 November 2026)
 
 *A source-grounded, self-study engineering textbook, programming dictionary, and maintenance manual for `hatutaletangeni/Space_starfall`.*
 
-**Audience:** the game's future solo maintainer. **Source baseline:** current `main` inspected 2026-11-08. **Purpose:** explain how the game works deeply enough to inspect, debug, extend and release it independently.
+**Audience:** the game's future solo maintainer. **Source baseline:** main at commit 2367ac64e373bfea189feb12559127ded059e505, audited 2026-11-17. **Purpose:** explain how the game works deeply enough to inspect, debug, extend and release it independently.
 
-**Evidence convention.** **[SOURCE]** means a concrete file or implementation inspected; **[MODEL]** is an explanatory analogy, hypothetical experiment, Python/C/assembly translation, or historical background, not a claim that such code is currently compiled into STARFALL. **[VERIFY]** means integration or end-to-end behavior needs testing. This distinction matters: code existing does not prove an entire mission works. GitHub branches, especially Update 8K integration PR #134, can differ from `main` and must be compared before use.
+**Evidence convention.** **[SOURCE]** means a concrete file or implementation inspected; **[MODEL]** is an explanatory analogy, hypothetical experiment, Python/C/assembly translation, or historical background, not a claim that such code is currently compiled into STARFALL. **[VERIFY]** means integration or end-to-end behavior needs testing. This distinction matters: code existing does not prove an entire mission works. Open PRs may contain unique, unintegrated changes and must be compared with current main before use.
 
 **How to use this book.** Read chapters 1–5 before changing the runtime; use the source atlas and glossary as reference; work through all laboratory exercises; keep the test and conservation checklist open for every PR. Every version's line numbers drift, so **search by symbol and file path, not by fixed line number**.
 
 **A central rule:** **do not edit `PLAY-STARFALL.html` as the master.** It is output of `tools/build-standalone.py`; the mobile playable is output of `tools/build-mobile-standalone.py`. Edit the corresponding source file and rebuild.
+
+## Edition 2 — current maintenance and verification map
+
+This edition incorporates the 17 November repository audit. It does **not** retroactively certify old acceptance tables, all game branches, or physical GPU performance. See [the dated audit](REPOSITORY-AUDIT-2026-11-17.md) for its precise test boundaries.
+
+| Layer | What is currently inspectable | Minimum evidence before calling it working |
+| --- | --- | --- |
+| Offline desktop/mobile entry | Generated single-file outputs and their editable source | Both strict parity checks; browser boot on each edition; offline/no-network assertion |
+| Navigation / vehicle interaction | Original ship, walkable EVA, cargo bay, truck X interaction, Mission workflow and UI20–UI23 | Real keyboard/touch interaction, view transitions, truck custody and save/reload |
+| Science and environments | Composition, geology, telescope/spectra, field records, living fauna, climate, asteroids | Deterministic source models **and** real WebGL scene/interaction evidence |
+| Engineering and industry | Power T02, real 8A material lots, ore/refinery/8F fabrication, 8H logistics and 8I habitats | No-free-resource ledger, finite time/power, disabled/failure paths, persistence and cross-system acceptance |
+| Expedition integrity | 7F camera data, save archives, launch/satellite/rover state, 8K progression | Real capture/downlink, export/import and durable receipts without silently truncating history |
+
+**Local verification on audited starting main:** 206 JavaScript source syntax checks passed, 165 Node suites passed, and both desktop and mobile standalone parity checks passed. The 66 browser tests were enumerated but **could not run locally** because Playwright's expected Chromium binary was unavailable and the container's system Chromium could not create its process socket. The engineering CI now shards all checked-in browser tests across six jobs; verify the actual GitHub Actions result before treating that coverage as passed.
+
+**PR and branch hygiene:** 29 open historical PRs had exact branch tips reachable from main and were closed as redundant; 18 PRs with unique history were retained. Branch pruning requires a matching original SHA, an exact ancestor relationship to main, and no active PR; backups, release branches and protected branches stay. A closed PR is preserved as review history, not erased.
+
+**What changed since Edition 1:** the current editable runtime includes newer UI23 resource testing, 8K expedition audit/progression, 9-series ecology/EVA tools and asteroid-world models. Trace live call sites and stored-state ownership: a module's presence or a passed model test is not evidence that every proposed UI operation or full mission path is shipped.
 
 
 
@@ -80,6 +98,10 @@ The most damaging bug category is **two authorities claiming one resource** (e.g
 | Mobile controls | `src/mobile/landscape.js`, `landscape.css`, `landscape.html` | Touch adapters and landscape presentation |
 | Desktop standalone | `tools/build-standalone.py` | Inlines local source and CSS |
 | Mobile standalone | `tools/build-mobile-standalone.py` | Adds mobile HUD/CSS/JS then inlines sources |
+| Resource test workflow | `src/ui23-resource-tests.js`, `src/ui23-resource-tests.css` | Newer UI23 source-backed resource-testing entry points |
+| Expedition readiness and audit | `src/physics/expedition-audit8k.js`, `src/physics/expedition-manifest8k.js` | Records and finite starter manifest; verify real acceptance paths |
+| Living fauna and EVA tools | `src/ecology/biome-wildlife9f.js`, `src/physics/eva-multitool9g.js` | Environment and field-tool models; do not assume an unmerged scanner PR is integrated |
+| Asteroid worlds and impacts | `src/physics/asteroid-mining-lw07.js`, `src/physics/asteroid-impacts-lw07.js` | Deterministic small-body resources and impact state |
 | Invariant/regression tests | `tests/*.test.cjs`, `tests/*-browser.py` | Node unit tests and real browser/Playwright flows |
 | Branch release evidence | `docs/`, `.github/workflows/` | Specs, acceptance reports and CI gates |
 
