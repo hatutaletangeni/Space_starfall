@@ -10,7 +10,7 @@ for(const sys of galaxy.systems){StarfallAsteroidImpactsLW07.attachSystem(sys,GA
 const activateSystemLW07=galaxy.activate.bind(galaxy);
 galaxy.activate=function(sys){const result=activateSystemLW07(sys);if(result&&!result.__lw07ImpactsAttached){StarfallAsteroidImpactsLW07.attachSystem(result,GALAXY_SEED);result.__lw07ImpactsAttached=true;}return result;};
 const first=galaxy.systems[0].planets[0];
-let target=first,nearest=first,renderer,asteroidActors=[],asteroidActorsAt=0,currentImpactEvent=null,lastAsteroidMiningError='';
+let target=first,nearest=first,renderer,asteroidActors=[],asteroidActorsAt=0,currentImpactEvent=null,lastAsteroidMiningError='',lastAsteroidMiningSaveMS=0;
 try{renderer=new Renderer($('universe'),galaxy);}catch(error){console.error('STARFALL initialization:',error);$('fatal').hidden=false;$('boot').hidden=true;return;}
 let simTime=0,pos=V.add(first.position,[0,300,-(first.radius+3550)]),vel=[0,0,0],forward=V.norm(V.sub(first.position,pos)),up=[0,1,0];
 let landed=false,warp=false,camMode=0,camEye=null,camDistance=145,orbitYaw=0,orbitPitch=0,heat=0,solarWarning=false,timeScale=1,altitude=3500,vertical=0,fps=60,lastPlanetId='',nearPhase='DEEP SPACE',hudClock=0,frames=0,frameClock=0,lastTime=performance.now(),lastSave=0,toastTimer=0,landingTimer=0;
@@ -3711,8 +3711,9 @@ function asteroidMiningAdvanceLW07(dt){
  let remaining=Math.min(4,Math.max(0,dt*timeScale)),guard=0;
  while(remaining>1e-6&&guard++<3){
   const slice=Math.min(2,remaining),step=asteroidMiningLW07.advance(slice,tool.chargeJ,{enabled});
-  if(step.usedJ>0)tool.consumeJ(step.usedJ);remaining-=slice;
+  if(step.usedJ>0){tool.consumeJ(step.usedJ,false);if(performance.now()-lastAsteroidMiningSaveMS>=2000){lastAsteroidMiningSaveMS=performance.now();tool.flush();if(!saveFlight()){if(lastAsteroidMiningError!=='progress-save-failed')showToast('ASTEROID EXTRACTION · progress could not be saved yet');lastAsteroidMiningError='progress-save-failed';}else if(lastAsteroidMiningError==='progress-save-failed')lastAsteroidMiningError='';}}remaining-=slice;
   if(step.completed){
+   tool.flush();
    const priorMaterials=materials8a,priorResources=resources8c,priorMining=asteroidMiningLW07.snapshot();
    let committed;try{committed=asteroidMiningLW07.commit(materials8a,resources8c);}catch(error){const message=String(error.message||error);if(message!==lastAsteroidMiningError)showToast('ASTEROID EXTRACTION BLOCKED · '+message);lastAsteroidMiningError=message;return;}
    materials8a=committed.materials;resources8c=committed.resources;
