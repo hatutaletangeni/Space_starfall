@@ -842,6 +842,24 @@ function pickActualStar(clientX,clientY){
  if(!best)return false;
  target=best.star;galaxy.pinnedSystemId=best.id;siteWaypoint=null;showToast('STAR ACQUIRED · '+best.name+' · G align · SHIFT+W warp');return true;
 }
+function pickNearbyAsteroid(clientX,clientY){
+ const rect=canvas.getBoundingClientRect(),cam=lastPickingCamera,D=window.StarfallDebrisLW05;
+ if(!cam||!D||eva||landed||!rect.width||!rect.height)return false;
+ const x=(clientX-rect.left)/rect.width,y=(clientY-rect.top)/rect.height,tan=Math.tan(renderer.fov/2),aspect=renderer.aspect;
+ let best=null,bestScore=Infinity;
+ const list=renderer.nearbyDebris?.length?renderer.nearbyDebris:asteroidActors;
+ for(const rock of list){if(!rock.landable)continue;
+  const rel=V.sub(rock.position,cam.eye),depth=V.dot(rel,cam.forward);if(depth<=Math.max(1,rock.radius*.3))continue;
+  const sx=.5+.5*V.dot(rel,cam.right)/(depth*tan*aspect),sy=.5-.5*V.dot(rel,cam.up)/(depth*tan);
+  const dx=(sx-x)*rect.width,dy=(sy-y)*rect.height,d=dx*dx+dy*dy;
+  const radiusPx=Math.min(48,Math.max(10,rock.radius/depth*rect.height/(2*tan)+7));
+  if(d<radiusPx*radiusPx&&d<bestScore){best=rock;bestScore=d;}
+ }
+ if(!best)return false;
+ const body=D.bodyFromRock(best);if(!body)return false;
+ target=body;galaxy.pinnedSystemId=body.systemId;siteWaypoint=null;
+ showToast('ASTEROID ACQUIRED · '+body.name+' · G ALIGN · APPROACH AND TOUCH DOWN');return true;
+}
 canvas.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;dragging=true;dragButton=ev.button;lastX=ev.clientX;lastY=ev.clientY;dragTravel=0;canvas.setPointerCapture(ev.pointerId);});
 canvas.addEventListener('pointermove',ev=>{if(!dragging||busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;const rawDx=V.clamp(ev.clientX-lastX,-100,100),rawDy=V.clamp(ev.clientY-lastY,-100,100),{dx,dy}=controls.signedDrag(rawDx,rawDy);dragTravel+=Math.abs(dx)+Math.abs(dy);lastX=ev.clientX;lastY=ev.clientY;
  // EVA uses an independent full-range view pitch. Dragging upward looks at the sky;
@@ -849,7 +867,7 @@ canvas.addEventListener('pointermove',ev=>{if(!dragging||busy()||!$('launch-dial
  if(dragButton===2){orbitYaw=V.clamp(orbitYaw-dx*.003,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*(eva?.0042:.003),eva?-1.3:-1.15,eva?1.72:1.15);return;}
  if(eva){orbitYaw=V.clamp(orbitYaw-dx*.004,-Math.PI,Math.PI);orbitPitch=V.clamp(orbitPitch-dy*.0042,-1.3,1.72);}else if(landed){const radial=V.norm(V.sub(pos,nearest.position));forward=V.norm(V.rot(forward,radial,-dx*.0025));up=radial;}else rotate(-dx*.0024,controls.flightPitch(-dy*.0021),0);
 });
-canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&!truckOccupied&&!eva&&!landed&&dragButton===0&&dragTravel<7)pickActualStar(ev.clientX,ev.clientY);dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('pointerup',ev=>{if(dragButton===0&&dragTravel<7)window.StarfallEngineering7AUI?.refreshRegistry?.();const selected=dragButton===0&&dragTravel<7&&window.StarfallAssetUI7A1?.pickWorld({...lastPickingCamera,fov:renderer.fov},canvas,ev.clientX,ev.clientY,assetPickCandidates());if(!selected&&!truckOccupied&&!eva&&!landed&&dragButton===0&&dragTravel<7){if(!pickNearbyAsteroid(ev.clientX,ev.clientY))pickActualStar(ev.clientX,ev.clientY);}dragging=false;});canvas.addEventListener('pointercancel',()=>dragging=false);
 canvas.addEventListener('wheel',ev=>{ev.preventDefault();camDistance=V.clamp(camDistance*Math.exp(ev.deltaY*.0013),25,400);},{passive:false});
 document.querySelectorAll('[data-control]').forEach(btn=>{const code=btn.dataset.control;btn.addEventListener('pointerdown',ev=>{if(busy()||!$('launch-dialog').hidden||window.StarfallAssetUI7A1?.blocking)return;ev.preventDefault();controls.touchDown(code);btn.setPointerCapture(ev.pointerId);});for(const kind of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(kind,()=>controls.touchUp(code));});
 function surfaceData(body,point){const direction=V.norm(V.sub(point,body.position));const surfaceDirection=V.rot(direction,body.spinAxis||[0,1,0],-(body.spinAngle||0));return{dir:direction,height:body.landable?groundHeight(surfaceDirection,body):0,distance:V.len(V.sub(point,body.position))};}
