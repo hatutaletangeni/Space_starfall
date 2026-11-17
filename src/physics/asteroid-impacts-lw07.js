@@ -26,7 +26,7 @@ function staticCraters(body,system,seed=742){
   Math.min(7,1+Math.floor(unit(key+':count')*(belts.length*2.1+density)));
  const out=[];
  for(let i=0;i<count;i++){
-  const k=key+':'+i,frac=isShattered?.035+unit(k+':r')*.065:.018+unit(k+':r')*.04;
+  const k=key+':'+i,frac=isShattered ? .035+unit(k+':r')*.065 : .018+unit(k+':r')*.04;
   const radiusScene=Math.max(2,body.radius*frac),depthScene=radiusScene*(.12+unit(k+':d')*.16);
   out.push(Object.freeze({id:'crater:'+hash(k).toString(36),bodyId:body.id,direction:direction(k),
    radiusScene,depthScene,createdAtS:0,source:isShattered?'fragmentation':'asteroid-belt'}));
