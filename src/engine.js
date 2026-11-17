@@ -898,6 +898,80 @@ class Renderer{
   gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
   gl.depthMask(true);
  }
+ renderPlanetaryEvent(state,eye,vp,renderH){
+  const e=state.weather,body=state.nearest;if(!e||!body?.landable||state.interior||state.altitude>1800||!e.kind)return;
+  const kind=String(e.kind).toLowerCase(),axis=body.spinAxis||[0,1,0],spin=body.spinAngle||0;
+  const local=Array.isArray(e.anchor)&&e.anchor.length===3?e.anchor:V.norm(V.sub(state.position,body.position));
+  const up=V.norm(V.rot(local,axis,spin)),right=V.norm(V.cross(Math.abs(up[1])>.92?[0,0,1]:[0,1,0],up)),forward=V.norm(V.cross(up,right));
+  const surface=V.add(body.position,V.mul(up,body.radius+groundHeight(local,body)+.8)),extent=Math.max(25,Math.min(1000,e.extentScene||280));
+  const intensity=V.clamp(e.intensity??.5,0,1),phase=V.clamp(e.phase??.5,0,1),t=this.galaxy.time,verts=[];
+  const add=(point,size,color,alpha)=>{const rel=V.sub(point,eye);if(V.len(rel)>2400||V.dot(rel,state.camera.forward)<-8)return;verts.push(rel[0],rel[1],rel[2],size,color[0],color[1],color[2],alpha);};
+  const rnd=i=>{let x=Math.imul((i+1)^((e.seed||742)+body.seed),0x45d9f3b);x=Math.imul(x^(x>>>16),0x45d9f3b);return ((x^(x>>>16))>>>0)/4294967296;};
+  if(kind==='meteor'){
+   for(let m=0;m<7;m++){const side=(rnd(m*7)-.5)*extent*.9,depth=(rnd(m*7+1)-.5)*extent*.7,
+    start=V.add(surface,V.add(V.mul(up,extent*(.65+rnd(m*7+2)*.5)),V.add(V.mul(right,side),V.mul(forward,depth)))),
+    drift=V.add(V.mul(right,(rnd(m*7+3)-.5)*extent*.12),V.mul(forward,(rnd(m*7+4)-.5)*extent*.12));
+    for(let j=0;j<14;j++){const q=j/13,point=V.add(start,V.add(V.mul(up,-extent*.72*q),V.add(V.mul(drift,q),V.mul(right,Math.sin(q*8+t*.4+m)*extent*.025))));
+     add(point,1.4+2.4*(1-q),[1,.58,.28],intensity*(1-q)*.72);}
+   }
+  }else if(kind==='dust'||kind==='volcanic'||kind==='cloud'){
+   const color=kind==='volcanic'?[.78,.32,.18]:kind==='dust'?[.76,.53,.30]:[.66,.72,.78];
+   for(let i=0;i<132;i++){const a=rnd(i*5)*Math.PI*2,r=Math.sqrt(rnd(i*5+1))*extent*.62,
+    h=12+rnd(i*5+2)*Math.min(160,extent*.22),drift=t*.018*(.35+rnd(i*5+3));
+    const point=V.add(surface,V.add(V.mul(right,Math.cos(a+drift)*r),V.add(V.mul(forward,Math.sin(a+drift)*r),V.mul(up,h))));
+    add(point,.8+rnd(i*5+4)*2.5,color,intensity*(.12+.35*rnd(i*5+2)));}
+  }else if(kind==='aurora'){
+   const magnetic=body.spinAxis||[0,1,0];
+   for(let band=0;band<5;band++)for(let i=0;i<34;i++){
+    const a=i/34*Math.PI*2+t*.006+band*.13,polar=.82+.035*Math.sin(i*.7+band),
+     dir=V.rot([Math.cos(a)*Math.sqrt(1-polar*polar),polar,Math.sin(a)*Math.sqrt(1-polar*polar)],magnetic,spin),
+     point=V.add(body.position,V.mul(dir,body.radius+85+band*31+Math.sin(i*.4+t*.03)*18));
+    add(point,2+band*.5,[.23,.88,.66],intensity*(.16+.25*Math.sin(i*.2+band+t*.025)**2));
+   }
+  }else if(kind==='seismic'){
+   const radius=extent*(.12+.88*phase);
+   for(let i=0;i<72;i++){const a=i/72*Math.PI*2,point=V.add(surface,V.add(V.mul(right,Math.cos(a)*radius),V.mul(forward,Math.sin(a)*radius)));
+    add(point,1.2+intensity*2,[.91,.63,.37],intensity*.45);}
+  }else if(kind==='electrical'){
+   for(let bolt=0;bolt<4;bolt++){const side=(rnd(bolt*11)-.5)*extent*.45,depth=(rnd(bolt*11+1)-.5)*extent*.35;
+    for(let j=0;j<19;j++){const q=j/18,zig=(rnd(bolt*11+j+2)-.5)*extent*.055,
+     point=V.add(surface,V.add(V.mul(up,extent*(.32-.30*q)),V.add(V.mul(right,side+zig),V.mul(forward,depth+Math.sin(j*1.8+bolt)*extent*.025))));
+     add(point,1.5+intensity*2,[.66,.78,1],intensity*.72);}
+   }
+  }else{
+   const snow=kind==='snow'||kind==='cryo',color=snow?[.80,.91,1]:kind==='hydrothermal'?[.72,.88,.91]:[.69,.77,.86];
+   const count=kind==='cryo'||kind==='hydrothermal'?90:112;
+   for(let i=0;i<count;i++){const a=rnd(i*3)*Math.PI*2,r=Math.sqrt(rnd(i*3+1))*extent*.34,
+    h=(kind==='cryo'||kind==='hydrothermal'?12:8)+((rnd(i*3+2)*extent*.3-t*(snow?1.5:4))%Math.max(12,extent*.3)+Math.max(12,extent*.3))%Math.max(12,extent*.3),
+    point=V.add(surface,V.add(V.mul(right,Math.cos(a)*r),V.add(V.mul(forward,Math.sin(a)*r),V.mul(up,h))));
+    add(point,snow?1.1:1.8,color,intensity*.42);}
+  }
+  if(!verts.length)return;
+  const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;gl.depthMask(true);
+ }
+ renderAsteroidImpact(state,eye,vp,renderH){
+  const e=state.impactEvent,body=state.nearest;if(!e||!body||body.id!==e.bodyId||state.interior)return;
+  const axis=body.spinAxis||[0,1,0],spin=body.spinAngle||0,local=e.direction,
+   up=V.norm(V.rot(local,axis,spin)),surface=V.add(body.position,V.mul(up,body.radius+groundHeight(local,body)+.7)),
+   incoming=V.norm(e.incoming||up),side=V.norm(V.cross(incoming,up)),phase=V.clamp(e.phase||0,0,1),
+   travel=V.clamp(phase/.615,0,1),start=V.add(surface,V.mul(incoming,e.radiusScene*22)),head=V.add(start,V.mul(V.sub(surface,start),travel)),verts=[];
+  const add=(point,size,color,alpha)=>{const rel=V.sub(point,eye);if(V.len(rel)>5000||V.dot(rel,state.camera.forward)<-12)return;verts.push(rel[0],rel[1],rel[2],size,color[0],color[1],color[2],alpha);};
+  for(let i=0;i<32;i++){const q=i/31,point=V.add(head,V.add(V.mul(incoming,e.radiusScene*q*2.1),V.mul(side,Math.sin(q*18+this.galaxy.time)*e.radiusScene*.35)));
+   add(point,e.radiusScene*(.18+.18*q),[1,.40+.25*q,.12],.8*(1-q*.75));}
+  add(head,e.radiusScene*1.15,[1,.86,.55],.95);
+  if(phase>.615){const flash=V.clamp((phase-.615)/.385,0,1),radius=e.radiusScene*(.35+flash*2.6);
+   for(let i=0;i<48;i++){const a=i/48*Math.PI*2,point=V.add(surface,V.add(V.mul(side,Math.cos(a)*radius),V.mul(V.cross(up,side),Math.sin(a)*radius)));
+    add(point,1.2+flash*2.4,[1,.57,.24],(1-flash*.65)*.72);}
+  }
+  if(!verts.length)return;const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);
+  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(true);
+ }
  // LW06 auroral curtains depend on atmospheric pressure, magnetic field and
  // real source-linked stellar particle activity; never generated in vacuum.
  renderAurora(state,eye,vp,renderH){
@@ -1213,7 +1287,7 @@ class Renderer{
    p=this.p.shell;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',obj.body.sky);const objSun=this.galaxy.byId.get(obj.body.systemId);const objLit=evaluateLighting(obj.body,objSun,this.galaxy,origin);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',(()=>{const base=root.StarfallMeteorologyLW03?.base(obj.body,this.galaxy.seed).vacuum?0:.9;return base+(1-base)*(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.hazeOpacity||0);})());this.renderMesh(p,obj.geometry.atmo,this.spinModel(obj.body,obj.rel));
    if(obj.geometry.cloud&&obj.dist>obj.body.radius+18){p=this.p.cloud;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setVec(p,'uCam',[0,0,0]);this.setVec(p,'uTint',[.70,.75,.74]);this.setVec(p,'uLight',objLit.sunDir);this.setVec(p,'uStarColor',objLit.starColor);this.setFloat(p,'uStarPower',objLit.starPower);this.setFloat(p,'uOpacity',obj.body===near&&state.weather?.cloudFraction!==undefined?Math.max(.12,state.weather.cloudFraction*1.9):Math.max(0,Math.min(1,.45+(root.StarfallRuntime?.planetaryEngineeringView?.(obj.body.id)?.cloudDelta||0))));this.renderMesh(p,obj.geometry.cloud,this.spinModel(obj.body,obj.rel,this.galaxy.time*.0008));}
   }
-  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
+  gl.depthMask(true);this.renderGeothermal(near,origin,vp,renderH);this.renderWeather(state,origin,vp,renderH);this.renderPlanetaryEvent(state,origin,vp,renderH);this.renderAsteroidImpact(state,origin,vp,renderH);this.renderAurora(state,origin,vp,renderH);p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);applyLight(p);this.setVec(p,'uFogColor',eventFogColor);this.setFloat(p,'uFogDensity',fogDensity);this.setFloat(p,'uShip',1);
   if(state.shipWalkInterior){
     const right=V.norm(V.cross(state.shipForward,state.shipUp)),model=M.basis(right,state.shipUp,state.shipForward,V.sub(shipPos,origin));
     this.renderMesh(p,this.shipWalkDeck,model);
