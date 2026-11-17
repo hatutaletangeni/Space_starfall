@@ -103,7 +103,7 @@ function create(saved){
   const old=transactions.get(receipt.id);
   if(old){if(old.siteId!==deposit.id||old.massKg!==massKg)throw Error('Extraction receipt collision');return copy(old);}
   if(massKg>remaining(deposit)+1e-8)throw Error('Deposit depleted: insufficient accessible mass');
-  const record={id:receipt.id,siteId:deposit.id,massKg,destinationContainerId:receipt.destinationContainerId,provenance:'8D externally accounted extraction'};
+  const record={id:receipt.id,siteId:deposit.id,massKg,destinationContainerId:receipt.destinationContainerId,provenance:receipt.provenance||'8D externally accounted extraction'};
   used.set(deposit.id,(used.get(deposit.id)||0)+massKg);transactions.set(receipt.id,record);return copy(record);
  }
  function serialize(){return{schema:1,depletions:[...used].map(([id,massKg])=>({id,massKg})),
