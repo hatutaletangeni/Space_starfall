@@ -28,7 +28,7 @@ return mix(mix(mix(hash3(ix,iy,iz,seed),hash3(ix+1,iy,iz,seed),a),mix(hash3(ix,i
 function field(n,seed){let v=0,a=.55,k=2.9;for(let i=0;i<5;i++){v+=noise(n[0]*k+13,n[1]*k+27,n[2]*k+5,seed)*a;k*=2.03;a*=.49;}return v/1.06;}
 function craterRelief(n,planet){
  const craters=planet.impactCraters;if(!Array.isArray(craters)||!craters.length)return 0;
- let delta=0;for(const crater of craters){const angular=crater.radiusScene/Math.max(1,planet.radius),cos=V.clamp(V.dot(n,crater.direction),-1,1),distance=Math.acos(cos);
+ const bounded=craters.length>48?craters.slice(-48):craters;let delta=0;for(const crater of bounded){const angular=crater.radiusScene/Math.max(1,planet.radius),cos=V.clamp(V.dot(n,crater.direction),-1,1),distance=Math.acos(cos);
   if(distance>angular*1.55)continue;const x=distance/Math.max(1e-5,angular);
   const bowl=-crater.depthScene*Math.exp(-2.7*x*x),rim=crater.depthScene*.34*Math.exp(-Math.pow((x-1.04)/.18,2));delta+=bowl+rim;
  }return delta;
