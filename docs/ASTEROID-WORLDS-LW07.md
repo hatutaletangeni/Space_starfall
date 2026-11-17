@@ -31,3 +31,26 @@ This update adds a surface-capable class of large belt asteroids without changin
 ## Verification policy
 
 The new Node model tests cover stable asteroid body identity, finite resource transactions, survey gating, save/reload, crater scheduling and no-belt exclusion. Browser/WebGL smoke and visual quality must be reported separately from Node tests. No GPU visual pass is claimed until a real browser run completes.
+
+
+## Local verification commands
+
+Run from the repository root:
+
+\`\`\`bash
+# Run every existing and new Node regression/model test
+for test in tests/*.test.cjs; do node "$test"; done
+
+# Rebuild both offline deliverables and verify source parity
+python tools/build-standalone.py
+python tools/build-mobile-standalone.py
+python tests/standalone-parity.py
+python tests/mobile-standalone-parity.py
+
+# Optional browser smoke (requires Python Playwright + Chromium)
+python -m pip install playwright==1.56.0
+python -m playwright install chromium
+python tests/asteroid-worlds-lw07-browser.py
+\`\`\`
+
+The browser test uses software WebGL where available. It is not a substitute for checking the build on a real GPU and recording actual frame time on the target device.
