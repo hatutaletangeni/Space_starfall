@@ -60,5 +60,7 @@ for(let i=0;i<6;i++)full.advance(2,20000,{enabled:true});
 assert.throws(()=>full.commit(tiny,Resources.create()),/pouch is full/i);
 assert.equal(tiny.used(Mining.POUCH).massKg,0);
 assert.equal(Resources.create().remaining(deposit),100,'Failed capacity check cannot mint or deplete ore');
-assert.throws(()=>Mining.create({schema:90}),/Corrupt/i);
+const quarantined=Mining.create({schema:90},Materials,Resources);
+assert.equal(quarantined.recoveryRequired,true);
+assert.equal(quarantined.snapshot().recovery.original.schema,90);
 console.log('PASS LW07 finite EVA asteroid extraction, survey gate, power debit, pouch custody, physical transfer and save/reload');
