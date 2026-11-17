@@ -2,7 +2,7 @@ name: STARFALL LW07 asteroid worlds
 
 on:
   push:
-    branches: [work/asteroid-worlds-lw07]
+    branches: [work/asteroid-worlds-lw07, work/context-recovery-field-manual]
     paths-ignore:
       - PLAY-STARFALL.html
       - PLAY-STARFALL-MOBILE.html
