@@ -90,3 +90,19 @@ GitHub Actions automatically runs all checked-in Node tests and strict bundle re
 - `PLAY-STARFALL.html` — ready-to-open single-file offline game
 
 No compulsory missions, progression levels, credits economy or technology unlock gates are introduced by Update 7E.
+
+
+## LW07 — Landable asteroid worlds, mining and impacts
+
+The LW07 feature branch promotes a deterministic subset of existing asteroid-belt rocks into small surface worlds. It does not add stars or regenerate the galaxy.
+
+- **Major asteroids:** 7.5% of existing belt rocks are seeded as major, landable bodies with stable belt/index IDs, slow rotation, low gravity and vacuum surfaces. Smaller rocks and ring particles remain collision hazards.
+- **Surface resources:** Major asteroids use the existing CW01 composition, CW03 geology and 8C finite-deposit authority.
+- **EVA extraction:** Prospect with the EVA spectrometer, then extract a 2 kg core over 12 simulated seconds at 800 W (9.6 kJ). Material enters a 20 kg / 0.012 m³ EVA sample pouch. Walk back to the landed ship and transfer it into the existing 8A ship hold; no free inventory or remote transfer.
+- **Impacts:** Belt-bearing systems generate seeded historic crater fields and rare simulation-time asteroid impacts. A collision creates a transient 3D meteor trail and a permanent saved crater depression with a raised rim. Systems without belts do not receive asteroid-impact craters.
+- **Weather visuals:** Meteor, dust, volcanic, auroral, electrical and other planetary events receive 3D particle volumes/trails. Flat repeated-line CSS overlays are replaced by soft haze.
+- **Shattered bodies:** Planets and moons retain closed spherical geometry with fractured, cratered surfaces and debris; surface triangles are not removed to fake a broken world.
+
+The implementation adds asteroid-mining, asteroid-impact and renderer regression tests plus a standalone Chromium smoke test. The LW07 workflow checks all editable JavaScript, runs the Node suites, rebuilds both offline standalones and exercises the standalone in Chromium.
+
+**Verification status:** PASS — GitHub Actions completed JavaScript syntax checks, all Node regression/model suites, desktop and mobile standalone parity, and the Chromium software-WebGL browser smoke. Real-device GPU visual quality and frame-time performance remain NOT VERIFIED.

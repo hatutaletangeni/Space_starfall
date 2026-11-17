@@ -31,12 +31,46 @@ function beltRock(system,belt,rock,index,timeS){
  const angularDrift=(rnd(belt.id+':period:'+index)-.5)*.008*timeS/period;
  const a=phase+angularDrift,ca=Math.cos(a),sa=Math.sin(a);
  const x=rock[0]*ca-rock[2]*sa,z=rock[0]*sa+rock[2]*ca;
- // Use original cached debris body position (not a newly randomized orbit).
- const radius=Math.max(12,Math.min(250,Math.max(55,belt.radius*.0018)*rock[3]*.14));
- const spin=timeS*(.05+.27*rnd(belt.id+':spin:'+index));
+ // Preserve the original orbit and size distribution. A seeded 7.5% subset
+ // are major asteroids with enough radius for the existing ship landing loop.
+ const rawRadius=Math.max(12,Math.min(250,Math.max(55,belt.radius*.0018)*rock[3]*.14));
+ const landable=rnd(belt.id+':landable:'+index)<.075;
+ const radius=landable?Math.max(58,rawRadius):rawRadius;
+ const spinRate=landable ? .00004+.00016*rnd(belt.id+':spin:'+index):.05+.27*rnd(belt.id+':spin:'+index),spin=timeS*spinRate;
  return Object.freeze({id:belt.id+':rock:'+index,kind:'asteroid',position:[system.position[0]+x,system.position[1]+rock[1],system.position[2]+z],
-  radius,spin,axis:[.35+rnd(belt.id+':axisx:'+index),.25+rnd(belt.id+':axisy:'+index),.3+rnd(belt.id+':axisz:'+index)],
-  variant:index%8,estimatedDensityKgM3:1500+1300*rnd(belt.id+':rho:'+index),sourceId:belt.id});
+  radius,spin,spinRate,axis:[.35+rnd(belt.id+':axisx:'+index),.25+rnd(belt.id+':axisy:'+index),.3+rnd(belt.id+':axisz:'+index)],
+  variant:index%8,estimatedDensityKgM3:1500+1300*rnd(belt.id+':rho:'+index),sourceId:belt.id,
+  systemId:system.id,systemName:system.name,index,landable,major:landable});
+}
+function bodyFromRock(rock){
+ if(!rock?.landable||!Array.isArray(rock.position)||!Array.isArray(rock.axis))return null;
+ const density=Number.isFinite(rock.estimatedDensityKgM3)?rock.estimatedDensityKgM3:2200;
+ const radiusM=rock.radius*1000,gravityMS2=(4/3)*Math.PI*6.67430e-11*density*radiusM;
+ const spinRate=Number.isFinite(rock.spinRate)?rock.spinRate:.12;
+ return{id:rock.id,name:'Asteroid '+String(rock.index+1).padStart(3,'0'),kind:'asteroid',type:'Rocky',
+  seed:hash(rock.id),systemId:rock.systemId,system:rock.systemName||'Unknown system',
+  position:[...rock.position],radius:rock.radius,landable:true,gravity:gravityMS2/9.80665,
+  spinAngle:rock.spin,spinAxis:[...rock.axis],spinPeriod:TAU/spinRate,spinPhase:0,
+  atmosphere:'Vacuum',water:'Unsurveyed',life:false,ring:false,moons:[],sky:[.025,.035,.055],
+  asteroidSourceId:rock.sourceId,asteroidIndex:rock.index,densityKgM3:density,impactCraters:[],impactRevision:0};
+}
+function resolveBody(galaxy,id,timeS=0){
+ if(typeof id!=='string')return null;
+ const marker=':rock:',at=id.lastIndexOf(marker);if(at<1)return null;
+ const sourceId=id.slice(0,at),index=Number(id.slice(at+marker.length));
+ if(!Number.isSafeInteger(index)||index<0)return null;
+ const match=sourceId.match(/-belt\d*$/);if(!match)return null;
+ const systemId=sourceId.slice(0,match.index),system=galaxy?.byId?.get(systemId);
+ if(!system)return null;
+ if(system.dormant&&typeof galaxy.activate==='function')galaxy.activate(system);
+ const belt=(system.belts||[]).find(x=>x.id===sourceId);
+ if(!belt||!belt.rocks?.[index])return null;
+ return bodyFromRock(beltRock(system,belt,belt.rocks[index],index,timeS));
+}
+function refreshBody(galaxy,body,timeS=0){
+ if(!body||body.kind!=='asteroid')return body;
+ const fresh=resolveBody(galaxy,body.id,timeS);if(!fresh)return null;
+ Object.assign(body,fresh);return body;
 }
 function ringRock(body,index,timeS){
  if(!body?.ring)return null;
@@ -77,13 +111,13 @@ function nearby(galaxy,eye,timeS,maxDistance=18000){
  found.sort((a,b)=>dist2(a.position)-dist2(b.position));
  return Object.freeze(found.slice(0,55));
 }
-function proximity(rocks,eye,shipRadius=4){
+function proximity(rocks,eye,shipRadius=4,excludeId=null){
  if(!Array.isArray(rocks)||!Array.isArray(eye))return null;
  let closest=null;
- for(const item of rocks){const d=Math.hypot(...item.position.map((v,i)=>v-eye[i])),clearance=d-item.radius-shipRadius;
+ for(const item of rocks){if(excludeId&&item.id===excludeId)continue;const d=Math.hypot(...item.position.map((v,i)=>v-eye[i])),clearance=d-item.radius-shipRadius;
   if(!closest||clearance<closest.clearance)closest={rockId:item.id,sourceId:item.sourceId,clearance,collision:clearance<=0,category:item.kind};}
  return closest?Object.freeze(closest):null;
 }
-const API=Object.freeze({irregularMesh,beltRock,ringRock,nearby,proximity});root.StarfallDebrisLW05=API;
+const API=Object.freeze({irregularMesh,beltRock,bodyFromRock,resolveBody,refreshBody,ringRock,nearby,proximity});root.StarfallDebrisLW05=API;
 if(typeof module!=='undefined'&&module.exports)module.exports=API;
 })(globalThis);

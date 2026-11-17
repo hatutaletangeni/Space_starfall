@@ -7,6 +7,7 @@ const body={id:'stable-planet',kind:'planet',landable:true,type:'Rocky',seed:33}
 const frozen={id:'frozen-body',kind:'moon',landable:true,type:'Ice',seed:34};
 const airless={id:'airless-body',kind:'moon',landable:true,type:'Rocky',seed:35};
 const giant={id:'gas-giant',kind:'planet',landable:false,type:'Gas Giant',seed:36};
+const asteroid={id:'asteroid-A',kind:'asteroid',landable:true,type:'Rocky',seed:37,radius:72,gravity:.001,atmosphere:'Vacuum'};
 assert.equal(Resources.site(giant,[0,1,0],742),null,'No solid ore sites on gas giants');
 assert.deepEqual(Resources.tiles([2,2,2]),Resources.tiles([1,1,1]));
 assert.deepEqual(Resources.site(body,[1,0,0],742),Resources.site(body,[1,0,0],742));
@@ -20,6 +21,10 @@ for(const d of existing){
 assert.ok(!Resources.neighbors(airless,[1,0,0],742,4).some(x=>x.type==='carbon_feed'),'Airless rocky world has no fake atmospheric carbon supply');
 const ice=Resources.neighbors(frozen,[.4,.8,.2],742,5);
 assert.ok(ice.some(x=>x.type==='water_ice'),'Ice body has local water-bearing deposit candidates');
+const asteroidSites=Resources.neighbors(asteroid,[.8,.3,.5],742,4);
+assert.ok(asteroidSites.length>0,'Landable asteroid should expose deterministic finite deposits');
+for(const site of asteroidSites){assert.equal(site.bodyId,asteroid.id);assert.ok(site.radiusScene<7&&site.depthMaxM<=17);assert.deepEqual(Resources.site(asteroid,site.local,742),site);}
+assert.equal(Resources.site({...asteroid,landable:false},[1,0,0],742),null,'Non-landable small debris cannot be drilled');
 const d=existing[0],store=Resources.create();
 assert.equal(store.remaining(d),d.accessibleMassKg);
 const report=store.survey(d,120,'EVA field spectrometer');

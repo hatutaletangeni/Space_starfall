@@ -28,7 +28,7 @@ function check(x){const a=Object.values(x);return a.length===0||Math.abs(a.reduc
 function interpolate(prior,seed,id){const entries=Object.entries(prior),altered={};for(const [name,frac] of entries)altered[name]=frac*(.91+.18*unit(seed,id,name));return fractions(altered);}
 function starFor(star,seed=742){if(!star||!star.id)throw Error('Expected an existing star ID');const metal=.008+.024*unit(seed,star.id,'stellar-metallicity');const helium=.225+.09*unit(seed,star.id,'stellar-helium');const elements=fractions({H:1-helium-metal,He:helium,metals:metal});
 return FREEZE({schema:VERSION,id:star.id,kind:'star',legacyType:star.type,elementMassFractions:elements,metallicityMassFraction:elements.metals,provenance:'seeded stellar abundance prior (not spectroscopic measurement)',uncertainty:'high',generationKey:seed+':'+star.id+':'+VERSION});}
-function bodyFor(body,seed=742,context={}){if(!body||!body.id||!['planet','moon'].includes(body.kind))throw Error('Expected existing planet/moon ID');
+function bodyFor(body,seed=742,context={}){if(!body||!body.id||!['planet','moon','asteroid'].includes(body.kind))throw Error('Expected existing planet, moon or stable asteroid ID');
  const type=compatible.includes(body.type)?body.type:'Rocky',giant=type==='Gas Giant',p=interpolate(mixtures[type],seed,body.id);
  const parentType=context.parentType||null;
  // Legacy moon surfaces remain interpreted by their own type; no body-class or terrain rewriting.
@@ -40,7 +40,7 @@ function bodyFor(body,seed=742,context={}){if(!body||!body.id||!['planet','moon'
  });
  // Legacy moon-atmosphere text is not trustworthy pressure evidence. The existing
  // physics model reports vacuum for moons; interpretation must therefore be vacuum.
- const vacuum=body.kind==='moon'||type==='Rocky'||type==='Shattered'||body.atmosphere==='Vacuum / debris field';
+ const vacuum=body.kind==='moon'||body.kind==='asteroid'||type==='Rocky'||type==='Shattered'||body.atmosphere==='Vacuum / debris field';
  const atmosphereMoleFractions=vacuum?FREEZE({}):interpolate(atmosphereTemplates[type],seed,body.id+':atm');
  const layers=giant?FREEZE({envelopeMassFraction:p.gas,condensateMassFraction:p.ice,deepInteriorMassFraction:p.rock}):FREEZE({crustMantleSilicateMassFraction:p.silicate,coreMetalMassFraction:p.metal,bulkVolatileMassFraction:p.volatile});
  const profile=FREEZE({schema:VERSION,id:body.id,seed,kind:body.kind,legacyType:body.type,parentType,landable:!!body.landable,

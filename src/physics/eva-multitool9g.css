@@ -54,3 +54,6 @@ body.sfmobile-edition #multitool9g-close{display:none}
 body.sfmobile-edition #multitool9g-open{right:10px;bottom:16px;padding:13px 14px;z-index:31}
 body.sfmobile-edition #multitool9g-panel{right:7px;bottom:63px;width:min(340px,calc(100vw - 14px));
  max-height:calc(100dvh - 78px);z-index:46;padding:12px}
+
+.multitool9g-asteroid{margin-top:13px;padding:11px;border:1px solid #c39a5b88;border-radius:5px;background:#2b241a66;color:#f4ddb3}
+.multitool9g-asteroid[hidden]{display:none!important}.multitool9g-asteroid>strong{font-size:10px;letter-spacing:.7px}.multitool9g-asteroid p{min-height:28px;color:#c6b69a;font:10px/1.55 Consolas,monospace}.multitool9g-asteroid button:disabled{opacity:.4;cursor:not-allowed}

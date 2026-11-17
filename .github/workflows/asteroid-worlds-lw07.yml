@@ -1,0 +1,81 @@
+name: STARFALL LW07 asteroid worlds
+
+on:
+  push:
+    branches: [work/asteroid-worlds-lw07]
+    paths-ignore:
+      - PLAY-STARFALL.html
+      - PLAY-STARFALL-MOBILE.html
+
+permissions:
+  contents: write
+
+concurrency:
+  group: asteroid-worlds-lw07-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Check every editable JavaScript source
+        shell: bash
+        run: |
+          set -eu
+          find src -type f -name '*.js' -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
+      - name: Run all Node regression and model suites
+        shell: bash
+        run: |
+          set -eu
+          for test in tests/*.test.cjs; do
+            echo "RUN $test"
+            node "$test"
+          done
+      - name: Build both offline standalones
+        run: |
+          python tools/build-standalone.py
+          python tools/build-mobile-standalone.py
+          python tests/standalone-parity.py
+          python tests/mobile-standalone-parity.py
+      - name: Install browser test runtime
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: Test LW07 in the actual standalone browser
+        run: python tests/asteroid-worlds-lw07-browser.py
+      - name: Commit synchronized offline builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF#refs/heads/}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin "$branch"
+            git reset --hard "origin/$branch"
+            python tools/build-standalone.py
+            python tools/build-mobile-standalone.py
+            python tests/standalone-parity.py
+            python tests/mobile-standalone-parity.py
+            python tests/asteroid-worlds-lw07-browser.py
+            if git diff --quiet -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html; then
+              exit 0
+            fi
+            git add PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
+            git commit -m "Build offline standalones for asteroid worlds LW07"
+            if git push origin "HEAD:$branch"; then
+              exit 0
+            fi
+            echo "Branch advanced during bundle commit; retrying from the latest remote state."
+          done
+          exit 1

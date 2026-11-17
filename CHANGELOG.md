@@ -1,3 +1,15 @@
+# STARFALL — LW07: Asteroid Worlds, Extraction, Impacts & Weather Visuals
+
+- Promoted a deterministic 7.5% subset of existing belt rocks into stable landable asteroid bodies; small rocks and ring particles remain hazards.
+- Added asteroid surface prospecting and finite 2 kg EVA extraction using the existing composition/geology/resource ledger, a powered 20 kg suit pouch and physical transfer to the ship hold.
+- Added belt-population-dependent historic craters and rare simulation-time asteroid impacts with transient 3D meteor visuals and persistent crater heightfields.
+- Replaced flat weather-event streak overlays with soft haze and 3D particle volumes/trails.
+- Closed the missing faces on shattered planets/moons and added dark fractured materials, seeded scars and impact relief.
+- Added model, source integration and standalone browser tests; the workflow rebuilds desktop and mobile offline bundles.
+- **Verification:** PASS — syntax, Node regression/model tests, both standalone parity checks and Chromium software-WebGL smoke completed. Real-device GPU visuals/performance remain NOT VERIFIED.
+
+---
+
 # STARFALL T19A — Optional RF Link Budget, Telemetry Trace and Diagnostic Recovery (2026-11-02)
 
 - **Experimental P3 preview only**, based on fully verified T18 but NOT a full T19 technology suite and NOT a substitute for missing T18 complete two-planet mission. No merge to `main`.
