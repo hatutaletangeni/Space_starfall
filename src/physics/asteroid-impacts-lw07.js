@@ -71,8 +71,8 @@ function create(saved){
   const window=Math.floor(timeS/PERIOD_S),first=Math.max(0,window-6);
   let active=null,changed=false;
   for(let w=first;w<=window;w++){
-   const event=scheduled(body,system,w,seed);if(!event||timeS<event.impactTimeS)continue;
-   if(!records.has(event.id)){
+   const event=scheduled(body,system,w,seed);if(!event)continue;
+   if(timeS>=event.impactTimeS&&!records.has(event.id)){
     records.set(event.id,{id:event.id,bodyId:body.id,direction:[...event.direction],
      radiusScene:event.radiusScene,depthScene:event.depthScene,createdAtS:event.impactTimeS,
      energyJ:event.energyJ,massKg:event.massKg,source:event.source});
