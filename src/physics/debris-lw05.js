@@ -36,7 +36,7 @@ function beltRock(system,belt,rock,index,timeS){
  const rawRadius=Math.max(12,Math.min(250,Math.max(55,belt.radius*.0018)*rock[3]*.14));
  const landable=rnd(belt.id+':landable:'+index)<.075;
  const radius=landable?Math.max(58,rawRadius):rawRadius;
- const spinRate=landable?.00004+.00016*rnd(belt.id+':spin:'+index):.05+.27*rnd(belt.id+':spin:'+index),spin=timeS*spinRate;
+ const spinRate=landable ? .00004+.00016*rnd(belt.id+':spin:'+index):.05+.27*rnd(belt.id+':spin:'+index),spin=timeS*spinRate;
  return Object.freeze({id:belt.id+':rock:'+index,kind:'asteroid',position:[system.position[0]+x,system.position[1]+rock[1],system.position[2]+z],
   radius,spin,spinRate,axis:[.35+rnd(belt.id+':axisx:'+index),.25+rnd(belt.id+':axisy:'+index),.3+rnd(belt.id+':axisz:'+index)],
   variant:index%8,estimatedDensityKgM3:1500+1300*rnd(belt.id+':rho:'+index),sourceId:belt.id,
