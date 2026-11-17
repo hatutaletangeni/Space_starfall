@@ -16,16 +16,18 @@ function prepareContainers(materials){
  return materials;
 }
 function normalize(saved){
- if(saved==null)return{schema:1,sequence:0,active:null,history:[]};
- if(saved.schema!==1||!Number.isSafeInteger(saved.sequence)||saved.sequence<0||
+ if(saved==null)return{schema:1,sequence:0,active:null,history:[],recovery:null};
+ const invalid=saved.schema!==1||!Number.isSafeInteger(saved.sequence)||saved.sequence<0||
   !Array.isArray(saved.history)||saved.history.length>500||
   !saved.history.every(x=>validId(x.id)&&typeof x.status==='string')||
   (saved.active!==null&&saved.active!==undefined&&(!validId(saved.active.id)||
    saved.active.type!=='EVA_ASTEROID'||!validId(saved.active.bodyId)||!validId(saved.active.siteId)||
    !finite(saved.active.elapsedS)||!finite(saved.active.energyJ)||!finite(saved.active.durationS)||
-   !saved.active.deposit||!validId(saved.active.deposit.id))))
-  throw Error('Corrupt LW07 asteroid-mining save — do not reset the sample inventory');
- return{schema:1,sequence:saved.sequence,active:saved.active?clone(saved.active):null,history:clone(saved.history)};
+   !saved.active.deposit||!validId(saved.active.deposit.id)));
+ if(invalid)return{schema:1,sequence:0,active:null,history:[],recovery:{status:'quarantined',
+  reason:'Invalid LW07 asteroid-mining archive; original payload preserved',original:clone(saved)}};
+ return{schema:1,sequence:saved.sequence,active:saved.active?clone(saved.active):null,
+  history:clone(saved.history),recovery:saved.recovery?clone(saved.recovery):null};
 }
 function create(saved,Materials,Resources){
  let state=normalize(saved);
@@ -89,7 +91,7 @@ function create(saved,Materials,Resources){
  }
  return Object.freeze({start,advance,cancel,commit,transfer,snapshot,
   apply:saved=>{state=normalize(saved);},get active(){return state.active?clone(state.active):null;},
-  get history(){return state.history.map(clone);}});
+  get history(){return state.history.map(clone);},get recoveryRequired(){return !!state.recovery;}});
 }
 root.StarfallAsteroidMiningLW07=Object.freeze({POUCH,SHIP,LIMITS,BATCH,prepareContainers,create});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallAsteroidMiningLW07;
