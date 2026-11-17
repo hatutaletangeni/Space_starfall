@@ -1,8 +1,8 @@
 'use strict';
 const assert=require('node:assert/strict');
 const Impacts=require('../src/physics/asteroid-impacts-lw07.js');
-const system={id:'system-A',belts:[{id:'system-A-belt0',rocks:Array.from({length:420},(_,i)=>i)}]};
 const body={id:'system-A-p0',kind:'planet',type:'Rocky',radius:1200,seed:42};
+const system={id:'system-A',belts:[{id:'system-A-belt0',rocks:Array.from({length:420},(_,i)=>i)}],bodies:[body]};
 const noBelt={id:'system-B',belts:[]};
 const untouched={id:'system-B-p0',kind:'planet',type:'Rocky',radius:900,seed:77};
 const shattered={id:'system-B-p1',kind:'moon',type:'Shattered',radius:400,seed:78};
