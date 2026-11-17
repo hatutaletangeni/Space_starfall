@@ -1141,6 +1141,14 @@ class Renderer{
     const geometry=this.geometry(body,lod);applyLight(p,body);const nearPatch=body===this.patchPlanet&&alt<340;const caveOcclusion=state.interior?.kind==='cave'&&body===near;if(!nearPatch&&!caveOcclusion)this.renderMesh(p,geometry.world,this.spinModel(body,rel));this.renderedBodies++;rendered.push({body,rel,dist,geometry,lod});if(body.ring&&dist<body.radius*130&&pixels>4)rings.push({body,rel});
    }
   }
+  if(near?.kind==='asteroid'&&near.landable){
+   const rel=V.sub(near.position,origin),dist=V.len(rel),pixels=near.radius/Math.max(1,dist-near.radius)*renderH;
+   if((dist<1600000&&V.dot(V.norm(rel),cam.forward)>-.26)||dist<near.radius*1.8){
+    const lod=pixels>180?2:pixels>30?1:0,geometry=this.geometry(near,lod),nearPatch=near===this.patchPlanet&&alt<340;
+    applyLight(p,near);if(!nearPatch)this.renderMesh(p,geometry.world,this.spinModel(near,rel));
+    this.renderedBodies++;rendered.push({body:near,rel,dist,geometry,lod});
+   }
+  }
   if(this.patchPlanet&&alt<340&&state.interior?.kind!=='cave'){applyLight(p,this.patchPlanet);const model=this.spinModel(this.patchPlanet,V.sub(this.patchPlanet.position,origin));
     for(const tile of this.activeTerrain){this.renderMesh(p,tile.ground,model);if(tile.props)this.renderMesh(p,tile.props,model);}
      if(root.StarfallHydrosphereLW04?.material(this.patchPlanet,this.galaxy.seed)){
@@ -1192,6 +1200,7 @@ class Renderer{
     p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);
     applyLight(p,near);this.setVec(p,'uFogColor',[.005,.007,.01]);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',1);
     for(const rock of rockSet){
+     if(near?.kind==='asteroid'&&rock.id===near.id)continue;
      const delta=V.sub(rock.position,origin);
      if(V.dot(delta,cam.forward)<-rock.radius)continue;
      this.renderMesh(p,this.debrisMeshes[rock.variant],M.mul(M.spin(delta,rock.axis,rock.spin),M.scaleTranslate([0,0,0],rock.radius)));
