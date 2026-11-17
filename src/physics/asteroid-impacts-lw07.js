@@ -62,10 +62,11 @@ function scheduled(body,system,window,seed){
   depthScene:radiusScene*(.18+unit(key+':depth')*.16),massKg,velocityMS,energyJ,
   source:'system-asteroid-belt',window});
 }
+function safeClone(value){try{return JSON.parse(JSON.stringify(value));}catch(_error){return{unreadable:true};}}
 function create(saved){
- if(saved!=null&&(saved.schema!==VERSION||!Array.isArray(saved.craters)||saved.craters.length>MAX_RECORDS||!saved.craters.every(validRecord)))
-  throw Error('Corrupt LW07 impact archive — preserve the original save');
- const records=new Map((saved?.craters||[]).map(x=>[x.id,{...x,direction:[...x.direction]}]));
+ const invalid=saved!=null&&(saved.schema!==VERSION||!Array.isArray(saved.craters)||saved.craters.length>MAX_RECORDS||!saved.craters.every(validRecord));
+ const recovery=invalid?{status:'quarantined',reason:'Invalid LW07 impact archive; original payload preserved',original:safeClone(saved)}:(saved?.recovery||null);
+ const records=new Map((invalid?[]:(saved?.craters||[])).map(x=>[x.id,{...x,direction:[...x.direction]}]));
  function step(body,system,timeS,seed=742){
   if(!body||!Number.isFinite(timeS)||timeS<0||!['planet','moon'].includes(body.kind))return null;
   const window=Math.floor(timeS/PERIOD_S),first=Math.max(0,window-6);
@@ -90,9 +91,9 @@ function create(saved){
   }
   return active;
  }
- function serialize(){return{schema:VERSION,craters:[...records.values()].map(x=>({...x,direction:[...x.direction]}))};}
+ function serialize(){return{schema:VERSION,craters:[...records.values()].map(x=>({...x,direction:[...x.direction]})),recovery:safeClone(recovery)};}
  return Object.freeze({step,serialize,staticCraters,attachSystem,
-  get craterCount(){return records.size;}});
+  get craterCount(){return records.size;},get recoveryRequired(){return !!recovery;}});
 }
 root.StarfallAsteroidImpactsLW07=Object.freeze({VERSION,PERIOD_S,staticCraters,scheduled,attachSystem,create,direction});
 if(typeof module!=='undefined'&&module.exports)module.exports=root.StarfallAsteroidImpactsLW07;
