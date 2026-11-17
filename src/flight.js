@@ -1254,7 +1254,7 @@ function updateDebrisHazards(now){
  const D=window.StarfallDebrisLW05;
  if(!D||eva||landed||warp||truckOccupied||busy()||now-debrisLastCheckMS<65)return;
  debrisLastCheckMS=now;
- const rocks=D.nearby(galaxy,pos,simTime,520),risk=D.proximity(rocks,pos,4);
+ const rocks=D.nearby(galaxy,pos,simTime,520),risk=D.proximity(rocks,pos,4,nearest?.kind==='asteroid'?nearest.id:null);
  latestDebrisWarning=risk;
  if(!risk)return;
  if(risk.clearance<150&&now-debrisLastToastMS>11000){
