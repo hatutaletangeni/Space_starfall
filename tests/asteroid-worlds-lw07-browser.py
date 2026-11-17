@@ -41,7 +41,7 @@ async def main():
           const pouch=mats.used(window.StarfallAsteroidMiningLW07.POUCH);
           const impactModel=window.StarfallAsteroidImpactsLW07.create();
           impactModel.attachSystem(system,g.seed);
-          const planet=system.bodies.find(x=>x.kind==='planet'&&x.landable);
+          const planet=system.bodies.find(x=>(x.kind==='planet'||x.kind==='moon')&&x.landable);
           const noBelt=g.systems.find(x=>!(x.belts||[]).length);
           const noBeltPlanet=noBelt&&noBelt.bodies.find(x=>x.kind==='planet'&&x.type!=='Shattered');
           const noBeltCraters=noBeltPlanet?window.StarfallAsteroidImpactsLW07.staticCraters(noBeltPlanet,noBelt,g.seed).length:0;
