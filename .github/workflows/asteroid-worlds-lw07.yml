@@ -6,6 +6,11 @@ on:
     paths-ignore:
       - PLAY-STARFALL.html
       - PLAY-STARFALL-MOBILE.html
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - PLAY-STARFALL.html
+      - PLAY-STARFALL-MOBILE.html
 
 permissions:
   contents: write
@@ -57,7 +62,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch="${GITHUB_REF#refs/heads/}"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            branch="${GITHUB_HEAD_REF}"
+          else
+            branch="${GITHUB_REF#refs/heads/}"
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for attempt in 1 2 3; do
