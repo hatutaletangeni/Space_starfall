@@ -958,8 +958,8 @@ class Renderer{
   const axis=body.spinAxis||[0,1,0],spin=body.spinAngle||0,local=e.direction,
    up=V.norm(V.rot(local,axis,spin)),surface=V.add(body.position,V.mul(up,body.radius+groundHeight(local,body)+.7)),
    incoming=V.norm(e.incoming||up),side=V.norm(V.cross(incoming,up)),phase=V.clamp(e.phase||0,0,1),
-   travel=V.clamp(phase/.615,0,1),start=V.add(surface,V.mul(incoming,e.radiusScene*22)),head=V.add(start,V.mul(V.sub(surface,start),travel)),verts=[];
-  const add=(point,size,color,alpha)=>{const rel=V.sub(point,eye);if(V.len(rel)>5000||V.dot(rel,state.camera.forward)<-12)return;verts.push(rel[0],rel[1],rel[2],size,color[0],color[1],color[2],alpha);};
+   travel=V.clamp(phase/.615,0,1),start=V.add(surface,V.mul(incoming,e.radiusScene*22)),head=V.add(start,V.mul(V.sub(surface,start),travel)),verts=this.eventScratch;let count=0;
+  const add=(point,size,color,alpha)=>{if(count>=256)return;const rel=V.sub(point,eye);if(V.len(rel)>5000||V.dot(rel,state.camera.forward)<-12)return;const i=count++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=size;verts[i+4]=color[0];verts[i+5]=color[1];verts[i+6]=color[2];verts[i+7]=alpha;};
   for(let i=0;i<32;i++){const q=i/31,point=V.add(head,V.add(V.mul(incoming,e.radiusScene*q*2.1),V.mul(side,Math.sin(q*18+this.galaxy.time)*e.radiusScene*.35)));
    add(point,e.radiusScene*(.18+.18*q),[1,.40+.25*q,.12],.8*(1-q*.75));}
   add(head,e.radiusScene*1.15,[1,.86,.55],.95);
@@ -967,10 +967,10 @@ class Renderer{
    for(let i=0;i<48;i++){const a=i/48*Math.PI*2,point=V.add(surface,V.add(V.mul(side,Math.cos(a)*radius),V.mul(V.cross(up,side),Math.sin(a)*radius)));
     add(point,1.2+flash*2.4,[1,.57,.24],(1-flash*.65)*.72);}
   }
-  if(!verts.length)return;const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
-  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  if(!count)return;const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,verts,gl.DYNAMIC_DRAW);
   gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.bindVertexArray(this.effectVao);
-  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;
+  gl.drawArrays(gl.POINTS,0,count);this.frameDrawCalls++;this.effectsRendered+=count;
   gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(true);
  }
  // LW06 auroral curtains depend on atmospheric pressure, magnetic field and
