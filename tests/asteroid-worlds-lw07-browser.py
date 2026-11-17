@@ -33,7 +33,6 @@ async def main():
           const body=D.bodyFromRock(rock),restored=D.resolveBody(g,body.id,g.time);
           if(!body||!body.landable||body.kind!=='asteroid'||restored.id!==body.id)
             throw new Error('Major asteroid did not restore as a landable stable body');
-          rt.setTarget(body.id);
           const mining=rt.asteroidMiningContextLW07();
           if(mining.available)throw new Error('Mining must remain gated until landed EVA');
           const Materials=window.StarfallMaterials8A,Mining8D=window.StarfallMining8D;
