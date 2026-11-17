@@ -2680,7 +2680,7 @@ class Renderer{
  geometry(body,lod){const key=body.id+':'+lod+':'+(body.impactRevision||0);let cached=this.meshCache.get(key);if(cached){if(lod===2&&body.landable&&body.kind!=='asteroid'&&!cached.atmo&&(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)cached.atmo=makeSphere(this.gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);this.meshCache.delete(key);this.meshCache.set(key,cached);return cached;}
   const gl=this.gl,detail=body.kind==='asteroid'?(lod===2?[56,112]:lod===1?[28,56]:[14,28]):lod===2?[80,160]:lod===1?[36,72]:[16,32];cached={world:makeSphere(gl,body.radius,...detail,body,true),atmo:null,cloud:null};
   if(lod===2&&body.landable&&body.kind!=='asteroid'&&(body.kind!=='moon'||(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)){cached.atmo=makeSphere(gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);if(['Temperate','Ocean','Lush','Ice'].includes(body.type))cached.cloud=makeSphere(gl,body.radius+Math.min(114,body.radius*.06),28,56,body,false);}
-  this.meshCache.set(key,cached);while(this.meshCache.size>this.meshBudget){const oldest=this.meshCache.keys().next().value,old=this.meshCache.get(oldest);this.freeMesh(old.world);this.freeMesh(old.atmo);this.freeMesh(old.cloud);this.meshCache.delete(oldest);}return cached;
+  this.meshCache.set(key,cached);return cached;
  }
  ringMesh(body){let mesh=this.ringCache.get(body.id);if(mesh){this.ringCache.delete(body.id);this.ringCache.set(body.id,mesh);return mesh;}
   const p=[],n=[],c=[],indices=[],segments=128,bands=44,sin=Math.sin(body.ringTilt),cos=Math.cos(body.ringTilt);
@@ -3035,7 +3035,7 @@ class Renderer{
     const u=V.norm(item.up),f=V.norm(V.sub(item.forward,V.mul(u,V.dot(item.forward,u)))),r=V.norm(V.cross(f,u));this.renderMesh(p,mesh,M.basis(r,u,f,V.sub(item.position,origin)));
    }
   }
-  gl.bindVertexArray(null);this.lastDrawCalls=this.frameDrawCalls;
+  gl.bindVertexArray(null);this.lastDrawCalls=this.frameDrawCalls;while(this.meshCache.size>this.meshBudget){const oldest=this.meshCache.keys().next().value,old=this.meshCache.get(oldest);this.freeMesh(old.world);this.freeMesh(old.atmo);this.freeMesh(old.cloud);this.meshCache.delete(oldest);}
  }
  // 7F: World-only capture. The SAME scene renderer, shaders and planet mesh
  // are drawn to a bounded offscreen RGBA8/depth framebuffer; HUD is never captured.
