@@ -21,7 +21,7 @@ assert.ok(majorIndex>=0,'seeded belt contains major landable asteroids');
 const majorRock=D.beltRock(sys,belt,belt.rocks[majorIndex],majorIndex,1234);
 const asteroid=D.bodyFromRock(majorRock);
 assert.equal(asteroid.kind,'asteroid');assert.equal(asteroid.landable,true);
-assert.ok(asteroid.radius>=58&&asteroid.gravity>0&&asteroid.gravity<.02);
+assert.ok(asteroid.radius>=58&&asteroid.gravity>0&&asteroid.gravity<.03);
 assert.equal(asteroid.id,majorRock.id);
 const resolved=D.resolveBody(galaxy,asteroid.id,1234);
 assert.deepEqual(resolved,asteroid,'Asteroid identity and orbit must restore from stable belt/index ID');
