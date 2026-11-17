@@ -3679,7 +3679,7 @@ function asteroidMiningContextLW07(){
  const pouch=materials8a.used(StarfallAsteroidMiningLW07.POUCH),active=asteroidMiningLW07.active;
  return{available,bodyId:body?.id||null,deposit,surveyed:!!survey,depositLabel:deposit?.label||'No local deposit',
   remainingKg:deposit?resources8c.remaining(deposit):0,nearDeposit:distance<=Math.max(12,(body?.radius||0)*.035),
-  nearShip:shipDistance<=30,pouchMassKg:pouch.massKg,active:active?{...active,progress:V.clamp(active.elapsedS/active.durationS,0,1)}:null};
+  nearShip:shipDistance<=40,pouchMassKg:pouch.massKg,active:active?{...active,progress:V.clamp(active.elapsedS/active.durationS,0,1)}:null};
 }
 function asteroidSurveyLW07(local=evaLocal){
  const ctx=asteroidMiningContextLW07();if(!ctx.available||!local)throw Error('Exit the ship onto a landable asteroid before prospecting');
