@@ -42,12 +42,13 @@ function groundHeight(n,planet,value){
  const base=Math.max(0,e-sea),height=Math.min(110,3+Math.pow(base,1.3)*158+Math.max(0,detail-.5)*11);
  return height+craterRelief(n,planet);
 }
-function shade(n,h,planet,value,biome){if(planet.landable)return BIOMES.color(planet,n,h,value??field(n,planet.seed),biome);const t=planet.type;const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
-let c;
+function shade(n,h,planet,value,biome){const t=planet.type;
 if(t==='Shattered'){
  const fracture=V.clamp((h+18)/92,0,1),vein=Math.max(0,noise(n[0]*43+7,n[1]*43-4,n[2]*43+12,planet.seed+311)-.61);
- c=V.mix([.035,.045,.060],[.39,.32,.26],fracture);c=V.mix(c,[.72,.49,.30],vein*.55);return c;
+ let c=V.mix([.035,.045,.060],[.39,.32,.26],fracture);c=V.mix(c,[.72,.49,.30],vein*.55);return c;
 }
+if(planet.landable)return BIOMES.color(planet,n,h,value??field(n,planet.seed),biome);const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
+let c;
 if(t==='Gas Giant'){const bands=Math.sin(n[1]*57+field(n,planet.seed)*17),storm=Math.sin(n[0]*22+n[2]*29+field(n,planet.seed)*25);return V.mix([.37,.23,.18],[.84,.71,.49],V.clamp(.49+.28*bands+.09*storm,0,1));}
 if(['Temperate','Lush','Ocean'].includes(t)&&h<1){const shallow=V.clamp((e-sea+.12)*3,0,1);c=V.mix([.038,.097,.161],[.11,.20,.27],shallow);}
 else if(t==='Volcanic')c=V.mix([.16,.125,.125],[.43,.22,.14],V.clamp(h/75,0,1));
