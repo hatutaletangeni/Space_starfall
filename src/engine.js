@@ -44,6 +44,10 @@ function groundHeight(n,planet,value){
 }
 function shade(n,h,planet,value,biome){if(planet.landable)return BIOMES.color(planet,n,h,value??field(n,planet.seed),biome);const t=planet.type;const e=value??field(n,planet.seed),sea=t==='Ocean'?.56:t==='Temperate'?.47:t==='Lush'?.48:.19;
 let c;
+if(t==='Shattered'){
+ const fracture=V.clamp((h+18)/92,0,1),vein=Math.max(0,noise(n[0]*43+7,n[1]*43-4,n[2]*43+12,planet.seed+311)-.61);
+ c=V.mix([.035,.045,.060],[.39,.32,.26],fracture);c=V.mix(c,[.72,.49,.30],vein*.55);return c;
+}
 if(t==='Gas Giant'){const bands=Math.sin(n[1]*57+field(n,planet.seed)*17),storm=Math.sin(n[0]*22+n[2]*29+field(n,planet.seed)*25);return V.mix([.37,.23,.18],[.84,.71,.49],V.clamp(.49+.28*bands+.09*storm,0,1));}
 if(['Temperate','Lush','Ocean'].includes(t)&&h<1){const shallow=V.clamp((e-sea+.12)*3,0,1);c=V.mix([.038,.097,.161],[.11,.20,.27],shallow);}
 else if(t==='Volcanic')c=V.mix([.16,.125,.125],[.43,.22,.14],V.clamp(h/75,0,1));
@@ -223,7 +227,7 @@ void main(){vec2 xy=(uv-1.)*vec2(uAspect,1.)*uTan;vec3 ray=normalize(uForward+xy
 function makeMesh(gl,positions,normals,colors,indices){const vao=gl.createVertexArray();gl.bindVertexArray(vao);const data=new Float32Array(positions.length+normals.length+colors.length);for(let i=0,j=0;i<positions.length;i+=3){data[j++]=positions[i];data[j++]=positions[i+1];data[j++]=positions[i+2];data[j++]=normals[i];data[j++]=normals[i+1];data[j++]=normals[i+2];data[j++]=colors[i];data[j++]=colors[i+1];data[j++]=colors[i+2];}
 const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);for(let i=0;i<3;i++){gl.enableVertexAttribArray(i);gl.vertexAttribPointer(i,3,gl.FLOAT,false,36,i*12);}let ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);let idx=indices.length>65535?new Uint32Array(indices):new Uint16Array(indices);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);gl.bindVertexArray(null);return{vao,vb,ib,count:idx.length,indexType:idx instanceof Uint32Array?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT};}
 function makeSphere(gl,r,rows,cols,planet,withTerrain){let p=[],n=[],c=[],idx=[];for(let i=0;i<=rows;i++){const lat=-Math.PI/2+Math.PI*i/rows,cl=Math.cos(lat);for(let j=0;j<=cols;j++){const lon=j/cols*Math.PI*2,d=[Math.sin(lon)*cl,Math.sin(lat),Math.cos(lon)*cl];const e=withTerrain?field(d,planet.seed):0;const h=withTerrain?groundHeight(d,planet,e):0;p.push(d[0]*(r+h),d[1]*(r+h),d[2]*(r+h));n.push(...d);c.push(...(withTerrain?shade(d,h,planet,e):[1,1,1]));}}
-for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;if(planet.type==='Shattered'&&withTerrain){const longitude=j/cols*6.28318,latitude=i/rows*3.14159;if((longitude>1.2&&longitude<2.4&&latitude>.52&&latitude<2.35)||(longitude>4.6&&longitude<5.18&&latitude<2.5))continue;}idx.push(a,a+1,b,a+1,b+1,b);}return makeMesh(gl,p,n,c,idx);}
+for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;idx.push(a,a+1,b,a+1,b+1,b);}return makeMesh(gl,p,n,c,idx);}
 // Smoothed heightfield normals match actual triangle slopes rather than assuming a
 // perfectly spherical planet. They also eliminate apparent flickering faceted hills.
 function smoothNormals(positions,indices){
