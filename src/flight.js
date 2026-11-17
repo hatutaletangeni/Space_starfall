@@ -517,7 +517,7 @@ function tangentOffsetLocal(body,localRadial,worldForward,forwardMeters,rightMet
  return V.rot(d,axis,-(body.spinAngle||0));
 }
 function placeRoverNearShip(){
- if(!shipBody||!shipLocal)return;
+ if(!shipBody||!shipLocal||shipBody.kind==='asteroid')return;
  const deploy=(id,front,right)=>{const a=physical8a.get(id);if(!a)return null;
   if(a.location.kind==='ship'){const local=tangentOffsetLocal(shipBody,shipLocal,shipForwardVec,front,right);
    physical8a.move(id,{kind:'surface',bodyId:shipBody.id,local},'initial-deploy:'+id,{expected:a.location});return local;}
@@ -537,7 +537,7 @@ function exitShip(){
  shipWalking8e=false;
  const ns=surfaceData(nearest,pos),axis=nearest.spinAxis||[0,1,0],radial=ns.dir;
  shipBody=nearest;shipLocal=V.rot(radial,axis,-(nearest.spinAngle||0));shipForwardVec=[...forward];shipUpVec=[...up];
- if(!roverBody||roverBody!==nearest||!roverLocal)placeRoverNearShip();
+ if(nearest.kind!=='asteroid'&&(!roverBody||roverBody!==nearest||!roverLocal))placeRoverNearShip();
  const hatchLocal=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-30,0);
  const groundLocalEVA=tangentOffsetLocal(nearest,shipLocal,shipForwardVec,-37,0);
  const evacDir=V.norm(V.rot(hatchLocal,axis,nearest.spinAngle||0));
@@ -620,7 +620,7 @@ function engineeringTouchdown(ns){
  pos=V.add(nearest.position,V.mul(ns.dir,nearest.radius+ns.height+SHIP_CLEARANCE));
  landed=true;vel=[0,0,0];warp=false;if(engState)vehicleStore.update('ship',{...vehicleStore.get('ship').state,fuelKg:engState.craft.fuelKg,temperatureK:engState.craft.temperatureK});engState=null;engBody=null;up=ns.dir;
  let tangent=V.sub(forward,V.mul(up,V.dot(forward,up)));if(V.len(tangent)<.05)tangent=V.cross([0,1,0],up);forward=V.norm(tangent);
- shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;placeRoverNearShip();
+ shipBody=nearest;shipLocal=[...groundLocal];shipForwardVec=[...forward];shipUpVec=[...up];eva=false;evaLocal=null;truckOccupied=false;if(nearest.kind!=='asteroid')placeRoverNearShip();
  SF.recordDiscovery({id:'seamless-land:'+nearest.id,type:'landing',name:'Landed on '+nearest.name,detail:'Engineering physics touchdown',planet:nearest.name,system:nearest.system});
  showToast('ENGINEERING TOUCHDOWN · EVA descent underway');saveFlight();exitShip();
 }
@@ -1292,7 +1292,7 @@ function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=w
  }catch(e){console.error('Starfall frame failed:',e);$('status-text').textContent='GRAPHICS / FLIGHT ERROR: '+String(e.message).slice(0,85);}requestAnimationFrame(loop);}
 addEventListener('resize',()=>renderer.resize());addEventListener('pagehide',saveFlight);
 refreshAsteroidActors(true);if(!(landed&&nearest?.kind==='asteroid'))nearest=nearestBodyAt(pos).planet||first;let initial=surfaceData(nearest,pos);altitude=initial.distance-nearest.radius-initial.height;
-if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}placeRoverNearShip();
+if(landed){if(!shipBody){shipBody=nearest;shipLocal=groundLocal?[...groundLocal]:null;shipForwardVec=[...forward];shipUpVec=[...up];}if(nearest.kind!=='asteroid')placeRoverNearShip();
  const tp=saved?.truckPose;if(truckBody===nearest&&truckLocal&&tp?.bodyId===nearest.id&&Array.isArray(tp.local)&&tp.local.length===3&&tp.local.every(Number.isFinite)){truckLocal=V.norm(tp.local);if(Array.isArray(tp.forward)&&tp.forward.length===3&&tp.forward.every(Number.isFinite))truckForwardVec=V.norm(tp.forward);truckBatteryJ=V.clamp(Number(tp.batteryJ)||0,0,44e6);truckLights=tp.lights!==false;truckCargo=V.clamp(Number(tp.cargo)||0,0,800);truckChargeReadyAtS=Number.isFinite(tp.chargeReadyAtS)?Math.max(0,tp.chargeReadyAtS):0;if(tp.recovery&&Array.isArray(tp.recovery.destination)&&tp.recovery.destination.length===3&&tp.recovery.destination.every(Number.isFinite)&&Number.isFinite(tp.recovery.remainingWorkJ))winch7d=StarfallFieldServiceT12.restore(tp.recovery,nearest.id);}
  const pose=saved?.roverPose;if(roverBody===nearest&&roverLocal&&pose?.bodyId===nearest.id&&Array.isArray(pose.local)&&pose.local.length===3&&pose.local.every(Number.isFinite)){
   roverLocal=V.norm(pose.local);const f=pose.forward;if(Array.isArray(f)&&f.length===3&&f.every(Number.isFinite)&&V.len(f)>.001)roverForwardVec=V.norm(f);
