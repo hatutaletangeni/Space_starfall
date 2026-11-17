@@ -11,7 +11,7 @@ This update adds a surface-capable class of large belt asteroids without changin
 - The 8C geology authority supplies finite composition-derived deposits on asteroid surfaces.
 - EVA spectrometer readings are required before extraction.
 - The EVA multitool consumes 9.6 kJ to extract a 2 kg batch over 12 simulated seconds.
-- Material enters a bounded 20 kg / 0.012 m³ EVA sample pouch. It must be physically carried back within 30 scene units of the landed ship before it can be transferred to the ship's 8A material hold.
+- Material enters a bounded 20 kg / 0.012 m³ EVA sample pouch. It must be physically carried back within 40 scene units of the landed ship before it can be transferred to the ship's 8A material hold.
 - The transfer uses the existing 8A reserve/commit ledger. No inventory is created by a UI button.
 - Truck drilling and existing 8D hauling remain unchanged.
 
