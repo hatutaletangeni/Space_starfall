@@ -111,10 +111,10 @@ function nearby(galaxy,eye,timeS,maxDistance=18000){
  found.sort((a,b)=>dist2(a.position)-dist2(b.position));
  return Object.freeze(found.slice(0,55));
 }
-function proximity(rocks,eye,shipRadius=4){
+function proximity(rocks,eye,shipRadius=4,excludeId=null){
  if(!Array.isArray(rocks)||!Array.isArray(eye))return null;
  let closest=null;
- for(const item of rocks){const d=Math.hypot(...item.position.map((v,i)=>v-eye[i])),clearance=d-item.radius-shipRadius;
+ for(const item of rocks){if(excludeId&&item.id===excludeId)continue;const d=Math.hypot(...item.position.map((v,i)=>v-eye[i])),clearance=d-item.radius-shipRadius;
   if(!closest||clearance<closest.clearance)closest={rockId:item.id,sourceId:item.sourceId,clearance,collision:clearance<=0,category:item.kind};}
  return closest?Object.freeze(closest):null;
 }
