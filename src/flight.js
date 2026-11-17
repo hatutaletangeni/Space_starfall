@@ -10,7 +10,7 @@ for(const sys of galaxy.systems){StarfallAsteroidImpactsLW07.attachSystem(sys,GA
 const activateSystemLW07=galaxy.activate.bind(galaxy);
 galaxy.activate=function(sys){const result=activateSystemLW07(sys);if(result&&!result.__lw07ImpactsAttached){StarfallAsteroidImpactsLW07.attachSystem(result,GALAXY_SEED);result.__lw07ImpactsAttached=true;}return result;};
 const first=galaxy.systems[0].planets[0];
-let target=first,nearest=first,renderer,asteroidActors=[],asteroidActorsAt=0,currentImpactEvent=null;
+let target=first,nearest=first,renderer,asteroidActors=[],asteroidActorsAt=0,currentImpactEvent=null,lastAsteroidMiningError='';
 try{renderer=new Renderer($('universe'),galaxy);}catch(error){console.error('STARFALL initialization:',error);$('fatal').hidden=false;$('boot').hidden=true;return;}
 let simTime=0,pos=V.add(first.position,[0,300,-(first.radius+3550)]),vel=[0,0,0],forward=V.norm(V.sub(first.position,pos)),up=[0,1,0];
 let landed=false,warp=false,camMode=0,camEye=null,camDistance=145,orbitYaw=0,orbitPitch=0,heat=0,solarWarning=false,timeScale=1,altitude=3500,vertical=0,fps=60,lastPlanetId='',nearPhase='DEEP SPACE',hudClock=0,frames=0,frameClock=0,lastTime=performance.now(),lastSave=0,toastTimer=0,landingTimer=0;
@@ -3701,7 +3701,7 @@ function asteroidMineTransferLW07(){
  const ctx=asteroidMiningContextLW07();if(!ctx.available||!ctx.nearShip)throw Error('Carry the EVA pouch back to the landed ship before stowing samples');
  const lots=materials8a.inventory(StarfallAsteroidMiningLW07.POUCH);if(!lots.length)throw Error('The EVA sample pouch is empty');
  const lot=lots[0],massKg=lot.massKg,prior=materials8a,transferId='lw07:eva-transfer:'+lot.id+':'+Math.floor(simTime*1000);
- const result=asteroidMiningLW07.transfer(materials8a,lot.id,massKg,transferId);materials8a=result.materials;
+ const result=asteroidMiningLW07.transfer(materials8a,lot.id,massKg,transferId);materials8a=result.materials;lastAsteroidMiningError='';
  if(!saveFlight()){materials8a=prior;throw Error('Sample transfer was not durably saved; original pouch custody remains authoritative');}
  return{massKg,lotId:lot.id,transferId};
 }
@@ -3714,10 +3714,10 @@ function asteroidMiningAdvanceLW07(dt){
   if(step.usedJ>0)tool.consumeJ(step.usedJ);remaining-=slice;
   if(step.completed){
    const priorMaterials=materials8a,priorResources=resources8c,priorMining=asteroidMiningLW07.snapshot();
-   let committed;try{committed=asteroidMiningLW07.commit(materials8a,resources8c);}catch(error){showToast('ASTEROID EXTRACTION BLOCKED · '+String(error.message||error));return;}
+   let committed;try{committed=asteroidMiningLW07.commit(materials8a,resources8c);}catch(error){const message=String(error.message||error);if(message!==lastAsteroidMiningError)showToast('ASTEROID EXTRACTION BLOCKED · '+message);lastAsteroidMiningError=message;return;}
    materials8a=committed.materials;resources8c=committed.resources;
-   if(!saveFlight()){materials8a=priorMaterials;resources8c=priorResources;asteroidMiningLW07.apply(priorMining);showToast('ASTEROID EXTRACTION · SAVE FAILED · operation retained for retry');return;}
-   showToast('ASTEROID EXTRACTION · 2 kg '+active.deposit.label+' secured in EVA pouch');break;
+   if(!saveFlight()){materials8a=priorMaterials;resources8c=priorResources;asteroidMiningLW07.apply(priorMining);if(lastAsteroidMiningError!=='save-failed')showToast('ASTEROID EXTRACTION · SAVE FAILED · operation retained for retry');lastAsteroidMiningError='save-failed';return;}
+   lastAsteroidMiningError='';showToast('ASTEROID EXTRACTION · 2 kg '+active.deposit.label+' secured in EVA pouch');break;
   }
   if(!enabled||step.usedJ<=0)break;
  }
