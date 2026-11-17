@@ -794,7 +794,7 @@ class Renderer{
   gl.useProgram(this.p.mesh);this.setFloat(this.p.mesh,'uEcologyAlpha',1);this.setFloat(this.p.mesh,'uEcologyWingPhase',0);this.setFloat(this.p.mesh,'uEcologyGait',0);this.setFloat(this.p.mesh,'uEcologyPulse',0);
   this.avatarParts=createExplorerMesh(gl);this.avatarAnimation=0;this.avatarDrawCalls=0;
   this.ship=makeShip(gl);this.shipWalkDeck=makeShipWalkDeck(gl);this.truckMiningTool8D=makeTruckMiningTool(gl);this.rover=makeRover(gl);this.truck=makeTruck(gl);this.satellite=makeSmallSatellite(gl);this.rocket=makeRocketMesh(gl);this.ecologyMeshes=new Map();for(const k of ['microbial','spores','grazer','crawler','flier','aurora','stalker','burrower','jelly','eel','tracks','nest','fossil'])this.ecologyMeshes.set(k,makeEcologyMesh(gl,k));this.ecologyOrgans={heart:makeEcologyOrganMesh(gl,'heart'),stomach:makeEcologyOrganMesh(gl,'stomach')};this.interiorMeshes=new Map();for(let tier=0;tier<=5;tier++)this.interiorMeshes.set(tier,makeInteriorMesh(gl,tier));this.caveMeshes=new Map();this.caveEntranceMeshes=new Map();this.ruins=new Map();for(let tier=0;tier<=5;tier++)this.ruins.set(tier,makeRuinMesh(gl,tier));this.infrastructure=new Map();for(const kind of ["foundation","hab","lab","battery","solar","storage","antenna","connector","industrial_plant","industrial_vessel","vehicle_frame","rocket_stage_dry","habitat_envelope"])this.infrastructure.set(kind,makeInfrastructureMesh(gl,kind));this.sunSphere=makeSphere(gl,1,36,72,{seed:1,type:'Rocky'},false);this.sunHalo=makeSphere(gl,1.75,28,56,{seed:1,type:'Rocky'},false);
-  this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.nearbyDebris=[];this.meshBudget=48;
+  this.meshCache=new Map();this.ringCache=new Map();this.debrisMeshes=[];this.debrisRendered=0;this.closestDebris=null;this.nearbyDebris=[];this.eventScratch=new Float32Array(8*256);this.meshBudget=48;
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
   // collision height, which is always sampled from the seeded continuous field.
@@ -905,8 +905,8 @@ class Renderer{
   const local=Array.isArray(e.anchor)&&e.anchor.length===3?e.anchor:V.norm(V.sub(state.position,body.position));
   const up=V.norm(V.rot(local,axis,spin)),right=V.norm(V.cross(Math.abs(up[1])>.92?[0,0,1]:[0,1,0],up)),forward=V.norm(V.cross(up,right));
   const surface=V.add(body.position,V.mul(up,body.radius+groundHeight(local,body)+.8)),extent=Math.max(25,Math.min(1000,e.extentScene||280));
-  const intensity=V.clamp(e.intensity??.5,0,1),phase=V.clamp(e.phase??.5,0,1),t=this.galaxy.time,verts=[];
-  const add=(point,size,color,alpha)=>{const rel=V.sub(point,eye);if(V.len(rel)>2400||V.dot(rel,state.camera.forward)<-8)return;verts.push(rel[0],rel[1],rel[2],size,color[0],color[1],color[2],alpha);};
+  const intensity=V.clamp(e.intensity??.5,0,1),phase=V.clamp(e.phase??.5,0,1),t=this.galaxy.time,verts=this.eventScratch;let count=0;
+  const add=(point,size,color,alpha)=>{if(count>=256)return;const rel=V.sub(point,eye);if(V.len(rel)>2400||V.dot(rel,state.camera.forward)<-8)return;const i=count++*8;verts[i]=rel[0];verts[i+1]=rel[1];verts[i+2]=rel[2];verts[i+3]=size;verts[i+4]=color[0];verts[i+5]=color[1];verts[i+6]=color[2];verts[i+7]=alpha;};
   const rnd=i=>{let x=Math.imul((i+1)^((e.seed||742)+body.seed),0x45d9f3b);x=Math.imul(x^(x>>>16),0x45d9f3b);return ((x^(x>>>16))>>>0)/4294967296;};
   if(kind==='meteor'){
    for(let m=0;m<7;m++){const side=(rnd(m*7)-.5)*extent*.9,depth=(rnd(m*7+1)-.5)*extent*.7,
@@ -947,11 +947,11 @@ class Renderer{
     point=V.add(surface,V.add(V.mul(right,Math.cos(a)*r),V.add(V.mul(forward,Math.sin(a)*r),V.mul(up,h))));
     add(point,snow?1.1:1.8,color,intensity*.42);}
   }
-  if(!verts.length)return;
+  if(!count)return;
   const gl=this.gl,p=this.p.effects;gl.useProgram(p);this.setMat(p,'uVP',vp);this.setFloat(p,'uFocal',renderH*.7);
-  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER,this.effectBuffer);gl.bufferData(gl.ARRAY_BUFFER,verts,gl.DYNAMIC_DRAW);
   gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
-  gl.drawArrays(gl.POINTS,0,verts.length/8);this.frameDrawCalls++;this.effectsRendered+=verts.length/8;gl.depthMask(true);
+  gl.drawArrays(gl.POINTS,0,count);this.frameDrawCalls++;this.effectsRendered+=count;gl.depthMask(true);
  }
  renderAsteroidImpact(state,eye,vp,renderH){
   const e=state.impactEvent,body=state.nearest;if(!e||!body||body.id!==e.bodyId||state.interior)return;
