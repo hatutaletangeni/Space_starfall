@@ -12,6 +12,7 @@ galaxy.activate=function(sys){const result=activateSystemLW07(sys);if(result&&!r
 const first=galaxy.systems[0].planets[0];
 let target=first,nearest=first,renderer,asteroidActors=[],asteroidActorsAt=0,currentImpactEvent=null,lastAsteroidMiningError='',lastAsteroidMiningSaveMS=0;
 try{renderer=new Renderer($('universe'),galaxy);}catch(error){console.error('STARFALL initialization:',error);$('fatal').hidden=false;$('boot').hidden=true;return;}
+renderer.onContextStatus=message=>{$('status-text').textContent=message;if(message.startsWith('GRAPHICS RESTORED')){lastTime=performance.now();saveFlight();}};
 let simTime=0,pos=V.add(first.position,[0,300,-(first.radius+3550)]),vel=[0,0,0],forward=V.norm(V.sub(first.position,pos)),up=[0,1,0];
 let landed=false,warp=false,camMode=0,camEye=null,camDistance=145,orbitYaw=0,orbitPitch=0,heat=0,solarWarning=false,timeScale=1,altitude=3500,vertical=0,fps=60,lastPlanetId='',nearPhase='DEEP SPACE',hudClock=0,frames=0,frameClock=0,lastTime=performance.now(),lastSave=0,toastTimer=0,landingTimer=0;
 let siteWaypoint=null,scan=null,landingCapture=null,groundLocal=null,headlights=true;
@@ -1278,7 +1279,7 @@ function updateDebrisHazards(now){
   vehicleStore.update('ship',{...previous,health:Math.max(0,previous.health-Math.min(.12,.02+V.len(vel)*.00015))});
  }
 }
-function loop(now){const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
+function loop(now){if(renderer.contextLost){lastTime=now;requestAnimationFrame(loop);return;}const dt=Math.min(Math.max((now-lastTime)/1000,0),.04),perf=window.StarfallIntegration,started=perf?.enabled?performance.now():0;lastTime=now;
  try{if(!busy()){updateVehicleSystems(dt);updatePhysics(dt);updateDebrisHazards(now);asteroidMiningAdvanceLW07(dt);if(window.StarfallScienceUI?.tick)window.StarfallScienceUI.tick(dt,timeScale);if(window.StarfallOutpostUI?.tick)window.StarfallOutpostUI.tick(dt,timeScale);if(window.StarfallRuinsUI?.tick)window.StarfallRuinsUI.tick(dt,timeScale);if(window.StarfallInteriorsUI?.tick)window.StarfallInteriorsUI.tick(dt,timeScale);if(window.StarfallEventsUI?.tick)window.StarfallEventsUI.tick(dt,timeScale);if(window.StarfallLaunchUI?.tick)window.StarfallLaunchUI.tick(dt,timeScale);window.StarfallMissionOperationsUI?.advanceTo(simTime);if(scan){scan.progress=Math.min(1,scan.progress+dt/2.2);$('scan-fill').style.width=(scan.progress*100).toFixed(1)+'%';if(scan.progress>=1)finishScan();}}
   const afterUpdate=started?performance.now():0;
   const camera=cameraState(dt),ship=shipWorldState(),rover=roverWorldState();lastPickingCamera=camera;

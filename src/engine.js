@@ -785,7 +785,7 @@ function createExplorerMesh(gl){
 function rand(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};}
 function starBuffer(gl,arr,usage){let vao=gl.createVertexArray();gl.bindVertexArray(vao);let vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,arr,usage);gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,4,gl.FLOAT,false,20,0);gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,1,gl.FLOAT,false,20,16);gl.bindVertexArray(null);return{vao,vb,count:arr.length/5};}
 class Renderer{
- constructor(canvas,galaxy){
+ constructor(canvas,galaxy,restoring=false){
   this.canvas=canvas;this.galaxy=galaxy;
   this.gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:true,powerPreference:'high-performance'});
   if(!this.gl)throw Error('WebGL 2 is unavailable.');const gl=this.gl;
@@ -812,8 +812,16 @@ class Renderer{
    const side=V.norm(V.cross(center,[0,1,0])),up=V.norm(V.cross(side,center));for(let j=0;j<34;j++){const x=(nebR()-.5)*.46,z=(nebR()-.5)*.28,dir=V.norm(V.add(center,V.add(V.mul(side,x),V.mul(up,z))));this.skyClouds.push({dir,size:1800+nebR()*5200,color:cloudColors[i],alpha:.045+nebR()*.075});}}
   this.deep=starBuffer(gl,deep,gl.STATIC_DRAW);this.celestial=starBuffer(gl,new Float32Array(5),gl.DYNAMIC_DRAW);this.skyVao=gl.createVertexArray();
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.disable(gl.CULL_FACE);this.resize();
+   this.contextLost=false;
+   if(!restoring){
+    canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();this.contextLost=true;this.onContextStatus?.('GRAPHICS PAUSED · GPU context lost; waiting for browser recovery');});
+    canvas.addEventListener('webglcontextrestored',()=>{
+     try{const status=this.onContextStatus;const rebuilt=new Renderer(this.canvas,this.galaxy,true);Object.assign(this,rebuilt);this.onContextStatus=status;this.contextLost=false;this.onContextStatus?.('GRAPHICS RESTORED · renderer resources rebuilt');}
+     catch(error){this.contextLost=true;this.onContextStatus?.('GRAPHICS RECOVERY FAILED · '+String(error?.message||error).slice(0,90));console.error('STARFALL WebGL recovery failed:',error);}
+    });
+   }
  }
- resize(){const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;const iw=Math.max(2,Math.floor(w*this.pixelRatio)),ih=Math.max(2,Math.floor(h*this.pixelRatio));if(this.canvas.width!==iw||this.canvas.height!==ih){this.canvas.width=iw;this.canvas.height=ih;}this.gl.viewport(0,0,iw,ih);this.aspect=w/h;this.fov=Math.PI/3.12;}
+ resize(){if(this.contextLost)return;const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;const iw=Math.max(2,Math.floor(w*this.pixelRatio)),ih=Math.max(2,Math.floor(h*this.pixelRatio));if(this.canvas.width!==iw||this.canvas.height!==ih){this.canvas.width=iw;this.canvas.height=ih;}this.gl.viewport(0,0,iw,ih);this.aspect=w/h;this.fov=Math.PI/3.12;}
  loc(p,n){return this.gl.getUniformLocation(p,n)}
  setMat(p,k,m){this.gl.uniformMatrix4fv(this.loc(p,k),false,m)}
  setVec(p,k,v){this.gl.uniform3fv(this.loc(p,k),v)}
@@ -1165,7 +1173,7 @@ class Renderer{
    else{const rocky=planet.type==='Volcanic'?[.34,.21,.17]:planet.type==='Ice'?[.61,.72,.75]:planet.type==='Desert'?[.58,.43,.29]:[.39,.43,.40];triangle(ax,cx,tip,rocky);triangle(cx,bx,tip,V.mix(rocky,[.16,.18,.20],.24));triangle(bx,dx,tip,rocky);triangle(dx,ax,tip,V.mix(rocky,[.14,.19,.16],.14));}
   }this.props=makeMesh(this.gl,p,n,c,indices);
  }
- render(state){if(!this.captureSize)this.latestFrameState=state;const renderW=this.captureSize?.width||this.canvas.width,renderH=this.captureSize?.height||this.canvas.height;this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
+ render(state){if(this.contextLost)return;if(!this.captureSize)this.latestFrameState=state;const renderW=this.captureSize?.width||this.canvas.width,renderH=this.captureSize?.height||this.canvas.height;this.frameDrawCalls=0;const gl=this.gl,cam=state.camera,near=state.nearest,alt=state.altitude,origin=cam.eye,viewer=state.viewerPosition||state.position,shipPos=state.shipPosition||state.position,lightPos=state.lightPosition||shipPos;
   if(state.interior?.kind!=='cave')this.updatePatch(near,viewer,alt);this.propsPlanet=null;this.updateCelestial(cam);
   const nearSystem=near?this.galaxy.byId.get(near.systemId):this.galaxy.nearestSystem(origin);
   const radial=near?V.norm(V.sub(cam.eye,near.position)):[0,1,0];
