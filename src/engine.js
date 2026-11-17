@@ -1270,7 +1270,7 @@ class Renderer{
    }
    const rockSet=root.StarfallDebrisLW05.nearby(this.galaxy,origin,this.galaxy.time,18000);
    this.nearbyDebris=rockSet;this.debrisRendered=rockSet.length;
-   this.closestDebris=root.StarfallDebrisLW05.proximity(rockSet,viewer,4);
+   this.closestDebris=root.StarfallDebrisLW05.proximity(rockSet,viewer,4,near?.kind==='asteroid'?near.id:null);
    if(rockSet.length){
     p=this.p.mesh;gl.useProgram(p);this.setMat(p,'uViewProj',vp);this.setVec(p,'uCamera',[0,0,0]);
     applyLight(p,near);this.setVec(p,'uFogColor',[.005,.007,.01]);this.setFloat(p,'uFogDensity',0);this.setFloat(p,'uShip',1);
