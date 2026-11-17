@@ -38,7 +38,7 @@ function candidates(body,c){
  };
  return TYPES.filter(t=>eligible[t.id]);}
 function site(body,dir,seed=742){
- if(!body||!validId(body.id)||!body.landable||!['planet','moon'].includes(body.kind))return null;
+ if(!body||!validId(body.id)||!body.landable||!['planet','moon','asteroid'].includes(body.kind))return null;
  const c=composition(body,seed),t=tiles(dir),local=center(t.lat,t.lon),key='8c:'+VERSION+':'+seed+':'+body.id+':'+t.lat+':'+t.lon;
  const choices=candidates(body,c);if(!choices.length)return null;
  const index=Math.floor(unit(key+':kind')*choices.length),type=choices[index];
@@ -49,12 +49,13 @@ function site(body,dir,seed=742){
   (type.id==='silica'&&name==='silicate')||(type.id==='regolith'&&name==='regolith');
  const richness=unit(key+':richness'),regional=match?1.5:1;
  const grade=clamp((type.grade[0]+(type.grade[1]-type.grade[0])*richness)*regional,0,1);
- const radiusScene=6+unit(key+':radius')*17;
- const thicknessM=1.5+unit(key+':thickness')*27;
- const depthM=unit(key+':depth')*(body.type==='Ice'?16:42);
+ const asteroid=body.kind==='asteroid';
+ const radiusScene=asteroid?1.5+unit(key+':radius')*4.5:6+unit(key+':radius')*17;
+ const thicknessM=asteroid?.6+unit(key+':thickness')*7:1.5+unit(key+':thickness')*27;
+ const depthM=unit(key+':depth')*(asteroid?9:body.type==='Ice'?16:42);
  // Accessible excavated material, not a planetary bulk metal reserve.
  const density=type.id==='water_ice'?850:type.id==='regolith'?1600:2300;
- const massKg=Math.round(Math.PI*Math.pow(radiusScene*1000,2)*thicknessM*density*.002*(.15+.4*unit(key+':access')));
+ const massKg=Math.round(Math.PI*Math.pow(radiusScene*1000,2)*thicknessM*density*(asteroid?.00035:.002)*(.15+.4*unit(key+':access')));
  const deposit={id:key,model:VERSION,bodyId:body.id,seed,local,cell:{lat:t.lat,lon:t.lon},
   type:type.id,label:type.label,hostRock:name,grade,depthMinM:Math.round(depthM*10)/10,
   depthMaxM:Math.round((depthM+thicknessM)*10)/10,radiusScene,
