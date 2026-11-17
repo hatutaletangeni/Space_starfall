@@ -3670,6 +3670,56 @@ function miningContext8D(){
   truckHopper:materials8a.used(StarfallMining8D.TRUCK),shipWarehouse:materials8a.used(StarfallMining8D.SHIP),
   active:mining8d.active,drillCondition:mining8d.toolCondition};
 }
+function asteroidMiningContextLW07(){
+ const body=nearest,local=evaLocal||groundLocal,available=body?.kind==='asteroid'&&landed&&eva&&!truckOccupied&&!interiorState&&shipBody===body;
+ const deposit=available&&local?StarfallResources8C.site(body,local,GALAXY_SEED):null;
+ const survey=deposit?resources8c.observations().find(x=>x.siteId===deposit.id&&x.instrument==='EVA field spectrometer'):null;
+ const distance=deposit&&local?Math.acos(V.clamp(V.dot(V.norm(local),V.norm(deposit.local)),-1,1))*body.radius:Infinity;
+ const shipDistance=available&&shipLocal&&local?Math.acos(V.clamp(V.dot(V.norm(local),V.norm(shipLocal)),-1,1))*body.radius:Infinity;
+ const pouch=materials8a.used(StarfallAsteroidMiningLW07.POUCH),active=asteroidMiningLW07.active;
+ return{available,bodyId:body?.id||null,deposit,surveyed:!!survey,depositLabel:deposit?.label||'No local deposit',
+  remainingKg:deposit?resources8c.remaining(deposit):0,nearDeposit:distance<=Math.max(12,(body?.radius||0)*.035),
+  nearShip:shipDistance<=30,pouchMassKg:pouch.massKg,active:active?{...active,progress:V.clamp(active.elapsedS/active.durationS,0,1)}:null};
+}
+function asteroidSurveyLW07(local=evaLocal){
+ const ctx=asteroidMiningContextLW07();if(!ctx.available||!local)throw Error('Exit the ship onto a landable asteroid before prospecting');
+ const deposit=StarfallResources8C.site(nearest,local,GALAXY_SEED);if(!deposit)throw Error('No accessible resource occurrence at this asteroid surface cell');
+ const before=resources8c.serialize(),report=resources8c.survey(deposit,simTime,'EVA field spectrometer');
+ if(!saveFlight()){resources8c=StarfallResources8C.create(before);throw Error('Survey could not be saved; no persistent record was added');}
+ return report;
+}
+function asteroidMineStartLW07(){
+ const ctx=asteroidMiningContextLW07(),tool=window.StarfallMultitool9G;
+ if(!ctx.available||!ctx.deposit)throw Error('Stand on a landable asteroid surface with an accessible deposit');
+ if(!tool)throw Error('EVA multitool is not initialized');
+ return asteroidMiningLW07.start({deposit:ctx.deposit,surveyed:ctx.surveyed,bodyId:ctx.bodyId,
+  bodyKind:nearest.kind,landed,eva,operatorNear:ctx.nearDeposit,chargeJ:tool.chargeJ});
+}
+function asteroidMineTransferLW07(){
+ const ctx=asteroidMiningContextLW07();if(!ctx.available||!ctx.nearShip)throw Error('Carry the EVA pouch back to the landed ship before stowing samples');
+ const lots=materials8a.inventory(StarfallAsteroidMiningLW07.POUCH);if(!lots.length)throw Error('The EVA sample pouch is empty');
+ const lot=lots[0],massKg=lot.massKg,prior=materials8a,transferId='lw07:eva-transfer:'+lot.id+':'+Math.floor(simTime*1000);
+ const result=asteroidMiningLW07.transfer(materials8a,lot.id,massKg,transferId);materials8a=result.materials;
+ if(!saveFlight()){materials8a=prior;throw Error('Sample transfer was not durably saved; original pouch custody remains authoritative');}
+ return{massKg,lotId:lot.id,transferId};
+}
+function asteroidMiningAdvanceLW07(dt){
+ const active=asteroidMiningLW07.active,tool=window.StarfallMultitool9G;if(!active||!tool)return;
+ const ctx=asteroidMiningContextLW07(),enabled=ctx.available&&ctx.bodyId===active.bodyId&&ctx.nearDeposit;
+ let remaining=Math.min(4,Math.max(0,dt*timeScale)),guard=0;
+ while(remaining>1e-6&&guard++<3){
+  const slice=Math.min(2,remaining),step=asteroidMiningLW07.advance(slice,tool.chargeJ,{enabled});
+  if(step.usedJ>0)tool.consumeJ(step.usedJ);remaining-=slice;
+  if(step.completed){
+   const priorMaterials=materials8a,priorResources=resources8c,priorMining=asteroidMiningLW07.snapshot();
+   const committed=asteroidMiningLW07.commit(materials8a,resources8c);
+   materials8a=committed.materials;resources8c=committed.resources;
+   if(!saveFlight()){materials8a=priorMaterials;resources8c=priorResources;asteroidMiningLW07.apply(priorMining);showToast('ASTEROID EXTRACTION · SAVE FAILED · operation retained for retry');return;}
+   showToast('ASTEROID EXTRACTION · 2 kg '+active.deposit.label+' secured in EVA pouch');break;
+  }
+  if(!enabled||step.usedJ<=0)break;
+ }
+}
 function miningDeposit8D(){
  const ctx=miningContext8D();return ctx.truckPresent?StarfallResources8C.site(nearest,truckLocal,GALAXY_SEED):null;
 }
