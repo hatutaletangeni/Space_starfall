@@ -797,7 +797,7 @@ class Renderer{
   this.patch=null;this.patchPlanet=null;this.patchCenter=null;this.patchDraws=0;this.lastPatchAt=0;this.lastPropsAt=0;this.props=null;this.propsPlanet=null;this.propsCenter=null;
   // Planet-fixed tile meshes are immutable. Rendering resolution never changes
   // collision height, which is always sampled from the seeded continuous field.
-  this.terrainTiles=new Map();this.activeTerrain=[];this.terrainKeyBody=null;
+  this.terrainTiles=new Map();this.activeTerrain=[];this.terrainKeyBody=null;this.terrainKeyImpact=-1;
   this.terrainCacheHits=0;this.terrainCacheMisses=0;this.terrainCacheEvictions=0;this.terrainPropCount=0;
   this.terrainGridSegments=24;this.terrainCacheBudget=110;this.terrainDebugEnabled=false;
   this.pixelRatio=Math.min(devicePixelRatio||1,1.4);this.dprTarget=this.pixelRatio;this.starPoints=0;this.renderedBodies=0;this.culledBodies=0;this.visibleSystems=0;
@@ -975,9 +975,9 @@ class Renderer{
   gl.depthMask(false);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.bindVertexArray(this.effectVao);
   gl.drawArrays(gl.POINTS,0,values.length/8);this.frameDrawCalls++;this.effectsRendered+=values.length/8;gl.depthMask(true);
  }
- geometry(body,lod){const key=body.id+':'+lod;let cached=this.meshCache.get(key);if(cached){if(lod===2&&body.landable&&!cached.atmo&&(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)cached.atmo=makeSphere(this.gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);this.meshCache.delete(key);this.meshCache.set(key,cached);return cached;}
-  const gl=this.gl,detail=lod===2?[80,160]:lod===1?[36,72]:[16,32];cached={world:makeSphere(gl,body.radius,...detail,body,true),atmo:null,cloud:null};
-  if(lod===2&&body.landable&&(body.kind!=='moon'||(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)){cached.atmo=makeSphere(gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);if(['Temperate','Ocean','Lush','Ice'].includes(body.type))cached.cloud=makeSphere(gl,body.radius+Math.min(114,body.radius*.06),28,56,body,false);}
+ geometry(body,lod){const key=body.id+':'+lod+':'+(body.impactRevision||0);let cached=this.meshCache.get(key);if(cached){if(lod===2&&body.landable&&body.kind!=='asteroid'&&!cached.atmo&&(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)cached.atmo=makeSphere(this.gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);this.meshCache.delete(key);this.meshCache.set(key,cached);return cached;}
+  const gl=this.gl,detail=body.kind==='asteroid'?(lod===2?[56,112]:lod===1?[28,56]:[14,28]):lod===2?[80,160]:lod===1?[36,72]:[16,32];cached={world:makeSphere(gl,body.radius,...detail,body,true),atmo:null,cloud:null};
+  if(lod===2&&body.landable&&body.kind!=='asteroid'&&(body.kind!=='moon'||(root.StarfallRuntime?.planetaryEngineeringView?.(body.id)?.hazeOpacity||0)>1e-8)){cached.atmo=makeSphere(gl,body.radius+Math.min(260,body.radius*.12),30,60,body,false);if(['Temperate','Ocean','Lush','Ice'].includes(body.type))cached.cloud=makeSphere(gl,body.radius+Math.min(114,body.radius*.06),28,56,body,false);}
   this.meshCache.set(key,cached);while(this.meshCache.size>this.meshBudget){const oldest=this.meshCache.keys().next().value,old=this.meshCache.get(oldest);this.freeMesh(old.world);this.freeMesh(old.atmo);this.freeMesh(old.cloud);this.meshCache.delete(oldest);}return cached;
  }
  ringMesh(body){let mesh=this.ringCache.get(body.id);if(mesh){this.ringCache.delete(body.id);this.ringCache.set(body.id,mesh);return mesh;}
@@ -1065,7 +1065,8 @@ class Renderer{
   this.activeTerrain=[];
   if(!planet||!planet.landable||alt>Math.min(1000,planet.radius*.65)){this.patchPlanet=null;return;}
   const local=this.localDir(planet,V.norm(V.sub(position,planet.position)));
-  if(this.terrainKeyBody!==planet.id){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.water);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;}
+  const impactRevision=planet.impactRevision||0;
+  if(this.terrainKeyBody!==planet.id||this.terrainKeyImpact!==impactRevision){for(const tile of this.terrainTiles.values()){this.freeMesh(tile.ground);this.freeMesh(tile.water);this.freeMesh(tile.props);}this.terrainTiles.clear();this.terrainKeyBody=planet.id;this.terrainKeyImpact=impactRevision;}
   this.patchPlanet=planet;this.patchCenter=local;
   const requested=ST.visibleTiles(planet,local,3),needed=new Set(requested.map(t=>t.key));
   let built=0;for(const desc of requested){let tile=this.terrainTiles.get(desc.key);
@@ -1077,7 +1078,7 @@ class Renderer{
  terrainDiagnostics(){const d=this.patchCenter&&this.patchPlanet?ST.descriptorForDirection(this.patchPlanet,this.patchCenter):null;
   return{body:this.patchPlanet?.id||null,face:d?.face??null,tile:d?.key||null,resolution:this.terrainGridSegments,cached:this.terrainTiles.size,active:this.activeTerrain.length,hits:this.terrainCacheHits,misses:this.terrainCacheMisses,evictions:this.terrainCacheEvictions,built:this.patchDraws,props:this.activeTerrain.reduce((sum,t)=>sum+(t.propCount||0),0),biome:this.patchCenter&&this.patchPlanet?BIOMES.classify(this.patchPlanet,this.patchCenter,groundHeight(this.patchCenter,this.patchPlanet),field(this.patchCenter,this.patchPlanet.seed)).name:null,collision:'continuous deterministic planet-fixed sample',render:'fixed cubemap tiles / no moving tessellation',sampleHeight:this.patchCenter&&this.patchPlanet?groundHeight(this.patchCenter,this.patchPlanet):null,seamError:(()=>{if(!d)return null;const neighbor=d.ix+1<d.n?ST.tileDescriptor(this.patchPlanet,d.face,d.ix+1,d.iy):null;if(!neighbor)return null;let max=0;for(let j=0;j<=this.terrainGridSegments;j+=6){const a=ST.vertexDirection(d,this.terrainGridSegments,j,this.terrainGridSegments),b=ST.vertexDirection(neighbor,0,j,this.terrainGridSegments);max=Math.max(max,Math.abs(groundHeight(a,this.patchPlanet)-groundHeight(b,this.patchPlanet)));}return max;})()};
  }
- updateProps(planet,position,alt){if(!planet||!planet.landable||alt>Math.min(310,planet.radius*.45)){this.propsPlanet=null;return;}const dir=this.localDir(planet,V.norm(V.sub(position,planet.position)));if(this.propsPlanet===planet&&(V.len(V.sub(dir,this.propsCenter))*planet.radius<90||performance.now()-this.lastPropsAt<300))return;this.lastPropsAt=performance.now();
+ updateProps(planet,position,alt){if(!planet||!planet.landable||planet.kind==='asteroid'||alt>Math.min(310,planet.radius*.45)){this.propsPlanet=null;return;}const dir=this.localDir(planet,V.norm(V.sub(position,planet.position)));if(this.propsPlanet===planet&&(V.len(V.sub(dir,this.propsCenter))*planet.radius<90||performance.now()-this.lastPropsAt<300))return;this.lastPropsAt=performance.now();
   this.propsPlanet=planet;this.propsCenter=[...dir];this.freeMesh(this.props);const east=V.norm(V.cross(Math.abs(dir[1])>.92?[0,0,1]:[0,1,0],dir)),north=V.norm(V.cross(dir,east));const p=[],n=[],c=[],indices=[];
   const triangle=(a,b,d,color)=>{const normal=V.norm(V.cross(V.sub(b,a),V.sub(d,a))),base=p.length/3;for(const point of [a,b,d]){p.push(...point);n.push(...normal);c.push(...color);}indices.push(base,base+1,base+2);};
   const rng=rand(planet.seed^Math.floor(dir[0]*5000)^Math.floor(dir[2]*5000)*29);
