@@ -47,11 +47,18 @@ jobs:
           python tests/mobile-standalone-parity.py
           git diff --exit-code -- PLAY-STARFALL.html PLAY-STARFALL-MOBILE.html
 
-  browser-smoke:
+  browser-regression:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
+      # Historical-save browser regression reads genuine previous commits.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -59,37 +66,29 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check playwright==1.56.0
           python -m playwright install --with-deps chromium
-      - name: Exercise real STARFALL standalone UI in headless Chromium
+      - name: Exercise every STARFALL browser test in headless Chromium (shard ${{ matrix.shard }})
         run: |
-          python tests/research7e-browser.py
-          python tests/imaging7f-browser.py
-          python tests/expedition-hardening-browser.py
-          python tests/ecology9b-browser.py
-          python tests/mission-operations-t01-browser.py
-          python tests/power-ledger-t02-browser.py
-          python tests/mission-transport-t03-browser.py
-          python tests/antenna-hardware-t04-browser.py
-          python tests/remote-imaging-t05-browser.py
-          python tests/rover-lifecycle-t06-browser.py
-          python tests/field-service-t12-browser.py
-          python tests/ship-service-t13-browser.py
-          python tests/science-evidence-t14-browser.py
-          python tests/equipment-t15-browser.py
-          python tests/operations-t16-browser.py
-          python tests/expedition-archive-t17-browser.py
-          python tests/release-gate-t18-browser.py
-          python tests/rf-analyzer-t19-browser.py
-          python tests/ui20-cockpit-browser.py
-          python tests/orbital-bus-t07-browser.py
-          python tests/interplanetary-t08-browser.py
-          python tests/science-chain-t10-browser.py
-          python tests/habitat-t09-browser.py
-          python tests/asteroid-worlds-lw07-browser.py
+          shard=${{ matrix.shard }}
+          index=0
+          count=0
+          failed=0
+          for test in tests/*-browser.py; do
+            if [ $((index % 6)) -eq "$shard" ]; then
+              count=$((count + 1))
+              echo "::group::Browser test: $test"
+              python "$test" || failed=$((failed + 1))
+              echo "::endgroup::"
+            fi
+            index=$((index + 1))
+          done
+          echo "Shard $shard: ran $count of $index browser tests; failed $failed"
+          test "$count" -gt 0
+          test "$failed" -eq 0
       - name: Upload actual software-WebGL screenshot and performance data
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: starfall-7f-software-webgl-qa
+          name: starfall-7f-software-webgl-qa-shard-${{ matrix.shard }}
           path: artifacts/7f-expedition-ci/
           if-no-files-found: ignore
           retention-days: 14
@@ -97,7 +96,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: starfall-t05-remote-camera-actual-webgl
+          name: starfall-t05-remote-camera-actual-webgl-shard-${{ matrix.shard }}
           path: artifacts/t05-camera-evidence/
           if-no-files-found: ignore
           retention-days: 14

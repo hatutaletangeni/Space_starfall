@@ -19,7 +19,7 @@ permissions:
 jobs:
   rebuild-exact-original-standalone:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
           fi
   real-original-depot-feed-to-8e:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4

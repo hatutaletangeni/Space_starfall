@@ -14,10 +14,15 @@ branches=[
  {"name":"feature/draft-new","commit":{"sha":"d"},"protected":False},
  {"name":"feature/active-pr","commit":{"sha":"e"},"protected":False},
  {"name":"feature/protected","commit":{"sha":"f"},"protected":True},
+ {"name":"feat/merged-new","commit":{"sha":"h"},"protected":False},
+ {"name":"ci/merged-checks","commit":{"sha":"i"},"protected":False},
+ {"name":"work/active-review","commit":{"sha":"j"},"protected":False},
  {"name":"misc/custom","commit":{"sha":"g"},"protected":False},
 ]
-candidate,kept=select(branches,{"feature/active-pr"},lambda sha:sha in ("c","e","f","g"))
-assert [x["name"] for x in candidate]==["feature/merged-old"],candidate
-assert len(kept)==7
+candidate,kept=select(branches,{"feature/active-pr","work/active-review"},lambda sha:sha in ("c","e","f","g","h","i","j"))
+assert [x["name"] for x in candidate]==["feature/merged-old","feat/merged-new","ci/merged-checks"],candidate
+assert len(kept)==8
 assert {x["name"]:x["reason"] for x in kept}["feature/draft-new"]=="contains commits not reachable from current main"
-print("PASS branch cleanup: only exact fully merged ancestry, protect backups, active PRs, unmerged unique commits, releases")
+assert {x["name"]:x["reason"] for x in kept}["work/active-review"]=="active open PR"
+assert {x["name"]:x["reason"] for x in kept}["misc/custom"]=="not an approved short-lived branch"
+print("PASS branch cleanup: exact ancestry across short-lived prefixes; retain backups, active PRs, unique commits, releases")

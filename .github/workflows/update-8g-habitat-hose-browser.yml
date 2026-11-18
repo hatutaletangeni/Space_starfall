@@ -14,7 +14,7 @@ on:
       - '.github/workflows/update-8g-habitat-hose-browser.yml'
 jobs:
   rated-hose-habitat-commissioning:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

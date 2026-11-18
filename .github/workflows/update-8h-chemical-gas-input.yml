@@ -21,7 +21,7 @@ permissions:
 jobs:
   rebuild-identical-original-play:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
           fi
   two-real-inlet-hops-original-8a-native-420w:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4

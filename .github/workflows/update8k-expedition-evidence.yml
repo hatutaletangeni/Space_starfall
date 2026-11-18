@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   evidence-and-parity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
   authentic-history-and-flight:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

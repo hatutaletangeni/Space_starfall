@@ -447,7 +447,7 @@ body[data-truck-driving=true] #sf-truck-locator8er{display:none!important}
   cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
  #multitool9g-close{display:none}
 
- #multitool9g-open{right:10px;bottom:16px;padding:13px 14px;z-index:31;font-size:11px}
+ #multitool9g-open{right:10px;bottom:145px;padding:10px 12px;z-index:20;font-size:11px}
  #multitool9g-panel{right:7px;bottom:63px;width:min(340px,calc(100vw - 14px));
   max-height:calc(100dvh - 78px);z-index:46;padding:12px}
  #multitool9g-panel button,#multitool9g-mode{min-height:39px;touch-action:manipulation;
@@ -462,7 +462,9 @@ body.sfmobile-edition #multitool9g-dismiss:not([hidden]){display:block;position:
  min-height:44px;font:700 12px Consolas,monospace;cursor:pointer;
  touch-action:manipulation;-webkit-user-select:none;user-select:none}
 body.sfmobile-edition #multitool9g-close{display:none}
-body.sfmobile-edition #multitool9g-open{right:10px;bottom:16px;padding:13px 14px;z-index:31}
+/* Keep the scanner above the bottom-right touch keypad (including TIME). */
+body.sfmobile-edition #multitool9g-open{right:10px;bottom:calc(3 * var(--sfm-key, 38px) + 4 * var(--sfm-gap, 3px) + 14px);padding:10px 12px;z-index:20}
+body.sfmobile-edition.sf-flow-open #multitool9g-open{display:none!important}
 body.sfmobile-edition #multitool9g-panel{right:7px;bottom:63px;width:min(340px,calc(100vw - 14px));
  max-height:calc(100dvh - 78px);z-index:46;padding:12px}
 
@@ -28038,12 +28040,19 @@ root.StarfallIndustryCompletionUI8K={refresh};
   if(button.dataset.mobileKey)pressAction(button.dataset.mobileKey);
   else actions[button.dataset.mobileAction]?.();
  }
+ const lastPointerActivation=new WeakMap();
  hud.querySelectorAll('[data-mobile-key],[data-mobile-action]').forEach(button=>{
   button.addEventListener('pointerdown',event=>{if(event.button!==0&&event.pointerType==='mouse')return;
-   event.preventDefault();event.stopPropagation();activate(button);button.classList.add('pressed');
+   event.preventDefault();event.stopPropagation();
+   lastPointerActivation.set(button,performance.now());
+   activate(button);button.classList.add('pressed');
   },{passive:false});
   for(const name of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(name,()=>button.classList.remove('pressed'));
-  button.addEventListener('click',event=>{event.preventDefault();if(event.detail===0)activate(button);});
+  // Some touch browsers synthesize a detail=0 click after pointerdown.
+  // Preserve keyboard activation without toggling MISSION twice for one tap.
+  button.addEventListener('click',event=>{event.preventDefault();
+   if(event.detail===0&&performance.now()-(lastPointerActivation.get(button)??-Infinity)>750)activate(button);
+  });
  });
  document.addEventListener('contextmenu',event=>{
   if(event.target.closest?.('#sfmobile-hud,button,[role="button"]'))event.preventDefault();

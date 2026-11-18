@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 jobs:
   ecology-physics-and-visuals:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 24
     permissions:
       contents: write
