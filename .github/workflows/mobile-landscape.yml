@@ -32,7 +32,7 @@ on:
       - '.github/workflows/mobile-landscape.yml'
 jobs:
   exact-mobile-parity:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
           node tests/mobile-vehicle-bay.test.cjs
           node tests/truck-cockpit.test.cjs
   mobile-chromium:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +66,7 @@ jobs:
   publish-mobile-standalone:
     needs: [exact-mobile-parity, mobile-chromium]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[mobile-standalone]')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     permissions:
       contents: write

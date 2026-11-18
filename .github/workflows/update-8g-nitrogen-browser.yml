@@ -16,7 +16,7 @@ on:
       - '.github/workflows/update-8g-nitrogen-browser.yml'
 jobs:
   real-nitrogen-capture:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

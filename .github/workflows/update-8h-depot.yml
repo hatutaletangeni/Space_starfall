@@ -10,7 +10,7 @@ permissions:
 jobs:
   regenerate-standalone:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
           gh workflow run update-8h-depot.yml --ref feature/update-8h-manufactured-cargo-depot
   verify-generated-head:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

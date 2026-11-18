@@ -20,7 +20,7 @@ on:
       - '.github/workflows/update-8g-structures-browser.yml'
 jobs:
   physical-rocket-and-habitat:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

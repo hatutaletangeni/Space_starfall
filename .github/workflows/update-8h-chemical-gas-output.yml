@@ -20,7 +20,7 @@ permissions:
 jobs:
   rebuild-original-play:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
           fi
   actual-original-8a-80l-t02-gas:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
