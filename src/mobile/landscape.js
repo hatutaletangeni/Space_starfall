@@ -52,12 +52,19 @@
   if(button.dataset.mobileKey)pressAction(button.dataset.mobileKey);
   else actions[button.dataset.mobileAction]?.();
  }
+ const lastPointerActivation=new WeakMap();
  hud.querySelectorAll('[data-mobile-key],[data-mobile-action]').forEach(button=>{
   button.addEventListener('pointerdown',event=>{if(event.button!==0&&event.pointerType==='mouse')return;
-   event.preventDefault();event.stopPropagation();activate(button);button.classList.add('pressed');
+   event.preventDefault();event.stopPropagation();
+   lastPointerActivation.set(button,performance.now());
+   activate(button);button.classList.add('pressed');
   },{passive:false});
   for(const name of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(name,()=>button.classList.remove('pressed'));
-  button.addEventListener('click',event=>{event.preventDefault();if(event.detail===0)activate(button);});
+  // Some touch browsers synthesize a detail=0 click after pointerdown.
+  // Preserve keyboard activation without toggling MISSION twice for one tap.
+  button.addEventListener('click',event=>{event.preventDefault();
+   if(event.detail===0&&performance.now()-(lastPointerActivation.get(button)??-Infinity)>750)activate(button);
+  });
  });
  document.addEventListener('contextmenu',event=>{
   if(event.target.closest?.('#sfmobile-hud,button,[role="button"]'))event.preventDefault();
