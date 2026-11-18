@@ -55,7 +55,10 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3, 4, 5]
     steps:
+      # Historical-save browser regression reads genuine previous commits.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
